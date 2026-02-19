@@ -1,0 +1,164 @@
+<mxfile host="app.diagrams.net" agent="BillForge" version="24.0.0">
+  <diagram id="system-arch" name="System Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="fg" value="Frontend — React 19 + Vite 6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="440" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="f1" value="Invoice Table&#xa;+ Pagination" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="55" y="65" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f2" value="Overview&#xa;Analytics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="160" y="65" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f3" value="Platform&#xa;Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="265" y="65" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f4" value="Error&#xa;Boundary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="370" y="65" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f5" value="Toast / Confirm&#xa;SSE Events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="160" y="110" width="95" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Auth Group -->
+        <mxCell id="ag" value="Auth Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="520" y="30" width="340" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" value="JWT Session&#xa;HS256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="535" y="70" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="RBAC 4-Role&#xa;Admin/Member/Viewer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="70" width="95" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" value="Keycloak OIDC&#xa;requireAuth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="745" y="70" width="100" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Backend Group -->
+        <mxCell id="bg" value="Backend API — Express + TypeScript" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="820" height="280" as="geometry" />
+        </mxCell>
+
+        <!-- Ingestion sub -->
+        <mxCell id="ig" value="Ingestion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="55" y="235" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="i1" value="Email IMAP/OAuth2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="65" y="260" width="155" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="i2" value="Folder Watch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="65" y="290" width="155" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="i3" value="Checkpoint Mgmt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="65" y="318" width="155" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Extraction sub -->
+        <mxCell id="eg" value="Extraction Pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="250" y="235" width="190" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="OCR + Confidence Gate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="260" width="165" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="Field Parser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="290" width="165" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="SLM Verifier Fallback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="318" width="165" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Export sub -->
+        <mxCell id="xg" value="Export" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="455" y="235" width="190" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="x1" value="Tally XML Builder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="465" y="260" width="165" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="x2" value="GST Ledger Entries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="465" y="290" width="165" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="x3" value="S3 Artifact Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="465" y="318" width="165" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Core sub -->
+        <mxCell id="cg" value="Core Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;verticalAlign=top;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="235" width="185" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" value="Tenant Management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="670" y="260" width="160" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="Invite Flow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="670" y="290" width="160" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="Platform Admin" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="670" y="318" width="160" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- External Group -->
+        <mxCell id="ext" value="External Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;verticalAlign=top;fontStyle=1;fontSize=13;spacingTop=4;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="530" width="930" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="MongoDB 7" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;size=8;" vertex="1" parent="1">
+          <mxGeometry x="70" y="555" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ocr" value="OCR Service&#xa;FastAPI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="200" y="560" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="slm" value="SLM Service&#xa;FastAPI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="560" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" value="S3 / MinIO" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="560" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="tally" value="Tally ERP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="560" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="mail" value="MailHog /&#xa;SendGrid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="760" y="560" width="85" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="kc" value="Keycloak 26&#xa;OIDC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="560" width="85" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows -->
+        <mxCell id="arr1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;fontStyle=0;fontSize=10;" edge="1" source="fg" target="ag" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr1l" value="JWT + RBAC" style="edgeLabel;html=1;fontSize=10;fontColor=#333333;" vertex="1" connectable="0" parent="arr1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arr2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;" edge="1" source="ag" target="bg" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="arr3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" source="ig" target="ocr" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" source="eg" target="ocr" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" source="eg" target="slm" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" source="xg" target="s3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" source="xg" target="tally" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" source="bg" target="db" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arr9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;" edge="1" source="cg" target="mail" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

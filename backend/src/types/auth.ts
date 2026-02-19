@@ -1,0 +1,19 @@
+import type { TenantRole } from "../models/TenantUserRole.js";
+
+export interface AuthenticatedRequestContext {
+  userId: string;
+  email: string;
+  tenantId: string;
+  tenantName: string;
+  onboardingStatus: "pending" | "completed";
+  role: TenantRole;
+  isPlatformAdmin: boolean;
+}
+
+export interface SessionFlagsPayload {
+  requires_tenant_setup: boolean;
+  requires_reauth: boolean;
+  requires_admin_action: boolean;
+  requires_email_confirmation: boolean;
+  must_change_password: boolean;
+}

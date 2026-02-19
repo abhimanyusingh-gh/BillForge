@@ -1,0 +1,66 @@
+{
+  "tenants": [
+    {
+      "id": "65f0000000000000000000a1",
+      "name": "Tenant Alpha",
+      "onboardingStatus": "completed",
+      "mode": "test"
+    },
+    {
+      "id": "65f0000000000000000000b2",
+      "name": "Tenant Beta",
+      "onboardingStatus": "completed",
+      "mode": "test"
+    },
+    {
+      "id": "65f0000000000000000000c3",
+      "name": "Neelam and Associates",
+      "onboardingStatus": "completed",
+      "mode": "live"
+    }
+  ],
+  "users": [
+    {
+      "email": "tenant-admin-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant Admin 1",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "TENANT_ADMIN"
+    },
+    {
+      "email": "tenant-user-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant User 1",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "MEMBER"
+    },
+    {
+      "email": "tenant-admin-2@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant Admin 2",
+      "tenantId": "65f0000000000000000000b2",
+      "role": "TENANT_ADMIN"
+    },
+    {
+      "email": "tenant-user-2@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Tenant User 2",
+      "tenantId": "65f0000000000000000000b2",
+      "role": "MEMBER"
+    },
+    {
+      "email": "platform-admin@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Platform Admin",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "PLATFORM_ADMIN"
+    },
+    {
+      "email": "mahir.n@globalhealthx.co",
+      "password": "Mahir@GIH13",
+      "displayName": "Mahir N",
+      "tenantId": "65f0000000000000000000c3",
+      "role": "TENANT_ADMIN"
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+# RFC: Invoice Processor Architecture
+
+## 1. Status
+
+Accepted
+
+## 2. Context
+
+The system must ingest invoices from configurable sources, extract data from mixed-quality documents, support human review, and export approved invoices to Tally with operational reliability.
+
+## 3. Decisions
+
+1. Backend and Frontend Stack
+- Backend: Node.js + Express
+- Frontend: React
+- DB: MongoDB
+- Reason: minimal implementation with fast iteration and strong ecosystem support.
+
+2. Ingestion Extensibility
+- Use an `IngestionSource` abstraction.
+- Current implementations: email source and folder source.
+- Reason: new sources can be added without changing core pipeline logic.
+
+3. OCR Extensibility + Agentic Selection
+- Use `OcrProvider` abstraction.
+- Current providers: DeepSeek, Google Vision, Tesseract, Mock.
+- Agent evaluates multiple text candidates/strategies and chooses best parse.
+- Persist OCR engine and extraction source separately (`ocrProvider` and `metadata.extractionSource`).
+- Reason: better resilience across invoice layouts and OCR quality variation.
+
+4. Amount Data Model
+- Persist and transmit invoice totals only as integer minor units: `parsed.totalAmountMinor`.
+- Decimal formatting occurs only at display/export boundaries.
+- Reason: avoid float precision issues across systems and languages.
+
+5. Confidence and Risk
+- Confidence score combines OCR confidence + parse completeness - warnings - risk penalties.
+- Color bands: red (`0-79`), yellow (`80-90`), green (`91+`).
+- Auto-select for approval at configured threshold (default `91`).
+- Risk flags include high total amount and due-date anomalies.
+
+6. Workflow State Model
+- Statuses: `PARSED`, `NEEDS_REVIEW`, `FAILED_OCR`, `FAILED_PARSE`, `APPROVED`, `EXPORTED`.
+- Exported invoices are non-selectable in UI.
+- Reason: explicit lifecycle and predictable UI behavior.
+
+7. Checkpoint and Idempotency
+- Per-source checkpoint marker stored in MongoDB.
+- Checkpoint updated after each file.
+- Folder source scans all supported files per run; service-level filtering skips already persisted `sourceDocumentId` values.
+- Unique index prevents duplicate invoice persistence.
+- Reason: crash-safe resume and duplicate avoidance in scheduled runs.
+
+8. Tally Export Contract
+- Export only approved invoices.
+- Build Tally XML purchase voucher payload with mapped fields.
+- Use parsed minor-unit amount converted to major-unit string only in XML payload.
+- Reason: strict accounting payload format with internal numeric safety.
+
+9. AWS Runtime Pattern
+- Terraform provisions:
+  - Spot-backed worker via Launch Template + ASG schedules.
+  - Optional production DocumentDB module.
+- When DocumentDB provisioning is enabled, worker `MONGO_URI` is auto-resolved from module output.
+- Worker pulls container image, runs once, updates DB, and shuts down.
+- Reason: low-cost periodic processing model with managed production database support.
+
+10. Quality Gate
+- Pre-commit hook runs dead-code analysis (`knip`) and coverage checks.
+- Backend and frontend logic modules are enforced at 100% branch coverage.
+- Reason: prevent regressions and test drift as extraction/export logic evolves.
+
+11. Dashboard Data Loading
+- Frontend fetches invoice lists page-by-page until backend `total` is reached.
+- Reason: prevent hidden data caused by backend max page size.
+
+12. Detail Panel Layout
+- UI supports hiding the right-side Invoice Details panel so the Invoice list occupies full width.
+- Reason: improve review throughput when operators focus on list-level actions.
+
+## 4. Consequences
+
+Positive:
+- Deterministic monetary handling
+- Modular ingestion/OCR/export architecture
+- Good testability of isolated logic units
+
+Tradeoffs:
+- One-run Spot model adds cold start latency
+- OCR accuracy still depends on document quality/provider
+
+## 5. Migration Notes
+
+- Replace old float amount usage (`totalAmount`) with integer minor-unit field (`totalAmountMinor`) in backend, API contracts, UI renderers, and tests.
