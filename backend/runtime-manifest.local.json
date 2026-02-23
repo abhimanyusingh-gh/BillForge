@@ -21,7 +21,7 @@
     }
   },
   "extraction": {
-    "ocrHighConfidenceThreshold": 0.88
+    "ocrHighConfidenceThreshold": 0.92
   },
   "sources": [
     {
