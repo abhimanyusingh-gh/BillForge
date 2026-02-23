@@ -1,0 +1,36 @@
+{
+  "defaultTenantId": "tenant-default",
+  "defaultWorkloadTier": "standard",
+  "database": {
+    "provider": "mongo",
+    "uri": "mongodb://replace-with-prod-uri"
+  },
+  "ocr": {
+    "provider": "deepseek",
+    "deepseek": {
+      "baseUrl": "http://deepseek-ocr.modal.internal/v1",
+      "model": "deepseek-ai/DeepSeek-OCR",
+      "timeoutMs": 3600000
+    }
+  },
+  "sources": [
+    {
+      "type": "email",
+      "key": "ap-inbox",
+      "tenantId": "tenant-default",
+      "workloadTier": "standard",
+      "host": "imap.gmail.com",
+      "port": 993,
+      "secure": true,
+      "username": "replace-with-username",
+      "password": "replace-with-password",
+      "mailbox": "INBOX",
+      "fromFilter": ""
+    }
+  ],
+  "export": {
+    "tallyEndpoint": "http://tally.internal:9000",
+    "tallyCompany": "My Company Pvt Ltd",
+    "tallyPurchaseLedger": "Purchase"
+  }
+}

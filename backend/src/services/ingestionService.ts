@@ -1,5 +1,5 @@
 import type { IngestionSource, IngestedFile } from "../core/interfaces/IngestionSource.js";
-import type { OcrProvider } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrProvider } from "../core/interfaces/OcrProvider.js";
 import { CheckpointModel } from "../models/Checkpoint.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { extractNativePdfText } from "./pdfTextExtractor.js";
@@ -7,6 +7,8 @@ import { logger } from "../utils/logger.js";
 import type { InvoiceStatus } from "../types/invoice.js";
 import { env } from "../config/env.js";
 import { runInvoiceExtractionAgent, type ExtractionTextCandidate } from "./invoiceExtractionAgent.js";
+import { normalizeInvoiceMimeType } from "../utils/mime.js";
+import type { WorkloadTier } from "../types/tenant.js";
 
 interface IngestionRunSummary {
   totalFiles: number;
@@ -23,6 +25,8 @@ interface IngestionRunProgress extends IngestionRunSummary {
 
 interface IngestionServiceOptions {
   afterFileProcessed?: (params: {
+    tenantId: string;
+    workloadTier: WorkloadTier;
     sourceKey: string;
     checkpointValue: string;
     result: "created" | "duplicate" | "failed";
@@ -52,6 +56,7 @@ export class IngestionService {
       failures: 0
     };
     let processedFiles = 0;
+    logger.info("ingestion.run.start", { sourceCount: this.sources.length });
 
     const emitProgress = async (running = true) => {
       if (!runtimeOptions?.onProgress) {
@@ -68,10 +73,20 @@ export class IngestionService {
 
     await emitProgress(true);
 
-    for (const source of this.sources) {
-      const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key }).lean();
+    const prioritizedSources = [...this.sources].sort(compareSourcePriority);
+    for (const source of prioritizedSources) {
+      const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: source.tenantId }).lean();
       const sourceFiles = await source.fetchNewFiles(checkpoint?.marker ?? null);
       const files = await this.filterAlreadyProcessedFiles(source, sourceFiles);
+      logger.info("ingestion.source.scan", {
+        tenantId: source.tenantId,
+        workloadTier: source.workloadTier,
+        sourceType: source.type,
+        sourceKey: source.key,
+        fetchedFiles: sourceFiles.length,
+        queuedFiles: files.length,
+        checkpoint: checkpoint?.marker ?? null
+      });
 
       summary.totalFiles += files.length;
       await emitProgress(true);
@@ -79,6 +94,12 @@ export class IngestionService {
       let nextMarker = checkpoint?.marker ?? null;
       for (const file of files) {
         const processed = await this.processFile(file);
+        logger.info("ingestion.file.result", {
+          sourceKey: file.sourceKey,
+          sourceDocumentId: file.sourceDocumentId,
+          attachmentName: file.attachmentName,
+          result: processed
+        });
         if (processed === "created") {
           summary.newInvoices += 1;
         }
@@ -95,8 +116,8 @@ export class IngestionService {
 
         if (file.checkpointValue !== nextMarker) {
           await CheckpointModel.findOneAndUpdate(
-            { sourceKey: source.key },
-            { marker: file.checkpointValue },
+            { sourceKey: source.key, tenantId: source.tenantId },
+            { sourceKey: source.key, tenantId: source.tenantId, marker: file.checkpointValue },
             { upsert: true, new: true }
           );
           nextMarker = file.checkpointValue;
@@ -104,6 +125,8 @@ export class IngestionService {
 
         if (this.afterFileProcessed) {
           await this.afterFileProcessed({
+            tenantId: file.tenantId,
+            workloadTier: file.workloadTier,
             sourceKey: source.key,
             checkpointValue: file.checkpointValue,
             result: processed
@@ -112,6 +135,7 @@ export class IngestionService {
       }
     }
 
+    logger.info("ingestion.run.complete", { ...summary, processedFiles });
     await emitProgress(false);
     return summary;
   }
@@ -123,6 +147,7 @@ export class IngestionService {
 
     const existingDocs = await InvoiceModel.find({
       sourceType: source.type,
+      tenantId: source.tenantId,
       sourceKey: source.key,
       sourceDocumentId: { $in: files.map((file) => file.sourceDocumentId) }
     })
@@ -140,6 +165,7 @@ export class IngestionService {
 
   private async processFile(file: IngestedFile): Promise<"created" | "duplicate" | "failed"> {
     const duplicate = await InvoiceModel.findOne({
+      tenantId: file.tenantId,
       sourceType: file.sourceType,
       sourceKey: file.sourceKey,
       sourceDocumentId: file.sourceDocumentId,
@@ -150,16 +176,18 @@ export class IngestionService {
       return "duplicate";
     }
 
+    const normalizedMimeType = normalizeInvoiceMimeType(file.mimeType);
     let ocrProvider = this.ocrProvider.name;
     let ocrText = "";
     let ocrConfidence: number | undefined;
+    let ocrBlocks: OcrBlock[] = [];
     const processingIssues: string[] = [];
     let status: InvoiceStatus;
 
     try {
       const extractionCandidates: ExtractionTextCandidate[] = [];
 
-      if (file.mimeType === "application/pdf") {
+      if (normalizedMimeType === "application/pdf") {
         try {
           const nativePdfText = await extractNativePdfText(file.buffer);
           if (nativePdfText.trim().length > 24) {
@@ -176,16 +204,31 @@ export class IngestionService {
       }
 
       try {
-        const ocrResult = await this.ocrProvider.extractText(file.buffer, file.mimeType);
+        const ocrResult = await this.ocrProvider.extractText(file.buffer, normalizedMimeType);
         ocrProvider = ocrResult.provider || this.ocrProvider.name;
-        if (ocrResult.text.trim().length > 0) {
+        ocrBlocks = ocrResult.blocks ?? [];
+        const rawText = ocrResult.text.trim();
+        const blockText = buildBlocksText(ocrBlocks);
+
+        if (rawText.length > 0) {
           extractionCandidates.push({
-            text: ocrResult.text,
+            text: rawText,
             provider: ocrResult.provider,
             confidence: ocrResult.confidence,
             source: "ocr-provider"
           });
-        } else {
+        }
+
+        if (blockText.length > 0 && !isNearDuplicateText(blockText, rawText)) {
+          extractionCandidates.push({
+            text: blockText,
+            provider: ocrResult.provider,
+            confidence: ocrResult.confidence,
+            source: "ocr-blocks"
+          });
+        }
+
+        if (rawText.length === 0 && blockText.length === 0) {
           processingIssues.push("OCR provider returned empty text.");
         }
       } catch (ocrError) {
@@ -205,10 +248,12 @@ export class IngestionService {
         processingIssues.push("No text detected from OCR.");
         await InvoiceModel.create({
           sourceType: file.sourceType,
+          tenantId: file.tenantId,
+          workloadTier: file.workloadTier,
           sourceKey: file.sourceKey,
           sourceDocumentId: file.sourceDocumentId,
           attachmentName: file.attachmentName,
-          mimeType: file.mimeType,
+          mimeType: normalizedMimeType,
           receivedAt: file.receivedAt,
           status,
           processingIssues,
@@ -216,6 +261,7 @@ export class IngestionService {
           ocrProvider,
           ocrText,
           ocrConfidence,
+          ocrBlocks,
           confidenceScore: 0,
           confidenceTone: "red",
           autoSelectForApproval: false,
@@ -250,7 +296,8 @@ export class IngestionService {
         ...file.metadata,
         extractionSource: extraction.source,
         extractionStrategy: extraction.strategy,
-        extractionCandidates: String(extraction.attempts.length)
+        extractionCandidates: String(extraction.attempts.length),
+        ocrBlocksCount: String(ocrBlocks.length)
       };
 
       const mergedProcessingIssues = uniqueIssues([
@@ -261,16 +308,19 @@ export class IngestionService {
 
       await InvoiceModel.create({
         sourceType: file.sourceType,
+        tenantId: file.tenantId,
+        workloadTier: file.workloadTier,
         sourceKey: file.sourceKey,
         sourceDocumentId: file.sourceDocumentId,
         attachmentName: file.attachmentName,
-        mimeType: file.mimeType,
+        mimeType: normalizedMimeType,
         receivedAt: file.receivedAt,
         status,
         metadata,
         ocrProvider,
         ocrText,
         ocrConfidence,
+        ocrBlocks,
         parsed: parsedResult.parsed,
         confidenceScore: confidence.score,
         confidenceTone: confidence.tone,
@@ -296,10 +346,12 @@ export class IngestionService {
       try {
         await InvoiceModel.create({
           sourceType: file.sourceType,
+          tenantId: file.tenantId,
+          workloadTier: file.workloadTier,
           sourceKey: file.sourceKey,
           sourceDocumentId: file.sourceDocumentId,
           attachmentName: file.attachmentName,
-          mimeType: file.mimeType,
+          mimeType: normalizedMimeType,
           receivedAt: file.receivedAt,
           status: "FAILED_PARSE",
           processingIssues: [error instanceof Error ? error.message : "Unknown processing error"],
@@ -307,6 +359,7 @@ export class IngestionService {
           ocrProvider,
           ocrText,
           ocrConfidence,
+          ocrBlocks,
           confidenceScore: 0,
           confidenceTone: "red",
           autoSelectForApproval: false,
@@ -339,4 +392,43 @@ function isDuplicateKeyError(error: unknown): boolean {
 
 function uniqueIssues(issues: string[]): string[] {
   return [...new Set(issues.filter((issue) => issue.trim().length > 0))];
+}
+
+function buildBlocksText(blocks: OcrBlock[]): string {
+  if (blocks.length === 0) {
+    return "";
+  }
+
+  const lines = blocks
+    .map((block) => block.text.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !/^(text|table|title|line|image)$/i.test(line));
+
+  return lines.join("\n");
+}
+
+function isNearDuplicateText(left: string, right: string): boolean {
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/[^a-z0-9 ]+/g, "")
+      .trim();
+
+  const normalizedLeft = normalize(left);
+  const normalizedRight = normalize(right);
+
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
+  }
+
+  return normalizedLeft === normalizedRight || normalizedRight.includes(normalizedLeft);
+}
+
+function compareSourcePriority(left: IngestionSource, right: IngestionSource): number {
+  return priorityForTier(left.workloadTier) - priorityForTier(right.workloadTier);
+}
+
+function priorityForTier(tier: WorkloadTier): number {
+  return tier === "standard" ? 0 : 1;
 }

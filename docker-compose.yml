@@ -6,7 +6,10 @@ services:
     container_name: invoice-processor-backend
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo:
+        condition: service_started
+      deepseek-ocr:
+        condition: service_healthy
     env_file:
       - path: ./backend/.env.example
         required: true
@@ -17,11 +20,15 @@ services:
     environment:
       NODE_ENV: development
       PORT: "4000"
+      APP_MANIFEST_PATH: /app/backend/runtime-manifest.local.json
       MONGO_URI: mongodb://mongo:27017/invoice_processor
       INGESTION_SOURCES: folder
       FOLDER_SOURCE_KEY: local-folder
       FOLDER_SOURCE_PATH: /app/sample-invoices/inbox
       FOLDER_RECURSIVE: "false"
+      DEEPSEEK_BASE_URL: http://deepseek-ocr:8000/v1
+      DEEPSEEK_OCR_MODEL: deepseek-ai/DeepSeek-OCR
+      DEEPSEEK_TIMEOUT_MS: "3600000"
       CONFIDENCE_EXPECTED_MAX_TOTAL: "100000"
       CONFIDENCE_EXPECTED_MAX_DUE_DAYS: "90"
       CONFIDENCE_AUTO_SELECT_MIN: "91"
@@ -30,6 +37,29 @@ services:
       TALLY_PURCHASE_LEDGER: Purchase
     volumes:
       - ./sample-invoices/inbox:/app/sample-invoices/inbox
+
+  deepseek-ocr:
+    build:
+      context: .
+      dockerfile: deepseek-ocr/Dockerfile
+    container_name: invoice-processor-deepseek-ocr
+    restart: unless-stopped
+    environment:
+      OCR_MODEL_ID: ${OCR_MODEL_ID:-deepseek-ai/DeepSeek-OCR}
+      OCR_DEVICE: ${OCR_DEVICE:-cpu}
+      OCR_TORCH_DTYPE: ${OCR_TORCH_DTYPE:-bfloat16}
+      OCR_MAX_NEW_TOKENS: ${OCR_MAX_NEW_TOKENS:-512}
+      OCR_LOAD_ON_STARTUP: ${OCR_LOAD_ON_STARTUP:-false}
+    volumes:
+      - deepseek_ocr_cache:/models
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   frontend:
     build:
@@ -69,3 +99,4 @@ services:
 
 volumes:
   mongo_data:
+  deepseek_ocr_cache:
