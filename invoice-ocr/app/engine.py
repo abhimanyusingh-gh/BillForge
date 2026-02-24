@@ -17,6 +17,10 @@ GROUNDING_BLOCK_PATTERN = re.compile(
   r"<\|ref\|>(?P<label>.*?)<\|/ref\|><\|det\|>(?P<det>.*?)<\|/det\|>(?P<body>.*?)(?=<\|ref\|>|\Z)",
   re.DOTALL
 )
+GENERATION_RESULT_PATTERN = re.compile(
+  r"GenerationResult\(\s*text\s*=\s*(?P<literal>'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\")\s*,",
+  re.DOTALL
+)
 VISION_TOKEN_PATTERN = re.compile(r"<\|image_\d+\|>|<image>", re.IGNORECASE)
 PDF_RENDER_DPI = 300
 PDF_RENDER_SCALE = PDF_RENDER_DPI / 72.0
@@ -127,6 +131,9 @@ def sanitize_prompt(value: str) -> str:
 def normalize_model_output(response: Any) -> str:
   if response is None:
     return ""
+  direct_text = getattr(response, "text", None)
+  if isinstance(direct_text, str):
+    return cleanup_generated_text(direct_text)
   if isinstance(response, str):
     return cleanup_generated_text(response)
   if isinstance(response, dict):
@@ -137,6 +144,9 @@ def normalize_model_output(response: Any) -> str:
     return cleanup_generated_text(json.dumps(response, ensure_ascii=False))
   if isinstance(response, list):
     for entry in response:
+      entry_text = getattr(entry, "text", None)
+      if isinstance(entry_text, str):
+        return cleanup_generated_text(entry_text)
       if isinstance(entry, str):
         return cleanup_generated_text(entry)
       if isinstance(entry, dict):
@@ -149,10 +159,38 @@ def normalize_model_output(response: Any) -> str:
 
 
 def cleanup_generated_text(text: str) -> str:
-  output = text.strip()
+  output = unwrap_generation_result(text.strip())
   for marker in ("<|endoftext|>", "<|im_end|>", "</s>"):
     output = output.replace(marker, "")
   return output.strip()
+
+
+def unwrap_generation_result(value: str) -> str:
+  if "GenerationResult(" not in value:
+    return value
+  decoded_segments: list[str] = []
+  for match in GENERATION_RESULT_PATTERN.finditer(value):
+    decoded = decode_python_string_literal(match.group("literal"))
+    if isinstance(decoded, str) and decoded.strip():
+      decoded_segments.append(decoded.strip())
+
+  if not decoded_segments:
+    return value
+
+  page_markers = re.findall(r"\[page\s+(\d+)\]", value, flags=re.IGNORECASE)
+  if len(page_markers) == len(decoded_segments):
+    chunks = [f"[page {page_markers[index]}]\n{decoded_segments[index]}" for index in range(len(decoded_segments))]
+    return "\n\n".join(chunks)
+
+  return "\n\n".join(decoded_segments)
+
+
+def decode_python_string_literal(value: str) -> str | None:
+  try:
+    decoded = ast.literal_eval(value)
+  except Exception:
+    return None
+  return decoded if isinstance(decoded, str) else None
 
 
 def open_image(image_bytes: bytes) -> Image.Image:
