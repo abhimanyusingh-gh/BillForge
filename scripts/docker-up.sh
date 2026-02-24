@@ -88,11 +88,25 @@ wait_for_model_ready() {
   local url="$1"
   local name="$2"
   local timeout_seconds="$3"
+  local pid_file="${4:-}"
+  local log_file="${5:-}"
   local started_at body compact
   started_at="$(date +%s)"
   body=""
 
   while (( "$(date +%s)" - started_at < timeout_seconds )); do
+    if [[ -n "$pid_file" && -f "$pid_file" ]]; then
+      local current_pid
+      current_pid="$(cat "$pid_file" 2>/dev/null || true)"
+      if [[ -n "$current_pid" ]] && ! kill -0 "$current_pid" >/dev/null 2>&1; then
+        echo "$name process exited before readiness check completed." >&2
+        if [[ -n "$log_file" && -f "$log_file" ]]; then
+          tail -n 80 "$log_file" >&2 || true
+        fi
+        return 1
+      fi
+    fi
+
     body="$(curl -fsS "$url" 2>/dev/null || true)"
     compact="$(printf "%s" "$body" | tr -d ' \t\r\n')"
     if [[ "$compact" == *"\"modelLoaded\":true"* ]] && \
@@ -123,7 +137,7 @@ start_local_service_if_needed() {
     existing_pid="$(cat "$pid_file" 2>/dev/null || true)"
     if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" >/dev/null 2>&1; then
       echo "$name process already running (pid $existing_pid), waiting for readiness"
-      wait_for_model_ready "$health_url" "$name" 1800
+      wait_for_model_ready "$health_url" "$name" 1800 "$pid_file" "$log_file"
       return 0
     fi
   fi
@@ -134,7 +148,7 @@ start_local_service_if_needed() {
   if [[ -n "$pid" ]]; then
     echo "$name started with pid $pid"
   fi
-  wait_for_model_ready "$health_url" "$name" 1800
+  wait_for_model_ready "$health_url" "$name" 1800 "$pid_file" "$log_file"
 }
 
 if [[ "$ENV_MODE" == "local" ]]; then

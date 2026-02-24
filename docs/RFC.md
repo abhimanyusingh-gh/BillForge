@@ -25,7 +25,9 @@ The system must ingest invoices from configurable sources, extract data from mix
 3. OCR Extensibility + Agentic Selection
 - Use `OcrProvider` abstraction.
 - Current providers: `deepseek` and `mock`.
-- Local OCR uses host-run MLX DeepSeek OCR (`invoice-ocr`) with `POST /v1/ocr/document`.
+- Local OCR uses host-run pluggable OCR (`invoice-ocr`) with `POST /v1/ocr/document`:
+  - default `local_hybrid` (DeepSeek MLX + Apple Vision arbitration)
+  - optional `local_mlx`, `local_apple_vision`, or `prod_http`.
 - Local SLM uses MLX verifier (`invoice-slm`) with default `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`.
 - Production OCR uses the same interface via external OpenAI-compatible OCR endpoint.
 - No Tesseract fallback in runtime.
@@ -104,6 +106,7 @@ The system must ingest invoices from configurable sources, extract data from mix
 
 15. Detail Panel Layout
 - UI supports hiding the right-side Invoice Details panel so the Invoice list occupies full width.
+- UI exposes field-level source highlights (bbox overlays) and an inspect action for persisted OCR crops.
 - Reason: improve review throughput when operators focus on list-level actions.
 
 16. Tenant Isolation Groundwork

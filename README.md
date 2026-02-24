@@ -8,19 +8,20 @@ Implemented:
 - Configurable ingestion source interface (`email`, `folder` currently).
 - OCR provider interface (`deepseek`, `mock`).
 - Runtime composition manifest support (`APP_MANIFEST_PATH`) for database/OCR/source/export wiring with env fallback.
-- OCR engine display is separated from extraction source (`ocrProvider` vs `metadata.extractionSource`).
 - Parser + confidence/risk scoring.
 - Currency amounts persisted and transmitted as integer minor units (`parsed.totalAmountMinor`) to avoid floating-point drift.
 - Staged extraction pipeline: vendor fingerprint -> template path (known vendors) -> OCR confidence gate -> layout graph + heuristics -> deterministic validation -> SLM field verifier fallback.
 - MongoDB persistence with per-file source+tenant checkpointing and folder idempotency filtering by `sourceDocumentId`.
+- OCR block crop artifacts persisted per bounding box with file-store abstraction:
+  - `ENV=local` -> local disk
+  - `ENV=prod` -> S3
 - Tenant/workload partition keys (`tenantId`, `workloadTier`) across sources, checkpoints, and invoices.
 - Review dashboard with failed/parsed visibility, confidence badges, batch approval/export, and full invoice list paging.
+- Review dashboard includes value-source highlighting with OCR bounding-box overlays and per-field crop inspect actions.
 - Tally exporter using XML import envelope and purchase voucher structure.
 - Terraform modules for scheduled spot workers, reusable worker IAM, and production DocumentDB.
+- Terraform module for reusable S3 artifact storage used by the backend file-store abstraction in production.
 - Unit tests + true full-stack local end-to-end test (no mock OCR/SLM path).
-
-Delivery timeline:
-- `docs/DELIVERY_TIMELINE.md` (7-day phased view with milestone mapping).
 
 Not yet implemented:
 - Authentication/authorization.
@@ -31,7 +32,7 @@ Not yet implemented:
 
 - `backend/` Node.js API + worker + ingestion pipeline.
 - `frontend/` React review dashboard.
-- `invoice-ocr/` local MLX DeepSeek OCR FastAPI service.
+- `invoice-ocr/` local OCR FastAPI service with pluggable engines (DeepSeek MLX, Apple Vision, hybrid, prod HTTP).
 - `invoice-slm/` local MLX field-verifier FastAPI service.
 - `infra/modules/` copy-first reusable Terraform module catalog.
 - `infra/terraform/` Invoice Processor stack composition using local modules (`environments/prod.tfvars.example` included).
@@ -78,7 +79,7 @@ This brings up:
 - OCR service: `http://localhost:8000`
 - SLM service: `http://localhost:8100`
 
-`yarn docker:up` starts local MLX OCR/SLM (for `ENV=local`) and then starts compose services.
+`yarn docker:up` starts local OCR/SLM services on host macOS (for `ENV=local`) and then starts compose services.
 
 5. Create env files (optional overrides):
 ```bash
@@ -93,17 +94,21 @@ Notes:
 - MLX services run on host macOS, not inside Docker.
 - Backend blocks startup until both ML capabilities are reachable and healthy.
 - Runtime mode switch: `ENV=local|prod`.
-- `ENV=local`: run host MLX services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_mlx`).
+- `ENV=local`: run host OCR/SLM services (`SLM_ENGINE=local_mlx`, `OCR_ENGINE=local_hybrid` by default).
 - `ENV=prod`: use production-safe HTTP engines (`SLM_ENGINE=prod_http`, `OCR_ENGINE=prod_http`).
+- Artifact storage is also env-driven:
+  - `ENV=local` uses `LOCAL_FILE_STORE_ROOT` (default `.local-run/artifacts`, gitignored)
+  - `ENV=prod` uses `S3_FILE_STORE_BUCKET` + `S3_FILE_STORE_REGION` + `S3_FILE_STORE_PREFIX`
 - OCR path is direct inference via `POST /v1/ocr/document` (no `/v1/chat/completions` usage).
 - OCR/SLM API layers are engine-agnostic and selected by env:
-  - OCR: `OCR_ENGINE=local_mlx|prod_http`
+  - OCR: `OCR_ENGINE=local_hybrid|local_mlx|local_apple_vision|prod_http`
   - SLM: `SLM_ENGINE=local_mlx|prod_http`
 - Production Docker dependencies exclude MLX packages entirely.
 - Optional OCR service tuning via `yarn ocr:dev` env variables:
-  - `OCR_ENGINE` (`local_mlx` default, or `prod_http`)
+  - `OCR_ENGINE` (`local_hybrid` default, or `local_mlx|local_apple_vision|prod_http`)
   - `OCR_MODEL_ID` (default `mlx-community/DeepSeek-OCR-4bit`)
   - `OCR_MODEL_PATH` (optional local snapshot path)
+  - `OCR_HYBRID_APPLE_ACCEPT_SCORE` (default `0.9`; DeepSeek confidence gate before Apple second pass)
   - `OCR_REMOTE_BASE_URL` (required for `OCR_ENGINE=prod_http`)
   - `OCR_REMOTE_API_KEY` (optional bearer token for remote OCR)
   - `OCR_REMOTE_TIMEOUT_MS` (default `300000`)
@@ -138,7 +143,9 @@ Python ML services use strict engine interfaces with explicit factory selection:
   - `invoice-slm/app/engines/factory.py`
 - OCR:
   - `invoice-ocr/app/engines/base.py` (`OCREngine`)
-  - `invoice-ocr/app/engines/local_mlx.py` (MLX only, `mlx_vlm`)
+  - `invoice-ocr/app/engines/local_mlx.py` (DeepSeek OCR MLX, `mlx_vlm`)
+  - `invoice-ocr/app/engines/local_apple_vision.py` (Apple Vision OCR)
+  - `invoice-ocr/app/engines/local_hybrid.py` (DeepSeek + Apple arbitration)
   - `invoice-ocr/app/engines/prod_http.py` (Docker/Linux safe)
   - `invoice-ocr/app/engines/factory.py`
 
@@ -273,12 +280,24 @@ What it verifies:
 - Approval endpoint behavior for `NEEDS_REVIEW` invoices (when present).
 - No mock OCR provider in E2E assertions.
 
+Frontend-only user-flow E2E (single `jpg` + `png` + `pdf`, ingest + UI bbox overlay verification):
+```bash
+yarn e2e:frontend:local
+```
+This verifies from the UI that:
+- one file per type ingestion completes,
+- value-source chips are shown,
+- image preview is visible,
+- selected-field bounding-box overlay is rendered in details and popup view,
+- extracted-field inspect icon opens the persisted crop preview modal.
+
 ## Infra Composition
 
 Terraform is split into reusable modules:
 - `infra/modules/aws_iam_instance_profile` for EC2 role/profile
 - `infra/modules/aws_scheduled_ec2_service` for scheduled compute runtime (`spot` or `on-demand`)
 - `infra/modules/aws_documentdb_cluster` for production DB provisioning
+- `infra/modules/aws_s3_bucket` for production artifact storage (OCR previews/crops)
 
 For app-specific overrides, use `app_manifest` in tfvars:
 - override ingestion/OCR/confidence/tally settings
@@ -381,7 +400,7 @@ Backend env variables:
 Confidence/UI behavior:
 - Tone bands are `red` (`0-79`), `yellow` (`80-90`), `green` (`91+`).
 - Auto-select applies when confidence score is `>= CONFIDENCE_AUTO_SELECT_MIN` (default `91`).
-- Extracted details show both `OCR Engine` and `Extraction Source`.
+- Extracted details focus on parsed values, tally mappings, and source-highlight overlays instead of OCR implementation labels.
 
 Terraform variables mirror core runtime settings, including confidence and Tally ledger config.
 Use Terraform `extra_env` for backend variables that are not first-class inputs (for example `DEEPSEEK_*` values).
