@@ -98,6 +98,11 @@ export function App() {
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
   const [showTenantConfig, setShowTenantConfig] = useState(false);
+  const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
+  const [platformStatsCollapsed, setPlatformStatsCollapsed] = useState(false);
+  const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
+  const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
+  const [platformActivityCollapsed, setPlatformActivityCollapsed] = useState(false);
   const [editForm, setEditForm] = useState<EditInvoiceFormState>(EMPTY_EDIT_FORM);
   const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
   const ingestionWasRunningRef = useRef(false);
@@ -135,6 +140,7 @@ export function App() {
       setIngestionStatus(null);
     } else {
       setPlatformUsage([]);
+      setSelectedPlatformTenantId(null);
       void refreshIngestionStatus();
       void loadGmailConnectionStatus();
       if (session.user.role === "TENANT_ADMIN") {
@@ -148,6 +154,19 @@ export function App() {
       }
     }
   }, [session?.user.id, session?.tenant.id]);
+
+  useEffect(() => {
+    if (platformUsage.length === 0) {
+      setSelectedPlatformTenantId(null);
+      return;
+    }
+
+    setSelectedPlatformTenantId((currentValue) =>
+      currentValue && platformUsage.some((entry) => entry.tenantId === currentValue)
+        ? currentValue
+        : platformUsage[0].tenantId
+    );
+  }, [platformUsage]);
 
   useEffect(() => {
     if (session?.user.role !== "TENANT_ADMIN") {
@@ -180,6 +199,20 @@ export function App() {
   const failedCount = useMemo(
     () => invoices.filter((invoice) => ["FAILED_OCR", "FAILED_PARSE"].includes(invoice.status)).length,
     [invoices]
+  );
+  const platformStats = useMemo(() => {
+    return {
+      tenants: platformUsage.length,
+      users: platformUsage.reduce((sum, entry) => sum + entry.userCount, 0),
+      totalDocuments: platformUsage.reduce((sum, entry) => sum + entry.totalDocuments, 0),
+      approvedDocuments: platformUsage.reduce((sum, entry) => sum + entry.approvedDocuments, 0),
+      exportedDocuments: platformUsage.reduce((sum, entry) => sum + entry.exportedDocuments, 0),
+      failedDocuments: platformUsage.reduce((sum, entry) => sum + entry.failedDocuments, 0)
+    };
+  }, [platformUsage]);
+  const selectedPlatformTenant = useMemo(
+    () => platformUsage.find((entry) => entry.tenantId === selectedPlatformTenantId) ?? null,
+    [platformUsage, selectedPlatformTenantId]
   );
 
   const popupInvoiceSummary = useMemo(
@@ -856,7 +889,7 @@ export function App() {
             <span>{isPlatformAdmin ? "Failed Docs" : "Failed"}</span>
             <strong>
               {isPlatformAdmin
-                ? platformUsage.reduce((sum, entry) => sum + entry.failedDocuments, 0)
+                ? platformStats.failedDocuments
                 : failedCount}
             </strong>
           </div>
@@ -1002,86 +1035,163 @@ export function App() {
               <>
                 <div className="editor-card">
                   <div className="editor-header">
-                    <h3>Onboard Tenant Admin</h3>
-                    <button type="button" onClick={() => void handlePlatformOnboardTenantAdmin()}>
-                      Create Tenant Admin
+                    <h3>Platform Stats</h3>
+                    <button
+                      type="button"
+                      aria-label="Toggle Platform Stats section"
+                      onClick={() => setPlatformStatsCollapsed((currentValue) => !currentValue)}
+                    >
+                      {platformStatsCollapsed ? "Expand" : "Collapse"}
                     </button>
                   </div>
-                  <div className="edit-grid">
-                    <label>
-                      Tenant Name
-                      <input
-                        value={platformOnboardForm.tenantName}
-                        onChange={(event) =>
-                          setPlatformOnboardForm((state) => ({ ...state, tenantName: event.target.value }))
-                        }
-                        placeholder="Acme Health"
-                      />
-                    </label>
-                    <label>
-                      Tenant Admin Email
-                      <input
-                        value={platformOnboardForm.adminEmail}
-                        onChange={(event) =>
-                          setPlatformOnboardForm((state) => ({ ...state, adminEmail: event.target.value }))
-                        }
-                        placeholder="admin@acmehealth.com"
-                      />
-                    </label>
-                    <label>
-                      Admin Name (optional)
-                      <input
-                        value={platformOnboardForm.adminDisplayName}
-                        onChange={(event) =>
-                          setPlatformOnboardForm((state) => ({ ...state, adminDisplayName: event.target.value }))
-                        }
-                        placeholder="Priya Shah"
-                      />
-                    </label>
+                  {!platformStatsCollapsed ? (
+                    <div className="platform-stats-grid" data-testid="platform-stats-grid">
+                      <div className="platform-stat-tile">
+                        <span>Tenants</span>
+                        <strong>{platformStats.tenants}</strong>
+                      </div>
+                      <div className="platform-stat-tile">
+                        <span>Users</span>
+                        <strong>{platformStats.users}</strong>
+                      </div>
+                      <div className="platform-stat-tile">
+                        <span>Documents</span>
+                        <strong>{platformStats.totalDocuments}</strong>
+                      </div>
+                      <div className="platform-stat-tile">
+                        <span>Approved</span>
+                        <strong>{platformStats.approvedDocuments}</strong>
+                      </div>
+                      <div className="platform-stat-tile">
+                        <span>Exported</span>
+                        <strong>{platformStats.exportedDocuments}</strong>
+                      </div>
+                      <div className="platform-stat-tile">
+                        <span>Failed</span>
+                        <strong>{platformStats.failedDocuments}</strong>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="muted section-collapsed-note">Section collapsed.</p>
+                  )}
+                </div>
+
+                <div className="editor-card">
+                  <div className="editor-header">
+                    <h3>Onboard Tenant Admin</h3>
+                    <div className="editor-actions">
+                      {!platformOnboardCollapsed ? (
+                        <button type="button" onClick={() => void handlePlatformOnboardTenantAdmin()}>
+                          Create Tenant Admin
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label="Toggle Onboard Tenant Admin section"
+                        onClick={() => setPlatformOnboardCollapsed((currentValue) => !currentValue)}
+                      >
+                        {platformOnboardCollapsed ? "Expand" : "Collapse"}
+                      </button>
+                    </div>
                   </div>
+                  {!platformOnboardCollapsed ? (
+                    <div className="edit-grid">
+                      <label>
+                        Tenant Name
+                        <input
+                          value={platformOnboardForm.tenantName}
+                          onChange={(event) =>
+                            setPlatformOnboardForm((state) => ({ ...state, tenantName: event.target.value }))
+                          }
+                          placeholder="Acme Health"
+                        />
+                      </label>
+                      <label>
+                        Tenant Admin Email
+                        <input
+                          value={platformOnboardForm.adminEmail}
+                          onChange={(event) =>
+                            setPlatformOnboardForm((state) => ({ ...state, adminEmail: event.target.value }))
+                          }
+                          placeholder="admin@acmehealth.com"
+                        />
+                      </label>
+                      <label>
+                        Admin Name (optional)
+                        <input
+                          value={platformOnboardForm.adminDisplayName}
+                          onChange={(event) =>
+                            setPlatformOnboardForm((state) => ({ ...state, adminDisplayName: event.target.value }))
+                          }
+                          placeholder="Priya Shah"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <p className="muted section-collapsed-note">Section collapsed.</p>
+                  )}
                 </div>
 
                 <div className="editor-card">
                   <div className="editor-header">
                     <h3>Platform Tenant Usage Overview</h3>
-                    <button type="button" onClick={() => void loadPlatformUsage()}>
-                      Refresh Usage
-                    </button>
+                    <div className="editor-actions">
+                      {!platformUsageCollapsed ? (
+                        <button type="button" onClick={() => void loadPlatformUsage()}>
+                          Refresh Usage
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label="Toggle Platform Tenant Usage Overview section"
+                        onClick={() => setPlatformUsageCollapsed((currentValue) => !currentValue)}
+                      >
+                        {platformUsageCollapsed ? "Expand" : "Collapse"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="list-scroll" style={{ maxHeight: "220px" }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Tenant</th>
-                          <th>Onboarding</th>
-                          <th>Users</th>
-                          <th>Documents</th>
-                          <th>Approved</th>
-                          <th>Exported</th>
-                          <th>Needs Review</th>
-                          <th>Failed</th>
-                          <th>Gmail</th>
-                          <th>Last Ingested</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {platformUsage.map((entry) => (
-                          <tr key={entry.tenantId}>
-                            <td>{entry.tenantName}</td>
-                            <td>{entry.onboardingStatus}</td>
-                            <td>{entry.userCount}</td>
-                            <td>{entry.totalDocuments}</td>
-                            <td>{entry.approvedDocuments}</td>
-                            <td>{entry.exportedDocuments}</td>
-                            <td>{entry.needsReviewDocuments}</td>
-                            <td>{entry.failedDocuments}</td>
-                            <td>{entry.gmailConnectionState}</td>
-                            <td>{entry.lastIngestedAt ? new Date(entry.lastIngestedAt).toLocaleString() : "-"}</td>
+                  {!platformUsageCollapsed ? (
+                    <div className="list-scroll" style={{ maxHeight: "220px" }}>
+                      <table data-testid="platform-usage-table">
+                        <thead>
+                          <tr>
+                            <th>Tenant</th>
+                            <th>Onboarding</th>
+                            <th>Users</th>
+                            <th>Documents</th>
+                            <th>Approved</th>
+                            <th>Exported</th>
+                            <th>Needs Review</th>
+                            <th>Failed</th>
+                            <th>Gmail</th>
+                            <th>Last Ingested</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {platformUsage.map((entry) => (
+                            <tr
+                              key={entry.tenantId}
+                              className={entry.tenantId === selectedPlatformTenantId ? "row-active" : undefined}
+                              onClick={() => setSelectedPlatformTenantId(entry.tenantId)}
+                            >
+                              <td>{entry.tenantName}</td>
+                              <td>{entry.onboardingStatus}</td>
+                              <td>{entry.userCount}</td>
+                              <td>{entry.totalDocuments}</td>
+                              <td>{entry.approvedDocuments}</td>
+                              <td>{entry.exportedDocuments}</td>
+                              <td>{entry.needsReviewDocuments}</td>
+                              <td>{entry.failedDocuments}</td>
+                              <td>{entry.gmailConnectionState}</td>
+                              <td>{entry.lastIngestedAt ? new Date(entry.lastIngestedAt).toLocaleString() : "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="muted section-collapsed-note">Section collapsed.</p>
+                  )}
                   <p className="muted">This view is usage-only. Invoice content is not exposed at platform scope.</p>
                 </div>
               </>
@@ -1151,12 +1261,74 @@ export function App() {
         {isPlatformAdmin ? (
           <section className="panel list-panel">
             <div className="panel-title">
-              <h2>Tenant Activity</h2>
-              <button type="button" onClick={() => void loadPlatformUsage()}>
-                Refresh
-              </button>
+              <h2>Activity Monitor</h2>
+              <div className="editor-actions">
+                {!platformActivityCollapsed ? (
+                  <button type="button" onClick={() => void loadPlatformUsage()}>
+                    Refresh
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="collapse-button"
+                  aria-label="Toggle Activity Monitor section"
+                  onClick={() => setPlatformActivityCollapsed((currentValue) => !currentValue)}
+                >
+                  {platformActivityCollapsed ? "Expand" : "Collapse"}
+                </button>
+              </div>
             </div>
-            <p className="muted">Select a tenant in the table above to review usage trends. Invoice contents stay private.</p>
+            {platformActivityCollapsed ? (
+              <p className="muted section-collapsed-note">Section collapsed.</p>
+            ) : selectedPlatformTenant ? (
+              <div className="detail-content">
+                <p className="muted" data-testid="platform-activity-tenant">
+                  Selected tenant: <strong>{selectedPlatformTenant.tenantName}</strong>
+                </p>
+                <div className="platform-stats-grid">
+                  <div className="platform-stat-tile">
+                    <span>Onboarding</span>
+                    <strong>{selectedPlatformTenant.onboardingStatus}</strong>
+                  </div>
+                  <div className="platform-stat-tile">
+                    <span>Users</span>
+                    <strong>{selectedPlatformTenant.userCount}</strong>
+                  </div>
+                  <div className="platform-stat-tile">
+                    <span>Documents</span>
+                    <strong>{selectedPlatformTenant.totalDocuments}</strong>
+                  </div>
+                  <div className="platform-stat-tile">
+                    <span>Approved</span>
+                    <strong>{selectedPlatformTenant.approvedDocuments}</strong>
+                  </div>
+                  <div className="platform-stat-tile">
+                    <span>Exported</span>
+                    <strong>{selectedPlatformTenant.exportedDocuments}</strong>
+                  </div>
+                  <div className="platform-stat-tile">
+                    <span>Failed</span>
+                    <strong>{selectedPlatformTenant.failedDocuments}</strong>
+                  </div>
+                </div>
+                <div className="detail-grid">
+                  <p>
+                    <span>Gmail Connection</span>
+                    <strong>{selectedPlatformTenant.gmailConnectionState}</strong>
+                  </p>
+                  <p>
+                    <span>Last Ingested</span>
+                    <strong>
+                      {selectedPlatformTenant.lastIngestedAt
+                        ? new Date(selectedPlatformTenant.lastIngestedAt).toLocaleString()
+                        : "-"}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="muted">Select a tenant in the usage table to load activity details.</p>
+            )}
           </section>
         ) : (
           <>

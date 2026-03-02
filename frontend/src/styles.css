@@ -571,6 +571,38 @@ tr:hover {
   background: rgba(31, 122, 108, 0.04);
 }
 
+.section-collapsed-note {
+  margin: 0.7rem 0 0;
+  font-size: 0.86rem;
+}
+
+.platform-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.7rem;
+}
+
+.platform-stat-tile {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.platform-stat-tile span {
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.platform-stat-tile strong {
+  font-size: 1.1rem;
+}
+
 .editor-header {
   display: flex;
   justify-content: space-between;

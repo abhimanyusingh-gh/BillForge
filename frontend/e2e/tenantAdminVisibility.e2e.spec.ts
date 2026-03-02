@@ -62,6 +62,7 @@ test.describe("tenant admin visibility", () => {
   test("platform admin sees tenant usage overview panel", async ({ page }) => {
     await seedAuthToken(page, platformToken);
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Platform Stats" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Onboard Tenant Admin" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Platform Tenant Usage Overview" })).toBeVisible();
     await expect(
@@ -86,6 +87,36 @@ test.describe("tenant admin visibility", () => {
     await expect(
       page.locator("tbody tr").filter({ has: page.getByRole("cell", { name: tenantName }) }).first()
     ).toBeVisible();
+  });
+
+  test("platform admin collapses sections and loads activity by tenant click", async ({ page }) => {
+    await seedAuthToken(page, platformToken);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByTestId("platform-stats-grid")).toBeVisible();
+    await page.getByRole("button", { name: "Toggle Platform Stats section" }).click();
+    await expect(page.getByTestId("platform-stats-grid")).toHaveCount(0);
+    await page.getByRole("button", { name: "Toggle Platform Stats section" }).click();
+    await expect(page.getByTestId("platform-stats-grid")).toBeVisible();
+
+    await page.getByRole("button", { name: "Toggle Onboard Tenant Admin section" }).click();
+    await expect(page.getByLabel("Tenant Name")).toHaveCount(0);
+    await page.getByRole("button", { name: "Toggle Onboard Tenant Admin section" }).click();
+    await expect(page.getByLabel("Tenant Name")).toBeVisible();
+
+    const usageRows = page.locator("[data-testid='platform-usage-table'] tbody tr");
+    await expect(usageRows.first()).toBeVisible();
+    const rowCount = await usageRows.count();
+    const targetRowIndex = rowCount > 1 ? 1 : 0;
+    const selectedTenantName = (await usageRows.nth(targetRowIndex).locator("td").first().innerText()).trim();
+    await usageRows.nth(targetRowIndex).click();
+    await expect(page.getByTestId("platform-activity-tenant")).toContainText(selectedTenantName);
+
+    await page.getByRole("button", { name: "Toggle Platform Tenant Usage Overview section" }).click();
+    await expect(page.locator("[data-testid='platform-usage-table']")).toHaveCount(0);
+    await page.getByRole("button", { name: "Toggle Platform Tenant Usage Overview section" }).click();
+    await expect(page.locator("[data-testid='platform-usage-table']")).toBeVisible();
+
   });
 });
 
