@@ -184,6 +184,8 @@ describe("saas lifecycle e2e", () => {
       userId: "000000000000000000000000",
       email: "ghost@local.test",
       tenantId: "ghost-tenant",
+      role: "TENANT_ADMIN",
+      isPlatformAdmin: false,
       ttlSeconds: 3600,
       secret: sessionSecret
     });
@@ -441,19 +443,39 @@ async function completeOnboarding(token: string, tenantName: string, adminEmail:
 async function pollInviteTokenFromMailhog(recipient: string, startedAfterMs: number): Promise<string> {
   const timeoutAt = Date.now() + 30_000;
   while (Date.now() < timeoutAt) {
-    const response = await axios.get(`${mailhogApiBaseUrl}/api/v2/messages`, {
-      timeout: 15_000,
-      validateStatus: () => true
-    });
-    if (response.status === 200 && Array.isArray(response.data?.items)) {
-      const token = extractInviteToken(response.data.items, recipient, startedAfterMs);
-      if (token) {
-        return token;
-      }
+    const messages = await fetchMailMessages();
+    const token = extractInviteToken(messages, recipient, startedAfterMs);
+    if (token) {
+      return token;
     }
     await sleep(1_000);
   }
   throw new Error(`Timed out waiting for invite email token for recipient '${recipient}'.`);
+}
+
+async function fetchMailMessages(): Promise<unknown[]> {
+  const v2 = await axios.get(`${mailhogApiBaseUrl}/api/v2/messages`, {
+    timeout: 15_000,
+    validateStatus: () => true
+  });
+  if (v2.status === 200 && Array.isArray(v2.data?.items)) {
+    return v2.data.items;
+  }
+
+  const v1 = await axios.get(`${mailhogApiBaseUrl}/api/v1/messages`, {
+    timeout: 15_000,
+    validateStatus: () => true
+  });
+  if (v1.status !== 200) {
+    return [];
+  }
+  if (Array.isArray(v1.data)) {
+    return v1.data;
+  }
+  if (Array.isArray(v1.data?.messages)) {
+    return v1.data.messages;
+  }
+  return [];
 }
 
 function extractInviteToken(messages: unknown[], recipient: string, startedAfterMs: number): string {
@@ -498,6 +520,10 @@ function containsRecipient(message: unknown, recipient: string): boolean {
   return toEntries.some((entry) => {
     const mailbox = typeof entry?.Mailbox === "string" ? entry.Mailbox.toLowerCase() : "";
     const domain = typeof entry?.Domain === "string" ? entry.Domain.toLowerCase() : "";
+    const address = typeof (entry as { Address?: unknown }).Address === "string" ? (entry as { Address: string }).Address.toLowerCase() : "";
+    if (address) {
+      return address === recipient;
+    }
     const combined = mailbox && domain ? `${mailbox}@${domain}` : "";
     return combined === recipient;
   });
@@ -516,8 +542,10 @@ function getMessageTextCandidates(message: unknown): string[] {
     typeof (message as { Raw?: { Data?: unknown } }).Raw?.Data === "string"
       ? (message as { Raw: { Data: string } }).Raw.Data
       : "";
+  const textBody = typeof (message as { Text?: unknown }).Text === "string" ? String((message as { Text: string }).Text) : "";
+  const htmlBody = typeof (message as { HTML?: unknown }).HTML === "string" ? String((message as { HTML: string }).HTML) : "";
 
-  return [contentBody, rawData].filter((value) => value.length > 0);
+  return [contentBody, rawData, textBody, htmlBody].filter((value) => value.length > 0);
 }
 
 function decodeQuotedPrintable(value: string): string {
@@ -531,7 +559,7 @@ function parseCreatedAt(message: unknown): number {
   if (!message || typeof message !== "object") {
     return 0;
   }
-  const created = (message as { Created?: unknown }).Created;
+  const created = (message as { Created?: unknown; Date?: unknown }).Created ?? (message as { Date?: unknown }).Date;
   if (typeof created !== "string") {
     return 0;
   }

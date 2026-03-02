@@ -70,9 +70,10 @@ app.get("/messages", async (req, res) => {
     const response = await axios.get(`${mailhogBaseUrl}/api/v1/messages`, {
       timeout: 15_000
     });
-    const rawMessages = Array.isArray(response.data) ? response.data : [];
-    const items = rawMessages
-      .map((message) => toWrapperMessage(message))
+    const rawMessages = extractMailApiMessages(response.data);
+    const normalized = await Promise.all(rawMessages.map((message) => toWrapperMessage(message, mailhogBaseUrl)));
+    const items = normalized
+      .filter((message) => message !== null)
       .filter((message) => message.checkpoint > after)
       .sort((left, right) => left.checkpoint.localeCompare(right.checkpoint));
 
@@ -293,16 +294,54 @@ function extractSendGridContent(contents, expectedType) {
   return "";
 }
 
-function toWrapperMessage(message) {
-  const id = String(message?.ID ?? "");
-  const created = String(message?.Created ?? "");
-  const rawData = String(message?.Raw?.Data ?? "");
+function extractMailApiMessages(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (payload && typeof payload === "object" && Array.isArray(payload.messages)) {
+    return payload.messages;
+  }
+  return [];
+}
+
+async function toWrapperMessage(message, baseUrl) {
+  const id = String(message?.ID ?? message?.id ?? "");
+  const created = String(message?.Created ?? message?.created ?? "");
+  if (!id) {
+    return null;
+  }
+  const rawData = await resolveRawMessageData(message, baseUrl, id);
+  if (!rawData) {
+    return null;
+  }
   return {
     id,
     checkpoint: `${normalizeIsoTimestamp(created)}#${id}`,
     receivedAt: created,
     rawData: Buffer.from(rawData, "utf8").toString("base64")
   };
+}
+
+async function resolveRawMessageData(message, baseUrl, id) {
+  const inlineRawData = String(message?.Raw?.Data ?? message?.rawData ?? "").trim();
+  if (inlineRawData) {
+    return inlineRawData;
+  }
+
+  try {
+    const response = await axios.get(`${baseUrl}/api/v1/message/${encodeURIComponent(id)}/raw`, {
+      timeout: 15_000,
+      responseType: "text",
+      transformResponse: [(value) => value]
+    });
+    if (typeof response.data === "string" && response.data.trim().length > 0) {
+      return response.data;
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
 }
 
 function normalizeIsoTimestamp(value) {

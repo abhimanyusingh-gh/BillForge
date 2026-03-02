@@ -151,7 +151,7 @@ services:
       ME_CONFIG_BASICAUTH: "false"
 
   mailhog:
-    image: mailhog/mailhog:latest
+    image: axllent/mailpit:latest
     container_name: invoice-processor-mailhog
     restart: unless-stopped
     ports:

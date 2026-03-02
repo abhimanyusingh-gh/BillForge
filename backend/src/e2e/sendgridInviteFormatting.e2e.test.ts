@@ -56,20 +56,42 @@ describe("sendgrid invite formatting e2e", () => {
 async function pollInviteMessage(recipient: string, startedAfterMs: number): Promise<{ subject: string; decodedBody: string }> {
   const timeoutAt = Date.now() + 30_000;
   while (Date.now() < timeoutAt) {
-    const response = await axios.get(`${mailhogApiBaseUrl}/api/v2/messages`, {
-      timeout: 15_000,
-      validateStatus: () => true
-    });
-    if (response.status === 200 && Array.isArray(response.data?.items)) {
-      const match = extractInviteMessage(response.data.items, recipient, startedAfterMs);
-      if (match) {
-        return match;
-      }
+    const messages = await fetchMailMessages();
+    const match = extractInviteMessage(messages, recipient, startedAfterMs);
+    if (match) {
+      return match;
     }
     await sleep(1_000);
   }
 
   throw new Error(`Timed out waiting for invite email for '${recipient}'.`);
+}
+
+async function fetchMailMessages(): Promise<unknown[]> {
+  const v2 = await axios.get(`${mailhogApiBaseUrl}/api/v2/messages`, {
+    timeout: 15_000,
+    validateStatus: () => true
+  });
+  if (v2.status === 200 && Array.isArray(v2.data?.items)) {
+    return v2.data.items;
+  }
+
+  const v1 = await axios.get(`${mailhogApiBaseUrl}/api/v1/messages`, {
+    timeout: 15_000,
+    validateStatus: () => true
+  });
+  if (v1.status !== 200) {
+    return [];
+  }
+
+  if (Array.isArray(v1.data)) {
+    return v1.data;
+  }
+  if (Array.isArray(v1.data?.messages)) {
+    return v1.data.messages;
+  }
+
+  return [];
 }
 
 function extractInviteMessage(
@@ -115,6 +137,10 @@ function containsRecipient(message: unknown, recipient: string): boolean {
   return toEntries.some((entry) => {
     const mailbox = typeof entry?.Mailbox === "string" ? entry.Mailbox.toLowerCase() : "";
     const domain = typeof entry?.Domain === "string" ? entry.Domain.toLowerCase() : "";
+    const address = typeof (entry as { Address?: unknown }).Address === "string" ? (entry as { Address: string }).Address.toLowerCase() : "";
+    if (address) {
+      return address === recipient;
+    }
     return mailbox && domain ? `${mailbox}@${domain}` === recipient : false;
   });
 }
@@ -125,15 +151,18 @@ function getMessageSubject(message: unknown): string {
   }
 
   const headers = (message as { Content?: { Headers?: Record<string, unknown> } }).Content?.Headers;
-  if (!headers || typeof headers !== "object") {
-    return "";
+  if (headers && typeof headers === "object") {
+    const subject = headers.Subject;
+    if (Array.isArray(subject)) {
+      return subject.map((entry) => String(entry)).join(" ").trim();
+    }
+    if (typeof subject === "string") {
+      return subject.trim();
+    }
   }
 
-  const subject = headers.Subject;
-  if (Array.isArray(subject)) {
-    return subject.map((entry) => String(entry)).join(" ").trim();
-  }
-  return typeof subject === "string" ? subject.trim() : "";
+  const direct = (message as { Subject?: unknown }).Subject;
+  return typeof direct === "string" ? direct.trim() : "";
 }
 
 function getMessageTextCandidates(message: unknown): string[] {
@@ -149,8 +178,10 @@ function getMessageTextCandidates(message: unknown): string[] {
     typeof (message as { Raw?: { Data?: unknown } }).Raw?.Data === "string"
       ? (message as { Raw: { Data: string } }).Raw.Data
       : "";
+  const textBody = typeof (message as { Text?: unknown }).Text === "string" ? String((message as { Text: string }).Text) : "";
+  const htmlBody = typeof (message as { HTML?: unknown }).HTML === "string" ? String((message as { HTML: string }).HTML) : "";
 
-  return [contentBody, rawData].filter((value) => value.length > 0);
+  return [contentBody, rawData, textBody, htmlBody].filter((value) => value.length > 0);
 }
 
 function decodeQuotedPrintable(value: string): string {
@@ -165,7 +196,7 @@ function parseCreatedAt(message: unknown): number {
     return 0;
   }
 
-  const created = (message as { Created?: unknown }).Created;
+  const created = (message as { Created?: unknown; Date?: unknown }).Created ?? (message as { Date?: unknown }).Date;
   if (typeof created !== "string") {
     return 0;
   }
