@@ -1,8 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { GmailIngestionCredentials, GmailMailboxBoundary } from "../core/boundaries/GmailMailboxBoundary.js";
 import { env } from "../config/env.js";
-import { MailboxConnectionModel } from "../models/MailboxConnection.js";
 import { OAuthStateModel } from "../models/OAuthState.js";
+import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import {
   exchangeGoogleAuthorizationCode,
   fetchGoogleUserEmail,
@@ -10,24 +9,24 @@ import {
   refreshGoogleAccessToken
 } from "../sources/email/gmailOAuthClient.js";
 import { GmailMailboxNeedsReauthError } from "../sources/email/errors.js";
-import { logger } from "../utils/logger.js";
 import { decryptSecret, encryptSecret } from "../utils/secretCrypto.js";
 import { MailboxNotificationService } from "./mailboxNotificationService.js";
+import { HttpError } from "../errors/HttpError.js";
 
-const GMAIL_PROVIDER = "gmail";
+const PROVIDER = "gmail";
 
 interface GmailConnectionStatus {
   provider: "gmail";
-  emailAddress: string | null;
-  connectionState: "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";
-  lastErrorReason: string | null;
-  lastSyncedAt: string | null;
+  status: "connected" | "requires_reauth" | "error";
+  emailAddress: string;
+  lastErrorReason: string;
+  lastSyncedAt: string;
 }
 
-export class GmailMailboxConnectionService implements GmailMailboxBoundary {
+export class TenantGmailIntegrationService {
   constructor(private readonly notificationService: MailboxNotificationService = new MailboxNotificationService()) {}
 
-  async createConnectUrl(userId: string): Promise<string> {
+  async createConnectUrl(input: { tenantId: string; userId: string }): Promise<string> {
     assertGmailOAuthConfigured();
 
     const state = randomBytes(24).toString("base64url");
@@ -37,8 +36,9 @@ export class GmailMailboxConnectionService implements GmailMailboxBoundary {
 
     await OAuthStateModel.create({
       state,
-      userId,
-      provider: GMAIL_PROVIDER,
+      userId: input.userId,
+      tenantId: input.tenantId,
+      provider: PROVIDER,
       codeVerifier,
       expiresAt
     });
@@ -59,20 +59,19 @@ export class GmailMailboxConnectionService implements GmailMailboxBoundary {
     return `${env.GMAIL_OAUTH_AUTH_URL}?${params.toString()}`;
   }
 
-  async handleOAuthCallback(code: string, state: string): Promise<GmailConnectionStatus> {
+  async handleOAuthCallback(code: string, state: string): Promise<{ tenantId: string }> {
     assertGmailOAuthConfigured();
-
     const oauthState = await OAuthStateModel.findOne({
       state,
-      provider: GMAIL_PROVIDER
+      provider: PROVIDER
     });
-    if (!oauthState) {
-      throw new Error("OAuth state is invalid or expired.");
+    if (!oauthState || !oauthState.tenantId) {
+      throw new HttpError("OAuth state is invalid or expired.", 400, "gmail_oauth_state_invalid");
     }
 
     if (oauthState.expiresAt.getTime() < Date.now()) {
       await OAuthStateModel.deleteOne({ _id: oauthState._id });
-      throw new Error("OAuth state expired. Start the connection flow again.");
+      throw new HttpError("OAuth state expired. Start connection again.", 400, "gmail_oauth_state_expired");
     }
 
     await OAuthStateModel.deleteOne({ _id: oauthState._id });
@@ -86,26 +85,25 @@ export class GmailMailboxConnectionService implements GmailMailboxBoundary {
       tokenEndpoint: env.GMAIL_OAUTH_TOKEN_URL,
       timeoutMs: env.GMAIL_OAUTH_HTTP_TIMEOUT_MS
     });
-
     const emailAddress = await fetchGoogleUserEmail(
       tokenResult.accessToken,
       env.GMAIL_OAUTH_USERINFO_URL,
       env.GMAIL_OAUTH_HTTP_TIMEOUT_MS
     );
+    const encryptedRefreshToken = encryptSecret(tokenResult.refreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET);
 
-    const encryptedRefreshToken = encryptSecret(tokenResult.refreshToken, env.GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET);
-
-    await MailboxConnectionModel.findOneAndUpdate(
+    await TenantIntegrationModel.findOneAndUpdate(
       {
-        userId: oauthState.userId,
-        provider: GMAIL_PROVIDER
+        tenantId: oauthState.tenantId,
+        provider: PROVIDER
       },
       {
-        userId: oauthState.userId,
-        provider: GMAIL_PROVIDER,
+        tenantId: oauthState.tenantId,
+        provider: PROVIDER,
+        status: "connected",
         emailAddress,
-        refreshTokenEncrypted: encryptedRefreshToken,
-        connectionState: "CONNECTED",
+        encryptedRefreshToken,
+        createdByUserId: oauthState.userId,
         lastErrorReason: undefined,
         reauthNotifiedAt: undefined
       },
@@ -116,60 +114,60 @@ export class GmailMailboxConnectionService implements GmailMailboxBoundary {
       }
     );
 
-    logger.info("gmail.connection.connected", {
-      userId: oauthState.userId,
-      emailAddress
-    });
-
-    return this.getConnectionStatus(oauthState.userId);
-  }
-
-  async getConnectionStatus(userId: string): Promise<GmailConnectionStatus> {
-    const connection = await MailboxConnectionModel.findOne({
-      userId,
-      provider: GMAIL_PROVIDER
-    });
-
-    if (!connection) {
-      return {
-        provider: GMAIL_PROVIDER,
-        connectionState: "DISCONNECTED",
-        emailAddress: null,
-        lastErrorReason: null,
-        lastSyncedAt: null
-      };
-    }
-
     return {
-      provider: GMAIL_PROVIDER,
-      connectionState: connection.connectionState,
-      emailAddress: connection.emailAddress,
-      lastErrorReason: connection.lastErrorReason ?? null,
-      lastSyncedAt: connection.lastSyncedAt ? connection.lastSyncedAt.toISOString() : null
+      tenantId: oauthState.tenantId
     };
   }
 
-  async resolveIngestionCredentials(userId: string): Promise<GmailIngestionCredentials | null> {
-    const connection = await MailboxConnectionModel.findOne({
-      userId,
-      provider: GMAIL_PROVIDER
+  async getConnectionStatus(tenantId: string): Promise<GmailConnectionStatus> {
+    const integration = await TenantIntegrationModel.findOne({
+      tenantId,
+      provider: PROVIDER
+    }).lean();
+    if (!integration) {
+      return {
+        provider: PROVIDER,
+        status: "error",
+        emailAddress: "",
+        lastErrorReason: "",
+        lastSyncedAt: ""
+      };
+    }
+    return {
+      provider: PROVIDER,
+      status: integration.status,
+      emailAddress: integration.emailAddress ?? "",
+      lastErrorReason: integration.lastErrorReason ?? "",
+      lastSyncedAt: integration.lastSyncedAt ? integration.lastSyncedAt.toISOString() : ""
+    };
+  }
+
+  async resolveIngestionCredentials(tenantId: string): Promise<{ emailAddress: string; accessToken: string } | null> {
+    const integration = await TenantIntegrationModel.findOne({
+      tenantId,
+      provider: PROVIDER
     });
-    if (!connection) {
+    if (!integration) {
       return null;
     }
+    if (integration.status === "requires_reauth") {
+      throw new GmailMailboxNeedsReauthError(integration.lastErrorReason ?? "Mailbox requires reauthorization.");
+    }
 
-    if (connection.connectionState === "NEEDS_REAUTH") {
-      throw new GmailMailboxNeedsReauthError(
-        connection.lastErrorReason || "Mailbox access requires reauthorization."
-      );
+    const encryptedRefreshToken = integration.encryptedRefreshToken ?? "";
+    if (!encryptedRefreshToken) {
+      integration.status = "error";
+      integration.lastErrorReason = "Missing refresh token.";
+      await integration.save();
+      throw new GmailMailboxNeedsReauthError("Missing refresh token.");
     }
 
     let refreshToken = "";
     try {
-      refreshToken = decryptSecret(connection.refreshTokenEncrypted, env.GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET);
+      refreshToken = decryptSecret(encryptedRefreshToken, env.REFRESH_TOKEN_ENCRYPTION_SECRET);
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Failed to decrypt refresh token.";
-      await this.transitionToNeedsReauth(connection, reason);
+      const reason = error instanceof Error ? error.message : "Refresh token decryption failed.";
+      await this.transitionToNeedsReauth(integration, reason);
       throw new GmailMailboxNeedsReauthError(reason);
     }
 
@@ -181,30 +179,29 @@ export class GmailMailboxConnectionService implements GmailMailboxBoundary {
         tokenEndpoint: env.GMAIL_OAUTH_TOKEN_URL,
         timeoutMs: env.GMAIL_OAUTH_HTTP_TIMEOUT_MS
       });
-
       return {
-        emailAddress: connection.emailAddress,
+        emailAddress: integration.emailAddress ?? "",
         accessToken: refreshed.accessToken
       };
     } catch (error) {
       if (isInvalidGrantError(error)) {
         const reason =
           error instanceof Error ? `OAuth refresh token rejected: ${error.message}` : "OAuth refresh token rejected.";
-        await this.transitionToNeedsReauth(connection, reason);
+        await this.transitionToNeedsReauth(integration, reason);
         throw new GmailMailboxNeedsReauthError(reason);
       }
       throw error;
     }
   }
 
-  async markSyncSuccess(userId: string): Promise<void> {
-    await MailboxConnectionModel.findOneAndUpdate(
+  async markSyncSuccess(tenantId: string): Promise<void> {
+    await TenantIntegrationModel.findOneAndUpdate(
       {
-        userId,
-        provider: GMAIL_PROVIDER
+        tenantId,
+        provider: PROVIDER
       },
       {
-        connectionState: "CONNECTED",
+        status: "connected",
         lastErrorReason: undefined,
         lastSyncedAt: new Date()
       }
@@ -225,42 +222,34 @@ export class GmailMailboxConnectionService implements GmailMailboxBoundary {
   }
 
   private async transitionToNeedsReauth(
-    connection: {
-      userId: string;
-      provider: "gmail";
-      emailAddress: string;
-      connectionState: "CONNECTED" | "NEEDS_REAUTH";
+    integration: {
+      status: "connected" | "requires_reauth" | "error";
+      tenantId: string;
+      createdByUserId: string;
+      emailAddress?: string | null;
       lastErrorReason?: string | null;
       reauthNotifiedAt?: Date | null;
       save(): Promise<unknown>;
     },
     reason: string
   ): Promise<void> {
-    const previousState = connection.connectionState;
-    connection.connectionState = "NEEDS_REAUTH";
-    connection.lastErrorReason = reason;
+    const previousStatus = integration.status;
+    integration.status = "requires_reauth";
+    integration.lastErrorReason = reason;
 
-    if (previousState === "CONNECTED") {
-      connection.reauthNotifiedAt = new Date();
-      await connection.save();
-      try {
-        await this.notificationService.notifyNeedsReauth({
-          userId: connection.userId,
-          provider: GMAIL_PROVIDER,
-          emailAddress: connection.emailAddress,
-          reason
-        });
-      } catch (error) {
-        logger.error("gmail.connection.notification.failed", {
-          userId: connection.userId,
-          emailAddress: connection.emailAddress,
-          reason: error instanceof Error ? error.message : String(error)
-        });
-      }
+    if (previousStatus === "connected") {
+      integration.reauthNotifiedAt = new Date();
+      await integration.save();
+      await this.notificationService.notifyNeedsReauth({
+        userId: integration.createdByUserId,
+        provider: PROVIDER,
+        emailAddress: integration.emailAddress ?? "",
+        reason
+      });
       return;
     }
 
-    await connection.save();
+    await integration.save();
   }
 }
 
@@ -280,13 +269,11 @@ function assertGmailOAuthConfigured(): void {
     ["GMAIL_OAUTH_AUTH_URL", env.GMAIL_OAUTH_AUTH_URL],
     ["GMAIL_OAUTH_TOKEN_URL", env.GMAIL_OAUTH_TOKEN_URL],
     ["GMAIL_OAUTH_USERINFO_URL", env.GMAIL_OAUTH_USERINFO_URL],
-    ["GMAIL_OAUTH_SCOPES", env.GMAIL_OAUTH_SCOPES],
-    ["GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET", env.GMAIL_OAUTH_TOKEN_ENCRYPTION_SECRET]
+    ["GMAIL_OAUTH_SCOPES", env.GMAIL_OAUTH_SCOPES]
   ]
     .filter(([, value]) => value.trim().length === 0)
     .map(([name]) => name);
-
   if (missing.length > 0) {
-    throw new Error(`Gmail OAuth is not configured. Missing: ${missing.join(", ")}`);
+    throw new Error(`Gmail OAuth configuration is missing fields: ${missing.join(", ")}`);
   }
 }

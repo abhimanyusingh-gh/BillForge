@@ -12,6 +12,7 @@ const oauthRefreshToken = process.env.OAUTH_REFRESH_TOKEN ?? "mailhog-refresh";
 const oauthAccessToken = process.env.OAUTH_ACCESS_TOKEN ?? "mailhog-access-token";
 const xoauth2Username = process.env.OAUTH_XOAUTH2_USERNAME ?? "ap@example.com";
 const tokenExpiresIn = Number(process.env.OAUTH_TOKEN_EXPIRES_IN ?? 3600);
+const sendGridApiKey = process.env.SENDGRID_API_KEY ?? "local-sendgrid-key";
 
 const app = express();
 app.use(express.json({ limit: "15mb" }));
@@ -120,6 +121,35 @@ app.post("/seed", async (req, res) => {
   }
 });
 
+app.post("/sendgrid/v3/mail/send", async (req, res) => {
+  if (!isSendgridAuthorized(req.headers.authorization)) {
+    res.status(401).json({ errors: [{ message: "unauthorized" }] });
+    return;
+  }
+
+  const parsed = normalizeSendGridMailPayload(req.body);
+  if (!parsed) {
+    res.status(400).json({ errors: [{ message: "invalid_sendgrid_payload" }] });
+    return;
+  }
+
+  try {
+    await smtpTransport.sendMail({
+      from: parsed.from,
+      to: parsed.to,
+      subject: parsed.subject,
+      text: parsed.text,
+      html: parsed.html
+    });
+    res.status(202).send();
+  } catch (error) {
+    res.status(502).json({
+      errors: [{ message: "sendgrid_relay_failed" }],
+      detail: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 app.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`mailhog-oauth-wrapper listening on :${port}`);
@@ -185,6 +215,82 @@ function normalizeAttachment(value) {
     contentType,
     content: Buffer.from(contentBase64, "base64")
   };
+}
+
+function isSendgridAuthorized(authorizationHeader) {
+  if (typeof authorizationHeader !== "string") {
+    return false;
+  }
+  const [scheme, token] = authorizationHeader.trim().split(/\s+/);
+  if (scheme?.toLowerCase() !== "bearer" || !token) {
+    return false;
+  }
+  return token === sendGridApiKey;
+}
+
+function normalizeSendGridMailPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const fromEmail = String(payload.from?.email ?? "").trim();
+  const recipients = extractSendGridRecipients(payload.personalizations);
+  const topLevelSubject = String(payload.subject ?? "").trim();
+  const personalizationSubject = String(payload.personalizations?.[0]?.subject ?? "").trim();
+  const subject = personalizationSubject || topLevelSubject;
+  const contents = Array.isArray(payload.content) ? payload.content : [];
+  const text = extractSendGridContent(contents, "text/plain");
+  const html = extractSendGridContent(contents, "text/html");
+
+  if (!fromEmail || recipients.length === 0 || !subject || (!text && !html)) {
+    return null;
+  }
+
+  return {
+    from: fromEmail,
+    to: recipients.join(", "),
+    subject,
+    text: text || undefined,
+    html: html || undefined
+  };
+}
+
+function extractSendGridRecipients(personalizations) {
+  if (!Array.isArray(personalizations)) {
+    return [];
+  }
+
+  const recipients = new Set();
+  for (const personalization of personalizations) {
+    if (!personalization || typeof personalization !== "object") {
+      continue;
+    }
+    const toList = Array.isArray(personalization.to) ? personalization.to : [];
+    for (const recipient of toList) {
+      const email = String(recipient?.email ?? "").trim().toLowerCase();
+      if (email.includes("@")) {
+        recipients.add(email);
+      }
+    }
+  }
+  return Array.from(recipients);
+}
+
+function extractSendGridContent(contents, expectedType) {
+  for (const entry of contents) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const type = String(entry.type ?? "").trim().toLowerCase();
+    if (type !== expectedType) {
+      continue;
+    }
+    const value = String(entry.value ?? "").trim();
+    if (value.length > 0) {
+      return value;
+    }
+  }
+  return "";
 }
 
 function toWrapperMessage(message) {
