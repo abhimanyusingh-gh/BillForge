@@ -1,18 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   approveInvoices,
+  assignTenantUserRole,
+  clearStoredSessionToken,
+  completeTenantOnboarding,
   exportToTally,
+  fetchGmailConnectUrl,
   fetchGmailConnectionStatus,
   fetchIngestionStatus,
   fetchInvoices,
-  getGmailConnectUrl,
+  fetchPlatformTenantUsage,
+  fetchSessionContext,
+  fetchTenantUsers,
+  getAuthLoginUrl,
   getInvoiceBlockCropUrl,
   getInvoiceFieldOverlayUrl,
+  getStoredSessionToken,
+  inviteTenantUser,
   runEmailSimulationIngestion,
   runIngestion,
+  setStoredSessionToken,
+  removeTenantUser,
   updateInvoiceParsedFields
 } from "./api";
 import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
+import type { PlatformTenantUsageSummary } from "./api";
 import { ConfidenceBadge } from "./components/ConfidenceBadge";
 import { ExtractedFieldsTable } from "./components/ExtractedFieldsTable";
 import { IngestionProgressCard } from "./components/IngestionProgressCard";
@@ -42,6 +54,26 @@ import {
 import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
 
 export function App() {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [session, setSession] = useState<{
+    user: { id: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
+    tenant: { id: string; name: string; onboarding_status: "pending" | "completed" };
+    flags: {
+      requires_tenant_setup: boolean;
+      requires_reauth: boolean;
+      requires_admin_action: boolean;
+      requires_email_confirmation: boolean;
+    };
+  } | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" }>>(
+    []
+  );
+  const [platformUsage, setPlatformUsage] = useState<PlatformTenantUsageSummary[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [onboardingForm, setOnboardingForm] = useState({
+    tenantName: "",
+    adminEmail: ""
+  });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -71,8 +103,35 @@ export function App() {
   } = useInvoiceDetail(popupInvoiceId);
 
   useEffect(() => {
+    void bootstrapSession();
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
     void loadInvoices();
-  }, [statusFilter]);
+  }, [session, statusFilter]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    void refreshIngestionStatus();
+    void loadGmailConnectionStatus();
+    if (session.user.role === "TENANT_ADMIN") {
+      void loadTenantUsers();
+      setOnboardingForm({
+        tenantName: session.tenant.name,
+        adminEmail: session.user.email
+      });
+    }
+    if (session.user.isPlatformAdmin) {
+      void loadPlatformUsage();
+    } else {
+      setPlatformUsage([]);
+    }
+  }, [session?.user.id, session?.tenant.id]);
 
   useEffect(() => {
     setPopupSourcePreviewExpanded(false);
@@ -228,6 +287,63 @@ export function App() {
   const gmailConnected = gmailConnectionState === "CONNECTED";
   const gmailEmailAddress = gmailConnection?.emailAddress ?? "";
 
+  async function bootstrapSession() {
+    setAuthLoading(true);
+    const params = new URLSearchParams(window.location.search);
+    const callbackToken = params.get("token");
+    const callbackNext = params.get("next");
+    if (callbackToken) {
+      setStoredSessionToken(callbackToken);
+      params.delete("token");
+      params.delete("next");
+      const query = params.toString();
+      const targetPath = callbackNext && callbackNext.startsWith("/") ? callbackNext : window.location.pathname;
+      window.history.replaceState({}, "", `${targetPath}${query.length > 0 ? `?${query}` : ""}`);
+    }
+
+    const storedToken = getStoredSessionToken();
+    if (!storedToken) {
+      setSession(null);
+      setAuthLoading(false);
+      return;
+    }
+
+    try {
+      const sessionContext = await fetchSessionContext();
+      setSession(sessionContext);
+      setError(null);
+    } catch {
+      clearStoredSessionToken();
+      setSession(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function loadTenantUsers() {
+    if (!session || session.user.role !== "TENANT_ADMIN") {
+      return;
+    }
+    try {
+      const users = await fetchTenantUsers();
+      setTenantUsers(users);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Failed to load tenant users.");
+    }
+  }
+
+  async function loadPlatformUsage() {
+    if (!session?.user.isPlatformAdmin) {
+      return;
+    }
+    try {
+      const usage = await fetchPlatformTenantUsage();
+      setPlatformUsage(usage);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Failed to load tenant usage overview.");
+    }
+  }
+
   useEffect(() => {
     if (!popupInvoiceId) {
       return undefined;
@@ -255,11 +371,6 @@ export function App() {
   }, [activeInvoice]);
 
   useEffect(() => {
-    void refreshIngestionStatus();
-    void loadGmailConnectionStatus();
-  }, []);
-
-  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const gmailStatus = params.get("gmail");
     if (!gmailStatus) {
@@ -275,13 +386,18 @@ export function App() {
       setError(null);
     }
 
-    void loadGmailConnectionStatus();
+    if (session) {
+      void loadGmailConnectionStatus();
+      if (session.user.isPlatformAdmin) {
+        void loadPlatformUsage();
+      }
+    }
     params.delete("gmail");
     params.delete("reason");
     const query = params.toString();
     const nextUrl = `${window.location.pathname}${query.length > 0 ? `?${query}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", nextUrl);
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (!ingestionStatus?.running) {
@@ -309,6 +425,9 @@ export function App() {
   }, [ingestionStatus?.running, ingestionStatus?.state, ingestionStatus?.error]);
 
   async function loadInvoices() {
+    if (!session) {
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -330,13 +449,21 @@ export function App() {
         void refreshPopupInvoiceDetail();
       }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to fetch invoices");
+      if (loadError instanceof Error && /401|Authentication required|bearer token/i.test(loadError.message)) {
+        clearStoredSessionToken();
+        setSession(null);
+      } else {
+        setError(loadError instanceof Error ? loadError.message : "Failed to fetch invoices");
+      }
     } finally {
       setLoading(false);
     }
   }
 
   async function refreshIngestionStatus() {
+    if (!session) {
+      return;
+    }
     try {
       const status = await fetchIngestionStatus();
       setIngestionStatus(status);
@@ -346,6 +473,9 @@ export function App() {
   }
 
   async function loadGmailConnectionStatus() {
+    if (!session) {
+      return;
+    }
     try {
       const status = await fetchGmailConnectionStatus();
       setGmailConnection(status);
@@ -357,8 +487,13 @@ export function App() {
     }
   }
 
-  function handleConnectGmail() {
-    window.location.assign(getGmailConnectUrl());
+  async function handleConnectGmail() {
+    try {
+      const connectUrl = await fetchGmailConnectUrl();
+      window.location.assign(connectUrl);
+    } catch (connectError) {
+      setError(connectError instanceof Error ? connectError.message : "Failed to start Gmail connection flow.");
+    }
   }
 
   async function handleApprove() {
@@ -429,6 +564,63 @@ export function App() {
     }
   }
 
+  function handleLogout() {
+    clearStoredSessionToken();
+    setSession(null);
+    setInvoices([]);
+    setTenantUsers([]);
+    setActiveId(null);
+    setPopupInvoiceId(null);
+  }
+
+  async function handleCompleteOnboarding() {
+    if (!session) {
+      return;
+    }
+    try {
+      setError(null);
+      await completeTenantOnboarding({
+        tenantName: onboardingForm.tenantName,
+        adminEmail: onboardingForm.adminEmail
+      });
+      const refreshed = await fetchSessionContext();
+      setSession(refreshed);
+    } catch (setupError) {
+      setError(setupError instanceof Error ? setupError.message : "Failed to complete onboarding.");
+    }
+  }
+
+  async function handleInviteUser() {
+    try {
+      setError(null);
+      await inviteTenantUser(inviteEmail);
+      setInviteEmail("");
+      await loadTenantUsers();
+    } catch (inviteError) {
+      setError(inviteError instanceof Error ? inviteError.message : "Failed to invite user.");
+    }
+  }
+
+  async function handleRoleChange(userId: string, role: "TENANT_ADMIN" | "MEMBER") {
+    try {
+      setError(null);
+      await assignTenantUserRole(userId, role);
+      await loadTenantUsers();
+    } catch (assignError) {
+      setError(assignError instanceof Error ? assignError.message : "Failed to update role.");
+    }
+  }
+
+  async function handleRemoveUser(userId: string) {
+    try {
+      setError(null);
+      await removeTenantUser(userId);
+      await loadTenantUsers();
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : "Failed to remove user.");
+    }
+  }
+
   function toggleSelection(invoice: Invoice) {
     if (!isInvoiceSelectable(invoice)) {
       return;
@@ -487,12 +679,47 @@ export function App() {
 
       setEditingParsedFields(false);
       await loadInvoices();
+      if (session?.user.isPlatformAdmin) {
+        await loadPlatformUsage();
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Failed to update parsed invoice fields");
     } finally {
       setSavingParsedFields(false);
     }
   }
+
+  if (authLoading) {
+    return (
+      <div className="layout">
+        <main className="content content-list-expanded">
+          <section className="panel list-panel">
+            <h2>Authenticating...</h2>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="layout">
+        <main className="content content-list-expanded">
+          <section className="panel list-panel">
+            <h2>Sign in required</h2>
+            <p className="muted">Use your organization OAuth account to access tenant data.</p>
+            <a className="tab tab-active" href={getAuthLoginUrl(window.location.pathname)}>
+              Login with OAuth
+            </a>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  const isTenantAdmin = session.user.role === "TENANT_ADMIN";
+  const isPlatformAdmin = session.user.isPlatformAdmin;
+  const requiresTenantSetup = session.flags.requires_tenant_setup;
 
   return (
     <div className="layout">
@@ -503,6 +730,16 @@ export function App() {
         <div>
           <p className="eyebrow">Invoice Processor</p>
           <h1>Ops Console</h1>
+          <p className="muted">
+            Tenant: <strong>{session.tenant.name}</strong> | User: <strong>{session.user.email}</strong> | Role:{" "}
+            <strong>{session.user.role}</strong>
+            {isPlatformAdmin ? (
+              <>
+                {" "}
+                | Platform: <strong>ADMIN</strong>
+              </>
+            ) : null}
+          </p>
         </div>
 
         <div className="metrics">
@@ -514,6 +751,7 @@ export function App() {
             <span>Failed</span>
             <strong>{failedCount}</strong>
           </div>
+          <button onClick={handleLogout}>Logout</button>
         </div>
       </header>
 
@@ -521,9 +759,13 @@ export function App() {
         {gmailNeedsReauth ? (
           <div className="mailbox-banner" role="alert">
             <strong>We lost access to your mailbox. Please reconnect.</strong>
-            <button type="button" onClick={handleConnectGmail}>
-              Reconnect Gmail
-            </button>
+            {isTenantAdmin ? (
+              <button type="button" onClick={handleConnectGmail}>
+                Reconnect Gmail
+              </button>
+            ) : (
+              <span className="muted">Please ask your tenant admin to reconnect Gmail.</span>
+            )}
           </div>
         ) : null}
 
@@ -532,12 +774,141 @@ export function App() {
             {gmailConnected ? "Mailbox Connected" : "Mailbox Not Connected"}
           </span>
           {gmailConnected && gmailEmailAddress ? <span className="mailbox-email">{gmailEmailAddress}</span> : null}
-          {!gmailConnected ? (
+          {!gmailConnected && isTenantAdmin ? (
             <button type="button" onClick={handleConnectGmail}>
               {gmailNeedsReauth ? "Reconnect Gmail" : "Connect Gmail"}
             </button>
           ) : null}
         </div>
+
+        {requiresTenantSetup ? (
+          <div className="editor-card">
+            <div className="editor-header">
+              <h3>Tenant Onboarding</h3>
+              {isTenantAdmin ? (
+                <button type="button" onClick={() => void handleCompleteOnboarding()}>
+                  Complete Onboarding
+                </button>
+              ) : null}
+            </div>
+            <div className="edit-grid">
+              <label>
+                Tenant Name
+                <input
+                  value={onboardingForm.tenantName}
+                  disabled={!isTenantAdmin}
+                  onChange={(event) => setOnboardingForm((state) => ({ ...state, tenantName: event.target.value }))}
+                />
+              </label>
+              <label>
+                Admin Email
+                <input
+                  value={onboardingForm.adminEmail}
+                  disabled={!isTenantAdmin}
+                  onChange={(event) => setOnboardingForm((state) => ({ ...state, adminEmail: event.target.value }))}
+                />
+              </label>
+            </div>
+            {!isTenantAdmin ? <p className="muted">Only tenant admins can complete onboarding.</p> : null}
+          </div>
+        ) : null}
+
+        {isTenantAdmin ? (
+          <div className="editor-card">
+            <div className="editor-header">
+              <h3>Tenant Settings</h3>
+            </div>
+            <div className="edit-grid">
+              <label>
+                Invite User Email
+                <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="user@example.com" />
+              </label>
+              <button type="button" onClick={() => void handleInviteUser()} disabled={!inviteEmail.trim()}>
+                Send Invite
+              </button>
+            </div>
+            <div className="list-scroll" style={{ maxHeight: "160px" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tenantUsers.map((user) => (
+                    <tr key={user.userId}>
+                      <td>{user.email}</td>
+                      <td>
+                        <select
+                          value={user.role}
+                          onChange={(event) =>
+                            void handleRoleChange(user.userId, event.target.value as "TENANT_ADMIN" | "MEMBER")
+                          }
+                        >
+                          <option value="TENANT_ADMIN">TENANT_ADMIN</option>
+                          <option value="MEMBER">MEMBER</option>
+                        </select>
+                      </td>
+                      <td>
+                        <button type="button" onClick={() => void handleRemoveUser(user.userId)}>
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+
+        {isPlatformAdmin ? (
+          <div className="editor-card">
+            <div className="editor-header">
+              <h3>Platform Tenant Usage Overview</h3>
+              <button type="button" onClick={() => void loadPlatformUsage()}>
+                Refresh Usage
+              </button>
+            </div>
+            <div className="list-scroll" style={{ maxHeight: "220px" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tenant</th>
+                    <th>Onboarding</th>
+                    <th>Users</th>
+                    <th>Documents</th>
+                    <th>Approved</th>
+                    <th>Exported</th>
+                    <th>Needs Review</th>
+                    <th>Failed</th>
+                    <th>Gmail</th>
+                    <th>Last Ingested</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {platformUsage.map((entry) => (
+                    <tr key={entry.tenantId}>
+                      <td>{entry.tenantName}</td>
+                      <td>{entry.onboardingStatus}</td>
+                      <td>{entry.userCount}</td>
+                      <td>{entry.totalDocuments}</td>
+                      <td>{entry.approvedDocuments}</td>
+                      <td>{entry.exportedDocuments}</td>
+                      <td>{entry.needsReviewDocuments}</td>
+                      <td>{entry.failedDocuments}</td>
+                      <td>{entry.gmailConnectionState}</td>
+                      <td>{entry.lastIngestedAt ? new Date(entry.lastIngestedAt).toLocaleString() : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="muted">This view is usage-only. Invoice content is not exposed at platform scope.</p>
+          </div>
+        ) : null}
 
         <div className="status-tabs">
           {STATUSES.map((status) => (
@@ -552,19 +923,22 @@ export function App() {
         </div>
 
         <div className="actions">
-          <button onClick={handleIngest} disabled={ingestionStatus?.running === true}>
+          <button onClick={handleIngest} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
             {ingestionStatus?.running ? "Ingestion Running..." : "Run Ingestion"}
           </button>
-          <button onClick={handleEmailSimulationIngest} disabled={ingestionStatus?.running === true}>
+          <button onClick={handleEmailSimulationIngest} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
             {ingestionStatus?.running ? "Ingestion Running..." : "Run Email XOAUTH2 Simulation"}
           </button>
           <button onClick={toggleSelectAllVisible} disabled={selectableVisibleIds.length === 0}>
             {areAllVisibleSelectableSelected ? "Deselect All" : "Select All"}
           </button>
-          <button onClick={handleApprove} disabled={selectedApprovableIds.length === 0}>
+          <button onClick={handleApprove} disabled={requiresTenantSetup || selectedApprovableIds.length === 0}>
             Approve Selected
           </button>
-          <button onClick={handleExport} disabled={selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+          <button
+            onClick={handleExport}
+            disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}
+          >
             Export To Tally ({selectedExportableIds.length})
           </button>
           <button onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
