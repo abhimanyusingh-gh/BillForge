@@ -36,8 +36,83 @@ describe("platform admin tenant usage e2e", () => {
     const platformSession = await fetchSession(platformToken);
     expect(platformSession.user.isPlatformAdmin).toBe(true);
 
+    const onboardedTenantAdminEmail = `onboarded-${Date.now()}@local.test`;
+    const onboardedTenantName = `Onboarded Tenant ${Date.now()}`;
+    const onboardResponse = await api.post(
+      "/api/platform/tenants/onboard-admin",
+      {
+        tenantName: onboardedTenantName,
+        adminEmail: onboardedTenantAdminEmail
+      },
+      {
+        headers: authHeaders(platformToken)
+      }
+    );
+    expect(onboardResponse.status).toBe(201);
+    expect(onboardResponse.data?.tenantName).toBe(onboardedTenantName);
+    expect(onboardResponse.data?.adminEmail).toBe(onboardedTenantAdminEmail);
+
+    const onboardedAdminToken = await createE2ESessionTokenWithOptions(apiBaseUrl, {
+      loginHint: onboardedTenantAdminEmail
+    });
+    const onboardedAdminSession = await fetchSession(onboardedAdminToken);
+    expect(onboardedAdminSession.user.isPlatformAdmin).toBe(false);
+    expect(onboardedAdminSession.user.role).toBe("TENANT_ADMIN");
+    expect(onboardedAdminSession.tenant.name).toBe(onboardedTenantName);
+    expect(onboardedAdminSession.tenant.onboarding_status).toBe("pending");
+
+    const forbiddenOnboard = await api.post(
+      "/api/platform/tenants/onboard-admin",
+      {
+        tenantName: "forbidden",
+        adminEmail: `forbidden-${Date.now()}@local.test`
+      },
+      {
+        headers: authHeaders(onboardedAdminToken)
+      }
+    );
+    expect(forbiddenOnboard.status).toBe(403);
+
+    const platformIngest = await api.post(
+      "/api/jobs/ingest",
+      {},
+      {
+        headers: authHeaders(platformToken)
+      }
+    );
+    expect(platformIngest.status).toBe(403);
+
+    const platformInvoices = await api.get("/api/invoices?page=1&limit=5", {
+      headers: authHeaders(platformToken)
+    });
+    expect(platformInvoices.status).toBe(403);
+
     const tenantAEmail = `usage-a-${Date.now()}@local.test`;
     const tenantBEmail = `usage-b-${Date.now()}@local.test`;
+    const tenantAName = `Usage Tenant A ${Date.now()}`;
+    const tenantBName = `Usage Tenant B ${Date.now()}`;
+    const tenantAOnboard = await api.post(
+      "/api/platform/tenants/onboard-admin",
+      {
+        tenantName: tenantAName,
+        adminEmail: tenantAEmail
+      },
+      {
+        headers: authHeaders(platformToken)
+      }
+    );
+    expect(tenantAOnboard.status).toBe(201);
+    const tenantBOnboard = await api.post(
+      "/api/platform/tenants/onboard-admin",
+      {
+        tenantName: tenantBName,
+        adminEmail: tenantBEmail
+      },
+      {
+        headers: authHeaders(platformToken)
+      }
+    );
+    expect(tenantBOnboard.status).toBe(201);
     const tenantAToken = await createE2ESessionTokenWithOptions(apiBaseUrl, {
       loginHint: tenantAEmail
     });

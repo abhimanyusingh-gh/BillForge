@@ -2,6 +2,8 @@ import { InvoiceModel } from "../models/Invoice.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { TenantModel } from "../models/Tenant.js";
 import { UserModel } from "../models/User.js";
+import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { HttpError } from "../errors/HttpError.js";
 
 export interface TenantUsageOverview {
   tenantId: string;
@@ -20,6 +22,54 @@ export interface TenantUsageOverview {
 }
 
 export class PlatformAdminService {
+  async onboardTenantAdmin(input: { tenantName: string; adminEmail: string; displayName?: string }): Promise<{
+    tenantId: string;
+    tenantName: string;
+    adminUserId: string;
+    adminEmail: string;
+  }> {
+    const tenantName = input.tenantName.trim();
+    const adminEmail = input.adminEmail.trim().toLowerCase();
+    const displayName = (input.displayName ?? "").trim() || deriveDisplayName(adminEmail);
+
+    if (!tenantName) {
+      throw new HttpError("Tenant name is required.", 400, "platform_tenant_name_required");
+    }
+    if (!adminEmail || !adminEmail.includes("@")) {
+      throw new HttpError("Admin email is invalid.", 400, "platform_admin_email_invalid");
+    }
+
+    const existingUser = await UserModel.findOne({ email: adminEmail }).lean();
+    if (existingUser) {
+      throw new HttpError("Admin user already exists. Use tenant admin role assignment flow.", 409, "platform_admin_exists");
+    }
+
+    const tenant = await TenantModel.create({
+      name: tenantName,
+      onboardingStatus: "pending"
+    });
+    const createdUser = await UserModel.create({
+      email: adminEmail,
+      externalSubject: buildProvisionedSubject(adminEmail),
+      tenantId: String(tenant._id),
+      displayName,
+      encryptedRefreshToken: "",
+      lastLoginAt: new Date(0)
+    });
+    await TenantUserRoleModel.create({
+      tenantId: String(tenant._id),
+      userId: String(createdUser._id),
+      role: "TENANT_ADMIN"
+    });
+
+    return {
+      tenantId: String(tenant._id),
+      tenantName: tenant.name,
+      adminUserId: String(createdUser._id),
+      adminEmail: createdUser.email
+    };
+  }
+
   async listTenantUsageOverview(): Promise<TenantUsageOverview[]> {
     const [tenants, invoiceStats, userStats, integrations] = await Promise.all([
       TenantModel.find().sort({ createdAt: 1 }).lean(),
@@ -107,4 +157,14 @@ export class PlatformAdminService {
       };
     });
   }
+}
+
+function deriveDisplayName(email: string): string {
+  const left = email.split("@")[0] ?? "";
+  const trimmed = left.trim();
+  return trimmed.length > 0 ? trimmed : "Tenant Admin";
+}
+
+function buildProvisionedSubject(email: string): string {
+  return `provisioned-${email.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase()}`;
 }
