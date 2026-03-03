@@ -86,7 +86,12 @@ export class InvoiceExtractionPipeline {
       mimeType: input.mimeType,
       fileBuffer: input.fileBuffer
     });
-    const preOcrLanguageHint = shouldUseLanguageHint(preOcrLanguage) ? preOcrLanguage.code : undefined;
+    const preOcrLanguageHintDecision = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
+    const preOcrLanguageHint = preOcrLanguageHintDecision.hint;
+    if (preOcrLanguageHintDecision.reason !== "detected" && preOcrLanguageHintDecision.reason !== "none" && preOcrLanguageHint) {
+      metadata.preOcrLanguageHint = preOcrLanguageHint;
+      metadata.preOcrLanguageHintReason = preOcrLanguageHintDecision.reason;
+    }
     if (preOcrLanguage.code !== "und") {
       metadata.preOcrLanguage = preOcrLanguage.code;
       metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
@@ -135,6 +140,21 @@ export class InvoiceExtractionPipeline {
           provider: ocrProvider,
           confidence: ocrConfidence,
           source: "ocr-key-value-grounding"
+        });
+      }
+      const augmentedKeyValueText =
+        keyValueText.length > 0 ? buildAugmentedGroundingText(keyValueText, blockText, rawText) : "";
+      if (
+        augmentedKeyValueText.length > 0 &&
+        !isNearDuplicateText(augmentedKeyValueText, rawText) &&
+        !isNearDuplicateText(augmentedKeyValueText, blockText) &&
+        !isNearDuplicateText(augmentedKeyValueText, keyValueText)
+      ) {
+        extractionCandidates.push({
+          text: augmentedKeyValueText,
+          provider: ocrProvider,
+          confidence: ocrConfidence,
+          source: "ocr-key-value-augmented"
         });
       }
 
@@ -277,12 +297,21 @@ export class InvoiceExtractionPipeline {
         mode,
         hints: {
           mimeType: input.mimeType,
+          languageHint: detectedLanguage.code,
           documentLanguage: detectedLanguage.code,
           documentLanguageConfidence: detectedLanguage.confidence,
-          documentContext: {
-            originalDocumentDataUrl: buildDocumentDataUrl(input.fileBuffer, input.mimeType),
-            pageImages: ocrPageImages
-          },
+          ...(preOcrLanguage.code !== "und"
+            ? {
+                preOcrLanguage: preOcrLanguage.code,
+                preOcrLanguageConfidence: preOcrLanguage.confidence
+              }
+            : {}),
+          ...(postOcrLanguage.code !== "und"
+            ? {
+                postOcrLanguage: postOcrLanguage.code,
+                postOcrLanguageConfidence: postOcrLanguage.confidence
+              }
+            : {}),
           vendorNameHint: template?.vendorName,
           vendorTemplateMatched: Boolean(template),
           fieldCandidates,
@@ -764,6 +793,7 @@ function addFieldDiagnosticsToMetadata(params: {
       page: number;
       bbox: [number, number, number, number];
       bboxNormalized?: [number, number, number, number];
+      bboxModel?: [number, number, number, number];
       blockIndex?: number;
     }
   > = {};
@@ -798,6 +828,7 @@ function addFieldDiagnosticsToMetadata(params: {
       page: block?.page ?? 1,
       bbox: block?.bbox ?? [0, 0, 0, 0],
       ...(block?.bboxNormalized ? { bboxNormalized: block.bboxNormalized } : {}),
+      ...(block?.bboxModel ? { bboxModel: block.bboxModel } : {}),
       ...(typeof matched?.index === "number" ? { blockIndex: matched.index } : {})
     };
   }
@@ -1027,22 +1058,6 @@ function blockShapePenalty(field: keyof ParsedInvoiceData, text: string): number
   return linePenalty + lengthPenalty;
 }
 
-function buildDocumentDataUrl(fileBuffer: Buffer, mimeType: string): string | undefined {
-  if (fileBuffer.length === 0) {
-    return undefined;
-  }
-
-  if (!mimeType.startsWith("image/") && mimeType !== "application/pdf") {
-    return undefined;
-  }
-
-  if (fileBuffer.length > 8 * 1024 * 1024) {
-    return undefined;
-  }
-
-  return `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
-}
-
 function buildKeyValueGroundingText(blocks: OcrBlock[]): string {
   if (blocks.length < 2) {
     return "";
@@ -1112,6 +1127,17 @@ function buildKeyValueGroundingText(blocks: OcrBlock[]): string {
   return [...new Set(lines)].join("\n");
 }
 
+function buildAugmentedGroundingText(keyValueText: string, blockText: string, rawText: string): string {
+  const sections = [keyValueText, blockText, rawText]
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  if (sections.length < 2) {
+    return "";
+  }
+
+  return sections.join("\n\n");
+}
+
 function inferBlockScale(bbox: [number, number, number, number]): "normalized" | "pixel" {
   if (bbox.every((value) => Number.isFinite(value) && Math.abs(value) <= 2.5)) {
     return "normalized";
@@ -1121,6 +1147,34 @@ function inferBlockScale(bbox: [number, number, number, number]): "normalized" |
 
 function shouldUseLanguageHint(language: DetectedInvoiceLanguage): boolean {
   return language.code !== "und" && language.confidence >= 0.4;
+}
+
+function resolvePreOcrLanguageHint(
+  language: DetectedInvoiceLanguage,
+  mimeType: string
+): { hint?: string; reason: "detected" | "low-confidence-detected" | "default-en" | "none" } {
+  if (language.code !== "und") {
+    return {
+      hint: language.code,
+      reason: shouldUseLanguageHint(language) ? "detected" : "low-confidence-detected"
+    };
+  }
+
+  if (isDocumentMimeType(mimeType)) {
+    return {
+      hint: "en",
+      reason: "default-en"
+    };
+  }
+
+  return {
+    reason: "none"
+  };
+}
+
+function isDocumentMimeType(mimeType: string): boolean {
+  const normalized = mimeType.trim().toLowerCase();
+  return normalized.startsWith("image/") || normalized === "application/pdf";
 }
 
 function resolveDetectedLanguage(

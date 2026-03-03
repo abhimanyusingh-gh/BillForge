@@ -15,6 +15,20 @@ interface VerifyInvoiceResponse {
   issues?: unknown;
   changedFields?: unknown;
   reasonCodes?: unknown;
+  usage?: unknown;
+  tokenUsage?: unknown;
+  promptTokens?: unknown;
+  completionTokens?: unknown;
+  totalTokens?: unknown;
+  prompt_tokens?: unknown;
+  completion_tokens?: unknown;
+  total_tokens?: unknown;
+}
+
+interface VerifierTokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
 }
 
 export class HttpFieldVerifier implements FieldVerifier {
@@ -42,6 +56,7 @@ export class HttpFieldVerifier implements FieldVerifier {
       headers["x-correlation-id"] = correlationId;
     }
 
+    const startedAt = Date.now();
     try {
       const response = await this.httpClient.post<VerifyInvoiceResponse>(
         "/verify/invoice",
@@ -57,6 +72,23 @@ export class HttpFieldVerifier implements FieldVerifier {
           headers
         }
       );
+      const usage =
+        normalizeTokenUsage(response.data?.usage) ??
+        normalizeTokenUsage(response.data?.tokenUsage) ??
+        normalizeTokenUsage({
+          promptTokens: response.data?.promptTokens ?? response.data?.prompt_tokens,
+          completionTokens: response.data?.completionTokens ?? response.data?.completion_tokens,
+          totalTokens: response.data?.totalTokens ?? response.data?.total_tokens
+        });
+      logger.info("verifier.http.request.end", {
+        latencyMs: Date.now() - startedAt,
+        llmPromptTokens: usage?.promptTokens,
+        llmCompletionTokens: usage?.completionTokens,
+        llmTotalTokens: usage?.totalTokens,
+        llmTokenUsageReturned: hasTokenUsage(usage),
+        llmInputTokensApprox: estimateTextTokenCount(input.ocrText),
+        llmOutputTokensApprox: estimateTextTokenCount(JSON.stringify(response.data?.parsed ?? {}))
+      });
 
       return {
         parsed: normalizeParsed(response.data?.parsed) ?? input.parsed,
@@ -66,6 +98,7 @@ export class HttpFieldVerifier implements FieldVerifier {
       };
     } catch (error) {
       logger.warn("verifier.http.failed", {
+        latencyMs: Date.now() - startedAt,
         error: error instanceof Error ? error.message : String(error)
       });
       return {
@@ -134,6 +167,52 @@ function normalizeReasonCodes(value: unknown): Record<string, string> {
     }
   }
   return output;
+}
+
+function normalizeTokenUsage(value: unknown): VerifierTokenUsage | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const usage: VerifierTokenUsage = {};
+  const promptTokens = normalizeTokenCount((value.promptTokens ?? value.prompt_tokens) as unknown);
+  const completionTokens = normalizeTokenCount((value.completionTokens ?? value.completion_tokens) as unknown);
+  const totalTokens = normalizeTokenCount((value.totalTokens ?? value.total_tokens) as unknown);
+
+  if (promptTokens !== undefined) {
+    usage.promptTokens = promptTokens;
+  }
+  if (completionTokens !== undefined) {
+    usage.completionTokens = completionTokens;
+  }
+  if (totalTokens !== undefined) {
+    usage.totalTokens = totalTokens;
+  }
+
+  return hasTokenUsage(usage) ? usage : undefined;
+}
+
+function normalizeTokenCount(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value.trim()) : NaN;
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined;
+  }
+  return Math.round(parsed);
+}
+
+function hasTokenUsage(usage: VerifierTokenUsage | undefined): boolean {
+  if (!usage) {
+    return false;
+  }
+  return usage.promptTokens !== undefined || usage.completionTokens !== undefined || usage.totalTokens !== undefined;
+}
+
+function estimateTextTokenCount(text: string): number {
+  const normalized = text.trim();
+  if (!normalized) {
+    return 0;
+  }
+  return normalized.split(/\s+/).filter((entry) => entry.length > 0).length;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,5 +1,6 @@
 import { DeepSeekOcrProvider } from "./DeepSeekOcrProvider.ts";
 import { runWithLogContext } from "../utils/logger.ts";
+import { logger } from "../utils/logger.ts";
 import axios from "axios";
 
 describe("DeepSeekOcrProvider", () => {
@@ -27,8 +28,8 @@ describe("DeepSeekOcrProvider", () => {
   it("calls /ocr/document without authorization header when api key is empty", async () => {
     const post = jest.fn(async (_url: string, body: { includeLayout: boolean; prompt: string }, config: { headers: Record<string, string> }) => {
       expect(body.includeLayout).toBe(true);
-      expect(body.prompt).toContain("<|grounding|>Convert page to markdown.");
-      expect(body.prompt).toContain("Key-Value Pairs");
+      expect(body.prompt).toContain("Transcribe all visible text exactly as written.");
+      expect(body.prompt).not.toContain("Key-Value Pairs");
       expect(config.headers.Authorization).toBeUndefined();
       return {
         data: {
@@ -46,8 +47,9 @@ describe("DeepSeekOcrProvider", () => {
 
   it("strips image placeholders from configured OCR prompt", async () => {
     const post = jest.fn(async (_url: string, body: { prompt: string }) => {
-      expect(body.prompt).toContain("Convert page to markdown.");
-      expect(body.prompt).toContain("Key-Value Pairs");
+      expect(body.prompt).toContain("Transcribe all visible text exactly as written.");
+      expect(body.prompt).not.toContain("<image>");
+      expect(body.prompt).not.toContain("<|image_1|>");
       return {
         data: {
           rawText: "invoice text"
@@ -56,7 +58,7 @@ describe("DeepSeekOcrProvider", () => {
     });
 
     const provider = new DeepSeekOcrProvider({
-      prompt: "<image>\nConvert page to markdown. <|image_1|>",
+      prompt: "<image>\nTranscribe all visible text exactly as written. Preserve numbers and layout. <|image_1|>",
       httpClient: { post }
     });
 
@@ -65,9 +67,8 @@ describe("DeepSeekOcrProvider", () => {
 
   it("appends language hint to OCR prompt when provided", async () => {
     const post = jest.fn(async (_url: string, body: { prompt: string }) => {
-      expect(body.prompt).toContain("Convert page to markdown.");
-      expect(body.prompt).toContain("Key-Value Pairs");
-      expect(body.prompt).toContain("Document language hint: fr.");
+      expect(body.prompt).toContain("Transcribe all visible text exactly as written.");
+      expect(body.prompt).toContain("Document language hint: fr. Preserve native language.");
       return {
         data: {
           rawText: "invoice text"
@@ -76,16 +77,17 @@ describe("DeepSeekOcrProvider", () => {
     });
 
     const provider = new DeepSeekOcrProvider({
-      prompt: "Convert page to markdown.",
+      prompt: "Transcribe all visible text exactly as written. Preserve numbers and layout.",
       httpClient: { post }
     });
 
     await provider.extractText(Buffer.from("png"), "image/png", { languageHint: "fr" });
   });
 
-  it("supports disabling key-value prompt enforcement for baseline comparisons", async () => {
+  it("ignores invalid language hint values in OCR prompt", async () => {
     const post = jest.fn(async (_url: string, body: { prompt: string }) => {
-      expect(body.prompt).toBe("Convert page to markdown.");
+      expect(body.prompt).toContain("Transcribe all visible text exactly as written.");
+      expect(body.prompt).not.toContain("Document language hint:");
       return {
         data: {
           rawText: "invoice text"
@@ -94,7 +96,25 @@ describe("DeepSeekOcrProvider", () => {
     });
 
     const provider = new DeepSeekOcrProvider({
-      prompt: "Convert page to markdown.",
+      prompt: "Transcribe all visible text exactly as written. Preserve numbers and layout.",
+      httpClient: { post }
+    });
+
+    await provider.extractText(Buffer.from("png"), "image/png", { languageHint: "en-us" });
+  });
+
+  it("keeps transcription-only prompt even when legacy key-value option is provided", async () => {
+    const post = jest.fn(async (_url: string, body: { prompt: string }) => {
+      expect(body.prompt).toBe("Transcribe all visible text exactly as written. Preserve numbers and layout.");
+      return {
+        data: {
+          rawText: "invoice text"
+        }
+      };
+    });
+
+    const provider = new DeepSeekOcrProvider({
+      prompt: "Transcribe all visible text exactly as written. Preserve numbers and layout.",
       enforceKeyValuePairs: false,
       httpClient: { post }
     });
@@ -239,6 +259,98 @@ describe("DeepSeekOcrProvider", () => {
         dataUrl: "data:image/png;base64,QUJD"
       }
     ]);
+  });
+
+  it("logs OCR token usage when provider returns usage payload", async () => {
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined);
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "Invoice Number INV-1",
+        usage: {
+          prompt_tokens: 123,
+          completion_tokens: 45,
+          total_tokens: 168
+        }
+      }
+    }));
+
+    try {
+      const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+      await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+      const requestEndCalls = infoSpy.mock.calls.filter((call) => call[0] === "ocr.request.end");
+      expect(requestEndCalls).toHaveLength(1);
+      expect(requestEndCalls[0]?.[1]).toEqual(
+        expect.objectContaining({
+          ocrPromptTokens: 123,
+          ocrCompletionTokens: 45,
+          ocrTotalTokens: 168,
+          ocrTokenUsageReturned: true
+        })
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it("ignores malformed token-usage counts", async () => {
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined);
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "Invoice Number INV-1",
+        usage: {
+          prompt_tokens: true,
+          completion_tokens: "NaN",
+          total_tokens: -5
+        }
+      }
+    }));
+
+    try {
+      const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+      await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+      const requestEndCalls = infoSpy.mock.calls.filter((call) => call[0] === "ocr.request.end");
+      expect(requestEndCalls).toHaveLength(1);
+      expect(requestEndCalls[0]?.[1]).toEqual(
+        expect.objectContaining({
+          ocrPromptTokens: undefined,
+          ocrCompletionTokens: undefined,
+          ocrTotalTokens: undefined,
+          ocrTokenUsageReturned: false
+        })
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it("logs approximate OCR output tokens when provider omits usage payload", async () => {
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined);
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "Invoice Number INV-2"
+      }
+    }));
+
+    try {
+      const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+      await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+      const requestEndCalls = infoSpy.mock.calls.filter((call) => call[0] === "ocr.request.end");
+      expect(requestEndCalls).toHaveLength(1);
+      expect(requestEndCalls[0]?.[1]).toEqual(
+        expect.objectContaining({
+          ocrPromptTokens: undefined,
+          ocrCompletionTokens: undefined,
+          ocrTotalTokens: undefined,
+          ocrTokenUsageReturned: false,
+          ocrOutputTokensApprox: 3
+        })
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
   });
 
   it("skips non-object page image entries and ignores non-numeric dimensions", async () => {
@@ -549,9 +661,8 @@ describe("DeepSeekOcrProvider", () => {
   it("falls back to default max tokens when env override is invalid", async () => {
     process.env.DEEPSEEK_OCR_MAX_TOKENS = "NaN";
     const post = jest.fn(async (_url: string, body: { maxTokens: number; prompt: string }) => {
-      expect(body.maxTokens).toBe(512);
-      expect(body.prompt).toContain("<|grounding|>Convert page to markdown.");
-      expect(body.prompt).toContain("Key-Value Pairs");
+      expect(body.maxTokens).toBe(2048);
+      expect(body.prompt).toContain("Transcribe all visible text exactly as written.");
       return {
         data: {
           rawText: "ok"
@@ -565,7 +676,7 @@ describe("DeepSeekOcrProvider", () => {
 
   it("falls back to default max tokens when override is invalid", async () => {
     const post = jest.fn(async (_url: string, body: { maxTokens: number }) => {
-      expect(body.maxTokens).toBe(512);
+      expect(body.maxTokens).toBe(2048);
       return {
         data: {
           rawText: "ok"
@@ -631,6 +742,32 @@ describe("DeepSeekOcrProvider", () => {
           {
             label: "Invoice Number",
             text: "42183017",
+            bbox: [11, 12, 33, 44]
+          }
+        ]
+      }
+    }));
+
+    const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+    const result = await provider.extractText(Buffer.from("img"), "image/png");
+
+    expect(result.blocks).toEqual([
+      {
+        text: "Invoice Number: 42183017",
+        page: 1,
+        bbox: [11, 12, 33, 44]
+      }
+    ]);
+  });
+
+  it("keeps raw block text when label is already present in the text", async () => {
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "Invoice Number: 42183017",
+        blocks: [
+          {
+            label: "Invoice Number",
+            text: "Invoice Number: 42183017",
             bbox: [11, 12, 33, 44]
           }
         ]

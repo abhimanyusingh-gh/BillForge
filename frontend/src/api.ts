@@ -6,12 +6,15 @@ import type {
   InvoiceListResponse,
   TallyExportResponse
 } from "./types";
+import { normalizeApiError } from "./apiError";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 const SESSION_TOKEN_KEY = "invoice_processor_session_token";
 
 const apiClient = axios.create({ baseURL: apiBaseUrl });
+const backendClient = axios.create({ baseURL: backendBaseUrl });
+
 apiClient.interceptors.request.use((config) => {
   const token = getStoredSessionToken();
   if (token) {
@@ -21,7 +24,17 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-export interface SessionContextResponse {
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => Promise.reject(normalizeApiError(error))
+);
+
+backendClient.interceptors.response.use(
+  (response) => response,
+  (error) => Promise.reject(normalizeApiError(error))
+);
+
+interface SessionContextResponse {
   user: {
     id: string;
     email: string;
@@ -41,7 +54,7 @@ export interface SessionContextResponse {
   };
 }
 
-export interface TenantUserSummary {
+interface TenantUserSummary {
   userId: string;
   email: string;
   role: "TENANT_ADMIN" | "MEMBER";
@@ -63,7 +76,7 @@ export interface PlatformTenantUsageSummary {
   createdAt: string;
 }
 
-export interface PlatformTenantOnboardResult {
+interface PlatformTenantOnboardResult {
   tenantId: string;
   tenantName: string;
   adminUserId: string;
@@ -87,18 +100,8 @@ export function clearStoredSessionToken(): void {
   window.localStorage.removeItem(SESSION_TOKEN_KEY);
 }
 
-export function getAuthLoginUrl(nextPath = "/", loginHint = ""): string {
-  const url = new URL("/auth/login", backendBaseUrl);
-  url.searchParams.set("next", nextPath);
-  const normalizedLoginHint = loginHint.trim().toLowerCase();
-  if (normalizedLoginHint.length > 0) {
-    url.searchParams.set("login_hint", normalizedLoginHint);
-  }
-  return url.toString();
-}
-
 export async function loginWithCredentials(email: string, password: string): Promise<string> {
-  const response = await axios.post<{ token?: string }>(`${backendBaseUrl}/auth/token`, {
+  const response = await backendClient.post<{ token?: string }>("/auth/token", {
     email,
     password
   });
@@ -116,10 +119,6 @@ export async function fetchSessionContext(): Promise<SessionContextResponse> {
 
 export async function completeTenantOnboarding(payload: { tenantName: string; adminEmail: string }): Promise<void> {
   await apiClient.post("/tenant/onboarding/complete", payload);
-}
-
-export async function acceptTenantInvite(token: string): Promise<void> {
-  await apiClient.post("/tenant/invites/accept", { token });
 }
 
 export async function fetchTenantUsers(): Promise<TenantUserSummary[]> {
@@ -205,6 +204,16 @@ export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): s
 export function getInvoiceFieldOverlayUrl(invoiceId: string, field: string): string {
   const raw = apiClient.getUri({
     url: `/invoices/${invoiceId}/source-overlays/${field}`
+  });
+  return appendAuthTokenQuery(raw);
+}
+
+export function getInvoicePreviewUrl(invoiceId: string, page = 1): string {
+  const raw = apiClient.getUri({
+    url: `/invoices/${invoiceId}/preview`,
+    params: {
+      page: Math.max(1, Math.round(page))
+    }
   });
   return appendAuthTokenQuery(raw);
 }
