@@ -11,11 +11,9 @@ const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf"
 ]);
 const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"]);
-const DEFAULT_PROMPT = "<|grounding|>Convert page to markdown.";
-const KEY_VALUE_PROMPT_INSTRUCTION =
-  "Return a `Key-Value Pairs` section first. Each line must follow `- <label>: <value>`. " +
-  "Never return bare values without their source label. Preserve original language labels and value formatting.";
-const DEFAULT_MAX_TOKENS = 512;
+const DEFAULT_PROMPT =
+  "Transcribe all visible text exactly as written. Preserve numbers, punctuation, spacing, and line breaks. Do not summarize. Do not format as key-value pairs.";
+const DEFAULT_MAX_TOKENS = 2048;
 const DEFAULT_TIMEOUT_MS = 3_600_000;
 
 interface OcrDocumentApiResponse {
@@ -24,6 +22,20 @@ interface OcrDocumentApiResponse {
   confidence?: unknown;
   blocks?: unknown;
   pageImages?: unknown;
+  usage?: unknown;
+  tokenUsage?: unknown;
+  promptTokens?: unknown;
+  completionTokens?: unknown;
+  totalTokens?: unknown;
+  prompt_tokens?: unknown;
+  completion_tokens?: unknown;
+  total_tokens?: unknown;
+}
+
+interface OcrTokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
 }
 
 interface DeepSeekHttpClient {
@@ -41,6 +53,7 @@ interface DeepSeekOcrProviderOptions {
   timeoutMs?: number;
   prompt?: string;
   maxTokens?: number;
+  // Maintained for backward compatibility; prompt output is now always transcription-only.
   enforceKeyValuePairs?: boolean;
   httpClient?: DeepSeekHttpClient;
 }
@@ -53,7 +66,6 @@ export class DeepSeekOcrProvider implements OcrProvider {
   private readonly timeoutMs: number;
   private readonly prompt: string;
   private readonly maxTokens: number;
-  private readonly enforceKeyValuePairs: boolean;
   private readonly httpClient: DeepSeekHttpClient;
 
   constructor(options?: DeepSeekOcrProviderOptions) {
@@ -62,7 +74,6 @@ export class DeepSeekOcrProvider implements OcrProvider {
     this.timeoutMs = options?.timeoutMs ?? readTimeoutMsFromEnv();
     this.prompt = normalizePrompt(options?.prompt ?? process.env.DEEPSEEK_OCR_PROMPT ?? DEFAULT_PROMPT);
     this.maxTokens = normalizeMaxTokens(options?.maxTokens ?? readMaxTokensFromEnv());
-    this.enforceKeyValuePairs = options?.enforceKeyValuePairs ?? true;
     const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8000/v1";
     this.httpClient = options?.httpClient ?? axios.create({ baseURL: baseUrl });
   }
@@ -91,7 +102,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
       model: this.model,
       document: `data:${mimeType};base64,${buffer.toString("base64")}`,
       includeLayout: true,
-      prompt: buildPrompt(this.prompt, options?.languageHint, this.enforceKeyValuePairs),
+      prompt: buildPrompt(this.prompt, options?.languageHint),
       maxTokens: this.maxTokens
     };
 
@@ -111,7 +122,12 @@ export class DeepSeekOcrProvider implements OcrProvider {
         provider: this.name,
         mimeType,
         latencyMs: Date.now() - startedAt,
-        blockCount: payload.blocks?.length ?? 0
+        blockCount: payload.blocks?.length ?? 0,
+        ocrPromptTokens: payload.usage?.promptTokens,
+        ocrCompletionTokens: payload.usage?.completionTokens,
+        ocrTotalTokens: payload.usage?.totalTokens,
+        ocrTokenUsageReturned: hasTokenUsage(payload.usage),
+        ocrOutputTokensApprox: estimateTextTokenCount(payload.rawText)
       });
 
       return {
@@ -179,17 +195,27 @@ function parseOcrDocumentResponse(data: unknown): {
   confidence?: number;
   blocks?: OcrBlock[];
   pageImages?: OcrPageImage[];
+  usage?: OcrTokenUsage;
 } {
   if (!isRecord(data)) {
     return { rawText: "" };
   }
 
   const payload = data as OcrDocumentApiResponse;
+  const usage =
+    normalizeTokenUsage(payload.usage) ??
+    normalizeTokenUsage(payload.tokenUsage) ??
+    normalizeTokenUsage({
+      promptTokens: payload.promptTokens ?? payload.prompt_tokens,
+      completionTokens: payload.completionTokens ?? payload.completion_tokens,
+      totalTokens: payload.totalTokens ?? payload.total_tokens
+    });
   return {
     rawText: normalizeText(payload.rawText) ?? normalizeText(payload.raw_text) ?? "",
     confidence: normalizeNumber(payload.confidence),
     blocks: normalizeBlocks(payload.blocks),
-    pageImages: normalizePageImages(payload.pageImages)
+    pageImages: normalizePageImages(payload.pageImages),
+    ...(usage ? { usage } : {})
   };
 }
 
@@ -250,19 +276,12 @@ function normalizePrompt(value: string): string {
   return trimmed.length > 0 ? trimmed : DEFAULT_PROMPT;
 }
 
-function buildPrompt(
-  prompt: string,
-  languageHint: string | undefined,
-  enforceKeyValuePairs: boolean
-): string {
+function buildPrompt(prompt: string, languageHint: string | undefined): string {
   const sections: string[] = [prompt];
-  if (enforceKeyValuePairs) {
-    sections.push(KEY_VALUE_PROMPT_INSTRUCTION);
-  }
 
   const normalizedHint = normalizeLanguageHint(languageHint);
   if (normalizedHint) {
-    sections.push(`Document language hint: ${normalizedHint}. Preserve native labels and values.`);
+    sections.push(`Document language hint: ${normalizedHint}. Preserve native language.`);
   }
 
   return sections.join("\n\n").trim();
@@ -295,6 +314,54 @@ function normalizeMaxTokens(value: number): number {
     return DEFAULT_MAX_TOKENS;
   }
   return Math.max(64, Math.min(4096, Math.round(value)));
+}
+
+function normalizeTokenUsage(value: unknown): OcrTokenUsage | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const usage: OcrTokenUsage = {};
+  const promptTokens = normalizeTokenCount((value.promptTokens ?? value.prompt_tokens) as unknown);
+  const completionTokens = normalizeTokenCount((value.completionTokens ?? value.completion_tokens) as unknown);
+  const totalTokens = normalizeTokenCount((value.totalTokens ?? value.total_tokens) as unknown);
+
+  if (promptTokens !== undefined) {
+    usage.promptTokens = promptTokens;
+  }
+  if (completionTokens !== undefined) {
+    usage.completionTokens = completionTokens;
+  }
+  if (totalTokens !== undefined) {
+    usage.totalTokens = totalTokens;
+  }
+
+  return hasTokenUsage(usage) ? usage : undefined;
+}
+
+function normalizeTokenCount(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value.trim()) : NaN;
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined;
+  }
+  return Math.round(parsed);
+}
+
+function hasTokenUsage(usage: OcrTokenUsage | undefined): boolean {
+  if (!usage) {
+    return false;
+  }
+  return (
+    usage.promptTokens !== undefined || usage.completionTokens !== undefined || usage.totalTokens !== undefined
+  );
+}
+
+function estimateTextTokenCount(text: string): number {
+  const normalized = text.trim();
+  if (!normalized) {
+    return 0;
+  }
+  return normalized.split(/\s+/).filter((entry) => entry.length > 0).length;
 }
 
 function normalizeText(value: unknown): string | undefined {

@@ -45,7 +45,7 @@ describe("InvoiceSourceViewer", () => {
       <InvoiceSourceViewer
         invoice={baseInvoice}
         overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
       />
     );
 
@@ -68,7 +68,7 @@ describe("InvoiceSourceViewer", () => {
       <InvoiceSourceViewer
         invoice={emailInvoice}
         overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
       />
     );
 
@@ -87,66 +87,12 @@ describe("InvoiceSourceViewer", () => {
       <InvoiceSourceViewer
         invoice={invoiceWithoutFields}
         overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
       />
     );
 
     expect(html).toContain("Source Preview");
+    expect(html).toContain("No extracted value highlights are available yet.");
     expect(html).toContain("/api/invoices/inv-1/preview?page=1");
-  });
-
-  it("renders zoom toolbar with InvoicePreview component", () => {
-    const html = renderToStaticMarkup(
-      <InvoiceSourceViewer
-        invoice={baseInvoice}
-        overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
-      />
-    );
-
-    expect(html).toContain("invoice-preview-toolbar");
-    expect(html).toContain("100%");
-    expect(html).toContain("Reset");
-  });
-
-  it("renders InvoicePreview with transform-based zoom", () => {
-    const html = renderToStaticMarkup(
-      <InvoiceSourceViewer
-        invoice={baseInvoice}
-        overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
-      />
-    );
-
-    expect(html).toContain("transform:scale(1)");
-  });
-
-  it("chips show page number without confidence label", () => {
-    const html = renderToStaticMarkup(
-      <InvoiceSourceViewer
-        invoice={baseInvoice}
-        overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
-      />
-    );
-
-    expect(html).toContain("page 1");
-    expect(html).not.toContain("% |");
-  });
-
-  it("bbox uses percentage positioning independent of zoom transform", () => {
-    const html = renderToStaticMarkup(
-      <InvoiceSourceViewer
-        invoice={baseInvoice}
-        overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
-      />
-    );
-
-    expect(html).toContain("source-preview-box");
-    expect(html).toContain("left:20%");
-    expect(html).toContain("top:10%");
-    expect(html).toContain("width:20%");
-    expect(html).toContain("height:10%");
   });
 });

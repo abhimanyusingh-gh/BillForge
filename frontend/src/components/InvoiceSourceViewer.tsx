@@ -6,35 +6,89 @@ import type { Invoice } from "../types";
 interface InvoiceSourceViewerProps {
   invoice: Invoice;
   overlayUrlByField: Partial<Record<SourceFieldKey, string>>;
+  resolvePreviewUrl?: (page: number) => string;
 }
 
-export function InvoiceSourceViewer({ invoice, overlayUrlByField }: InvoiceSourceViewerProps) {
-  const highlights = useMemo(
-    () => getInvoiceSourceHighlights(invoice).filter((highlight) => Boolean(overlayUrlByField[highlight.fieldKey])),
-    [invoice, overlayUrlByField]
+export function InvoiceSourceViewer({ invoice, overlayUrlByField, resolvePreviewUrl }: InvoiceSourceViewerProps) {
+  const highlights = useMemo(() => getInvoiceSourceHighlights(invoice), [invoice]);
+  const canUsePreviewFallback = typeof resolvePreviewUrl === "function";
+  const defaultPreviewUrl = canUsePreviewFallback ? resolvePreviewUrl?.(1) : undefined;
+  const hasDefaultPreview = typeof defaultPreviewUrl === "string" && defaultPreviewUrl.trim().length > 0;
+  const availableHighlights = useMemo(
+    () =>
+      highlights.filter((highlight) => {
+        const overlayUrl = overlayUrlByField[highlight.fieldKey];
+        if (overlayUrl) {
+          return true;
+        }
+        if (!resolvePreviewUrl || !canUsePreviewFallback) {
+          return false;
+        }
+        return resolvePreviewUrl(highlight.page).trim().length > 0;
+      }),
+    [canUsePreviewFallback, highlights, overlayUrlByField, resolvePreviewUrl]
   );
   const [activeFieldKey, setActiveFieldKey] = useState<string>("");
 
   useEffect(() => {
-    if (highlights.length === 0) {
+    if (availableHighlights.length === 0) {
       setActiveFieldKey("");
       return;
     }
 
-    if (!highlights.some((highlight) => highlight.fieldKey === activeFieldKey)) {
-      setActiveFieldKey(highlights[0].fieldKey);
+    if (!availableHighlights.some((highlight) => highlight.fieldKey === activeFieldKey)) {
+      setActiveFieldKey(availableHighlights[0].fieldKey);
     }
-  }, [activeFieldKey, highlights]);
+  }, [activeFieldKey, availableHighlights]);
 
-  if (highlights.length === 0) {
-    return null;
+  if (availableHighlights.length === 0) {
+    return (
+      <div className="source-viewer-card">
+        <div className="source-viewer-head">
+          <h3>Source Preview</h3>
+          <p className="muted">
+            No extracted value highlights are available yet. Use the source document for manual verification.
+          </p>
+        </div>
+        {hasDefaultPreview ? (
+          <div className="source-preview-wrap">
+            <div className="source-preview-image">
+              <div className="source-preview-canvas">
+                <img src={defaultPreviewUrl} alt={`Source preview for ${invoice.attachmentName}`} loading="lazy" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Source preview is unavailable for this invoice.</p>
+        )}
+      </div>
+    );
   }
 
-  const activeHighlight = highlights.find((highlight) => highlight.fieldKey === activeFieldKey) ?? highlights[0];
+  const activeHighlight =
+    availableHighlights.find((highlight) => highlight.fieldKey === activeFieldKey) ?? availableHighlights[0];
   const activeOverlayUrl = overlayUrlByField[activeHighlight.fieldKey];
-  if (!activeOverlayUrl) {
-    return null;
+  const activePreviewUrl = canUsePreviewFallback ? resolvePreviewUrl?.(activeHighlight.page) : undefined;
+  const activeImageUrl = activeOverlayUrl ?? activePreviewUrl;
+  if (!activeImageUrl) {
+    return (
+      <div className="source-viewer-card">
+        <div className="source-viewer-head">
+          <h3>Value Source Highlights</h3>
+          <p className="muted">Select a field to see where the value was read from.</p>
+        </div>
+        <p className="muted">Source preview is unavailable for the selected highlight.</p>
+      </div>
+    );
   }
+  const renderClientSideBox = !activeOverlayUrl;
+  const [x1, y1, x2, y2] = activeHighlight.bboxNormalized;
+  const boxStyle = {
+    left: `${x1 * 100}%`,
+    top: `${y1 * 100}%`,
+    width: `${Math.max(0, x2 - x1) * 100}%`,
+    height: `${Math.max(0, y2 - y1) * 100}%`
+  };
 
   return (
     <div className="source-viewer-card">
@@ -44,7 +98,7 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField }: InvoiceSourc
       </div>
 
       <div className="source-highlight-list">
-        {highlights.map((highlight) => {
+        {availableHighlights.map((highlight) => {
           const isActive = highlight.fieldKey === activeHighlight.fieldKey;
           return (
             <button
@@ -64,7 +118,10 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField }: InvoiceSourc
 
       <div className="source-preview-wrap">
         <div className="source-preview-image">
-          <img src={activeOverlayUrl} alt={`Source overlay for ${activeHighlight.label} in ${invoice.attachmentName}`} loading="lazy" />
+          <div className="source-preview-canvas">
+            <img src={activeImageUrl} alt={`Source overlay for ${activeHighlight.label} in ${invoice.attachmentName}`} loading="lazy" />
+            {renderClientSideBox ? <div className="source-preview-box" style={boxStyle} /> : null}
+          </div>
         </div>
       </div>
     </div>
