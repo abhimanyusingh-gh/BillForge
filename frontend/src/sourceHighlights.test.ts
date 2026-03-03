@@ -98,7 +98,6 @@ describe("getInvoiceSourceHighlights", () => {
           invoiceNumber: {
             source: "heuristic",
             page: 1,
-            bbox: [120, 50, 360, 84],
             bboxModel: [120, 90, 700, 220]
           }
         })
@@ -109,6 +108,7 @@ describe("getInvoiceSourceHighlights", () => {
     const invoiceNumber = highlights.find((entry) => entry.fieldKey === "invoiceNumber");
 
     expect(invoiceNumber).toBeDefined();
+    expect(invoiceNumber?.bbox).toEqual([120, 90, 700, 220]);
     expect(invoiceNumber?.bboxNormalized[0]).toBeCloseTo(120 / 999, 3);
     expect(invoiceNumber?.bboxNormalized[2]).toBeCloseTo(700 / 999, 3);
   });

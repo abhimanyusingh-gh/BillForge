@@ -51,13 +51,13 @@ export function getInvoiceSourceHighlights(invoice: Invoice): SourceHighlight[] 
     const provenance = isRecord(provenanceByField?.[field.key]) ? (provenanceByField?.[field.key] as ProvenanceEntry) : {};
     const matchedBlock = resolveMatchedBlock(blocks, provenance, field.key, value);
     const page = readPage(provenance.page, matchedBlock?.block.page);
-    const bbox = normalizeBox(provenance.bbox) ?? matchedBlock?.block.bbox;
+    const bboxModel = normalizeBox(provenance.bboxModel) ?? matchedBlock?.block.bboxModel;
+    const bbox = normalizeBox(provenance.bbox) ?? matchedBlock?.block.bbox ?? bboxModel;
     if (!bbox) {
       continue;
     }
 
     const pageBlocks = blocks.filter((block) => block.page === page);
-    const bboxModel = normalizeBox(provenance.bboxModel) ?? matchedBlock?.block.bboxModel;
     const bboxNormalized =
       normalizeBox(provenance.bboxNormalized) ??
       normalizeModelBox(bboxModel) ??

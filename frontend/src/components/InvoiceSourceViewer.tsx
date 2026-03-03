@@ -11,7 +11,9 @@ interface InvoiceSourceViewerProps {
 
 export function InvoiceSourceViewer({ invoice, overlayUrlByField, resolvePreviewUrl }: InvoiceSourceViewerProps) {
   const highlights = useMemo(() => getInvoiceSourceHighlights(invoice), [invoice]);
-  const canUsePreviewFallback = invoice.sourceType === "folder";
+  const canUsePreviewFallback = typeof resolvePreviewUrl === "function";
+  const defaultPreviewUrl = canUsePreviewFallback ? resolvePreviewUrl?.(1) : undefined;
+  const hasDefaultPreview = typeof defaultPreviewUrl === "string" && defaultPreviewUrl.trim().length > 0;
   const availableHighlights = useMemo(
     () =>
       highlights.filter((highlight) => {
@@ -40,7 +42,27 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField, resolvePreview
   }, [activeFieldKey, availableHighlights]);
 
   if (availableHighlights.length === 0) {
-    return null;
+    return (
+      <div className="source-viewer-card">
+        <div className="source-viewer-head">
+          <h3>Source Preview</h3>
+          <p className="muted">
+            No extracted value highlights are available yet. Use the source document for manual verification.
+          </p>
+        </div>
+        {hasDefaultPreview ? (
+          <div className="source-preview-wrap">
+            <div className="source-preview-image">
+              <div className="source-preview-canvas">
+                <img src={defaultPreviewUrl} alt={`Source preview for ${invoice.attachmentName}`} loading="lazy" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Source preview is unavailable for this invoice.</p>
+        )}
+      </div>
+    );
   }
 
   const activeHighlight =
@@ -49,7 +71,15 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField, resolvePreview
   const activePreviewUrl = canUsePreviewFallback ? resolvePreviewUrl?.(activeHighlight.page) : undefined;
   const activeImageUrl = activeOverlayUrl ?? activePreviewUrl;
   if (!activeImageUrl) {
-    return null;
+    return (
+      <div className="source-viewer-card">
+        <div className="source-viewer-head">
+          <h3>Value Source Highlights</h3>
+          <p className="muted">Select a field to see where the value was read from.</p>
+        </div>
+        <p className="muted">Source preview is unavailable for the selected highlight.</p>
+      </div>
+    );
   }
   const renderClientSideBox = !activeOverlayUrl;
   const [x1, y1, x2, y2] = activeHighlight.bboxNormalized;

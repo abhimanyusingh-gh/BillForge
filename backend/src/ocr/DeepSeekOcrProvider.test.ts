@@ -1,5 +1,6 @@
 import { DeepSeekOcrProvider } from "./DeepSeekOcrProvider.ts";
 import { runWithLogContext } from "../utils/logger.ts";
+import { logger } from "../utils/logger.ts";
 import axios from "axios";
 
 describe("DeepSeekOcrProvider", () => {
@@ -239,6 +240,66 @@ describe("DeepSeekOcrProvider", () => {
         dataUrl: "data:image/png;base64,QUJD"
       }
     ]);
+  });
+
+  it("logs OCR token usage when provider returns usage payload", async () => {
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined);
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "Invoice Number INV-1",
+        usage: {
+          prompt_tokens: 123,
+          completion_tokens: 45,
+          total_tokens: 168
+        }
+      }
+    }));
+
+    try {
+      const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+      await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+      const requestEndCalls = infoSpy.mock.calls.filter((call) => call[0] === "ocr.request.end");
+      expect(requestEndCalls).toHaveLength(1);
+      expect(requestEndCalls[0]?.[1]).toEqual(
+        expect.objectContaining({
+          ocrPromptTokens: 123,
+          ocrCompletionTokens: 45,
+          ocrTotalTokens: 168,
+          ocrTokenUsageReturned: true
+        })
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
+  it("logs approximate OCR output tokens when provider omits usage payload", async () => {
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined);
+    const post = jest.fn(async () => ({
+      data: {
+        rawText: "Invoice Number INV-2"
+      }
+    }));
+
+    try {
+      const provider = new DeepSeekOcrProvider({ httpClient: { post } });
+      await provider.extractText(Buffer.from("pdf"), "application/pdf");
+
+      const requestEndCalls = infoSpy.mock.calls.filter((call) => call[0] === "ocr.request.end");
+      expect(requestEndCalls).toHaveLength(1);
+      expect(requestEndCalls[0]?.[1]).toEqual(
+        expect.objectContaining({
+          ocrPromptTokens: undefined,
+          ocrCompletionTokens: undefined,
+          ocrTotalTokens: undefined,
+          ocrTokenUsageReturned: false,
+          ocrOutputTokensApprox: 3
+        })
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
   });
 
   it("skips non-object page image entries and ignores non-numeric dimensions", async () => {

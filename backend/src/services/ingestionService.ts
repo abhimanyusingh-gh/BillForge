@@ -271,7 +271,7 @@ export class IngestionService {
       const pageSources = await buildPageSourcesForCropping(file, normalizedMimeType, extraction.ocrPageImages);
       const fieldProvenance = parseFieldProvenance(metadata.fieldProvenance);
       const [previewImagePaths, cropPathsByIndex] = await Promise.all([
-        persistPreviewImages(file, extraction.ocrPageImages, getPreviewStorageRoot(), artifactPrefix),
+        persistPreviewImages(file, normalizedMimeType, extraction.ocrPageImages, getPreviewStorageRoot(), artifactPrefix),
         this.fileStore
           ? persistOcrBlockCrops({
               file,
@@ -430,11 +430,12 @@ function isDuplicateKeyError(error: unknown): boolean {
 
 async function persistPreviewImages(
   file: IngestedFile,
+  mimeType: string,
   images: OcrPageImage[],
   storageRoot: string,
   artifactPrefix: string
 ): Promise<Record<string, string>> {
-  if (images.length === 0) {
+  if (images.length === 0 && !mimeType.startsWith("image/")) {
     return {};
   }
 
@@ -442,6 +443,16 @@ async function persistPreviewImages(
   await fs.mkdir(targetDirectory, { recursive: true });
 
   const output: Record<string, string> = {};
+  if (mimeType.startsWith("image/")) {
+    const extension = extensionForMimeType(mimeType);
+    const fileName = `page-1.${extension}`;
+    const filePath = path.resolve(targetDirectory, fileName);
+    if (isPathInsideRoot(storageRoot, filePath)) {
+      await fs.writeFile(filePath, file.buffer);
+      output["1"] = filePath;
+    }
+  }
+
   for (const image of images) {
     const parsed = decodeDataUrl(image.dataUrl);
     if (!parsed) {

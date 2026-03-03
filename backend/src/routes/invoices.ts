@@ -184,25 +184,29 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
         res.status(404).json({ message: "Invoice not found" });
         return;
       }
-
-      if (invoice.sourceType !== "folder") {
-        res.status(404).json({ message: "Preview is unavailable for this ingestion source." });
-        return;
-      }
-
-      const folderSource = runtimeManifest.sources.find(
-        (source): source is FolderSourceManifest =>
-          source.type === "folder" &&
-          source.key === invoice.sourceKey &&
-          source.tenantId === invoice.tenantId &&
-          source.workloadTier === invoice.workloadTier
-      );
-      if (!folderSource) {
-        res.status(404).json({ message: "Folder source configuration not found for this invoice." });
-        return;
-      }
+      const page = Math.max(1, Number(req.query.page ?? 1));
+      const previewPath = resolvePreviewImagePath(invoice.metadata, page, getPreviewStorageRoot());
 
       if (invoice.mimeType.startsWith("image/")) {
+        if (previewPath) {
+          await assertPathReadable(previewPath);
+          res.type(previewPath.endsWith(".jpg") || previewPath.endsWith(".jpeg") ? "image/jpeg" : "image/png");
+          res.sendFile(previewPath);
+          return;
+        }
+
+        const folderSource = runtimeManifest.sources.find(
+          (source): source is FolderSourceManifest =>
+            source.type === "folder" &&
+            source.key === invoice.sourceKey &&
+            source.tenantId === invoice.tenantId &&
+            source.workloadTier === invoice.workloadTier
+        );
+        if (!folderSource) {
+          res.status(404).json({ message: "Preview image not found for this invoice." });
+          return;
+        }
+
         const imagePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
         if (!imagePath) {
           res.status(400).json({ message: "Invoice source document path is invalid." });
@@ -219,8 +223,6 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
         return;
       }
 
-      const page = Math.max(1, Number(req.query.page ?? 1));
-      const previewPath = resolvePreviewImagePath(invoice.metadata, page, getPreviewStorageRoot());
       if (!previewPath) {
         res.status(404).json({ message: "Preview image not found for this PDF invoice." });
         return;

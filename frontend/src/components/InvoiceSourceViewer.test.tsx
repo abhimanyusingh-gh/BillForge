@@ -55,6 +55,44 @@ describe("InvoiceSourceViewer", () => {
 
   it("renders nothing when neither overlay nor preview URL can be resolved", () => {
     const html = renderToStaticMarkup(<InvoiceSourceViewer invoice={baseInvoice} overlayUrlByField={{}} />);
-    expect(html).toBe("");
+    expect(html).toContain("Source preview is unavailable for this invoice.");
+  });
+
+  it("allows preview fallback for non-folder ingestion sources", () => {
+    const emailInvoice: Invoice = {
+      ...baseInvoice,
+      sourceType: "email"
+    };
+
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={emailInvoice}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("source-preview-box");
+    expect(html).toContain("/api/invoices/inv-1/preview?page=1");
+  });
+
+  it("renders source preview even when no fields were extracted", () => {
+    const invoiceWithoutFields: Invoice = {
+      ...baseInvoice,
+      parsed: {},
+      metadata: {}
+    };
+
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={invoiceWithoutFields}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4000/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("Source Preview");
+    expect(html).toContain("No extracted value highlights are available yet.");
+    expect(html).toContain("/api/invoices/inv-1/preview?page=1");
   });
 });

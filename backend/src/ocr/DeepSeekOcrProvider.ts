@@ -22,6 +22,20 @@ interface OcrDocumentApiResponse {
   confidence?: unknown;
   blocks?: unknown;
   pageImages?: unknown;
+  usage?: unknown;
+  tokenUsage?: unknown;
+  promptTokens?: unknown;
+  completionTokens?: unknown;
+  totalTokens?: unknown;
+  prompt_tokens?: unknown;
+  completion_tokens?: unknown;
+  total_tokens?: unknown;
+}
+
+interface OcrTokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
 }
 
 interface DeepSeekHttpClient {
@@ -108,7 +122,12 @@ export class DeepSeekOcrProvider implements OcrProvider {
         provider: this.name,
         mimeType,
         latencyMs: Date.now() - startedAt,
-        blockCount: payload.blocks?.length ?? 0
+        blockCount: payload.blocks?.length ?? 0,
+        ocrPromptTokens: payload.usage?.promptTokens,
+        ocrCompletionTokens: payload.usage?.completionTokens,
+        ocrTotalTokens: payload.usage?.totalTokens,
+        ocrTokenUsageReturned: hasTokenUsage(payload.usage),
+        ocrOutputTokensApprox: estimateTextTokenCount(payload.rawText)
       });
 
       return {
@@ -176,17 +195,27 @@ function parseOcrDocumentResponse(data: unknown): {
   confidence?: number;
   blocks?: OcrBlock[];
   pageImages?: OcrPageImage[];
+  usage?: OcrTokenUsage;
 } {
   if (!isRecord(data)) {
     return { rawText: "" };
   }
 
   const payload = data as OcrDocumentApiResponse;
+  const usage =
+    normalizeTokenUsage(payload.usage) ??
+    normalizeTokenUsage(payload.tokenUsage) ??
+    normalizeTokenUsage({
+      promptTokens: payload.promptTokens ?? payload.prompt_tokens,
+      completionTokens: payload.completionTokens ?? payload.completion_tokens,
+      totalTokens: payload.totalTokens ?? payload.total_tokens
+    });
   return {
     rawText: normalizeText(payload.rawText) ?? normalizeText(payload.raw_text) ?? "",
     confidence: normalizeNumber(payload.confidence),
     blocks: normalizeBlocks(payload.blocks),
-    pageImages: normalizePageImages(payload.pageImages)
+    pageImages: normalizePageImages(payload.pageImages),
+    ...(usage ? { usage } : {})
   };
 }
 
@@ -285,6 +314,54 @@ function normalizeMaxTokens(value: number): number {
     return DEFAULT_MAX_TOKENS;
   }
   return Math.max(64, Math.min(4096, Math.round(value)));
+}
+
+function normalizeTokenUsage(value: unknown): OcrTokenUsage | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const usage: OcrTokenUsage = {};
+  const promptTokens = normalizeTokenCount((value.promptTokens ?? value.prompt_tokens) as unknown);
+  const completionTokens = normalizeTokenCount((value.completionTokens ?? value.completion_tokens) as unknown);
+  const totalTokens = normalizeTokenCount((value.totalTokens ?? value.total_tokens) as unknown);
+
+  if (promptTokens !== undefined) {
+    usage.promptTokens = promptTokens;
+  }
+  if (completionTokens !== undefined) {
+    usage.completionTokens = completionTokens;
+  }
+  if (totalTokens !== undefined) {
+    usage.totalTokens = totalTokens;
+  }
+
+  return hasTokenUsage(usage) ? usage : undefined;
+}
+
+function normalizeTokenCount(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value.trim()) : NaN;
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined;
+  }
+  return Math.round(parsed);
+}
+
+function hasTokenUsage(usage: OcrTokenUsage | undefined): boolean {
+  if (!usage) {
+    return false;
+  }
+  return (
+    usage.promptTokens !== undefined || usage.completionTokens !== undefined || usage.totalTokens !== undefined
+  );
+}
+
+function estimateTextTokenCount(text: string): number {
+  const normalized = text.trim();
+  if (!normalized) {
+    return 0;
+  }
+  return normalized.split(/\s+/).filter((entry) => entry.length > 0).length;
 }
 
 function normalizeText(value: unknown): string | undefined {

@@ -285,11 +285,6 @@ export function App() {
       getInvoiceFieldOverlayUrl
     );
   }, [popupInvoice]);
-  const popupSourceHighlights = useMemo(
-    () => (popupInvoice ? getInvoiceSourceHighlights(popupInvoice) : []),
-    [popupInvoice]
-  );
-
   const canEditActiveInvoice = Boolean(activeInvoice && activeInvoice.status !== "EXPORTED");
   const ingestionProgressPercent = useMemo(() => {
     if (!ingestionStatus || ingestionStatus.totalFiles <= 0) {
@@ -1419,24 +1414,22 @@ export function App() {
             </p>
             <div className="popup-content">
               {popupInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
-              {popupSourceHighlights.length > 0 ? (
-                <div className="source-preview-section">
-                  <button
-                    type="button"
-                    className="source-preview-toggle"
-                    onClick={() => setPopupSourcePreviewExpanded((currentValue) => !currentValue)}
-                  >
-                    {popupSourcePreviewExpanded ? "Hide Value Source Highlights" : "Show Value Source Highlights"}
-                  </button>
-                  {popupSourcePreviewExpanded ? (
-                    <InvoiceSourceViewer
-                      invoice={popupInvoice}
-                      overlayUrlByField={popupOverlayUrlByField}
-                      resolvePreviewUrl={(page) => getInvoicePreviewUrl(popupInvoice._id, page)}
-                    />
-                  ) : null}
-                </div>
-              ) : null}
+              <div className="source-preview-section">
+                <button
+                  type="button"
+                  className="source-preview-toggle"
+                  onClick={() => setPopupSourcePreviewExpanded((currentValue) => !currentValue)}
+                >
+                  {popupSourcePreviewExpanded ? "Hide Source Preview" : "Show Source Preview"}
+                </button>
+                {popupSourcePreviewExpanded ? (
+                  <InvoiceSourceViewer
+                    invoice={popupInvoice}
+                    overlayUrlByField={popupOverlayUrlByField}
+                    resolvePreviewUrl={(page) => getInvoicePreviewUrl(popupInvoice._id, page)}
+                  />
+                ) : null}
+              </div>
               <div>
                 <h3>Extracted Invoice Fields</h3>
                 <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} />

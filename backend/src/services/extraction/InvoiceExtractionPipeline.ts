@@ -86,7 +86,12 @@ export class InvoiceExtractionPipeline {
       mimeType: input.mimeType,
       fileBuffer: input.fileBuffer
     });
-    const preOcrLanguageHint = shouldUseLanguageHint(preOcrLanguage) ? preOcrLanguage.code : undefined;
+    const preOcrLanguageHintDecision = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
+    const preOcrLanguageHint = preOcrLanguageHintDecision.hint;
+    if (preOcrLanguageHintDecision.reason !== "detected" && preOcrLanguageHintDecision.reason !== "none" && preOcrLanguageHint) {
+      metadata.preOcrLanguageHint = preOcrLanguageHint;
+      metadata.preOcrLanguageHintReason = preOcrLanguageHintDecision.reason;
+    }
     if (preOcrLanguage.code !== "und") {
       metadata.preOcrLanguage = preOcrLanguage.code;
       metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
@@ -1142,6 +1147,34 @@ function inferBlockScale(bbox: [number, number, number, number]): "normalized" |
 
 function shouldUseLanguageHint(language: DetectedInvoiceLanguage): boolean {
   return language.code !== "und" && language.confidence >= 0.4;
+}
+
+function resolvePreOcrLanguageHint(
+  language: DetectedInvoiceLanguage,
+  mimeType: string
+): { hint?: string; reason: "detected" | "low-confidence-detected" | "default-en" | "none" } {
+  if (language.code !== "und") {
+    return {
+      hint: language.code,
+      reason: shouldUseLanguageHint(language) ? "detected" : "low-confidence-detected"
+    };
+  }
+
+  if (isDocumentMimeType(mimeType)) {
+    return {
+      hint: "en",
+      reason: "default-en"
+    };
+  }
+
+  return {
+    reason: "none"
+  };
+}
+
+function isDocumentMimeType(mimeType: string): boolean {
+  const normalized = mimeType.trim().toLowerCase();
+  return normalized.startsWith("image/") || normalized === "application/pdf";
 }
 
 function resolveDetectedLanguage(

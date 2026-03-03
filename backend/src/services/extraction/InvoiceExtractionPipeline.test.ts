@@ -160,7 +160,11 @@ describe("InvoiceExtractionPipeline", () => {
     expect(verifier.verify).toHaveBeenCalledWith(
       expect.objectContaining({
         ocrText: expect.stringContaining("Invoice Number: INV-2001"),
-        ocrBlocks: expect.any(Array),
+        ocrBlocks: expect.arrayContaining([
+          expect.objectContaining({
+            bbox: [10, 10, 180, 32]
+          })
+        ]),
         hints: expect.objectContaining({
           languageHint: "en",
           documentLanguage: "en",
@@ -347,6 +351,29 @@ describe("InvoiceExtractionPipeline", () => {
     expect(ocrProvider.lastRequest?.languageHint).toBe("fr");
     expect(result.metadata.preOcrLanguage).toBe("fr");
     expect(result.metadata.documentLanguage).toBe("en");
+  });
+
+  it("uses default English pre-OCR hint for document mime types when language is undetermined", async () => {
+    const ocrProvider = new StubOcrProvider({
+      text: SAMPLE_TEXT,
+      confidence: 0.95
+    });
+    const pipeline = new InvoiceExtractionPipeline(
+      ocrProvider,
+      new StubFieldVerifier({ parsed: {}, issues: [], changedFields: [] }),
+      new InMemoryVendorTemplateStore()
+    );
+
+    const result = await pipeline.extract({
+      ...buildInput(),
+      attachmentName: "3.jpg",
+      sourceKey: "inbox",
+      mimeType: "image/jpeg"
+    });
+
+    expect(ocrProvider.lastRequest?.languageHint).toBe("en");
+    expect(result.metadata.preOcrLanguageHint).toBe("en");
+    expect(result.metadata.preOcrLanguageHintReason).toBe("default-en");
   });
 
   it("adds OCR key-value grounding candidate when enabled", async () => {
