@@ -45,11 +45,11 @@ jobs:
           tflint_version: latest
 
       - name: Init TFLint
-        run: tflint --init
+        run: tflint --init --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
         working-directory: infra/terraform
 
       - name: Run TFLint on root
-        run: tflint --recursive
+        run: tflint --recursive --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
         working-directory: infra/
 
   module-validate:

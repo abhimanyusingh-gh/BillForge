@@ -23,10 +23,8 @@ jobs:
           cache: yarn
       - run: corepack enable
       - run: yarn install --immutable
-      - name: Audit backend
-        run: yarn workspace invoice-processor-backend npm audit --audit-level=high || true
-      - name: Audit frontend
-        run: yarn workspace invoice-processor-frontend npm audit --audit-level=high || true
+      - name: Audit dependencies
+        run: yarn npm audit --all --recursive --severity high || true
 
   pip-audit:
     name: Python Dependency Audit
@@ -73,7 +71,7 @@ jobs:
           load: true
           tags: scan-${{ matrix.service }}:latest
       - name: Run Trivy scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.31.0
         with:
           image-ref: scan-${{ matrix.service }}:latest
           format: sarif
