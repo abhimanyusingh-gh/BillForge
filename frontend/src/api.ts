@@ -405,7 +405,8 @@ function appendAuthTokenQuery(url: string): string {
     return url;
   }
 
-  const resolved = new URL(url, backendBaseUrl);
+  const base = backendBaseUrl || window.location.origin;
+  const resolved = new URL(url, base);
   resolved.searchParams.set("authToken", token);
   return resolved.toString();
 }

@@ -40,7 +40,7 @@ export function createAuthRouter(authService: AuthService) {
       }
 
       const result = await authService.handleAuthorizationCallback(code, state);
-      const redirect = new URL("/auth/callback", env.FRONTEND_BASE_URL);
+      const redirect = new URL("/", env.FRONTEND_BASE_URL);
       redirect.searchParams.set("token", result.sessionToken);
       redirect.searchParams.set("next", result.redirectPath);
       response.redirect(302, redirect.toString());
