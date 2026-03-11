@@ -29,7 +29,7 @@ stop_pid_file() {
   rm -f "$pid_file"
 }
 
-"${COMPOSE_CMD[@]}" down --volumes --rmi all --remove-orphans
+"${COMPOSE_CMD[@]}" down --volumes --rmi local --remove-orphans
 
 RUN_DIR="$ROOT_DIR/.local-run"
 stop_pid_file "OCR" "$RUN_DIR/ocr.pid"
