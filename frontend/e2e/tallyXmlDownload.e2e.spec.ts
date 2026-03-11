@@ -237,7 +237,7 @@ async function ensureApprovedInvoicesExist(request: APIRequestContext, token: st
   const data = (await list.json()) as InvoiceListResponse;
 
   const pendingIds = data.items
-    .filter((item) => item.status === "PENDING_REVIEW" || item.status === "VERIFIED")
+    .filter((item) => item.status === "PARSED" || item.status === "NEEDS_REVIEW")
     .map((item) => item._id);
 
   if (pendingIds.length === 0) {
