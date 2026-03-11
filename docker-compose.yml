@@ -33,7 +33,7 @@ services:
       STS_CLIENT_ID: ${STS_CLIENT_ID:-billforge-local-client}
       STS_CLIENT_SECRET: ${STS_CLIENT_SECRET:-billforge-local-secret}
       STS_SCOPES: ${STS_SCOPES:-openid profile email offline_access}
-      STS_REDIRECT_URI: ${STS_REDIRECT_URI:-http://localhost:4100/auth/callback}
+      STS_REDIRECT_URI: ${STS_REDIRECT_URI:-http://localhost:5174/auth/callback}
       STS_LOCAL_PUBLIC_BASE_URL: ${STS_LOCAL_PUBLIC_BASE_URL:-http://localhost:8190}
       STS_LOCAL_INTERNAL_BASE_URL: ${STS_LOCAL_INTERNAL_BASE_URL:-http://local-sts:8090}
       STS_AUTH_URL: ${STS_AUTH_URL:-}
@@ -71,7 +71,7 @@ services:
       EMAIL_FROM_FILTER: ${EMAIL_FROM_FILTER:-}
       GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-billforge-local-client}
       GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-billforge-local-secret}
-      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:4100/connect/gmail/callback}
+      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost:5174/connect/gmail/callback}
       GMAIL_OAUTH_AUTH_URL: ${GMAIL_OAUTH_AUTH_URL:-http://localhost:8190/oauth2/authorize}
       GMAIL_OAUTH_TOKEN_URL: ${GMAIL_OAUTH_TOKEN_URL:-http://local-sts:8090/oauth2/token}
       GMAIL_OAUTH_USERINFO_URL: ${GMAIL_OAUTH_USERINFO_URL:-http://local-sts:8090/oauth2/userinfo}
@@ -95,6 +95,8 @@ services:
       S3_FILE_STORE_PREFIX: ${S3_FILE_STORE_PREFIX:-billforge}
       S3_FILE_STORE_ENDPOINT: ${S3_FILE_STORE_ENDPOINT:-http://minio:9000}
       S3_FILE_STORE_FORCE_PATH_STYLE: ${S3_FILE_STORE_FORCE_PATH_STYLE:-true}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       CONFIDENCE_EXPECTED_MAX_TOTAL: "100000"
       CONFIDENCE_EXPECTED_MAX_DUE_DAYS: "90"
       CONFIDENCE_AUTO_SELECT_MIN: "91"
@@ -157,7 +159,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:4100/api
+        VITE_API_BASE_URL: /api
     container_name: billforge-frontend
     restart: unless-stopped
     depends_on:

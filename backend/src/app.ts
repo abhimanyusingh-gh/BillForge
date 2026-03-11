@@ -25,7 +25,7 @@ export async function createApp() {
   const app = express();
   const authenticate = createAuthenticationMiddleware(dependencies.authService);
 
-  app.use(cors());
+  app.use(cors({ exposedHeaders: ["Content-Disposition"] }));
   app.use(express.json({ limit: "10mb" }));
   app.use((req, res, next) => {
     const incoming = req.header("x-correlation-id");
