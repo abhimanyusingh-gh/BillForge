@@ -96,7 +96,7 @@ describe("InvoiceSourceViewer", () => {
     expect(html).toContain("/api/invoices/inv-1/preview?page=1");
   });
 
-  it("renders zoom controls when source preview has highlights", () => {
+  it("uses transform-based zoom instead of width", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={baseInvoice}
@@ -105,33 +105,11 @@ describe("InvoiceSourceViewer", () => {
       />
     );
 
-    expect(html).toContain('aria-label="Zoom in"');
-    expect(html).toContain('aria-label="Zoom out"');
-    expect(html).toContain("100%");
-    expect(html).toContain("source-zoom-controls");
+    expect(html).toContain("transform:scale(1)");
+    expect(html).not.toContain("width:100%");
   });
 
-  it("renders zoom controls on default preview (no highlights)", () => {
-    const invoiceWithoutFields: Invoice = {
-      ...baseInvoice,
-      parsed: {},
-      metadata: {}
-    };
-
-    const html = renderToStaticMarkup(
-      <InvoiceSourceViewer
-        invoice={invoiceWithoutFields}
-        overlayUrlByField={{}}
-        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
-      />
-    );
-
-    expect(html).toContain("source-zoom-controls");
-    expect(html).toContain('aria-label="Zoom in"');
-    expect(html).toContain("scale(1)");
-  });
-
-  it("initial canvas transform is scale(1)", () => {
+  it("does not render zoom button controls", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={baseInvoice}
@@ -140,8 +118,21 @@ describe("InvoiceSourceViewer", () => {
       />
     );
 
-    expect(html).toContain("scale(1)");
-    expect(html).toContain("transform-origin:top left");
+    expect(html).not.toContain('aria-label="Zoom in"');
+    expect(html).not.toContain('aria-label="Zoom out"');
+  });
+
+  it("chips show page number without confidence label", () => {
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={baseInvoice}
+        overlayUrlByField={{}}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("page 1");
+    expect(html).not.toContain("% |");
   });
 
   it("bbox uses percentage positioning independent of zoom transform", () => {

@@ -21,10 +21,11 @@ import {
   getInvoicePreviewUrl,
   getStoredSessionToken,
   inviteTenantUser,
-  runEmailSimulationIngestion,
+  pauseIngestion,
   runIngestion,
   setStoredSessionToken,
   removeTenantUser,
+  subscribeIngestionSSE,
   updateInvoiceParsedFields
 } from "./api";
 import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
@@ -44,8 +45,8 @@ import { PlatformUsageOverviewSection } from "./components/platformAdmin/Platfor
 import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
 import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/TenantViewTabs";
 import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
-import { TenantWorkspaceHero } from "./components/tenantAdmin/TenantWorkspaceHero";
-import { formatOcrConfidenceLabel, getExtractedFieldRows } from "./extractedFields";
+
+import { getExtractedFieldRows } from "./extractedFields";
 import { getInvoiceSourceHighlights } from "./sourceHighlights";
 import {
   isInvoiceApprovable,
@@ -57,13 +58,8 @@ import {
 import { getInvoiceTallyMappings } from "./tallyMapping";
 import { formatMinorAmountWithCurrency } from "./currency";
 import {
-  buildEditForm,
   buildFieldCropUrlMap,
   buildFieldOverlayUrlMap,
-  EMPTY_EDIT_FORM,
-  normalizeAmountInput,
-  normalizeTextInput,
-  type EditInvoiceFormState,
   STATUSES
 } from "./invoiceView";
 import { useInvoiceDetail } from "./hooks/useInvoiceDetail";
@@ -96,6 +92,7 @@ export function App() {
     adminDisplayName: ""
   });
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0 });
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -106,10 +103,7 @@ export function App() {
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(true);
   const [detailsPanelCollapsed, setDetailsPanelCollapsed] = useState(false);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
-  const [editingParsedFields, setEditingParsedFields] = useState(false);
-  const [savingParsedFields, setSavingParsedFields] = useState(false);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
@@ -119,8 +113,12 @@ export function App() {
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
   const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
   const [platformActivityCollapsed, setPlatformActivityCollapsed] = useState(false);
-  const [editForm, setEditForm] = useState<EditInvoiceFormState>(EMPTY_EDIT_FORM);
   const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
+  const [ingestionFading, setIngestionFading] = useState(false);
+  const [editingListCell, setEditingListCell] = useState<{ invoiceId: string; field: string } | null>(null);
+  const [editListValue, setEditListValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
   const ingestionWasRunningRef = useRef(false);
   const {
     detail: activeInvoiceDetail,
@@ -212,10 +210,6 @@ export function App() {
       : activeInvoiceSummary;
   }, [activeInvoiceDetail, activeInvoiceSummary]);
 
-  const failedCount = useMemo(
-    () => invoices.filter((invoice) => ["FAILED_OCR", "FAILED_PARSE"].includes(invoice.status)).length,
-    [invoices]
-  );
   const platformStats = useMemo(() => {
     return {
       tenants: platformUsage.length,
@@ -249,20 +243,15 @@ export function App() {
       : popupInvoiceSummary;
   }, [popupInvoiceDetail, popupInvoiceSummary]);
 
-  const activeExtractedRows = useMemo(
-    () => (activeInvoice ? getExtractedFieldRows(activeInvoice) : []),
-    [activeInvoice]
-  );
-
-  const activeTallyMappings = useMemo(
-    () => (activeInvoice ? getInvoiceTallyMappings(activeInvoice) : []),
-    [activeInvoice]
-  );
-  const activeCropUrlByField = useMemo(() => {
+  const activeOverlayUrlByField = useMemo(() => {
     if (!activeInvoice) {
       return {};
     }
-    return buildFieldCropUrlMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoiceBlockCropUrl);
+    return buildFieldOverlayUrlMap(
+      activeInvoice._id,
+      getInvoiceSourceHighlights(activeInvoice),
+      getInvoiceFieldOverlayUrl
+    );
   }, [activeInvoice]);
   const popupExtractedRows = useMemo(
     () => (popupInvoice ? getExtractedFieldRows(popupInvoice) : []),
@@ -289,7 +278,6 @@ export function App() {
       getInvoiceFieldOverlayUrl
     );
   }, [popupInvoice]);
-  const canEditActiveInvoice = Boolean(activeInvoice && activeInvoice.status !== "EXPORTED");
   const ingestionProgressPercent = useMemo(() => {
     if (!ingestionStatus || ingestionStatus.totalFiles <= 0) {
       return 0;
@@ -330,9 +318,22 @@ export function App() {
     [selectedInvoices]
   );
 
+  const filteredInvoices = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return invoices;
+    }
+    const q = searchQuery.trim().toLowerCase();
+    return invoices.filter(
+      (invoice) =>
+        invoice.attachmentName.toLowerCase().includes(q) ||
+        (invoice.parsed?.vendorName ?? "").toLowerCase().includes(q) ||
+        (invoice.parsed?.invoiceNumber ?? "").toLowerCase().includes(q)
+    );
+  }, [invoices, searchQuery]);
+
   const selectableVisibleIds = useMemo(
-    () => invoices.filter((invoice) => isInvoiceSelectable(invoice)).map((invoice) => invoice._id),
-    [invoices]
+    () => filteredInvoices.filter((invoice) => isInvoiceSelectable(invoice)).map((invoice) => invoice._id),
+    [filteredInvoices]
   );
 
   const areAllVisibleSelectableSelected = useMemo(() => {
@@ -356,10 +357,6 @@ export function App() {
   const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
   const gmailConnected = gmailConnectionState === "CONNECTED";
   const gmailEmailAddress = gmailConnection?.emailAddress ?? "";
-
-  function resolveErrorMessage(error: unknown, fallback: string): string {
-    return getUserFacingErrorMessage(error, fallback);
-  }
 
   async function bootstrapSession() {
     setAuthLoading(true);
@@ -402,7 +399,7 @@ export function App() {
       const users = await fetchTenantUsers();
       setTenantUsers(users);
     } catch (loadError) {
-      setError(resolveErrorMessage(loadError, "Failed to load tenant users."));
+      setError(getUserFacingErrorMessage(loadError, "Failed to load tenant users."));
     }
   }
 
@@ -414,7 +411,7 @@ export function App() {
       const usage = await fetchPlatformTenantUsage();
       setPlatformUsage(usage);
     } catch (loadError) {
-      setError(resolveErrorMessage(loadError, "Failed to load tenant usage overview."));
+      setError(getUserFacingErrorMessage(loadError, "Failed to load tenant usage overview."));
     }
   }
 
@@ -432,17 +429,6 @@ export function App() {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [popupInvoiceId]);
-
-  useEffect(() => {
-    if (!activeInvoice) {
-      setEditForm(EMPTY_EDIT_FORM);
-      setEditingParsedFields(false);
-      return;
-    }
-
-    setEditForm(buildEditForm(activeInvoice));
-    setEditingParsedFields(false);
-  }, [activeInvoice]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -478,11 +464,17 @@ export function App() {
       return undefined;
     }
 
-    const timer = window.setInterval(() => {
-      void refreshIngestionStatus();
-    }, 1200);
+    const unsub = subscribeIngestionSSE(
+      (status) => {
+        setIngestionStatus(status);
+        void loadInvoices();
+      },
+      () => {
+        void refreshIngestionStatus();
+      }
+    );
 
-    return () => window.clearInterval(timer);
+    return unsub;
   }, [ingestionStatus?.running]);
 
   useEffect(() => {
@@ -498,6 +490,16 @@ export function App() {
     ingestionWasRunningRef.current = isRunning;
   }, [ingestionStatus?.running, ingestionStatus?.state, ingestionStatus?.error]);
 
+  useEffect(() => {
+    if (ingestionStatus?.state !== "completed") {
+      setIngestionFading(false);
+      return;
+    }
+    const fadeTimer = setTimeout(() => setIngestionFading(true), 2000);
+    const hideTimer = setTimeout(() => setIngestionStatus(null), 3500);
+    return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
+  }, [ingestionStatus?.state]);
+
   async function loadInvoices() {
     if (!session) {
       return;
@@ -508,6 +510,11 @@ export function App() {
     try {
       const data = await fetchInvoices(statusFilter === "ALL" ? undefined : statusFilter);
       setInvoices(data.items);
+      setNavCounts({
+        total: data.totalAll ?? data.total,
+        approved: data.approvedAll ?? 0,
+        pending: data.pendingAll ?? 0
+      });
       const ids = new Set(data.items.map((item) => item._id));
       setSelectedIds((currentSelectedIds) => mergeSelectedIds(currentSelectedIds, data.items));
       if (activeId && !ids.has(activeId)) {
@@ -527,7 +534,7 @@ export function App() {
         clearStoredSessionToken();
         setSession(null);
       } else {
-        setError(resolveErrorMessage(loadError, "Failed to fetch invoices."));
+        setError(getUserFacingErrorMessage(loadError, "Failed to fetch invoices."));
       }
     } finally {
       setLoading(false);
@@ -566,7 +573,7 @@ export function App() {
       const connectUrl = await fetchGmailConnectUrl();
       window.location.assign(connectUrl);
     } catch (connectError) {
-      setError(resolveErrorMessage(connectError, "Failed to start Gmail connection flow."));
+      setError(getUserFacingErrorMessage(connectError, "Failed to start Gmail connection flow."));
     }
   }
 
@@ -578,14 +585,14 @@ export function App() {
 
     try {
       setError(null);
-      const response = await approveInvoices(selectedApprovableIds, "ui-user");
+      const response = await approveInvoices(selectedApprovableIds, session!.user.email);
       if (response.modifiedCount === 0) {
         setError("No selected invoices were eligible for approval.");
         return;
       }
       await loadInvoices();
     } catch (approveError) {
-      setError(resolveErrorMessage(approveError, "Approval failed."));
+      setError(getUserFacingErrorMessage(approveError, "Approval failed."));
     }
   }
 
@@ -614,7 +621,7 @@ export function App() {
       setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, successfullyExportedIds));
       await loadInvoices();
     } catch (exportError) {
-      setError(resolveErrorMessage(exportError, "Export failed."));
+      setError(getUserFacingErrorMessage(exportError, "Export failed."));
     }
   }
 
@@ -654,7 +661,7 @@ export function App() {
       setSelectedIds((currentSelectedIds) => removeSelectedIds(currentSelectedIds, exportedIds));
       await loadInvoices();
     } catch (downloadError) {
-      setError(resolveErrorMessage(downloadError, "XML file generation failed."));
+      setError(getUserFacingErrorMessage(downloadError, "XML file generation failed."));
     }
   }
 
@@ -664,17 +671,17 @@ export function App() {
       const status = await runIngestion();
       setIngestionStatus(status);
     } catch (ingestError) {
-      setError(resolveErrorMessage(ingestError, "Ingestion run failed."));
+      setError(getUserFacingErrorMessage(ingestError, "Ingestion run failed."));
     }
   }
 
-  async function handleEmailSimulationIngest() {
+  async function handlePauseIngestion() {
     try {
       setError(null);
-      const status = await runEmailSimulationIngestion();
+      const status = await pauseIngestion();
       setIngestionStatus(status);
-    } catch (ingestError) {
-      setError(resolveErrorMessage(ingestError, "Email simulation ingestion failed."));
+    } catch (pauseError) {
+      setError(getUserFacingErrorMessage(pauseError, "Failed to pause ingestion."));
     }
   }
 
@@ -703,7 +710,7 @@ export function App() {
       setLoginPassword("");
       await bootstrapSession();
     } catch (loginError) {
-      setError(resolveErrorMessage(loginError, "Login failed."));
+      setError(getUserFacingErrorMessage(loginError, "Login failed."));
       clearStoredSessionToken();
       setSession(null);
     } finally {
@@ -724,7 +731,7 @@ export function App() {
       const refreshed = await fetchSessionContext();
       setSession(refreshed);
     } catch (setupError) {
-      setError(resolveErrorMessage(setupError, "Failed to complete onboarding."));
+      setError(getUserFacingErrorMessage(setupError, "Failed to complete onboarding."));
     }
   }
 
@@ -735,7 +742,7 @@ export function App() {
       setInviteEmail("");
       await loadTenantUsers();
     } catch (inviteError) {
-      setError(resolveErrorMessage(inviteError, "Failed to invite user."));
+      setError(getUserFacingErrorMessage(inviteError, "Failed to invite user."));
     }
   }
 
@@ -762,7 +769,7 @@ export function App() {
       });
       await loadPlatformUsage();
     } catch (onboardError) {
-      setError(resolveErrorMessage(onboardError, "Failed to onboard tenant admin."));
+      setError(getUserFacingErrorMessage(onboardError, "Failed to onboard tenant admin."));
     }
   }
 
@@ -772,7 +779,7 @@ export function App() {
       await assignTenantUserRole(userId, role);
       await loadTenantUsers();
     } catch (assignError) {
-      setError(resolveErrorMessage(assignError, "Failed to update role."));
+      setError(getUserFacingErrorMessage(assignError, "Failed to update role."));
     }
   }
 
@@ -782,7 +789,7 @@ export function App() {
       await removeTenantUser(userId);
       await loadTenantUsers();
     } catch (removeError) {
-      setError(resolveErrorMessage(removeError, "Failed to remove user."));
+      setError(getUserFacingErrorMessage(removeError, "Failed to remove user."));
     }
   }
 
@@ -795,10 +802,6 @@ export function App() {
     setSelectedIds((current) =>
       current.includes(id) ? current.filter((currentId) => currentId !== id) : [...current, id]
     );
-  }
-
-  function openPopup(invoiceId: string) {
-    setPopupInvoiceId(invoiceId);
   }
 
   function toggleSelectAllVisible() {
@@ -817,40 +820,57 @@ export function App() {
     });
   }
 
-  function closePopup() {
-    setPopupInvoiceId(null);
-  }
+  async function handleSaveField(
+    invoice: Invoice | null,
+    fieldKey: string,
+    value: string,
+    refreshDetail: () => Promise<void>
+  ) {
+    if (!invoice) return;
+    const trimmed = value.trim();
+    const parsed: Record<string, string | null> = {};
 
-  async function handleSaveParsedEdits() {
-    if (!activeInvoice) {
-      return;
+    if (fieldKey === "totalAmountMinor") {
+      parsed.totalAmountMajor = trimmed || null;
+    } else if (fieldKey === "currency") {
+      parsed.currency = trimmed ? trimmed.toUpperCase() : null;
+    } else {
+      parsed[fieldKey] = trimmed || null;
     }
 
     try {
-      setSavingParsedFields(true);
-      setError(null);
-
-      await updateInvoiceParsedFields(activeInvoice._id, {
-        parsed: {
-          invoiceNumber: normalizeTextInput(editForm.invoiceNumber),
-          vendorName: normalizeTextInput(editForm.vendorName),
-          invoiceDate: normalizeTextInput(editForm.invoiceDate),
-          dueDate: normalizeTextInput(editForm.dueDate),
-          currency: normalizeTextInput(editForm.currency)?.toUpperCase() ?? null,
-          totalAmountMajor: normalizeAmountInput(editForm.totalAmountMajor)
-        },
-        updatedBy: "ui-user"
-      });
-
-      setEditingParsedFields(false);
+      await updateInvoiceParsedFields(invoice._id, { parsed, updatedBy: "ui-user" });
       await loadInvoices();
+      await refreshDetail();
       if (session?.user.isPlatformAdmin) {
         await loadPlatformUsage();
       }
     } catch (saveError) {
-      setError(resolveErrorMessage(saveError, "Failed to update parsed invoice fields."));
-    } finally {
-      setSavingParsedFields(false);
+      setError(getUserFacingErrorMessage(saveError, "Failed to save field."));
+    }
+  }
+
+  async function handleSaveListCell() {
+    if (!editingListCell) return;
+    const { invoiceId, field } = editingListCell;
+    const trimmed = editListValue.trim();
+    const parsed: Record<string, string | null> = {};
+
+    if (field === "totalAmountMinor") {
+      parsed.totalAmountMajor = trimmed || null;
+    } else {
+      parsed[field] = trimmed || null;
+    }
+
+    try {
+      await updateInvoiceParsedFields(invoiceId, { parsed, updatedBy: "ui-user" });
+      setEditingListCell(null);
+      await loadInvoices();
+      if (activeId === invoiceId) {
+        await refreshActiveInvoiceDetail();
+      }
+    } catch (saveError) {
+      setError(getUserFacingErrorMessage(saveError, "Failed to save field."));
     }
   }
 
@@ -891,22 +911,15 @@ export function App() {
       {isPlatformAdmin ? (
         <PlatformAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
       ) : (
-        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} />
+        <TenantAdminTopNav userEmail={session.user.email} onLogout={handleLogout} counts={navCounts} />
       )}
 
       {!isPlatformAdmin ? (
-        <>
-          <TenantWorkspaceHero
-            tenantName={session.tenant.name}
-            totalInvoices={invoices.length}
-            failedInvoices={failedCount}
-          />
-          <TenantViewTabs
-            activeTab={activeTab}
-            canViewTenantConfig={isTenantAdmin}
-            onTabChange={setActiveTab}
-          />
-        </>
+        <TenantViewTabs
+          activeTab={activeTab}
+          canViewTenantConfig={isTenantAdmin}
+          onTabChange={setActiveTab}
+        />
       ) : null}
 
       <section className="controls">
@@ -944,7 +957,7 @@ export function App() {
         ) : null}
 
         {activeTab === "exports" && isTenantAdmin && !isPlatformAdmin ? (
-          <ExportHistoryDashboard visible={true} />
+          <ExportHistoryDashboard />
         ) : null}
 
         {activeTab === "config" && isTenantAdmin && !isPlatformAdmin ? (
@@ -1077,89 +1090,70 @@ export function App() {
 
             {!isPlatformAdmin ? (
               <>
-                <div className="status-tabs">
-                  {STATUSES.map((status) => (
-                    <button
-                      key={status}
-                      className={status === statusFilter ? "tab tab-active" : "tab"}
-                      onClick={() => setStatusFilter(status)}
-                    >
-                      {status}
+                <div className="toolbar">
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search by file, vendor, or invoice #..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <div className="status-tabs">
+                    {STATUSES.map((status) => (
+                      <button
+                        key={status}
+                        className={status === statusFilter ? "tab tab-active" : "tab"}
+                        onClick={() => setStatusFilter(status)}
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={handleApprove} disabled={requiresTenantSetup || selectedApprovableIds.length === 0}>
+                      <span className="material-symbols-outlined">check_circle</span>
                     </button>
-                  ))}
-                </div>
-
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="app-button app-button-secondary"
-                    onClick={handleIngest}
-                    disabled={requiresTenantSetup || ingestionStatus?.running === true}
-                  >
-                    {ingestionStatus?.running ? "Ingestion Running..." : "Run Ingestion"}
-                  </button>
-                  <button
-                    type="button"
-                    className="app-button app-button-secondary"
-                    onClick={handleEmailSimulationIngest}
-                    disabled={requiresTenantSetup || ingestionStatus?.running === true}
-                  >
-                    {ingestionStatus?.running ? "Ingestion Running..." : "Ingest Demo Emails"}
-                  </button>
-                  <button
-                    type="button"
-                    className="app-button app-button-secondary"
-                    onClick={toggleSelectAllVisible}
-                    disabled={selectableVisibleIds.length === 0}
-                  >
-                    {areAllVisibleSelectableSelected ? "Deselect All" : "Select All"}
-                  </button>
-                  <button
-                    type="button"
-                    className="app-button app-button-primary"
-                    onClick={handleApprove}
-                    disabled={requiresTenantSetup || selectedApprovableIds.length === 0}
-                  >
-                    Approve Selected
-                  </button>
-                  <button
-                    type="button"
-                    className="app-button app-button-primary"
-                    onClick={handleExport}
-                    disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}
-                  >
-                    Export To Tally ({selectedExportableIds.length})
-                  </button>
-                  <button
-                    type="button"
-                    className="app-button app-button-secondary"
-                    onClick={handleDownloadXml}
-                    disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}
-                  >
-                    Download XML ({selectedExportableIds.length})
-                  </button>
-                  <button
-                    type="button"
-                    className="app-button app-button-secondary"
-                    onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}
-                  >
-                    {detailsPanelVisible ? "Hide Details Panel" : "Show Details Panel"}
-                  </button>
-                  <button type="button" className="app-button app-button-secondary" onClick={() => void loadInvoices()}>
-                    Refresh
-                  </button>
+                    <span className="toolbar-icon-label">Approve</span>
+                  </span>
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                      <span className="material-symbols-outlined">upload</span>
+                    </button>
+                    <span className="toolbar-icon-label">Export to Tally</span>
+                  </span>
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={handleDownloadXml} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                      <span className="material-symbols-outlined">download</span>
+                    </button>
+                    <span className="toolbar-icon-label">Download XML</span>
+                  </span>
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={handleIngest} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
+                      <span className="material-symbols-outlined">play_arrow</span>
+                    </button>
+                    <span className="toolbar-icon-label">{ingestionStatus?.state === "paused" ? "Resume" : "Ingest"}</span>
+                  </span>
+                  {ingestionStatus?.running === true ? (
+                    <span className="toolbar-icon-wrap">
+                      <button type="button" className="toolbar-icon-button" onClick={handlePauseIngestion}>
+                        <span className="material-symbols-outlined">pause</span>
+                      </button>
+                      <span className="toolbar-icon-label">Pause</span>
+                    </span>
+                  ) : null}
+                  <span className="toolbar-icon-wrap">
+                    <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
+                      <span className="material-symbols-outlined">{detailsPanelVisible ? "visibility_off" : "visibility"}</span>
+                    </button>
+                    <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide panel" : "Show panel"}</span>
+                  </span>
                 </div>
                 <IngestionProgressCard
                   status={ingestionStatus}
                   progressPercent={ingestionProgressPercent}
                   successfulFiles={ingestionSuccessfulFiles}
+                  fading={ingestionFading}
                 />
-                <p className="muted export-selection">
-                  {selectedIds.length} selected | {selectedExportableIds.length} approved exportable
-                  {selectedNonExportableCount > 0
-                    ? ` | ${selectedNonExportableCount} non-approved must be deselected for export`
-                    : ""}
-                </p>
               </>
             ) : null}
           </>
@@ -1168,7 +1162,7 @@ export function App() {
 
       {error ? <p className="error">{error}</p> : null}
 
-      {!isPlatformAdmin ? (
+      {!isPlatformAdmin && activeTab === "dashboard" ? (
         <main className={contentClassName}>
           <>
             <section className="panel list-panel">
@@ -1181,10 +1175,11 @@ export function App() {
                 <table>
                   <thead>
                     <tr>
-                      <th />
+                      <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
                       <th>File</th>
                       <th>Vendor</th>
                       <th>Invoice #</th>
+                      <th>Invoice Date</th>
                       <th>Total</th>
                       <th>Confidence</th>
                       <th>Status</th>
@@ -1192,13 +1187,14 @@ export function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {invoices.map((invoice) => {
+                    {filteredInvoices.map((invoice) => {
                       const rowClasses = [
                         invoice._id === activeId ? "row-active" : null,
                         invoice.status === "EXPORTED" ? "row-exported" : null
                       ]
                         .filter(Boolean)
                         .join(" ");
+                      const canEditCell = invoice.status !== "EXPORTED";
 
                       return (
                         <tr key={invoice._id} className={rowClasses || undefined} onClick={() => setActiveId(invoice._id)}>
@@ -1217,26 +1213,53 @@ export function App() {
                               className="file-label"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                openPopup(invoice._id);
+                                setPopupInvoiceId(invoice._id);
                               }}
                             >
                               {invoice.attachmentName}
                             </button>
                           </td>
-                          <td>{invoice.parsed?.vendorName ?? "-"}</td>
-                          <td>{invoice.parsed?.invoiceNumber ?? "-"}</td>
+                          <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
+                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName" ? (
+                              <>
+                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              </>
+                            ) : (
+                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); } } : {})}>{invoice.parsed?.vendorName ?? "-"}</span>
+                            )}
+                          </td>
+                          <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
+                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceNumber" ? (
+                              <>
+                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              </>
+                            ) : (
+                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); } } : {})}>{invoice.parsed?.invoiceNumber ?? "-"}</span>
+                            )}
+                          </td>
+                          <td>{invoice.parsed?.invoiceDate ?? "-"}</td>
                           <td
                             className={
-                              invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : undefined
+                              [invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
                             }
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}
+                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "totalAmountMinor" ? (
+                              <>
+                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              </>
+                            ) : (
+                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); } } : {})}>{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
+                            )}
                           </td>
                           <td>
                             <ConfidenceBadge score={invoice.confidenceScore ?? 0} />
                           </td>
                           <td>
-                            <span className={`status status-${invoice.status.toLowerCase()}`}>{invoice.status}</span>
+                            <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{invoice.status}</span>
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                         </tr>
@@ -1266,179 +1289,12 @@ export function App() {
               </div>
             ) : activeInvoice ? (
               <div className="detail-scroll">
-                <div className="detail-content">
-                  {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
-                  <div className="detail-grid">
-                    <p>
-                      <span>File</span>
-                      <strong>{activeInvoice.attachmentName}</strong>
-                    </p>
-                    <p>
-                      <span>Vendor</span>
-                      <strong>{activeInvoice.parsed?.vendorName ?? "-"}</strong>
-                    </p>
-                    <p>
-                      <span>Invoice Number</span>
-                      <strong>{activeInvoice.parsed?.invoiceNumber ?? "-"}</strong>
-                    </p>
-                    <p>
-                      <span>Invoice Date</span>
-                      <strong>{activeInvoice.parsed?.invoiceDate ?? "-"}</strong>
-                    </p>
-                    <p>
-                      <span>Due Date</span>
-                      <strong>{activeInvoice.parsed?.dueDate ?? "-"}</strong>
-                    </p>
-                    <p>
-                      <span>Total Amount</span>
-                      <strong>
-                        {formatMinorAmountWithCurrency(activeInvoice.parsed?.totalAmountMinor, activeInvoice.parsed?.currency)}
-                      </strong>
-                    </p>
-                    <p>
-                      <span>Status</span>
-                      <strong>{activeInvoice.status}</strong>
-                    </p>
-                    <p>
-                      <span>Confidence</span>
-                      <strong><ConfidenceBadge score={activeInvoice.confidenceScore ?? 0} /></strong>
-                    </p>
-                    <p>
-                      <span>Read Confidence</span>
-                      <strong>{formatOcrConfidenceLabel(activeInvoice.ocrConfidence)}</strong>
-                    </p>
-                  </div>
-
-                  <div className="editor-card">
-                    <div className="editor-header">
-                      <h3>Adjust Parsed Fields</h3>
-                      {canEditActiveInvoice ? (
-                        editingParsedFields ? (
-                          <div className="editor-actions">
-                            <button type="button" disabled={savingParsedFields} onClick={() => setEditingParsedFields(false)}>
-                              Cancel
-                            </button>
-                            <button type="button" disabled={savingParsedFields} onClick={() => void handleSaveParsedEdits()}>
-                              {savingParsedFields ? "Saving..." : "Save"}
-                            </button>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={() => setEditingParsedFields(true)}>
-                            Edit
-                          </button>
-                        )
-                      ) : (
-                        <span className="muted">Exported invoices are locked.</span>
-                      )}
-                    </div>
-                    {editingParsedFields ? (
-                      <div className="edit-grid">
-                        <label>
-                          Vendor Name
-                          <input
-                            value={editForm.vendorName}
-                            onChange={(event) => setEditForm((state) => ({ ...state, vendorName: event.target.value }))}
-                          />
-                        </label>
-                        <label>
-                          Invoice Number
-                          <input
-                            value={editForm.invoiceNumber}
-                            onChange={(event) =>
-                              setEditForm((state) => ({ ...state, invoiceNumber: event.target.value }))
-                            }
-                          />
-                        </label>
-                        <label>
-                          Invoice Date
-                          <input
-                            value={editForm.invoiceDate}
-                            onChange={(event) => setEditForm((state) => ({ ...state, invoiceDate: event.target.value }))}
-                            placeholder="YYYY-MM-DD"
-                          />
-                        </label>
-                        <label>
-                          Due Date
-                          <input
-                            value={editForm.dueDate}
-                            onChange={(event) => setEditForm((state) => ({ ...state, dueDate: event.target.value }))}
-                            placeholder="YYYY-MM-DD"
-                          />
-                        </label>
-                        <label>
-                          Currency
-                          <input
-                            value={editForm.currency}
-                            onChange={(event) => setEditForm((state) => ({ ...state, currency: event.target.value }))}
-                            placeholder="USD"
-                          />
-                        </label>
-                        <label>
-                          Total Amount (major)
-                          <input
-                            value={editForm.totalAmountMajor}
-                            onChange={(event) =>
-                              setEditForm((state) => ({ ...state, totalAmountMajor: event.target.value }))
-                            }
-                            placeholder="1200.50"
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <p className="muted">Enable edit mode to correct vendor/entity names and parsed values before export.</p>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="detail-sections-toggle"
-                    onClick={() => setDetailsExpanded((currentValue) => !currentValue)}
-                  >
-                    {detailsExpanded ? "Hide Detail Sections" : "Show Detail Sections"}
-                  </button>
-
-                  {detailsExpanded ? (
-                    <>
-                      <div>
-                        <h3>Risk Signals</h3>
-                        {(activeInvoice.riskMessages ?? []).length > 0 ? (
-                          <ul>
-                            {(activeInvoice.riskMessages ?? []).map((entry) => (
-                              <li key={entry}>{entry}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="muted">No high-value risk signals.</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <h3>Parse Errors / Warnings</h3>
-                        {(activeInvoice.processingIssues ?? []).length > 0 ? (
-                          <ul>
-                            {(activeInvoice.processingIssues ?? []).map((entry) => (
-                              <li key={entry}>{entry}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="muted">None</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <h3>Extracted Invoice Fields</h3>
-                        <ExtractedFieldsTable rows={activeExtractedRows} cropUrlByField={activeCropUrlByField} />
-                      </div>
-
-                      <div>
-                        <h3>Export Mapping</h3>
-                        <TallyMappingTable rows={activeTallyMappings} />
-                      </div>
-                    </>
-                  ) : (
-                    <p className="muted">Details are collapsed. Expand to inspect extracted fields and export mapping.</p>
-                  )}
-                </div>
+                {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
+                <InvoiceSourceViewer
+                  invoice={activeInvoice}
+                  overlayUrlByField={activeOverlayUrlByField}
+                  resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
+                />
               </div>
             ) : (
               <p className="muted">Select an invoice to inspect details.</p>
@@ -1450,7 +1306,7 @@ export function App() {
       ) : null}
 
       {popupInvoice ? (
-        <div className="popup-overlay" role="presentation" onClick={closePopup}>
+        <div className="popup-overlay" role="presentation" onClick={() => setPopupInvoiceId(null)}>
           <section
             className="popup-card"
             role="dialog"
@@ -1460,7 +1316,7 @@ export function App() {
           >
             <div className="popup-header">
               <h2>File Details: {popupInvoice.attachmentName}</h2>
-              <button type="button" onClick={closePopup}>
+              <button type="button" onClick={() => setPopupInvoiceId(null)}>
                 Close
               </button>
             </div>
@@ -1487,7 +1343,7 @@ export function App() {
               </div>
               <div>
                 <h3>Extracted Invoice Fields</h3>
-                <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} />
+                <ExtractedFieldsTable rows={popupExtractedRows} cropUrlByField={popupCropUrlByField} editable={popupInvoice?.status !== "EXPORTED"} onSaveField={(fieldKey, value) => handleSaveField(popupInvoice, fieldKey, value, refreshPopupInvoiceDetail)} />
               </div>
               {popupInvoice.ocrText ? (
                 <div>
@@ -1504,8 +1360,14 @@ export function App() {
                 </div>
               ) : null}
               <div>
-                <h3>Export Mapping</h3>
-                <TallyMappingTable rows={popupTallyMappings} />
+                <button
+                  type="button"
+                  className="source-preview-toggle"
+                  onClick={() => setPopupMappingExpanded((currentValue) => !currentValue)}
+                >
+                  {popupMappingExpanded ? "Hide Export Mapping" : "Show Export Mapping"}
+                </button>
+                {popupMappingExpanded ? <TallyMappingTable rows={popupTallyMappings} /> : null}
               </div>
             </div>
           </section>

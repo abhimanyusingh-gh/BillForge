@@ -1,10 +1,11 @@
 import { Types } from "mongoose";
 import { InvoiceModel } from "../models/Invoice.js";
 import { env } from "../config/env.js";
-import type { ParsedInvoiceData } from "../types/invoice.js";
+import type { GstBreakdown, ParsedInvoiceData } from "../types/invoice.js";
 import { assessInvoiceConfidence } from "./confidenceAssessment.js";
 import { toMinorUnits } from "../utils/currency.js";
 import type { WorkloadTier } from "../types/tenant.js";
+import type { AuthenticatedRequestContext } from "../types/auth.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -37,32 +38,39 @@ export class InvoiceUpdateError extends Error {
 
 export class InvoiceService {
   async listInvoices(params: ListInvoicesParams) {
-    const query: Record<string, unknown> = {};
+    const baseQuery: Record<string, unknown> = { tenantId: params.tenantId };
+    if (params.workloadTier) {
+      baseQuery.workloadTier = params.workloadTier;
+    }
+
+    const query: Record<string, unknown> = { ...baseQuery };
     if (params.status) {
       query.status = params.status;
-    }
-    query.tenantId = params.tenantId;
-    if (params.workloadTier) {
-      query.workloadTier = params.workloadTier;
     }
 
     const skip = (params.page - 1) * params.limit;
 
-    const [items, total] = await Promise.all([
+    const [items, total, totalAll, approvedAll, pendingAll] = await Promise.all([
       InvoiceModel.find(query)
         .select({ ocrText: 0, ocrBlocks: 0 })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(params.limit)
         .lean(),
-      InvoiceModel.countDocuments(query)
+      InvoiceModel.countDocuments(query),
+      InvoiceModel.countDocuments(baseQuery),
+      InvoiceModel.countDocuments({ ...baseQuery, status: "APPROVED" }),
+      InvoiceModel.countDocuments({ ...baseQuery, status: { $in: ["PARSED", "NEEDS_REVIEW"] } })
     ]);
 
     return {
       items: items.map((item) => sanitizeForApi(item)),
       page: params.page,
       limit: params.limit,
-      total
+      total,
+      totalAll,
+      approvedAll,
+      pendingAll
     };
   }
 
@@ -75,7 +83,7 @@ export class InvoiceService {
     return invoice ? sanitizeForApi(invoice) : null;
   }
 
-  async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, tenantId: string) {
+  async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, authContext: AuthenticatedRequestContext) {
     const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
     if (validIds.length === 0) {
       return 0;
@@ -84,7 +92,7 @@ export class InvoiceService {
     const result = await InvoiceModel.updateMany(
       {
         _id: { $in: validIds },
-        tenantId,
+        tenantId: authContext.tenantId,
         status: { $in: ["PARSED", "NEEDS_REVIEW", "FAILED_PARSE"] }
       },
       {
@@ -92,7 +100,16 @@ export class InvoiceService {
           status: "APPROVED",
           approval: {
             approvedBy,
-            approvedAt: new Date()
+            approvedAt: new Date(),
+            userId: authContext.userId,
+            email: authContext.email,
+            role: authContext.role
+          }
+        },
+        $push: {
+          processingIssues: {
+            $each: [`Approved: ${new Date().toISOString()} by ${authContext.email} (${authContext.userId})`],
+            $slice: -50
           }
         }
       }
@@ -240,7 +257,8 @@ function sanitizeParsedData(parsed: unknown): ParsedInvoiceData {
         ? source.totalAmountMinor
         : undefined,
     currency: normalizeCurrency(source.currency),
-    notes: notes && notes.length > 0 ? notes : undefined
+    notes: notes && notes.length > 0 ? notes : undefined,
+    gst: isPlainObject(source.gst) ? (source.gst as GstBreakdown) : undefined
   };
 }
 

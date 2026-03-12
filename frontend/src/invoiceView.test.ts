@@ -1,37 +1,16 @@
 import {
-  buildEditForm,
   buildFieldCropUrlMap,
   buildFieldOverlayUrlMap,
-  normalizeAmountInput,
-  normalizeTextInput
+  normalizeInput
 } from "./invoiceView";
 import type { SourceHighlight } from "./sourceHighlights";
-import type { Invoice } from "./types";
 
 describe("invoiceView", () => {
-  it("builds edit form from parsed fields", () => {
-    const invoice = {
-      parsed: {
-        invoiceNumber: "INV-42",
-        vendorName: "Acme",
-        invoiceDate: "2026-02-26",
-        dueDate: "2026-03-05",
-        currency: "USD",
-        totalAmountMinor: 12345
-      }
-    } as Invoice;
-
-    const form = buildEditForm(invoice);
-    expect(form.invoiceNumber).toBe("INV-42");
-    expect(form.vendorName).toBe("Acme");
-    expect(form.totalAmountMajor).toBe("123.45");
-  });
-
-  it("normalizes text and amount inputs", () => {
-    expect(normalizeTextInput("  hello ")).toBe("hello");
-    expect(normalizeTextInput("   ")).toBeNull();
-    expect(normalizeAmountInput(" 42.10 ")).toBe("42.10");
-    expect(normalizeAmountInput("")).toBeNull();
+  it("normalizes input, trimming whitespace and returning null for blanks", () => {
+    expect(normalizeInput("  hello ")).toBe("hello");
+    expect(normalizeInput("   ")).toBeNull();
+    expect(normalizeInput(" 42.10 ")).toBe("42.10");
+    expect(normalizeInput("")).toBeNull();
   });
 
   it("maps only valid field crop urls", () => {

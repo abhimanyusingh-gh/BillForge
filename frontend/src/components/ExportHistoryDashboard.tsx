@@ -2,11 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchExportHistory, downloadTallyXmlFile } from "../api";
 import type { ExportBatchSummary } from "../types";
 
-interface ExportHistoryDashboardProps {
-  visible: boolean;
-}
-
-export function ExportHistoryDashboard({ visible }: ExportHistoryDashboardProps) {
+export function ExportHistoryDashboard() {
   const [items, setItems] = useState<ExportBatchSummary[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -15,11 +11,8 @@ export function ExportHistoryDashboard({ visible }: ExportHistoryDashboardProps)
   const limit = 20;
 
   useEffect(() => {
-    if (!visible) {
-      return;
-    }
     void loadHistory();
-  }, [visible, page]);
+  }, [page]);
 
   async function loadHistory() {
     setLoading(true);
@@ -49,10 +42,6 @@ export function ExportHistoryDashboard({ visible }: ExportHistoryDashboardProps)
     } catch {
       setError("Download failed.");
     }
-  }
-
-  if (!visible) {
-    return null;
   }
 
   const totalPages = Math.ceil(total / limit);

@@ -1,4 +1,5 @@
 import { formatOcrConfidenceLabel, getExtractedFieldRows } from "./extractedFields.ts";
+import type { SourceFieldKey } from "./sourceHighlights.ts";
 import type { Invoice } from "./types.ts";
 
 const baseInvoice: Invoice = {
@@ -62,5 +63,35 @@ describe("extracted field helpers", () => {
     expect(formatOcrConfidenceLabel(0.876)).toBe("88%");
     expect(formatOcrConfidenceLabel(97)).toBe("97%");
     expect(formatOcrConfidenceLabel(undefined)).toBe("-");
+  });
+
+  it("fieldKey values match SourceFieldKey union for crop URL lookup", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      parsed: {
+        invoiceNumber: "INV-1",
+        vendorName: "Acme",
+        invoiceDate: "2026-01-01",
+        dueDate: "2026-02-01",
+        totalAmountMinor: 10000,
+        currency: "INR",
+        notes: []
+      }
+    };
+
+    const rows = getExtractedFieldRows(invoice);
+    const validKeys: ReadonlySet<string> = new Set<SourceFieldKey | "notes">([
+      "invoiceNumber",
+      "vendorName",
+      "invoiceDate",
+      "dueDate",
+      "totalAmountMinor",
+      "currency",
+      "notes"
+    ]);
+
+    for (const row of rows) {
+      expect(validKeys.has(row.fieldKey)).toBe(true);
+    }
   });
 });
