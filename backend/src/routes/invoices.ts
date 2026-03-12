@@ -13,6 +13,7 @@ import { env } from "../config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "../core/runtimeManifest.js";
 import type { WorkloadTier } from "../types/tenant.js";
 import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
+import { requireAuth } from "../auth/requireAuth.js";
 
 let s3Client: S3Client | null = null;
 const SOURCE_OVERLAY_FIELDS = new Set([
@@ -26,15 +27,12 @@ const SOURCE_OVERLAY_FIELDS = new Set([
 
 export function createInvoiceRouter(invoiceService: InvoiceService) {
   const router = Router();
+  router.use(requireAuth);
   const runtimeManifest = loadRuntimeManifest();
 
   router.get("/invoices", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const page = Math.max(Number(req.query.page ?? 1), 1);
       const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
       const status = typeof req.query.status === "string" ? req.query.status : undefined;
@@ -55,11 +53,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
   router.get("/invoices/:id", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const invoice = await invoiceService.getInvoiceById(req.params.id, authContext.tenantId);
       if (!invoice) {
         res.status(404).json({ message: "Invoice not found" });
@@ -74,11 +68,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
   router.post("/invoices/approve", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(isString) : [];
       const approvedBy = typeof req.body?.approvedBy === "string" ? req.body.approvedBy : undefined;
 
@@ -87,7 +77,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
         return;
       }
 
-      const modifiedCount = await invoiceService.approveInvoices(ids, approvedBy, authContext.tenantId);
+      const modifiedCount = await invoiceService.approveInvoices(ids, approvedBy, authContext);
       res.json({ modifiedCount });
     } catch (error) {
       next(error);
@@ -96,11 +86,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
   router.patch("/invoices/:id", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const parsedInput = isRecord(req.body?.parsed) ? req.body.parsed : {};
       const updatedBy = typeof req.body?.updatedBy === "string" ? req.body.updatedBy : undefined;
       const updatedInvoice = await invoiceService.updateInvoiceParsedFields(
@@ -122,11 +108,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
   router.get("/invoices/:id/document", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const invoice = await invoiceService.getInvoiceById(req.params.id, authContext.tenantId);
       if (!invoice) {
         res.status(404).json({ message: "Invoice not found" });
@@ -174,11 +156,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
   router.get("/invoices/:id/preview", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const invoice = await invoiceService.getInvoiceById(req.params.id, authContext.tenantId);
       if (!invoice) {
         res.status(404).json({ message: "Invoice not found" });
@@ -238,11 +216,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
   router.get("/invoices/:id/ocr-blocks/:index/crop", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const blockIndex = Number.parseInt(req.params.index, 10);
       if (!Number.isFinite(blockIndex) || blockIndex < 0) {
         res.status(400).json({ message: "OCR block index must be a positive integer." });
@@ -269,11 +243,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService) {
 
   router.get("/invoices/:id/source-overlays/:field", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const authContext = req.authContext!;
       const field = String(req.params.field ?? "");
       if (!SOURCE_OVERLAY_FIELDS.has(field)) {
         res.status(400).json({ message: "Unsupported source overlay field." });

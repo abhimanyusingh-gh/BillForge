@@ -158,6 +158,9 @@ export async function fetchInvoices(status?: string) {
   const pageSize = 100;
   let page = 1;
   let total = 0;
+  let totalAll: number | undefined;
+  let approvedAll: number | undefined;
+  let pendingAll: number | undefined;
   const items: Invoice[] = [];
 
   while (true) {
@@ -172,6 +175,9 @@ export async function fetchInvoices(status?: string) {
     const data = sanitizeInvoiceListResponse(response.data);
     if (page === 1) {
       total = data.total;
+      totalAll = data.totalAll;
+      approvedAll = data.approvedAll;
+      pendingAll = data.pendingAll;
     }
 
     items.push(...data.items);
@@ -187,7 +193,10 @@ export async function fetchInvoices(status?: string) {
     items,
     page: 1,
     limit: items.length,
-    total: total || items.length
+    total: total || items.length,
+    totalAll,
+    approvedAll,
+    pendingAll
   };
 }
 
@@ -280,6 +289,11 @@ export async function runEmailSimulationIngestion() {
   return sanitizeIngestionStatus(response.data);
 }
 
+export async function pauseIngestion() {
+  const response = await apiClient.post<IngestionJobStatus>("/jobs/ingest/pause");
+  return sanitizeIngestionStatus(response.data);
+}
+
 export async function fetchIngestionStatus() {
   const response = await apiClient.get<IngestionJobStatus>("/jobs/ingest/status");
   return sanitizeIngestionStatus(response.data);
@@ -324,7 +338,7 @@ function stripNulls(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => stripNulls(entry)).filter((entry) => entry !== undefined);
+    return value.map((entry) => (entry === null || entry === undefined ? entry : stripNulls(entry)));
   }
 
   if (!isPlainObject(value)) {
@@ -357,7 +371,10 @@ function sanitizeInvoiceListResponse(value: unknown): InvoiceListResponse {
     items: Array.isArray(data.items) ? data.items : [],
     page: typeof data.page === "number" && Number.isFinite(data.page) ? data.page : 1,
     limit: typeof data.limit === "number" && Number.isFinite(data.limit) ? data.limit : 0,
-    total: typeof data.total === "number" && Number.isFinite(data.total) ? data.total : 0
+    total: typeof data.total === "number" && Number.isFinite(data.total) ? data.total : 0,
+    totalAll: typeof data.totalAll === "number" && Number.isFinite(data.totalAll) ? data.totalAll : undefined,
+    approvedAll: typeof data.approvedAll === "number" && Number.isFinite(data.approvedAll) ? data.approvedAll : undefined,
+    pendingAll: typeof data.pendingAll === "number" && Number.isFinite(data.pendingAll) ? data.pendingAll : undefined
   };
 }
 
@@ -365,7 +382,7 @@ function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
   const data = stripNulls(value) as Partial<IngestionJobStatus>;
   return {
     state:
-      data.state === "running" || data.state === "completed" || data.state === "failed" || data.state === "idle"
+      data.state === "running" || data.state === "completed" || data.state === "failed" || data.state === "idle" || data.state === "paused"
         ? data.state
         : "idle",
     running: data.running === true,
@@ -397,6 +414,28 @@ function sanitizeGmailConnectionStatus(value: unknown): GmailConnectionStatus {
     lastErrorReason: typeof data.lastErrorReason === "string" ? data.lastErrorReason : undefined,
     lastSyncedAt: typeof data.lastSyncedAt === "string" ? data.lastSyncedAt : undefined
   };
+}
+
+export function subscribeIngestionSSE(
+  onMessage: (status: IngestionJobStatus) => void,
+  onError?: () => void
+): () => void {
+  const base = apiClient.defaults.baseURL ?? "";
+  const url = `${base}/jobs/ingest/sse`;
+  const resolved = new URL(url, window.location.origin);
+  const token = getStoredSessionToken();
+  if (token) {
+    resolved.searchParams.set("authToken", token);
+  }
+  const source = new EventSource(resolved.toString());
+  source.onmessage = (e) => {
+    onMessage(sanitizeIngestionStatus(JSON.parse(e.data)));
+  };
+  source.onerror = () => {
+    onError?.();
+    source.close();
+  };
+  return () => source.close();
 }
 
 function appendAuthTokenQuery(url: string): string {

@@ -106,7 +106,7 @@ function readFieldValue(invoice: Invoice, field: SourceFieldKey): string | undef
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function parseMetadataRecord<T>(value?: string): Record<string, T> | undefined {
+export function parseMetadataRecord<T>(value?: string): Record<string, T> | undefined {
   if (!value) {
     return undefined;
   }
@@ -243,19 +243,45 @@ function findBlockForValue(
     return undefined;
   }
 
-  const index = blocks.findIndex((block) => {
+  // Exact substring match first
+  const exactIndex = blocks.findIndex((block) => {
     const blockText = block.text.toLowerCase();
     return terms.some((term) => blockText.includes(term));
   });
 
-  if (index < 0) {
+  if (exactIndex >= 0) {
+    return { block: blocks[exactIndex], index: exactIndex };
+  }
+
+  // Fuzzy match: strip punctuation and compare digits/letters
+  const stripped = value.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  if (stripped.length < 2) {
     return undefined;
   }
 
-  return {
-    block: blocks[index],
-    index
-  };
+  const fuzzyIndex = blocks.findIndex((block) => {
+    const blockStripped = block.text.replace(/[^a-z0-9]/gi, "").toLowerCase();
+    return blockStripped.includes(stripped) || stripped.includes(blockStripped) && blockStripped.length >= 2;
+  });
+
+  if (fuzzyIndex >= 0) {
+    return { block: blocks[fuzzyIndex], index: fuzzyIndex };
+  }
+
+  // For amounts: try matching just the digit sequence
+  if (fieldKey === "totalAmountMinor") {
+    const digits = value.replace(/[^0-9]/g, "");
+    if (digits.length >= 3) {
+      const digitIndex = blocks.findIndex((block) =>
+        block.text.replace(/[^0-9]/g, "").includes(digits)
+      );
+      if (digitIndex >= 0) {
+        return { block: blocks[digitIndex], index: digitIndex };
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function resolveMatchedBlock(

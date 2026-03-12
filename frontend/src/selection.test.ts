@@ -61,7 +61,7 @@ describe("selection helpers", () => {
     expect(mergeSelectedIds(selectedIds, currentItems)).toEqual(["approved-1"]);
   });
 
-  it("adds auto-selected ids from current list and de-duplicates", () => {
+  it("preserves persisted ids without auto-selecting new ones", () => {
     const selectedIds = ["approved-1", "parsed-1"];
     const currentItems: Invoice[] = [
       {
@@ -75,16 +75,10 @@ describe("selection helpers", () => {
         _id: "review-1",
         autoSelectForApproval: true,
         status: "NEEDS_REVIEW"
-      },
-      {
-        ...baseInvoice,
-        _id: "failed-1",
-        autoSelectForApproval: true,
-        status: "FAILED_PARSE"
       }
     ];
 
-    expect(mergeSelectedIds(selectedIds, currentItems)).toEqual(["approved-1", "parsed-1", "review-1"]);
+    expect(mergeSelectedIds(selectedIds, currentItems)).toEqual(["approved-1", "parsed-1"]);
   });
 
   it("removes visible exported ids from selected set", () => {
