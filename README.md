@@ -20,7 +20,7 @@ A multi-tenant invoice processing system with pluggable OCR, ML-powered field ve
 
 <br />
 
-[Documentation](docs/) | [Architecture (RFC)](docs/RFC.md) | [AWS Deployment](docs/AWS_DEPLOYMENT_GUIDE.md) | [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md)
+[Documentation](docs/) | [Architecture (RFC)](docs/RFC.md) | [AWS Deployment](docs/AWS_DEPLOYMENT_GUIDE.md) | [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md) | [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 </div>
 
@@ -36,86 +36,11 @@ BillForge ingests invoices from email or folder sources, extracts structured dat
 
 ### System Architecture
 
-```mermaid
-graph TB
-    subgraph Frontend["Frontend — React 18 + Vite 6"]
-        Dashboard["Review Dashboard"]
-        ConfBadges["Confidence Badges"]
-        BboxOverlay["BBox Overlays"]
-        BatchActions["Batch Approval"]
-    end
-
-    subgraph Auth["Auth Layer"]
-        JWT["JWT Session HS256"]
-        RBAC["RBAC Middleware"]
-        OAuth["OAuth2 / STS"]
-    end
-
-    subgraph Backend["Backend API — Express + TypeScript"]
-        direction TB
-        subgraph Ingestion["Ingestion"]
-            EmailSrc["Email IMAP/OAuth2"]
-            FolderSrc["Folder Watch"]
-            Checkpoint["Checkpoint Mgmt"]
-        end
-        subgraph Extraction["Extraction Pipeline"]
-            OCRGate["OCR + Confidence Gate"]
-            Parser["Field Parser"]
-            SLMVerifier["SLM Verifier Fallback"]
-        end
-        subgraph Export["Export"]
-            TallyXML["Tally XML Builder"]
-            GSTLedger["GST Ledger Entries"]
-            S3Store["S3 Artifact Storage"]
-        end
-        subgraph Core["Core Services"]
-            TenantSvc["Tenant Management"]
-            InviteSvc["Invite Flow"]
-            PlatformSvc["Platform Admin"]
-        end
-    end
-
-    subgraph External["External Services"]
-        MongoDB[("MongoDB 7")]
-        OCRService["OCR Service — FastAPI"]
-        SLMService["SLM Service — FastAPI"]
-        S3["S3 / MinIO"]
-        Tally["Tally ERP"]
-    end
-
-    Frontend -->|"JWT + RBAC"| Auth
-    Auth --> Backend
-    Ingestion --> OCRService
-    Extraction --> OCRService
-    Extraction --> SLMService
-    Export --> S3
-    Export --> Tally
-    Backend --> MongoDB
-```
+<img src="docs/images/system-architecture.svg" alt="System Architecture" width="100%" />
 
 ### Invoice Processing Pipeline
 
-```mermaid
-flowchart LR
-    A["Invoice\nPDF / Image"] --> B["AI Parsing\nOCR + Layout"]
-    B --> C["Structured JSON\nField Extraction"]
-    C --> D["Confidence\nScoring"]
-    D --> E{"Review\nRequired?"}
-    E -->|"High Confidence"| F["Auto-Approve"]
-    E -->|"Needs Review"| G["Human Review\nDashboard"]
-    G --> F
-    F --> H["Tally Mapping\nGST Ledgers"]
-    H --> I["Generate\nTally XML"]
-    I --> J["File Export\nS3 Storage"]
-    I --> K["Direct POST\nto Tally"]
-
-    style A fill:#e1f5fe
-    style D fill:#fff3e0
-    style F fill:#e8f5e9
-    style H fill:#f3e5f5
-    style J fill:#e0f2f1
-    style K fill:#e0f2f1
-```
+<img src="docs/images/invoice-pipeline.svg" alt="Invoice Processing Pipeline" width="100%" />
 
 <br />
 
@@ -178,7 +103,10 @@ This starts all services with demo tenants, seeded users, and sample invoices:
 | MongoDB | `localhost:27018` |
 | Mongo Express | `http://localhost:8181` |
 | Mailpit (SMTP/UI) | `localhost:1125` / `http://localhost:8125` |
+| MailHog OAuth Wrapper | `http://localhost:8126` |
 | MinIO (S3) | `http://localhost:9100` / Console: `http://localhost:9101` |
+| MinIO Init | _(runs once to create `billforge-local` bucket)_ |
+| Local STS (OIDC) | `http://localhost:8190` |
 | OCR Service | `http://localhost:8200` |
 | SLM Service | `http://localhost:8300` |
 | Keycloak (opt-in) | `http://localhost:8180` (use `--profile keycloak`) |
@@ -392,7 +320,7 @@ BillForge employs a multi-layer testing strategy with enforced quality gates:
 
 | Layer | Framework | Count | Scope |
 |-------|-----------|:-----:|-------|
-| **Unit Tests** | Jest + ts-jest | 248 | Parsers, services, providers, utilities |
+| **Unit Tests** | Jest + ts-jest | 314 | Parsers, services, providers, utilities (265 backend + 49 frontend) |
 | **Backend E2E** | Jest | 4 suites | Folder ingestion, SaaS lifecycle, RBAC, platform admin |
 | **Frontend E2E** | Playwright | -- | Ingestion, approval, bbox overlays, crop modals |
 | **Dead Code** | Knip | -- | Unused export detection across workspaces |
@@ -560,6 +488,7 @@ yarn docker:down
 
 - [AWS Deployment Guide](docs/AWS_DEPLOYMENT_GUIDE.md) -- Step-by-step Terraform deployment
 - [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md) -- MLX model installation for Apple Silicon
+- [Troubleshooting](docs/TROUBLESHOOTING.md) -- Docker status, health checks, common issues
 - [Product Requirements](docs/PRD.md) -- Feature specifications
 - [Architecture & Design Decisions](docs/RFC.md) -- RFC-style rationale for key choices
 

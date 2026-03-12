@@ -109,6 +109,5 @@ Build a minimal, modular application that ingests invoices, extracts structured 
 
 ## 6. Out of Scope (Current Phase)
 
-- Multi-tenant auth/authorization
 - Full accounting reconciliation workflows
 - Advanced line-item intelligence beyond current extraction scope

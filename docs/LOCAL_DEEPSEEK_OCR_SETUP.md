@@ -28,6 +28,10 @@ Defaults:
 - `frontend` (`5174`)
 - `mongo` (`27018`)
 - `mongo-express` (`8181`)
+- `minio` (`9100`) + `minio-init` (auto-creates `billforge-local` bucket)
+- `mailhog` (`8125`) — SMTP catch-all UI
+- `mailhog-oauth` (`8126`) — OAuth2/SendGrid wrapper
+- `local-sts` (`8190`) — local OIDC identity provider
 
 ## 3. Health endpoints
 

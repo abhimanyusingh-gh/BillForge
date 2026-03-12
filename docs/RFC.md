@@ -133,6 +133,17 @@ The system must ingest invoices from configurable sources, extract data from mix
 - No invoice rows, OCR text, or extracted values are returned at platform scope.
 - Reason: preserve tenant data boundaries while enabling central operational oversight.
 
+19. Auth Middleware on All API Routes
+- All Express route handlers are guarded by `requireAuth` middleware.
+- Middleware validates JWT session and attaches authenticated user context to the request.
+- Auth failures call `next(error)` to propagate through Express error handling rather than sending responses directly.
+- Reason: consistent auth enforcement across every endpoint with centralized error handling.
+
+20. Compose Project Naming
+- Docker Compose project is explicitly named `billforge` via the top-level `name` field.
+- All containers, volumes, and networks use the `billforge` prefix for consistent resource naming.
+- Reason: deterministic resource names across environments, avoids directory-derived names that change when the repo is cloned to a different path.
+
 ## 4. Consequences
 
 Positive:
