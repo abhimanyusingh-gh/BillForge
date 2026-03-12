@@ -3,9 +3,24 @@ import type { ExportService } from "../services/exportService.ts";
 
 function createMockExportService(overrides?: Partial<ExportService>): ExportService {
   return {
-    exportApprovedInvoices: jest.fn(),
-    generateExportFile: jest.fn(),
-    downloadExportFile: jest.fn(),
+    canGenerateFiles: true,
+    exportApprovedInvoices: jest.fn(async () => ({
+      batchId: "batch-1",
+      total: 0,
+      successCount: 0,
+      failureCount: 0,
+      items: []
+    })),
+    generateExportFile: jest.fn(async () => ({
+      batchId: "batch-1",
+      fileKey: "tally-exports/tenant-a/batch.xml",
+      filename: "batch.xml",
+      total: 3,
+      includedCount: 3,
+      skippedCount: 0,
+      skippedItems: []
+    })),
+    downloadExportFile: jest.fn(async () => null),
     listExportHistory: jest.fn(async () => ({
       items: [],
       page: 1,
@@ -33,6 +48,14 @@ function findHandler(router: any, method: string, path: string): Function {
     }
   }
   throw new Error(`No handler found for ${method.toUpperCase()} ${path}`);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function hasMiddleware(router: any, name: string): boolean {
+  return router.stack.some(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (layer: any) => !layer.route && layer.handle?.name === name
+  );
 }
 
 function mockRequest(overrides: Record<string, unknown> = {}) {
@@ -72,19 +95,12 @@ function mockResponse() {
 }
 
 describe("export routes", () => {
+  it("applies requireAuth middleware to all routes", () => {
+    const router = createExportRouter(createMockExportService());
+    expect(hasMiddleware(router, "requireAuth")).toBe(true);
+  });
+
   describe("GET /exports/tally/history", () => {
-    it("returns 401 when no auth context", async () => {
-      const router = createExportRouter(createMockExportService());
-      const handler = findHandler(router, "get", "/exports/tally/history");
-      const res = mockResponse();
-      const next = jest.fn();
-
-      await handler(mockRequest(), res, next);
-
-      expect(res.statusCode).toBe(401);
-      expect((res.jsonBody as { message: string }).message).toBe("Authentication required.");
-    });
-
     it("returns 400 when export service is null", async () => {
       const router = createExportRouter(null);
       const handler = findHandler(router, "get", "/exports/tally/history");
@@ -175,19 +191,24 @@ describe("export routes", () => {
         expect.objectContaining({ page: 1 })
       );
     });
+
+    it("calls next with error when service throws", async () => {
+      const thrownError = new Error("MongoDB connection failed");
+      const mockService = createMockExportService({
+        listExportHistory: jest.fn(async () => { throw thrownError; })
+      });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "get", "/exports/tally/history");
+      const res = mockResponse();
+      const next = jest.fn();
+
+      await handler(mockRequest({ authContext: defaultAuth }), res, next);
+
+      expect(next).toHaveBeenCalledWith(thrownError);
+    });
   });
 
   describe("GET /exports/tally/download/:batchId", () => {
-    it("returns 401 when no auth context", async () => {
-      const router = createExportRouter(createMockExportService());
-      const handler = findHandler(router, "get", "/exports/tally/download/:batchId");
-      const res = mockResponse();
-
-      await handler(mockRequest({ params: { batchId: "batch-123" } }), res, jest.fn());
-
-      expect(res.statusCode).toBe(401);
-    });
-
     it("passes tenantId to downloadExportFile for tenant-scoped access", async () => {
       const mockService = createMockExportService({
         downloadExportFile: jest.fn(async () => null)
@@ -221,30 +242,38 @@ describe("export routes", () => {
       expect((res.headers as Record<string, string>)["content-type"]).toBe("text/xml");
       expect((res.headers as Record<string, string>)["content-disposition"]).toContain("tally-batch.xml");
     });
+
+    it("returns 503 when canGenerateFiles is false", async () => {
+      const mockService = createMockExportService({ canGenerateFiles: false } as Partial<ExportService>);
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "get", "/exports/tally/download/:batchId");
+      const res = mockResponse();
+
+      await handler(mockRequest({ authContext: defaultAuth, params: { batchId: "batch-1" } }), res, jest.fn());
+
+      expect(res.statusCode).toBe(503);
+      expect((res.jsonBody as { message: string }).message).toContain("File store is not configured");
+    });
+
+    it("calls next with error when downloadExportFile throws", async () => {
+      const thrownError = new Error("S3 GetObject failed: NoSuchKey");
+      const mockService = createMockExportService({
+        downloadExportFile: jest.fn(async () => { throw thrownError; })
+      });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "get", "/exports/tally/download/:batchId");
+      const res = mockResponse();
+      const next = jest.fn();
+
+      await handler(mockRequest({ authContext: defaultAuth, params: { batchId: "batch-1" } }), res, next);
+
+      expect(next).toHaveBeenCalledWith(thrownError);
+    });
   });
 
   describe("POST /exports/tally", () => {
-    it("returns 401 when no auth context", async () => {
-      const router = createExportRouter(createMockExportService());
-      const handler = findHandler(router, "post", "/exports/tally");
-      const res = mockResponse();
-
-      await handler(mockRequest(), res, jest.fn());
-
-      expect(res.statusCode).toBe(401);
-    });
-
     it("passes tenantId from auth context to export service", async () => {
-      const mockService = createMockExportService({
-        exportApprovedInvoices: jest.fn(async () => ({
-          batchId: "batch-1",
-          total: 0,
-          successCount: 0,
-          failureCount: 0,
-          items: []
-        }))
-      });
-
+      const mockService = createMockExportService();
       const router = createExportRouter(mockService);
       const handler = findHandler(router, "post", "/exports/tally");
       const res = mockResponse();
@@ -254,6 +283,21 @@ describe("export routes", () => {
       expect(mockService.exportApprovedInvoices).toHaveBeenCalledWith(
         expect.objectContaining({ tenantId: "tenant-a", requestedBy: "ui" })
       );
+    });
+
+    it("calls next with error when exportApprovedInvoices throws", async () => {
+      const thrownError = new Error("Connection timed out");
+      const mockService = createMockExportService({
+        exportApprovedInvoices: jest.fn(async () => { throw thrownError; })
+      });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally");
+      const res = mockResponse();
+      const next = jest.fn();
+
+      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, next);
+
+      expect(next).toHaveBeenCalledWith(thrownError);
     });
   });
 
@@ -281,18 +325,7 @@ describe("export routes", () => {
     });
 
     it("returns export result when invoices are exported successfully", async () => {
-      const mockService = createMockExportService({
-        generateExportFile: jest.fn(async () => ({
-          batchId: "batch-1",
-          fileKey: "tally-exports/tenant-a/batch.xml",
-          filename: "batch.xml",
-          total: 3,
-          includedCount: 3,
-          skippedCount: 0,
-          skippedItems: []
-        }))
-      });
-
+      const mockService = createMockExportService();
       const router = createExportRouter(mockService);
       const handler = findHandler(router, "post", "/exports/tally/download");
       const res = mockResponse();
@@ -301,6 +334,58 @@ describe("export routes", () => {
 
       expect(res.statusCode).toBe(200);
       expect((res.jsonBody as { batchId: string }).batchId).toBe("batch-1");
+    });
+
+    it("passes tenantId from auth context to generateExportFile", async () => {
+      const mockService = createMockExportService();
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally/download");
+      const res = mockResponse();
+
+      await handler(mockRequest({ authContext: defaultAuth, body: { ids: ["a", "b"], requestedBy: "ui" } }), res, jest.fn());
+
+      expect(mockService.generateExportFile).toHaveBeenCalledWith({
+        ids: ["a", "b"],
+        requestedBy: "ui",
+        tenantId: "tenant-a"
+      });
+    });
+
+    it("returns 503 when canGenerateFiles is false", async () => {
+      const mockService = createMockExportService({ canGenerateFiles: false } as Partial<ExportService>);
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally/download");
+      const res = mockResponse();
+
+      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
+
+      expect(res.statusCode).toBe(503);
+      expect((res.jsonBody as { message: string }).message).toContain("File store is not configured");
+    });
+
+    it("calls next with error when generateExportFile throws", async () => {
+      const thrownError = new Error("File store is required for export file generation.");
+      const mockService = createMockExportService({
+        generateExportFile: jest.fn(async () => { throw thrownError; })
+      });
+      const router = createExportRouter(mockService);
+      const handler = findHandler(router, "post", "/exports/tally/download");
+      const res = mockResponse();
+      const next = jest.fn();
+
+      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, next);
+
+      expect(next).toHaveBeenCalledWith(thrownError);
+    });
+
+    it("returns 400 when export service is null", async () => {
+      const router = createExportRouter(null);
+      const handler = findHandler(router, "post", "/exports/tally/download");
+      const res = mockResponse();
+
+      await handler(mockRequest({ authContext: defaultAuth, body: {} }), res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
     });
   });
 });

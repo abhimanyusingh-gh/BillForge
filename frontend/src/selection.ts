@@ -1,4 +1,3 @@
-import { shouldAutoSelectInvoice } from "./confidence";
 import type { Invoice } from "./types";
 
 export function isInvoiceSelectable(invoice: Invoice): boolean {
@@ -15,12 +14,7 @@ export function isInvoiceExportable(invoice: Invoice): boolean {
 
 export function mergeSelectedIds(currentSelectedIds: string[], invoices: Invoice[]): string[] {
   const blockedIds = new Set(invoices.filter((invoice) => !isInvoiceSelectable(invoice)).map((invoice) => invoice._id));
-  const persistedSelectedIds = currentSelectedIds.filter((selectedId) => !blockedIds.has(selectedId));
-  const autoSelectedIds = invoices
-    .filter((invoice) => isInvoiceSelectable(invoice) && shouldAutoSelectInvoice(invoice))
-    .map((invoice) => invoice._id);
-
-  return Array.from(new Set([...persistedSelectedIds, ...autoSelectedIds]));
+  return currentSelectedIds.filter((selectedId) => !blockedIds.has(selectedId));
 }
 
 export function removeSelectedIds(currentSelectedIds: string[], idsToRemove: string[]): string[] {

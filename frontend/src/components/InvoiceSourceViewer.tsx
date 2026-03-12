@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatOcrConfidenceLabel } from "../extractedFields";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getInvoiceSourceHighlights, type SourceFieldKey } from "../sourceHighlights";
 import type { Invoice } from "../types";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 5;
-const ZOOM_STEP = 0.5;
 
 interface InvoiceSourceViewerProps {
   invoice: Invoice;
@@ -34,15 +32,36 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField, resolvePreview
   );
   const [activeFieldKey, setActiveFieldKey] = useState<string>("");
   const [zoom, setZoom] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleZoomIn = useCallback(() => setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP)), []);
-  const handleZoomOut = useCallback(() => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP)), []);
-  const handleZoomReset = useCallback(() => setZoom(1), []);
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z + e.deltaY * -0.005)));
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z + e.deltaY * -0.005)));
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
   }, []);
+
+  const scrollToBox = useCallback((bboxNormalized: [number, number, number, number]) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const [, top, , ] = bboxNormalized;
+    const imgHeight = container.scrollHeight;
+    const targetTop = top * imgHeight - container.clientHeight * 0.3;
+    container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  }, []);
+
+  const handleChipClick = useCallback(
+    (fieldKey: string, bboxNormalized: [number, number, number, number]) => {
+      setActiveFieldKey(fieldKey);
+      requestAnimationFrame(() => scrollToBox(bboxNormalized));
+    },
+    [scrollToBox]
+  );
 
   useEffect(() => {
     if (availableHighlights.length === 0) {
@@ -69,16 +88,13 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField, resolvePreview
           </p>
         </div>
         {hasDefaultPreview ? (
-          <>
-            <ZoomControls zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleZoomReset} />
-            <div className="source-preview-wrap">
-              <div className="source-preview-image" onWheel={handleWheel}>
-                <div className="source-preview-canvas" style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}>
-                  <img src={defaultPreviewUrl} alt={`Source preview for ${invoice.attachmentName}`} loading="lazy" />
-                </div>
+          <div className="source-preview-wrap">
+            <div className="source-preview-image" ref={containerRef}>
+              <div className="source-preview-canvas" style={{ transform: `scale(${zoom})` }}>
+                <img src={defaultPreviewUrl} alt={`Source preview for ${invoice.attachmentName}`} loading="lazy" />
               </div>
             </div>
-          </>
+          </div>
         ) : (
           <p className="muted">Source preview is unavailable for this invoice.</p>
         )}
@@ -126,41 +142,23 @@ export function InvoiceSourceViewer({ invoice, overlayUrlByField, resolvePreview
               key={`${highlight.fieldKey}:${highlight.page}`}
               type="button"
               className={`source-highlight-chip ${isActive ? "source-highlight-chip-active" : ""}`}
-              onClick={() => setActiveFieldKey(highlight.fieldKey)}
+              onClick={() => handleChipClick(highlight.fieldKey, highlight.bboxNormalized)}
             >
               <span>{highlight.label}: {highlight.value}</span>
-              <small>
-                {formatOcrConfidenceLabel(highlight.confidence)} | page {highlight.page}
-              </small>
+              <small>page {highlight.page}</small>
             </button>
           );
         })}
       </div>
 
-      <ZoomControls zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleZoomReset} />
       <div className="source-preview-wrap">
-        <div className="source-preview-image" onWheel={handleWheel}>
-          <div className="source-preview-canvas" style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}>
+        <div className="source-preview-image" ref={containerRef}>
+          <div className="source-preview-canvas" style={{ transform: `scale(${zoom})` }}>
             <img src={activeImageUrl} alt={`Source overlay for ${activeHighlight.label} in ${invoice.attachmentName}`} loading="lazy" />
             {renderClientSideBox ? <div className="source-preview-box" style={boxStyle} /> : null}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ZoomControls({ zoom, onZoomIn, onZoomOut, onReset }: {
-  zoom: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onReset: () => void;
-}) {
-  return (
-    <div className="source-zoom-controls">
-      <button type="button" onClick={onZoomOut} aria-label="Zoom out" disabled={zoom <= ZOOM_MIN}>−</button>
-      <button type="button" onClick={onReset} className="source-zoom-label">{Math.round(zoom * 100)}%</button>
-      <button type="button" onClick={onZoomIn} aria-label="Zoom in" disabled={zoom >= ZOOM_MAX}>+</button>
     </div>
   );
 }

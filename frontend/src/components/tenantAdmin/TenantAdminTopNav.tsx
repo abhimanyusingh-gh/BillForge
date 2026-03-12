@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 interface TenantAdminTopNavProps {
   userEmail: string;
   onLogout: () => void;
+  counts: { total: number; approved: number; pending: number };
 }
 
-export function TenantAdminTopNav({ userEmail, onLogout }: TenantAdminTopNavProps) {
-  const [searchValue, setSearchValue] = useState("");
+export function TenantAdminTopNav({ userEmail, onLogout, counts }: TenantAdminTopNavProps) {
   const avatarLabel = useMemo(() => {
     const trimmed = userEmail.trim();
     if (!trimmed) {
@@ -25,29 +25,13 @@ export function TenantAdminTopNav({ userEmail, onLogout }: TenantAdminTopNavProp
           <h2>FinParse</h2>
         </div>
         <div className="tenant-nav-divider" />
-        <nav aria-label="Workspace navigation" className="tenant-nav-links">
-          <button type="button" className="tenant-nav-link tenant-nav-link-active">
-            Dashboard
-          </button>
-        </nav>
+        <span className="toolbar-icon-wrap">
+          <span className="tenant-nav-stat">{counts.total} invoices</span>
+          <span className="toolbar-icon-label">{counts.approved} approved, {counts.pending} pending review</span>
+        </span>
       </div>
 
       <div className="tenant-top-nav-right">
-        <label className="tenant-search" aria-label="Search invoices">
-          <span className="material-symbols-outlined">search</span>
-          <input
-            value={searchValue}
-            onChange={(event) => setSearchValue(event.target.value)}
-            type="text"
-            placeholder="Search invoices..."
-          />
-        </label>
-        <button type="button" className="tenant-icon-button" aria-label="Notifications">
-          <span className="material-symbols-outlined">notifications</span>
-        </button>
-        <button type="button" className="tenant-icon-button" aria-label="Settings">
-          <span className="material-symbols-outlined">settings</span>
-        </button>
         <div className="tenant-avatar" aria-label={`Signed in as ${userEmail}`} title={userEmail}>
           {avatarLabel}
         </div>

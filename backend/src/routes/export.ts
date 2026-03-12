@@ -1,16 +1,13 @@
 import { Router } from "express";
 import type { ExportService } from "../services/exportService.js";
+import { requireAuth } from "../auth/requireAuth.js";
 
 export function createExportRouter(exportService: ExportService | null) {
   const router = Router();
+  router.use(requireAuth);
 
   router.post("/exports/tally", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
       if (!exportService) {
         res.status(400).json({
           message: "Tally exporter is not configured. Provide TALLY_ENDPOINT and TALLY_COMPANY."
@@ -24,7 +21,7 @@ export function createExportRouter(exportService: ExportService | null) {
       const result = await exportService.exportApprovedInvoices({
         ids,
         requestedBy,
-        tenantId: authContext.tenantId
+        tenantId: req.authContext!.tenantId
       });
       res.json(result);
     } catch (error) {
@@ -34,15 +31,14 @@ export function createExportRouter(exportService: ExportService | null) {
 
   router.post("/exports/tally/download", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
       if (!exportService) {
         res.status(400).json({
           message: "Tally exporter is not configured. Provide TALLY_ENDPOINT and TALLY_COMPANY."
         });
+        return;
+      }
+      if (!exportService.canGenerateFiles) {
+        res.status(503).json({ message: "Export file generation is not available. File store is not configured." });
         return;
       }
 
@@ -52,7 +48,7 @@ export function createExportRouter(exportService: ExportService | null) {
       const result = await exportService.generateExportFile({
         ids,
         requestedBy,
-        tenantId: authContext.tenantId
+        tenantId: req.authContext!.tenantId
       });
 
       if (result.includedCount === 0) {
@@ -68,11 +64,6 @@ export function createExportRouter(exportService: ExportService | null) {
 
   router.get("/exports/tally/history", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
       if (!exportService) {
         res.status(400).json({ message: "Tally exporter is not configured." });
         return;
@@ -82,7 +73,7 @@ export function createExportRouter(exportService: ExportService | null) {
       const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
 
       const result = await exportService.listExportHistory({
-        tenantId: authContext.tenantId,
+        tenantId: req.authContext!.tenantId,
         page,
         limit
       });
@@ -94,17 +85,16 @@ export function createExportRouter(exportService: ExportService | null) {
 
   router.get("/exports/tally/download/:batchId", async (req, res, next) => {
     try {
-      const authContext = req.authContext;
-      if (!authContext) {
-        res.status(401).json({ message: "Authentication required." });
-        return;
-      }
       if (!exportService) {
         res.status(400).json({ message: "Tally exporter is not configured." });
         return;
       }
+      if (!exportService.canGenerateFiles) {
+        res.status(503).json({ message: "Export file generation is not available. File store is not configured." });
+        return;
+      }
 
-      const file = await exportService.downloadExportFile(req.params.batchId, authContext.tenantId);
+      const file = await exportService.downloadExportFile(req.params.batchId, req.authContext!.tenantId);
       if (!file) {
         res.status(404).json({ message: "Export file not found." });
         return;

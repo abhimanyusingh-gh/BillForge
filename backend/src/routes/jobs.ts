@@ -2,8 +2,9 @@ import { Router } from "express";
 import type { IngestionService } from "../services/ingestionService.js";
 import type { EmailSimulationService } from "../services/emailSimulationService.js";
 import { getCorrelationId, logger, runWithLogContext } from "../utils/logger.js";
+import { requireAuth } from "../auth/requireAuth.js";
 
-type IngestionJobState = "idle" | "running" | "completed" | "failed";
+type IngestionJobState = "idle" | "running" | "completed" | "failed" | "paused";
 
 interface IngestionJobStatus {
   state: IngestionJobState;
@@ -21,27 +22,54 @@ interface IngestionJobStatus {
 }
 
 const currentJobStatusByTenant = new Map<string, IngestionJobStatus>();
+const sseSubscribers = new Map<string, Set<import("express").Response>>();
+
+function broadcastToSubscribers(tenantId: string, status: IngestionJobStatus): void {
+  const subs = sseSubscribers.get(tenantId);
+  if (!subs || subs.size === 0) return;
+  const payload = `data: ${JSON.stringify(status)}\n\n`;
+  for (const client of subs) {
+    client.write(payload);
+  }
+}
 
 export function createJobsRouter(ingestionService: IngestionService, emailSimulationService?: EmailSimulationService) {
   const router = Router();
+  router.use(requireAuth);
 
   router.get("/jobs/ingest/status", (request, response) => {
-    const context = request.authContext;
-    if (!context) {
-      response.status(401).json({ message: "Authentication required." });
-      return;
+    const context = request.authContext!;
+    response.json(getCurrentStatus(context.tenantId));
+  });
+
+  router.get("/jobs/ingest/sse", (request, response) => {
+    const context = request.authContext!;
+    const tenantId = context.tenantId;
+
+    response.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive"
+    });
+    response.write(":\n\n");
+
+    const current = currentJobStatusByTenant.get(tenantId);
+    if (current) {
+      response.write(`data: ${JSON.stringify(current)}\n\n`);
     }
 
-    response.json(getCurrentStatus(context.tenantId));
+    if (!sseSubscribers.has(tenantId)) {
+      sseSubscribers.set(tenantId, new Set());
+    }
+    sseSubscribers.get(tenantId)!.add(response);
+    request.on("close", () => {
+      sseSubscribers.get(tenantId)?.delete(response);
+    });
   });
 
   router.post("/jobs/ingest", async (request, response, next) => {
     try {
-      const context = request.authContext;
-      if (!context) {
-        response.status(401).json({ message: "Authentication required." });
-        return;
-      }
+      const context = request.authContext!;
       response.status(202).json(startIngestionJob(ingestionService, context.tenantId));
     } catch (error) {
       next(error);
@@ -50,12 +78,7 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
 
   router.post("/jobs/ingest/email-simulate", async (request, response, next) => {
     try {
-      const context = request.authContext;
-      if (!context) {
-        response.status(401).json({ message: "Authentication required." });
-        return;
-      }
-
+      const context = request.authContext!;
       const current = getCurrentStatus(context.tenantId);
       if (current.running) {
         response.status(202).json(current);
@@ -87,6 +110,20 @@ export function createJobsRouter(ingestionService: IngestionService, emailSimula
       }
       next(error);
     }
+  });
+
+  router.post("/jobs/ingest/pause", (request, response) => {
+    const context = request.authContext!;
+    const current = getCurrentStatus(context.tenantId);
+    if (!current.running) {
+      response.json(current);
+      return;
+    }
+    ingestionService.requestPause();
+    const paused: IngestionJobStatus = { ...current, state: "paused" };
+    setCurrentStatus(context.tenantId, paused);
+    broadcastToSubscribers(context.tenantId, paused);
+    response.json(paused);
   });
 
   return router;
@@ -141,12 +178,14 @@ function startIngestionJob(ingestionService: IngestionService, tenantId: string)
       tenantId,
       onProgress: async (progress) => {
         const current = getCurrentStatus(tenantId);
-        setCurrentStatus(tenantId, {
+        const updated = {
           ...current,
           ...progress,
           state: progress.running ? "running" : current.state,
           running: progress.running
-        });
+        };
+        setCurrentStatus(tenantId, updated);
+        broadcastToSubscribers(tenantId, updated);
       }
     });
 
@@ -154,18 +193,20 @@ function startIngestionJob(ingestionService: IngestionService, tenantId: string)
     .then((summary) => {
       const completedAt = new Date().toISOString();
       const current = getCurrentStatus(tenantId);
+      const finalState: IngestionJobState = summary.paused ? "paused" : "completed";
       const nextStatus: IngestionJobStatus = {
         ...current,
         ...summary,
         processedFiles: Math.max(current.processedFiles, summary.totalFiles),
-        state: "completed",
+        state: finalState,
         running: false,
-        completedAt,
+        completedAt: summary.paused ? undefined : completedAt,
         error: undefined,
         lastUpdatedAt: completedAt
       };
       setCurrentStatus(tenantId, nextStatus);
-      logger.info("ingestion.job.complete", { ...summary, correlationId: correlationId ?? null, tenantId });
+      broadcastToSubscribers(tenantId, nextStatus);
+      logger.info(summary.paused ? "ingestion.job.paused" : "ingestion.job.complete", { ...summary, correlationId: correlationId ?? null, tenantId });
     })
     .catch((error) => {
       const completedAt = new Date().toISOString();
@@ -179,6 +220,7 @@ function startIngestionJob(ingestionService: IngestionService, tenantId: string)
         lastUpdatedAt: completedAt
       };
       setCurrentStatus(tenantId, nextStatus);
+      broadcastToSubscribers(tenantId, nextStatus);
       logger.error("ingestion.job.failed", {
         error: error instanceof Error ? error.message : String(error),
         correlationId: correlationId ?? null,

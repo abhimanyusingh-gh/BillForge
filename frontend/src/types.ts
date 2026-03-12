@@ -65,6 +65,9 @@ export interface InvoiceListResponse {
   page: number;
   limit: number;
   total: number;
+  totalAll?: number;
+  approvedAll?: number;
+  pendingAll?: number;
 }
 
 export interface ExportResultItem {
@@ -112,7 +115,7 @@ export interface ExportHistoryResponse {
 }
 
 export interface IngestionJobStatus {
-  state: "idle" | "running" | "completed" | "failed";
+  state: "idle" | "running" | "completed" | "failed" | "paused";
   running: boolean;
   totalFiles: number;
   processedFiles: number;

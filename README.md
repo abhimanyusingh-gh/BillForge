@@ -20,7 +20,7 @@ A multi-tenant invoice processing system with pluggable OCR, ML-powered field ve
 
 <br />
 
-[Documentation](docs/) | [Architecture (RFC)](docs/RFC.md) | [AWS Deployment](docs/AWS_DEPLOYMENT_GUIDE.md) | [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md)
+[Documentation](docs/) | [Architecture (RFC)](docs/RFC.md) | [AWS Deployment](docs/AWS_DEPLOYMENT_GUIDE.md) | [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md) | [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 </div>
 
@@ -36,86 +36,11 @@ BillForge ingests invoices from email or folder sources, extracts structured dat
 
 ### System Architecture
 
-```mermaid
-graph TB
-    subgraph Frontend["Frontend — React 18 + Vite 6"]
-        Dashboard["Review Dashboard"]
-        ConfBadges["Confidence Badges"]
-        BboxOverlay["BBox Overlays"]
-        BatchActions["Batch Approval"]
-    end
-
-    subgraph Auth["Auth Layer"]
-        JWT["JWT Session HS256"]
-        RBAC["RBAC Middleware"]
-        OAuth["OAuth2 / STS"]
-    end
-
-    subgraph Backend["Backend API — Express + TypeScript"]
-        direction TB
-        subgraph Ingestion["Ingestion"]
-            EmailSrc["Email IMAP/OAuth2"]
-            FolderSrc["Folder Watch"]
-            Checkpoint["Checkpoint Mgmt"]
-        end
-        subgraph Extraction["Extraction Pipeline"]
-            OCRGate["OCR + Confidence Gate"]
-            Parser["Field Parser"]
-            SLMVerifier["SLM Verifier Fallback"]
-        end
-        subgraph Export["Export"]
-            TallyXML["Tally XML Builder"]
-            GSTLedger["GST Ledger Entries"]
-            S3Store["S3 Artifact Storage"]
-        end
-        subgraph Core["Core Services"]
-            TenantSvc["Tenant Management"]
-            InviteSvc["Invite Flow"]
-            PlatformSvc["Platform Admin"]
-        end
-    end
-
-    subgraph External["External Services"]
-        MongoDB[("MongoDB 7")]
-        OCRService["OCR Service — FastAPI"]
-        SLMService["SLM Service — FastAPI"]
-        S3["S3 / MinIO"]
-        Tally["Tally ERP"]
-    end
-
-    Frontend -->|"JWT + RBAC"| Auth
-    Auth --> Backend
-    Ingestion --> OCRService
-    Extraction --> OCRService
-    Extraction --> SLMService
-    Export --> S3
-    Export --> Tally
-    Backend --> MongoDB
-```
+<img src="docs/images/system-architecture.svg" alt="System Architecture" width="100%" />
 
 ### Invoice Processing Pipeline
 
-```mermaid
-flowchart LR
-    A["Invoice\nPDF / Image"] --> B["AI Parsing\nOCR + Layout"]
-    B --> C["Structured JSON\nField Extraction"]
-    C --> D["Confidence\nScoring"]
-    D --> E{"Review\nRequired?"}
-    E -->|"High Confidence"| F["Auto-Approve"]
-    E -->|"Needs Review"| G["Human Review\nDashboard"]
-    G --> F
-    F --> H["Tally Mapping\nGST Ledgers"]
-    H --> I["Generate\nTally XML"]
-    I --> J["File Export\nS3 Storage"]
-    I --> K["Direct POST\nto Tally"]
-
-    style A fill:#e1f5fe
-    style D fill:#fff3e0
-    style F fill:#e8f5e9
-    style H fill:#f3e5f5
-    style J fill:#e0f2f1
-    style K fill:#e0f2f1
-```
+<img src="docs/images/invoice-pipeline.svg" alt="Invoice Processing Pipeline" width="100%" />
 
 <br />
 
@@ -125,8 +50,10 @@ flowchart LR
 |--------|-------------|
 | **Ingestion** | Email (IMAP/OAuth2) and folder sources, per-tenant checkpointing, crash-safe resume, duplicate filtering |
 | **OCR** | Pluggable providers (DeepSeek MLX, Apple Vision, hybrid, HTTP proxy), block-level bounding boxes, page image extraction |
-| **Extraction** | Staged pipeline: vendor fingerprint, template matching, OCR confidence gate, layout graph, deterministic validation, SLM fallback |
-| **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds |
+| **Extraction** | Staged pipeline: vendor fingerprint, template matching, OCR confidence gate, layout graph, deterministic validation, SLM verification, LLM-assisted vision re-extraction for low-confidence results |
+| **Invoice Classification** | SLM classifies invoice type during verification (10 categories: standard, GST, VAT, receipt, utility, professional, PO, credit note, proforma, other) |
+| **Extraction Learning** | Tenant-scoped correction feedback loop: records field corrections keyed by invoice type and vendor, feeds prior learnings to SLM on future extractions, auto-prunes after 90 days |
+| **Confidence** | Multi-signal scoring (OCR, parser, field verification), risk flagging, configurable tone bands and auto-select thresholds, confidence boost after successful LLM vision re-extraction |
 | **Review Dashboard** | Parsed/failed visibility, confidence badges, value-source highlighting, bbox overlay inspect, batch approval |
 | **Export** | Tally XML purchase voucher generation with GST ledger entries (CGST/SGST/IGST/Cess), downloadable file or direct POST, S3 artifact storage |
 | **Multi-Tenancy** | Tenant onboarding, RBAC (admin/member), invite flow, tenant-scoped data isolation, per-tenant Gmail integration |
@@ -178,7 +105,10 @@ This starts all services with demo tenants, seeded users, and sample invoices:
 | MongoDB | `localhost:27018` |
 | Mongo Express | `http://localhost:8181` |
 | Mailpit (SMTP/UI) | `localhost:1125` / `http://localhost:8125` |
+| MailHog OAuth Wrapper | `http://localhost:8126` |
 | MinIO (S3) | `http://localhost:9100` / Console: `http://localhost:9101` |
+| MinIO Init | _(runs once to create `billforge-local` bucket)_ |
+| Local STS (OIDC) | `http://localhost:8190` |
 | OCR Service | `http://localhost:8200` |
 | SLM Service | `http://localhost:8300` |
 | Keycloak (opt-in) | `http://localhost:8180` (use `--profile keycloak`) |
@@ -221,12 +151,12 @@ BillForge/
 |   +-- src/
 |   |   +-- auth/               # JWT sessions, RBAC middleware, OAuth2
 |   |   +-- core/               # Dependency wiring, env config, manifest
-|   |   +-- models/             # Mongoose schemas (invoice, checkpoint, tenant)
+|   |   +-- models/             # Mongoose schemas (invoice, checkpoint, tenant, extraction learning)
 |   |   +-- ocr/                # DeepSeek OCR provider boundary
 |   |   +-- parser/             # Invoice field extraction + date/amount parsing
 |   |   +-- providers/          # Email sender, file store, STS adapters
 |   |   +-- routes/             # Express route handlers
-|   |   +-- services/           # Extraction pipeline, confidence, Tally export
+|   |   +-- services/           # Extraction pipeline, confidence, learning store, Tally export
 |   |   +-- sources/            # Email + folder ingestion sources
 |   |   +-- verifier/           # SLM field verifier boundary
 |   |   +-- utils/              # Logger, crypto, currency, mime helpers
@@ -277,7 +207,9 @@ The extraction pipeline processes each invoice through a series of stages, each 
 | **OCR Confidence Gate** | Skip expensive processing if OCR confidence is high | Low |
 | **Layout Graph** | Spatial analysis of OCR blocks for field extraction | Medium |
 | **Deterministic Validation** | Rule-based field validation and correction | Low |
-| **SLM Verifier Fallback** | ML-powered field selection when deterministic fails | High |
+| **SLM Verifier (relaxed)** | ML-powered field verification with invoice type classification | High |
+| **LLM Assist (strict)** | Vision-based re-extraction with page images when confidence < 85% | Higher |
+| **Extraction Learning** | Record corrections and feed prior learnings to future SLM calls | Free |
 
 </details>
 
@@ -309,6 +241,7 @@ MLX imports exist only in `local_*.py` modules. Docker images install `requireme
 | `users` | -- | `(email)`, `(externalSubject)` |
 | `tenantUserRole` | `tenantId` | `(tenantId, userId)` |
 | `vendorTemplate` | `tenantId` | `(tenantId, fingerprintHash)` |
+| `extractionLearnings` | `tenantId` | `(tenantId, groupKey, groupType)` |
 | `tenantIntegration` | `tenantId` | `(tenantId, provider)` |
 
 </details>
@@ -325,6 +258,7 @@ An optional manifest file (`APP_MANIFEST_PATH`) composes adapters at runtime:
 | **Database** | MongoDB URI |
 | **OCR** | `deepseek` / `mock` |
 | **Field Verifier** | `http` / `none` |
+| **LLM Assist** | Confidence threshold (default 85, 0 = disabled) |
 | **Ingestion Sources** | `email` / `folder` |
 | **Export** | Tally endpoint/company/ledger |
 | **File Store** | Local disk (`ENV=local`) / S3 (`ENV=stg\|prod`) |
@@ -392,7 +326,7 @@ BillForge employs a multi-layer testing strategy with enforced quality gates:
 
 | Layer | Framework | Count | Scope |
 |-------|-----------|:-----:|-------|
-| **Unit Tests** | Jest + ts-jest | 248 | Parsers, services, providers, utilities |
+| **Unit Tests** | Jest + ts-jest | 329 | Parsers, services, providers, utilities (280 backend + 49 frontend) |
 | **Backend E2E** | Jest | 4 suites | Folder ingestion, SaaS lifecycle, RBAC, platform admin |
 | **Frontend E2E** | Playwright | -- | Ingestion, approval, bbox overlays, crop modals |
 | **Dead Code** | Knip | -- | Unused export detection across workspaces |
@@ -560,6 +494,7 @@ yarn docker:down
 
 - [AWS Deployment Guide](docs/AWS_DEPLOYMENT_GUIDE.md) -- Step-by-step Terraform deployment
 - [Local OCR Setup](docs/LOCAL_DEEPSEEK_OCR_SETUP.md) -- MLX model installation for Apple Silicon
+- [Troubleshooting](docs/TROUBLESHOOTING.md) -- Docker status, health checks, common issues
 - [Product Requirements](docs/PRD.md) -- Feature specifications
 - [Architecture & Design Decisions](docs/RFC.md) -- RFC-style rationale for key choices
 

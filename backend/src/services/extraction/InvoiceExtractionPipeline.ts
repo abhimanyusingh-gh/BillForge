@@ -7,9 +7,11 @@ import { buildLayoutGraph } from "./layoutGraph.js";
 import { validateInvoiceFields } from "./deterministicValidation.js";
 import { computeVendorFingerprint } from "./vendorFingerprint.js";
 import { templateFromParsed, type VendorTemplateSnapshot, type VendorTemplateStore } from "./vendorTemplateStore.js";
+import { buildCorrectionHint, type CorrectionEntry, type ExtractionLearningStore } from "./extractionLearningStore.js";
 import type { PipelineExtractionResult } from "./types.js";
 import { logger } from "../../utils/logger.js";
 import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr, type DetectedInvoiceLanguage } from "./languageDetection.js";
+import { currencyBySymbol, parseAmountToken } from "../../parser/invoiceParser.js";
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
 
@@ -28,6 +30,7 @@ interface ExtractionPipelineInput {
 interface ExtractionPipelineOptions {
   ocrHighConfidenceThreshold?: number;
   enableOcrKeyValueGrounding?: boolean;
+  llmAssistConfidenceThreshold?: number;
 }
 
 export class ExtractionPipelineError extends Error {
@@ -43,15 +46,18 @@ export class ExtractionPipelineError extends Error {
 export class InvoiceExtractionPipeline {
   private readonly ocrHighConfidenceThreshold: number;
   private readonly enableOcrKeyValueGrounding: boolean;
+  private readonly llmAssistConfidenceThreshold: number;
 
   constructor(
     private readonly ocrProvider: OcrProvider,
     private readonly fieldVerifier: FieldVerifier,
     private readonly templateStore: VendorTemplateStore,
+    private readonly learningStore: ExtractionLearningStore | undefined,
     options?: ExtractionPipelineOptions
   ) {
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
+    this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
@@ -286,10 +292,22 @@ export class InvoiceExtractionPipeline {
     const fieldCandidates = buildFieldCandidates(heuristicResult.text, parsed, template);
     const fieldRegions = buildFieldRegions(ocrBlocks, fieldCandidates);
 
-    const shouldVerify = !ocrGateHigh || !validation.valid;
+    const shouldVerify = this.fieldVerifier.name !== "noop";
     const verifierChangedFields: string[] = [];
+    let invoiceType = "other";
     if (shouldVerify) {
-      const mode: FieldVerificationMode = ocrGateHigh ? "strict" : "relaxed";
+      let priorCorrections: CorrectionEntry[] | undefined;
+      try {
+        if (this.learningStore) {
+          priorCorrections = await this.learningStore.findCorrections(
+            input.tenantId,
+            metadata.invoiceType ?? "other",
+            fingerprint.key
+          );
+        }
+      } catch { /* ignore */ }
+
+      const mode: FieldVerificationMode = "relaxed";
       const verifierOutput = await this.fieldVerifier.verify({
         parsed,
         ocrText: heuristicResult.text,
@@ -315,9 +333,15 @@ export class InvoiceExtractionPipeline {
           vendorNameHint: template?.vendorName,
           vendorTemplateMatched: Boolean(template),
           fieldCandidates,
-          fieldRegions
+          fieldRegions,
+          priorCorrections: priorCorrections?.length
+            ? priorCorrections.map((c) => ({ field: c.field, hint: c.hint, count: c.count }))
+            : undefined
         }
       });
+
+      invoiceType = verifierOutput.invoiceType ?? "other";
+      metadata.invoiceType = invoiceType;
 
       const mergedParsed = mergeParsedWithVerification(parsed, verifierOutput.parsed, mode);
       const changedFields = detectChangedFields(parsed, mergedParsed);
@@ -347,6 +371,79 @@ export class InvoiceExtractionPipeline {
         referenceDate: input.referenceDate
       });
       metadata.verifierApplied = "true";
+
+      if (
+        this.llmAssistConfidenceThreshold > 0 &&
+        confidence.score < this.llmAssistConfidenceThreshold &&
+        ocrPageImages.length > 0
+      ) {
+        try {
+          const preLlmParsed = { ...parsed };
+          const llmPageImages = ocrPageImages.slice(0, 3);
+          const llmVerifierOutput = await this.fieldVerifier.verify({
+            parsed,
+            ocrText: heuristicResult.text,
+            ocrBlocks,
+            mode: "strict",
+            hints: {
+              mimeType: input.mimeType,
+              languageHint: detectedLanguage.code,
+              documentLanguage: detectedLanguage.code,
+              vendorTemplateMatched: Boolean(template),
+              fieldCandidates,
+              fieldRegions,
+              pageImages: llmPageImages,
+              llmAssist: true,
+              priorCorrections: priorCorrections?.length
+                ? priorCorrections.map((c) => ({ field: c.field, hint: c.hint, count: c.count }))
+                : undefined
+            }
+          });
+
+          const llmMerged = mergeParsedWithVerification(parsed, llmVerifierOutput.parsed, "strict");
+          const llmChangedFields = detectChangedFields(parsed, llmMerged);
+          if (llmChangedFields.length > 0) {
+            parsed = llmMerged;
+            strategy = `${strategy}+llm-assist`;
+            metadata.llmAssistChangedFields = llmChangedFields.join(",");
+
+            const effectiveOcrConfidence = Math.max(ocrConfidence ?? 0.6, 0.88);
+            confidence = this.assessConfidence(input, parsed, warnings, effectiveOcrConfidence);
+            validation = validateInvoiceFields({
+              parsed,
+              ocrText: heuristicResult.text,
+              expectedMaxTotal: input.expectedMaxTotal,
+              expectedMaxDueDays: input.expectedMaxDueDays,
+              referenceDate: input.referenceDate
+            });
+
+            if (this.learningStore) {
+              const corrections = llmChangedFields.map((field) => ({
+                field,
+                hint: buildCorrectionHint(
+                  field,
+                  preLlmParsed[field as keyof ParsedInvoiceData],
+                  parsed[field as keyof ParsedInvoiceData]
+                ),
+                count: 1,
+                lastSeen: new Date()
+              }));
+              await Promise.all([
+                this.learningStore.recordCorrections(input.tenantId, invoiceType, "invoice-type", corrections),
+                this.learningStore.recordCorrections(input.tenantId, fingerprint.key, "vendor", corrections)
+              ]);
+            }
+          }
+          metadata.llmAssistApplied = "true";
+        } catch (error) {
+          metadata.llmAssistApplied = "false";
+          metadata.llmAssistError = error instanceof Error ? error.message : String(error);
+          logger.warn("pipeline.llm_assist.failed", {
+            tenantId: input.tenantId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
     }
 
     if (!validation.valid) {
@@ -515,20 +612,26 @@ function detectChangedFields(before: ParsedInvoiceData, after: ParsedInvoiceData
 
 function isSameValue(left: unknown, right: unknown): boolean {
   if (Array.isArray(left) || Array.isArray(right)) {
-    return JSON.stringify(left ?? []) === JSON.stringify(right ?? []);
+    const a = Array.isArray(left) ? left : [];
+    const b = Array.isArray(right) ? right : [];
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
   }
   return left === right;
 }
 
+const ADDRESS_RE = /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i;
+const WEAK_VENDOR_RE = /\b(currency|invoice|total|amount|date|due|tax|gst|vat|number)\b/i;
+
 function looksLikeAddress(value: string): boolean {
-  return /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i.test(value);
+  return ADDRESS_RE.test(value);
 }
 
 function isWeakVendorValue(value: string): boolean {
-  return (
-    looksLikeAddress(value) ||
-    /\b(currency|invoice|total|amount|date|due|tax|gst|vat|number)\b/i.test(value)
-  );
+  return looksLikeAddress(value) || WEAK_VENDOR_RE.test(value);
 }
 
 function buildFieldCandidates(
@@ -555,7 +658,7 @@ function buildFieldCandidates(
     ...collectMatches(text, /\b(USD|EUR|GBP|INR|AUD|CAD|JPY|AED|SGD|CHF|CNY)\b/gi).map((entry) =>
       entry.toUpperCase()
     ),
-    ...collectMatches(text, /([$€£₹])/g).map((symbol) => symbolToCurrency(symbol))
+    ...collectMatches(text, /([$€£₹])/g).map((symbol) => currencyBySymbol[symbol] ?? "")
   ]);
 
   const totalMatches = uniqueStrings([
@@ -564,8 +667,9 @@ function buildFieldCandidates(
       text,
       /(?:grand\s*total|invoice\s*total|amount\s*due|balance\s*due|total\s*due|amount\s*payable)\s*[:\-]?\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,2})?)/gi
     ).map((value) => {
-      const minor = parseAmountToMinorUnits(value);
-      return minor !== undefined ? String(minor) : "";
+      const major = parseAmountToken(value);
+      if (major === null || major <= 0) return "";
+      return String(Math.round(major * 100));
     })
   ]);
 
@@ -639,9 +743,16 @@ function candidateTerms(field: string, value: string): string[] {
   const majorNoDecimals = Number.isInteger(minor / 100) ? String(Math.round(minor / 100)) : "";
   const normalizedMajor = major.replace(/\.00$/, "");
 
-  return [base, major, normalizedMajor, majorNoDecimals]
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry, index, all) => entry.length > 0 && all.indexOf(entry) === index);
+  const terms: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [base, major, normalizedMajor, majorNoDecimals]) {
+    const entry = raw.trim().toLowerCase();
+    if (entry.length > 0 && !seen.has(entry)) {
+      seen.add(entry);
+      terms.push(entry);
+    }
+  }
+  return terms;
 }
 
 function collectMatches(text: string, pattern: RegExp): string[] {
@@ -657,55 +768,6 @@ function collectMatches(text: string, pattern: RegExp): string[] {
 
 function uniqueStrings(values: Array<string | undefined>): string[] {
   return [...new Set(values.map((value) => value?.trim() ?? "").filter((value) => value.length > 0))];
-}
-
-function symbolToCurrency(symbol: string): string {
-  if (symbol === "$") {
-    return "USD";
-  }
-  if (symbol === "€") {
-    return "EUR";
-  }
-  if (symbol === "£") {
-    return "GBP";
-  }
-  if (symbol === "₹") {
-    return "INR";
-  }
-  return "";
-}
-
-function parseAmountToMinorUnits(value: string): number | undefined {
-  const cleaned = value.replace(/\s+/g, "");
-  if (!cleaned) {
-    return undefined;
-  }
-
-  let normalized = cleaned.replace(/[^0-9,.\-+]/g, "");
-  if (!normalized) {
-    return undefined;
-  }
-
-  const negative = normalized.startsWith("-");
-  normalized = normalized.replace(/^[+-]/, "");
-  if (normalized.includes(",") && normalized.includes(".")) {
-    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
-      normalized = normalized.replace(/\./g, "").replace(",", ".");
-    } else {
-      normalized = normalized.replace(/,/g, "");
-    }
-  } else if (normalized.includes(",")) {
-    const fractionalDigits = normalized.split(",").at(-1)?.length ?? 0;
-    normalized = fractionalDigits <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  const minor = Math.round(parsed * 100);
-  return negative ? -minor : minor;
 }
 
 function calibrateDocumentConfidence(
@@ -862,19 +924,17 @@ function inferHeuristicConfidence(field: keyof ParsedInvoiceData, value: unknown
   return 0.82;
 }
 
+const VALIDATION_KEY_BY_FIELD: Record<string, string> = {
+  totalAmountMinor: "total amount",
+  vendorName: "vendor",
+  invoiceNumber: "invoice number",
+  currency: "currency",
+  dueDate: "due date",
+  invoiceDate: "invoice date"
+};
+
 function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: string): number {
-  const key =
-    field === "totalAmountMinor"
-      ? "total amount"
-      : field === "vendorName"
-        ? "vendor"
-        : field === "invoiceNumber"
-          ? "invoice number"
-          : field === "currency"
-            ? "currency"
-            : field === "dueDate"
-              ? "due date"
-              : "invoice date";
+  const key = VALIDATION_KEY_BY_FIELD[field] ?? field;
   return validationText.includes(key) ? 0.7 : 1;
 }
 
