@@ -17,6 +17,10 @@ export class ExportService {
     private readonly fileStore?: FileStore
   ) {}
 
+  get canGenerateFiles(): boolean {
+    return !!this.fileStore;
+  }
+
   async exportApprovedInvoices(request: ExportRequest) {
     logger.info("export.run.start", {
       targetSystem: this.exporter.system,
