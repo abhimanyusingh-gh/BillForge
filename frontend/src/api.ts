@@ -11,11 +11,9 @@ import type {
 import { normalizeApiError } from "./apiError";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
-const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, "");
 const SESSION_TOKEN_KEY = "billforge_session_token";
 
 const apiClient = axios.create({ baseURL: apiBaseUrl });
-const backendClient = axios.create({ baseURL: backendBaseUrl });
 
 apiClient.interceptors.request.use((config) => {
   const token = getStoredSessionToken();
@@ -31,10 +29,6 @@ apiClient.interceptors.response.use(
   (error) => Promise.reject(normalizeApiError(error))
 );
 
-backendClient.interceptors.response.use(
-  (response) => response,
-  (error) => Promise.reject(normalizeApiError(error))
-);
 
 interface SessionContextResponse {
   user: {
@@ -109,7 +103,7 @@ export function clearStoredSessionToken(): void {
 }
 
 export async function loginWithCredentials(email: string, password: string): Promise<string> {
-  const response = await backendClient.post<{ token?: string }>("/auth/token", {
+  const response = await apiClient.post<{ token?: string }>("/auth/token", {
     email,
     password
   });
@@ -173,11 +167,7 @@ export async function uploadInvoiceFiles(files: File[]): Promise<{ uploaded: str
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await backendClient.post("/auth/change-password", { currentPassword, newPassword }, {
-    headers: {
-      Authorization: `Bearer ${getStoredSessionToken()}`
-    }
-  });
+  await apiClient.post("/auth/change-password", { currentPassword, newPassword });
 }
 
 export async function fetchInvoices(status?: string) {
@@ -449,7 +439,7 @@ function appendAuthTokenQuery(url: string): string {
     return url;
   }
 
-  const base = backendBaseUrl || window.location.origin;
+  const base = apiBaseUrl || window.location.origin;
   const resolved = new URL(url, base);
   resolved.searchParams.set("authToken", token);
   return resolved.toString();
