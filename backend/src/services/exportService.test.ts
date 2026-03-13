@@ -24,7 +24,8 @@ function createMockFileStore(): FileStore & { putObject: jest.Mock; getObject: j
   return {
     name: "mock",
     putObject: jest.fn(async () => ({ key: "test-key", path: "test-path", contentType: "text/xml" })),
-    getObject: jest.fn(async () => ({ body: Buffer.from("<xml/>"), contentType: "text/xml" }))
+    getObject: jest.fn(async () => ({ body: Buffer.from("<xml/>"), contentType: "text/xml" })),
+    deleteObject: jest.fn(async () => {})
   };
 }
 
