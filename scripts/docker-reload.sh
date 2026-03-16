@@ -4,6 +4,8 @@ set -euo pipefail
 # Rebuild and restart only the app containers (backend + frontend)
 # with latest code. Data services (mongo, minio) and their volumes
 # are left untouched — no data loss.
+#
+# Prerequisites: the full stack must already be running (yarn docker:up).
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -17,31 +19,60 @@ else
   exit 1
 fi
 
+# Verify infrastructure services are running before reload
+REQUIRED_SERVICES=(mongo minio local-sts)
+for svc in "${REQUIRED_SERVICES[@]}"; do
+  if ! "${COMPOSE_CMD[@]}" ps --status running --format '{{.Service}}' 2>/dev/null | grep -q "^${svc}$"; then
+    echo "Error: '$svc' is not running. Start the full stack first: yarn docker:up" >&2
+    exit 1
+  fi
+done
+
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 
-wait_for_http_contains() {
-  local url="$1" needle="$2" name="$3" timeout_seconds="$4"
-  local started_at body
-  started_at="$(date +%s)"
-  while (( "$(date +%s)" - started_at < timeout_seconds )); do
-    body="$(curl -fsSL "$url" 2>/dev/null || true)"
-    if [[ "$body" == *"$needle"* ]]; then
-      return 0
-    fi
-    sleep 2
-  done
-  echo "Timed out waiting for $name at $url" >&2
-  return 1
-}
+# Build images first (no timeout pressure)
+echo "Building backend and frontend images..."
+"${COMPOSE_CMD[@]}" build backend frontend
 
-echo "Rebuilding backend and frontend containers..."
-"${COMPOSE_CMD[@]}" up -d --build --force-recreate backend frontend
+# Swap containers (fast — images already built)
+echo "Recreating containers..."
+"${COMPOSE_CMD[@]}" up -d --no-deps --force-recreate backend frontend
 
-echo "Waiting for backend health..."
-wait_for_http_contains "$BACKEND_HEALTH_URL" "\"ready\":true" "backend" 300
+# Wait for backend health
+echo "Waiting for backend..."
+elapsed=0
+while (( elapsed < 120 )); do
+  body="$(curl -fsSL "$BACKEND_HEALTH_URL" 2>/dev/null || true)"
+  if [[ "$body" == *'"ready":true'* ]]; then
+    echo "Backend ready."
+    break
+  fi
+  sleep 2
+  elapsed=$((elapsed + 2))
+done
+if (( elapsed >= 120 )); then
+  echo "Backend did not become ready within 120s. Recent logs:" >&2
+  "${COMPOSE_CMD[@]}" logs --tail 30 backend >&2
+  exit 1
+fi
 
+# Wait for frontend
 echo "Waiting for frontend..."
-wait_for_http_contains "$FRONTEND_URL" "<html" "frontend" 120
+elapsed=0
+while (( elapsed < 60 )); do
+  body="$(curl -fsSL "$FRONTEND_URL" 2>/dev/null || true)"
+  if [[ "$body" == *"<html"* ]]; then
+    echo "Frontend ready."
+    break
+  fi
+  sleep 2
+  elapsed=$((elapsed + 2))
+done
+if (( elapsed >= 60 )); then
+  echo "Frontend did not become ready within 60s. Recent logs:" >&2
+  "${COMPOSE_CMD[@]}" logs --tail 30 frontend >&2
+  exit 1
+fi
 
 echo "Reload complete. Data volumes preserved."
