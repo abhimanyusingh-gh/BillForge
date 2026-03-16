@@ -1017,27 +1017,40 @@ export function App() {
 
   if (showChangePassword) {
     return (
-      <div className="layout">
-        <main className="content content-list-expanded">
-          <section className="panel list-panel" style={{ maxWidth: 420, margin: "60px auto", padding: 32 }}>
-            <h2>Change Your Password</h2>
-            <p style={{ marginBottom: 16 }}>{(session?.flags as Record<string, unknown>)?.must_change_password ? "You must change your temporary password before continuing." : "Change your password."}</p>
-            {error ? <p className="error">{error}</p> : null}
-            <label style={{ display: "block", marginBottom: 12 }}>
-              <span>Current Password</span>
-              <input type="password" value={changePasswordForm.currentPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, currentPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
-            </label>
-            <label style={{ display: "block", marginBottom: 12 }}>
-              <span>New Password</span>
-              <input type="password" value={changePasswordForm.newPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, newPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
-            </label>
-            <label style={{ display: "block", marginBottom: 16 }}>
-              <span>Confirm New Password</span>
-              <input type="password" value={changePasswordForm.confirmPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))} style={{ width: "100%", marginTop: 4 }} />
-            </label>
-            <button type="button" className="app-button app-button-primary" onClick={() => { void handleChangePassword(); }}>Change Password</button>
-          </section>
-        </main>
+      <div className="login-page-shell">
+        <section className="login-form-panel">
+          <div className="login-form-container">
+            <header className="login-form-header">
+              <h2>Change Your Password</h2>
+              <p>{(session?.flags as Record<string, unknown>)?.must_change_password ? "You must change your temporary password before continuing." : "Enter your current password and choose a new one."}</p>
+            </header>
+            <form className="login-form" onSubmit={(e) => { e.preventDefault(); void handleChangePassword(); }}>
+              <label className="login-input-group">
+                <span>Current Password</span>
+                <div className="login-input-shell">
+                  <span className="material-symbols-outlined login-input-icon">lock</span>
+                  <input type="password" value={changePasswordForm.currentPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, currentPassword: e.target.value }))} placeholder="Current password" required />
+                </div>
+              </label>
+              <label className="login-input-group">
+                <span>New Password</span>
+                <div className="login-input-shell">
+                  <span className="material-symbols-outlined login-input-icon">key</span>
+                  <input type="password" value={changePasswordForm.newPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, newPassword: e.target.value }))} placeholder="New password" required />
+                </div>
+              </label>
+              <label className="login-input-group">
+                <span>Confirm New Password</span>
+                <div className="login-input-shell">
+                  <span className="material-symbols-outlined login-input-icon">key</span>
+                  <input type="password" value={changePasswordForm.confirmPassword} onChange={(e) => setChangePasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))} placeholder="Confirm new password" required />
+                </div>
+              </label>
+              {error ? <p className="error">{error}</p> : null}
+              <button type="submit" className="login-submit-button">Change Password</button>
+            </form>
+          </div>
+        </section>
       </div>
     );
   }
