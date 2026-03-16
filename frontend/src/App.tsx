@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   approveInvoices,
   assignTenantUserRole,
@@ -118,6 +118,8 @@ export function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
+  const [listPanelPercent, setListPanelPercent] = useState(58);
+  const contentRef = useRef<HTMLElement>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
@@ -374,6 +376,36 @@ export function App() {
 
     return "content";
   }, [detailsPanelVisible]);
+
+  const contentStyle = useMemo(() => {
+    if (!detailsPanelVisible) return undefined;
+    return { gridTemplateColumns: `${listPanelPercent}% 6px 1fr` };
+  }, [detailsPanelVisible, listPanelPercent]);
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const container = contentRef.current;
+    if (!container) return;
+    const startX = e.clientX;
+    const startPercent = listPanelPercent;
+    const containerWidth = container.getBoundingClientRect().width;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - startX;
+      const pctDelta = (delta / containerWidth) * 100;
+      setListPanelPercent(Math.min(75, Math.max(25, startPercent + pctDelta)));
+    };
+    const onUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [listPanelPercent]);
 
   const gmailConnectionState = gmailConnection?.connectionState ?? "DISCONNECTED";
   const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
@@ -1422,7 +1454,7 @@ export function App() {
       {error ? <p className="error">{error}</p> : null}
 
       {!isPlatformAdmin && activeTab === "dashboard" ? (
-        <main className={contentClassName}>
+        <main ref={contentRef} className={contentClassName} style={contentStyle}>
           <>
             <section className="panel list-panel">
               <div className="panel-title">
@@ -1579,7 +1611,9 @@ export function App() {
             </section>
 
             {detailsPanelVisible ? (
-          <section className="panel detail-panel">
+          <>
+            <div className="panel-divider" onMouseDown={handleDividerMouseDown} />
+            <section className="panel detail-panel">
             <div className="panel-title">
               <h2>Invoice Details</h2>
               <button
@@ -1605,6 +1639,7 @@ export function App() {
               <p className="muted">Select an invoice to inspect details.</p>
             )}
           </section>
+          </>
             ) : null}
           </>
         </main>
