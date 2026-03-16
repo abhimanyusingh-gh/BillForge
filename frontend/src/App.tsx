@@ -623,6 +623,20 @@ export function App() {
     }
   }
 
+  async function handleRetrySingle(invoiceId: string) {
+    try {
+      setError(null);
+      const response = await retryInvoices([invoiceId]);
+      if (response.modifiedCount === 0) {
+        setError("Invoice was not eligible for retry.");
+        return;
+      }
+      await loadInvoices();
+    } catch (retryError) {
+      setError(getUserFacingErrorMessage(retryError, "Retry failed."));
+    }
+  }
+
   async function handleDeleteSingle(invoiceId: string, fileName: string) {
     if (!window.confirm(`Delete "${fileName}"? This cannot be undone.`)) {
       return;
@@ -1048,6 +1062,12 @@ export function App() {
               </label>
               {error ? <p className="error">{error}</p> : null}
               <button type="submit" className="login-submit-button">Change Password</button>
+              {!(session?.flags as Record<string, unknown>)?.must_change_password && (
+                <button type="button" className="login-link-button" onClick={() => {
+                  setShowChangePassword(false); setError(null);
+                  setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                }}>Cancel</button>
+              )}
             </form>
           </div>
         </section>
@@ -1147,8 +1167,8 @@ export function App() {
               <div className="editor-header">
                 <h3>Tenant Settings</h3>
               </div>
-              <div className="edit-grid">
-                <label>
+              <div className="invite-row">
+                <label className="invite-label">
                   Invite User Email
                   <input
                     value={inviteEmail}
@@ -1158,7 +1178,7 @@ export function App() {
                 </label>
                 <button
                   type="button"
-                  className="app-button app-button-primary"
+                  className="invite-send-button"
                   onClick={() => void handleInviteUser()}
                   disabled={!inviteEmail.trim()}
                 >
@@ -1414,7 +1434,16 @@ export function App() {
                               <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); } } : {})}>{invoice.parsed?.invoiceNumber ?? "-"}</span>
                             )}
                           </td>
-                          <td>{invoice.parsed?.invoiceDate ?? "-"}</td>
+                          <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
+                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceDate" ? (
+                              <>
+                                <input className="extracted-value-input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              </>
+                            ) : (
+                              <span className="extracted-value-display" {...(canEditCell ? { "data-editable": true, onClick: () => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); } } : {})}>{invoice.parsed?.invoiceDate ?? "-"}</span>
+                            )}
+                          </td>
                           <td
                             className={
                               [invoice.riskFlags.includes("TOTAL_AMOUNT_ABOVE_EXPECTED") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
@@ -1441,6 +1470,11 @@ export function App() {
                           </td>
                           <td>{new Date(invoice.receivedAt).toLocaleString()}</td>
                           <td onClick={(e) => e.stopPropagation()}>
+                            {isInvoiceRetryable(invoice) && (
+                              <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
+                                <span className="material-symbols-outlined">replay</span>
+                              </button>
+                            )}
                             {invoice.status !== "EXPORTED" ? (
                               <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
                                 <span className="material-symbols-outlined">delete</span>
