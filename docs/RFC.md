@@ -47,9 +47,29 @@ The system must ingest invoices from configurable sources, extract data from mix
 - Risk flags include high total amount and due-date anomalies.
 
 6. Workflow State Model
-- Statuses: `PARSED`, `NEEDS_REVIEW`, `FAILED_OCR`, `FAILED_PARSE`, `APPROVED`, `EXPORTED`.
+- Statuses: `PENDING`, `PARSED`, `NEEDS_REVIEW`, `FAILED_OCR`, `FAILED_PARSE`, `APPROVED`, `EXPORTED`.
+- `PENDING` is the initial state after upload or reingest; the ingestion pipeline processes pending invoices into terminal states.
 - Exported invoices are non-selectable in UI.
+- Inline row actions (approve, ingest, reingest, delete) are derived per-status via `getAvailableRowActions`. Actions are disabled during active reingest with a visual "REINGESTING" badge.
 - Reason: explicit lifecycle and predictable UI behavior.
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : Upload / Reingest
+    PENDING --> PARSED : Pipeline success
+    PENDING --> NEEDS_REVIEW : Low confidence
+    PENDING --> FAILED_OCR : OCR failure
+    PENDING --> FAILED_PARSE : Parse failure
+    PARSED --> APPROVED : Approve
+    NEEDS_REVIEW --> APPROVED : Approve
+    FAILED_PARSE --> APPROVED : Approve (manual)
+    APPROVED --> EXPORTED : Export
+    PARSED --> PENDING : Reingest
+    NEEDS_REVIEW --> PENDING : Reingest
+    FAILED_OCR --> PENDING : Reingest
+    FAILED_PARSE --> PENDING : Reingest
+    APPROVED --> PENDING : Reingest
+```
 
 7. Checkpoint and Idempotency
 - Per-source checkpoint marker stored in MongoDB.
