@@ -1356,13 +1356,33 @@ tr:hover {
   color: var(--ink-soft);
 }
 
-.edit-grid input {
+.edit-grid input,
+.editor-card select {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.45rem 0.55rem;
   font: inherit;
   color: var(--ink);
   background: #fff;
+}
+
+.editor-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.editor-card th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.editor-card td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--line-faint, rgba(0,0,0,0.06));
 }
 
 .detail-grid {
