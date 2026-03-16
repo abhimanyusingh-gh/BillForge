@@ -490,6 +490,7 @@ export function App() {
       if (ingestionStatus?.state === "failed") {
         setError(ingestionStatus.error ? `Ingestion failed: ${ingestionStatus.error}` : "Ingestion failed.");
       }
+      setIngestingIds(new Set());
       void loadInvoices();
       void loadGmailConnectionStatus();
     }
@@ -662,6 +663,10 @@ export function App() {
       }
       const status = await runIngestion();
       setIngestionStatus(status);
+      if (!status.running) {
+        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
+        await loadInvoices();
+      }
     } catch (retryError) {
       setError(getUserFacingErrorMessage(retryError, "Retry failed."));
       setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
@@ -1496,6 +1501,8 @@ export function App() {
                           <td>
                             {ingestingIds.has(invoice._id) ? (
                               <span className="status status-reprocessing">Reprocessing</span>
+                            ) : ingestionStatus?.running && invoice.status === "PENDING" ? (
+                              <span className="status status-reprocessing">Processing</span>
                             ) : (
                               <span className={`status status-${invoice.status.toLowerCase()}`} title={invoice.approval?.approvedBy ? `Approved by ${invoice.approval.approvedBy}` : undefined}>{STATUS_LABELS[invoice.status] ?? invoice.status}</span>
                             )}
@@ -1507,7 +1514,7 @@ export function App() {
                           <td onClick={(e) => e.stopPropagation()}>
                             {(() => {
                               const actions = getAvailableRowActions(invoice);
-                              const ingesting = ingestingIds.has(invoice._id);
+                              const ingesting = ingestingIds.has(invoice._id) || (ingestionStatus?.running === true && invoice.status === "PENDING");
                               return (
                                 <>
                                   {actions.includes("approve") && !ingesting && (
