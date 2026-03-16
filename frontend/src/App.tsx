@@ -17,6 +17,7 @@ import {
   loginWithCredentials,
   fetchPlatformTenantUsage,
   onboardTenantAdmin,
+  setTenantEnabled,
   fetchSessionContext,
   fetchTenantUsers,
   getInvoiceBlockCropUrl,
@@ -28,6 +29,7 @@ import {
   runIngestion,
   setStoredSessionToken,
   removeTenantUser,
+  setUserEnabled,
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
   uploadInvoiceFiles
@@ -81,7 +83,7 @@ function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): In
 export function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<{
-    user: { id: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
+    user: { id: string; email: string; role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
     tenant: { id: string; name: string; onboarding_status: "pending" | "completed"; mode?: "test" | "live" };
     flags: {
       requires_tenant_setup: boolean;
@@ -90,7 +92,7 @@ export function App() {
       requires_email_confirmation: boolean;
     };
   } | null>(null);
-  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" }>>(
+  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; enabled: boolean }>>(
     []
   );
   const [platformUsage, setPlatformUsage] = useState<PlatformTenantUsageSummary[]>([]);
@@ -469,6 +471,15 @@ export function App() {
       setPlatformUsage(usage);
     } catch (loadError) {
       setError(getUserFacingErrorMessage(loadError, "Failed to load tenant usage overview."));
+    }
+  }
+
+  async function handleToggleTenantEnabled(tenantId: string, enabled: boolean) {
+    try {
+      await setTenantEnabled(tenantId, enabled);
+      await loadPlatformUsage();
+    } catch (toggleError) {
+      setError(getUserFacingErrorMessage(toggleError, "Failed to update tenant status."));
     }
   }
 
@@ -1002,6 +1013,16 @@ export function App() {
     }
   }
 
+  async function handleToggleUserEnabled(userId: string, enabled: boolean) {
+    try {
+      setError(null);
+      await setUserEnabled(userId, enabled);
+      await loadTenantUsers();
+    } catch (toggleError) {
+      setError(getUserFacingErrorMessage(toggleError, "Failed to update user status."));
+    }
+  }
+
   async function handleRemoveUser(userId: string) {
     try {
       setError(null);
@@ -1287,6 +1308,7 @@ export function App() {
                   <thead>
                     <tr>
                       <th>Email</th>
+                      <th>Status</th>
                       <th>Role</th>
                       <th>Action</th>
                     </tr>
@@ -1295,6 +1317,16 @@ export function App() {
                     {tenantUsers.map((user) => (
                       <tr key={user.userId}>
                         <td>{user.email}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className={`app-button ${user.enabled ? "app-button-secondary" : "app-button-danger"}`}
+                            style={{ fontSize: 12, padding: "2px 10px", minWidth: 72 }}
+                            onClick={() => void handleToggleUserEnabled(user.userId, !user.enabled)}
+                          >
+                            {user.enabled ? "Active" : "Disabled"}
+                          </button>
+                        </td>
                         <td>
                           <select
                             value={user.role}
@@ -1348,6 +1380,7 @@ export function App() {
                     void loadPlatformUsage();
                   }}
                   onSelectTenant={setSelectedPlatformTenantId}
+                  onToggleEnabled={(tenantId, enabled) => { void handleToggleTenantEnabled(tenantId, enabled); }}
                 />
                 <PlatformActivityMonitor
                   selectedTenant={selectedPlatformTenant}
