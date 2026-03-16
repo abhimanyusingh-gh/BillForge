@@ -1428,7 +1428,7 @@ export function App() {
                       const canEditCell = invoice.status !== "EXPORTED";
 
                       return (
-                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); }}>
+                        <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}>
                           <td>
                             <input
                               type="checkbox"
