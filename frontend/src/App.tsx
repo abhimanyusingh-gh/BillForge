@@ -111,6 +111,7 @@ export function App() {
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
+  const [inlineRetryTotal, setInlineRetryTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number]>("ALL");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -277,21 +278,38 @@ export function App() {
       getInvoiceFieldOverlayUrl
     );
   }, [popupInvoice]);
+  const effectiveIngestionStatus = useMemo<IngestionJobStatus | null>(() => {
+    if (inlineRetryTotal > 0 && ingestingIds.size > 0) {
+      const processed = inlineRetryTotal - ingestingIds.size;
+      return {
+        state: "running" as const,
+        running: true,
+        totalFiles: inlineRetryTotal,
+        processedFiles: processed,
+        newInvoices: processed,
+        duplicates: 0,
+        failures: 0,
+        lastUpdatedAt: new Date().toISOString()
+      };
+    }
+    return ingestionStatus;
+  }, [ingestionStatus, inlineRetryTotal, ingestingIds.size]);
+
   const ingestionProgressPercent = useMemo(() => {
-    if (!ingestionStatus || ingestionStatus.totalFiles <= 0) {
+    if (!effectiveIngestionStatus || effectiveIngestionStatus.totalFiles <= 0) {
       return 0;
     }
 
-    return Math.min(100, Math.round((ingestionStatus.processedFiles / ingestionStatus.totalFiles) * 100));
-  }, [ingestionStatus]);
+    return Math.min(100, Math.round((effectiveIngestionStatus.processedFiles / effectiveIngestionStatus.totalFiles) * 100));
+  }, [effectiveIngestionStatus]);
 
   const ingestionSuccessfulFiles = useMemo(() => {
-    if (!ingestionStatus) {
+    if (!effectiveIngestionStatus) {
       return 0;
     }
 
-    return Math.max(0, ingestionStatus.processedFiles - ingestionStatus.failures);
-  }, [ingestionStatus]);
+    return Math.max(0, effectiveIngestionStatus.processedFiles - effectiveIngestionStatus.failures);
+  }, [effectiveIngestionStatus]);
 
   const selectedInvoices = useMemo(() => {
     if (selectedIds.length === 0 || invoices.length === 0) {
@@ -514,7 +532,10 @@ export function App() {
   }, [ingestionStatus?.state]);
 
   useEffect(() => {
-    if (ingestingIds.size === 0) return;
+    if (ingestingIds.size === 0) {
+      if (inlineRetryTotal > 0) setInlineRetryTotal(0);
+      return;
+    }
     const stillIngesting = new Set<string>();
     for (const id of ingestingIds) {
       const inv = invoices.find((i) => i._id === id);
@@ -658,6 +679,7 @@ export function App() {
 
   async function handleRetrySingle(invoiceId: string) {
     setIngestingIds((prev) => new Set(prev).add(invoiceId));
+    setInlineRetryTotal((prev) => prev + 1);
     try {
       setError(null);
       const response = await retryInvoices([invoiceId]);
@@ -1387,7 +1409,7 @@ export function App() {
                   </span>
                 </div>
                 <IngestionProgressCard
-                  status={ingestionStatus}
+                  status={effectiveIngestionStatus}
                   progressPercent={ingestionProgressPercent}
                   successfulFiles={ingestionSuccessfulFiles}
                   fading={ingestionFading}
