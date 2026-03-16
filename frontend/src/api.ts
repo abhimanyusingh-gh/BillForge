@@ -265,19 +265,12 @@ export async function retryInvoices(ids: string[]) {
 }
 
 export async function exportToTally(ids?: string[]) {
-  const response = await apiClient.post<TallyExportResponse>("/exports/tally", {
-    ids,
-    requestedBy: "ui"
-  });
-
+  const response = await apiClient.post<TallyExportResponse>("/exports/tally", { ids });
   return response.data;
 }
 
 export async function generateTallyXmlFile(ids?: string[]) {
-  const response = await apiClient.post<TallyFileExportResponse>("/exports/tally/download", {
-    ids,
-    requestedBy: "ui"
-  });
+  const response = await apiClient.post<TallyFileExportResponse>("/exports/tally/download", { ids });
   return response.data;
 }
 
