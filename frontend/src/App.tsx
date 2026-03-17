@@ -32,6 +32,7 @@ import {
   setUserEnabled,
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
+  renameInvoiceAttachment,
   uploadInvoiceFiles
 } from "./api";
 import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
@@ -1094,16 +1095,19 @@ export function App() {
     if (!editingListCell) return;
     const { invoiceId, field } = editingListCell;
     const trimmed = editListValue.trim();
-    const parsed: Record<string, string | null> = {};
-
-    if (field === "totalAmountMinor") {
-      parsed.totalAmountMajor = trimmed || null;
-    } else {
-      parsed[field] = trimmed || null;
-    }
 
     try {
-      await updateInvoiceParsedFields(invoiceId, { parsed, updatedBy: "ui-user" });
+      if (field === "attachmentName") {
+        if (trimmed) await renameInvoiceAttachment(invoiceId, trimmed);
+      } else {
+        const parsed: Record<string, string | null> = {};
+        if (field === "totalAmountMinor") {
+          parsed.totalAmountMajor = trimmed || null;
+        } else {
+          parsed[field] = trimmed || null;
+        }
+        await updateInvoiceParsedFields(invoiceId, { parsed, updatedBy: "ui-user" });
+      }
       setEditingListCell(null);
       await loadInvoices();
       if (activeId === invoiceId) {
@@ -1532,17 +1536,22 @@ export function App() {
                               onClick={(event) => event.stopPropagation()}
                             />
                           </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="file-label"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setPopupInvoiceId(invoice._id);
-                              }}
-                            >
-                              {invoice.attachmentName}
-                            </button>
+                          <td className="file-name-cell" onClick={(e) => e.stopPropagation()}>
+                            {editingListCell?.invoiceId === invoice._id && editingListCell.field === "attachmentName" ? (
+                              <>
+                                <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+                                <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              </>
+                            ) : (
+                              <>
+                                <button type="button" className="file-label" onClick={(event) => { event.stopPropagation(); setPopupInvoiceId(invoice._id); }}>{invoice.attachmentName}</button>
+                                {canEditCell && (
+                                  <button type="button" className="row-action-button file-rename-button" title="Rename" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
+                                    <span className="material-symbols-outlined">edit</span>
+                                  </button>
+                                )}
+                              </>
+                            )}
                           </td>
                           <td className="extracted-value-cell" onClick={(e) => e.stopPropagation()}>
                             {editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName" ? (
@@ -1594,7 +1603,7 @@ export function App() {
                           </td>
                           <td>
                             {ingestingIds.has(invoice._id) ? (
-                              <span className="status status-reprocessing">Reprocessing</span>
+                              <span className="status status-reprocessing">{invoice.status === "PENDING" ? "Processing" : "Reprocessing"}</span>
                             ) : ingestionStatus?.running && invoice.status === "PENDING" ? (
                               <span className="status status-reprocessing">Processing</span>
                             ) : (
@@ -1616,14 +1625,14 @@ export function App() {
                                       <span className="material-symbols-outlined">check_circle</span>
                                     </button>
                                   )}
-                                  {actions.includes("ingest") && (
-                                    <button type="button" className="row-action-button row-action-retry" title="Ingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
-                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "play_arrow"}</span>
+                                  {actions.includes("ingest") && !ingesting && (
+                                    <button type="button" className="row-action-button row-action-retry" title="Ingest" onClick={() => void handleRetrySingle(invoice._id)}>
+                                      <span className="material-symbols-outlined">play_arrow</span>
                                     </button>
                                   )}
-                                  {actions.includes("reingest") && (
-                                    <button type="button" className="row-action-button row-action-retry" title="Reingest" disabled={ingesting} onClick={() => void handleRetrySingle(invoice._id)}>
-                                      <span className={`material-symbols-outlined${ingesting ? " spin" : ""}`}>{ingesting ? "progress_activity" : "replay"}</span>
+                                  {actions.includes("reingest") && !ingesting && (
+                                    <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
+                                      <span className="material-symbols-outlined">replay</span>
                                     </button>
                                   )}
                                   {actions.includes("delete") && !ingesting && (

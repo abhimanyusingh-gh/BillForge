@@ -768,6 +768,24 @@ body {
   cursor: pointer;
 }
 
+.file-name-cell {
+  white-space: nowrap;
+}
+
+.file-rename-button {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.file-name-cell:hover .file-rename-button {
+  opacity: 1;
+}
+
+.file-rename-button:hover {
+  color: #3b82f6 !important;
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
 .error {
   color: var(--warn);
   font-weight: 500;

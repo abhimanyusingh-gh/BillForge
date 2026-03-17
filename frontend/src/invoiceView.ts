@@ -14,7 +14,7 @@ export const STATUSES: Array<InvoiceStatus | "ALL"> = [
 
 export const STATUS_LABELS: Record<string, string> = {
   ALL: "All",
-  PENDING: "Processing",
+  PENDING: "New",
   PARSED: "Processed",
   NEEDS_REVIEW: "Needs Review",
   FAILED_OCR: "OCR Failed",
