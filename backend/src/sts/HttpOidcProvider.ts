@@ -1,14 +1,15 @@
 import axios, { type AxiosInstance } from "axios";
 import type {
-  StsAccessTokenValidationInput,
-  StsAuthorizationCodeExchangeInput,
-  StsAuthorizationCodeExchangeResult,
-  StsAuthorizationUrlInput,
-  StsBoundary,
-  StsNormalizedClaims
-} from "./StsBoundary.js";
+  OidcAccessTokenValidationInput,
+  OidcAuthorizationCodeExchangeInput,
+  OidcAuthorizationCodeExchangeResult,
+  OidcAuthorizationUrlInput,
+  OidcNormalizedClaims,
+  OidcPasswordGrantResult,
+  OidcProvider
+} from "./OidcProvider.js";
 
-interface HttpStsProviderConfig {
+interface HttpOidcProviderConfig {
   clientId: string;
   clientSecret: string;
   authUrl: string;
@@ -25,17 +26,17 @@ interface TokenResponsePayload {
   expires_in?: unknown;
 }
 
-export class HttpStsProvider implements StsBoundary {
+export class HttpOidcProvider implements OidcProvider {
   private readonly http: AxiosInstance;
 
-  constructor(private readonly config: HttpStsProviderConfig) {
+  constructor(private readonly config: HttpOidcProviderConfig) {
     this.http = axios.create({
       timeout: config.timeoutMs,
       validateStatus: () => true
     });
   }
 
-  getAuthorizationUrl(input: StsAuthorizationUrlInput): string {
+  getAuthorizationUrl(input: OidcAuthorizationUrlInput): string {
     const query = new URLSearchParams({
       response_type: "code",
       client_id: this.config.clientId,
@@ -56,8 +57,8 @@ export class HttpStsProvider implements StsBoundary {
   }
 
   async exchangeAuthorizationCode(
-    input: StsAuthorizationCodeExchangeInput
-  ): Promise<StsAuthorizationCodeExchangeResult> {
+    input: OidcAuthorizationCodeExchangeInput
+  ): Promise<OidcAuthorizationCodeExchangeResult> {
     const body = new URLSearchParams({
       grant_type: "authorization_code",
       code: input.code,
@@ -75,7 +76,7 @@ export class HttpStsProvider implements StsBoundary {
       }
     });
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`STS authorization-code exchange failed with HTTP ${response.status}.`);
+      throw new Error(`OIDC authorization-code exchange failed with HTTP ${response.status}.`);
     }
 
     const payload = response.data as TokenResponsePayload;
@@ -85,7 +86,7 @@ export class HttpStsProvider implements StsBoundary {
     const expiresInSeconds = Number(payload.expires_in ?? 0);
 
     if (!accessToken || !refreshToken || !Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
-      throw new Error("STS returned incomplete token payload.");
+      throw new Error("OIDC provider returned incomplete token payload.");
     }
 
     return {
@@ -96,9 +97,11 @@ export class HttpStsProvider implements StsBoundary {
     };
   }
 
-  async validateAccessToken(input: StsAccessTokenValidationInput): Promise<Record<string, unknown>> {
+  async validateAccessToken(input: OidcAccessTokenValidationInput): Promise<Record<string, unknown>> {
     const body = new URLSearchParams({
-      token: input.accessToken
+      token: input.accessToken,
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret
     });
     const response = await this.http.post(this.config.validateUrl, body.toString(), {
       headers: {
@@ -106,25 +109,25 @@ export class HttpStsProvider implements StsBoundary {
       }
     });
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`STS token validation failed with HTTP ${response.status}.`);
+      throw new Error(`OIDC token validation failed with HTTP ${response.status}.`);
     }
 
     const payload = asRecord(response.data);
     const active = payload.active;
     if (active !== true) {
-      throw new Error("STS token validation returned inactive token.");
+      throw new Error("OIDC token validation returned inactive token.");
     }
 
     return payload;
   }
 
-  normalizeClaims(rawClaims: Record<string, unknown>): StsNormalizedClaims {
-    const subject = normalizeFirstString(rawClaims.sub, rawClaims.user_id, rawClaims.subject);
+  normalizeClaims(rawClaims: Record<string, unknown>): OidcNormalizedClaims {
+    const subject = normalizeFirstString(rawClaims.sub, rawClaims.user_id, rawClaims.subject, rawClaims.preferred_username);
     const email = normalizeFirstString(rawClaims.email, rawClaims.preferred_username);
     const name = normalizeFirstString(rawClaims.name, rawClaims.given_name, email);
 
     if (!subject || !email || !name) {
-      throw new Error("STS claims payload is missing required identity fields.");
+      throw new Error("OIDC claims payload is missing required identity fields.");
     }
 
     return {
@@ -134,6 +137,40 @@ export class HttpStsProvider implements StsBoundary {
     };
   }
 
+  async exchangePasswordGrant(username: string, password: string): Promise<OidcPasswordGrantResult> {
+    const body = new URLSearchParams({
+      grant_type: "password",
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+      username,
+      password,
+      scope: "openid"
+    });
+
+    const response = await this.http.post(this.config.tokenUrl, body.toString(), {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+
+    if (response.status === 401 || response.status === 400) {
+      return { accessToken: "", refreshToken: "", ok: false };
+    }
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`OIDC password grant failed with HTTP ${response.status}.`);
+    }
+
+    const payload = response.data as TokenResponsePayload;
+    const accessToken = typeof payload.access_token === "string" ? payload.access_token.trim() : "";
+    if (!accessToken) {
+      return { accessToken: "", refreshToken: "", ok: false };
+    }
+    const refreshToken = typeof payload.refresh_token === "string" ? payload.refresh_token.trim() : "";
+
+    return { accessToken, refreshToken, ok: true };
+  }
+
   async fetchUserInfo(accessToken: string): Promise<Record<string, unknown>> {
     const response = await this.http.get(this.config.userInfoUrl, {
       headers: {
@@ -141,7 +178,7 @@ export class HttpStsProvider implements StsBoundary {
       }
     });
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`STS userinfo lookup failed with HTTP ${response.status}.`);
+      throw new Error(`OIDC userinfo lookup failed with HTTP ${response.status}.`);
     }
     return asRecord(response.data);
   }
@@ -164,5 +201,5 @@ function asRecord(value: unknown): Record<string, unknown> {
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     return value as Record<string, unknown>;
   }
-  throw new Error("STS response payload must be an object.");
+  throw new Error("OIDC response payload must be an object.");
 }
