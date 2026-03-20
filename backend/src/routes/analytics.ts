@@ -26,7 +26,10 @@ export function createAnalyticsRouter() {
 
       to.setHours(23, 59, 59, 999);
 
-      const overview = await getOverview(authContext.tenantId, from, to);
+      const scopeParam = typeof req.query.scope === "string" ? req.query.scope : "mine";
+      const approverId = scopeParam === "all" ? undefined : authContext.userId;
+
+      const overview = await getOverview(authContext.tenantId, from, to, approverId);
       res.json(overview);
     } catch (error) {
       next(error);

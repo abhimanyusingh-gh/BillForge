@@ -21,6 +21,9 @@ import { LocalDiskFileStore } from "../storage/LocalDiskFileStore.js";
 import { S3FileStore } from "../storage/S3FileStore.js";
 import { EmailSimulationService } from "../services/emailSimulationService.js";
 import { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
+import type { IBankConnectionService } from "../services/anumati/IBankConnectionService.js";
+import { AnumatiBankConnectionService } from "../services/anumati/AnumatiBankConnectionService.js";
+import { MockBankConnectionService } from "../services/anumati/MockBankConnectionService.js";
 import { HttpOidcProvider } from "../sts/HttpOidcProvider.js";
 import { AuthService } from "../auth/AuthService.js";
 import { TenantAdminService } from "../services/tenantAdminService.js";
@@ -43,6 +46,7 @@ interface Dependencies {
   tenantInviteService: TenantInviteService;
   platformAdminService: PlatformAdminService;
   gmailIntegrationService: TenantGmailIntegrationService;
+  bankService: IBankConnectionService;
   fileStore: FileStore;
   keycloakAdmin: KeycloakAdminClient;
 }
@@ -70,6 +74,9 @@ export async function buildDependencies(): Promise<Dependencies> {
   const tenantInviteService = new TenantInviteService(inviteEmailSender, keycloakAdmin);
   const platformAdminService = new PlatformAdminService(inviteEmailSender, keycloakAdmin);
   const gmailIntegrationService = new TenantGmailIntegrationService();
+  const bankService: IBankConnectionService = env.ANUMATI_ENTITY_ID
+    ? new AnumatiBankConnectionService()
+    : new MockBankConnectionService();
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
   const fileStore = resolveFileStore(manifest);
@@ -106,6 +113,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     tenantInviteService,
     platformAdminService,
     gmailIntegrationService,
+    bankService,
     fileStore,
     keycloakAdmin
   };

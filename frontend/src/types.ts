@@ -161,3 +161,27 @@ export interface GmailConnectionStatus {
   lastErrorReason?: string;
   lastSyncedAt?: string;
 }
+
+export interface TenantMailbox {
+  _id: string;
+  provider: "gmail";
+  emailAddress?: string;
+  status: string;
+  assignments: "all" | Array<{ userId: string; email: string }>;
+  lastSyncedAt?: string;
+}
+
+export interface BankAccount {
+  _id: string;
+  tenantId: string;
+  status: string;
+  aaAddress: string;
+  displayName?: string;
+  bankName?: string;
+  maskedAccNumber?: string;
+  balanceMinor?: number;
+  currency: string;
+  balanceFetchedAt?: string;
+  lastErrorReason?: string;
+  createdAt: string;
+}

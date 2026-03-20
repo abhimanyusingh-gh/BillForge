@@ -1,54 +1,61 @@
-import type { GmailConnectionStatus, TenantMailbox } from "../../types";
+import { useState } from "react";
+import type { BankAccount, TenantMailbox } from "../types";
 
-interface TenantConfigTabProps {
-  gmailConnection: GmailConnectionStatus | null;
-  onConnectGmail: () => void;
-  inviteEmail: string;
-  onInviteEmailChange: (email: string) => void;
-  onInviteUser: () => void;
-  tenantUsers: Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; enabled: boolean }>;
-  onRoleChange: (userId: string, role: "TENANT_ADMIN" | "MEMBER") => void;
-  onToggleUserEnabled: (userId: string, enabled: boolean) => void;
-  onRemoveUser: (userId: string) => void;
+interface BankConnectionsTabProps {
   mailboxes: TenantMailbox[];
+  tenantUsers: Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; enabled: boolean }>;
+  onAddGmailInbox: () => void;
   onAssignMailboxUser: (integrationId: string, userId: string) => void;
   onRemoveMailboxAssignment: (integrationId: string, userId: string) => void;
   onRemoveMailbox: (integrationId: string) => void;
+  bankAccounts: BankAccount[];
+  onAddBankAccount: (aaAddress: string, displayName: string) => void;
+  onRefreshBankBalance: (id: string) => void;
+  onRevokeBankAccount: (id: string) => void;
 }
 
-export function TenantConfigTab({
-  gmailConnection,
-  onConnectGmail,
-  inviteEmail,
-  onInviteEmailChange,
-  onInviteUser,
-  tenantUsers,
-  onRoleChange,
-  onToggleUserEnabled,
-  onRemoveUser,
+function fmtInr(minor: number): string {
+  return (minor / 100).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+}
+
+function BankStatusBadge({ status }: { status: string }) {
+  const cls =
+    status === "active"
+      ? "bank-status-badge bank-status-active"
+      : status === "pending_consent"
+        ? "bank-status-badge bank-status-pending"
+        : "bank-status-badge bank-status-error";
+  return <span className={cls}>{status.replace("_", " ")}</span>;
+}
+
+export function BankConnectionsTab({
   mailboxes,
+  tenantUsers,
+  onAddGmailInbox,
   onAssignMailboxUser,
   onRemoveMailboxAssignment,
-  onRemoveMailbox
-}: TenantConfigTabProps) {
-  const gmailConnectionState = gmailConnection?.connectionState ?? "DISCONNECTED";
-  const gmailNeedsReauth = gmailConnectionState === "NEEDS_REAUTH";
+  onRemoveMailbox,
+  bankAccounts,
+  onAddBankAccount,
+  onRefreshBankBalance,
+  onRevokeBankAccount
+}: BankConnectionsTabProps) {
+  const [aaAddress, setAaAddress] = useState("");
+  const [displayName, setDisplayName] = useState("");
+
+  function handleAddBank() {
+    if (!aaAddress.trim()) return;
+    onAddBankAccount(aaAddress.trim(), displayName.trim());
+    setAaAddress("");
+    setDisplayName("");
+  }
 
   return (
-    <>
-      {gmailNeedsReauth ? (
-        <div className="mailbox-banner" role="alert">
-          <strong>We lost access to your mailbox. Please reconnect.</strong>
-          <button type="button" className="app-button app-button-primary" onClick={onConnectGmail}>
-            Reconnect Gmail
-          </button>
-        </div>
-      ) : null}
-
+    <div className="bank-connections">
       <div className="editor-card">
         <div className="editor-header">
           <h3>Email Inboxes</h3>
-          <button type="button" className="app-button app-button-secondary" onClick={onConnectGmail}>
+          <button type="button" className="app-button app-button-secondary" onClick={onAddGmailInbox}>
             Add Gmail Inbox
           </button>
         </div>
@@ -149,72 +156,84 @@ export function TenantConfigTab({
 
       <div className="editor-card">
         <div className="editor-header">
-          <h3>Tenant Settings</h3>
+          <h3>Bank Accounts</h3>
         </div>
-        <div className="invite-row">
-          <label className="invite-label">
-            Invite User Email
-            <input
-              value={inviteEmail}
-              onChange={(event) => onInviteEmailChange(event.target.value)}
-              placeholder="user@example.com"
-            />
-          </label>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+          <input
+            value={aaAddress}
+            onChange={(e) => setAaAddress(e.target.value)}
+            placeholder="AA address (e.g. user@bankaa)"
+            style={{ flex: "1 1 200px" }}
+          />
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="Display name (optional)"
+            style={{ flex: "1 1 160px" }}
+          />
           <button
             type="button"
-            className="invite-send-button"
-            onClick={onInviteUser}
-            disabled={!inviteEmail.trim()}
+            className="app-button app-button-secondary"
+            disabled={!aaAddress.trim()}
+            onClick={handleAddBank}
           >
-            Send Invite
+            Add bank account
           </button>
         </div>
-        <div className="list-scroll" style={{ maxHeight: "160px" }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Role</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tenantUsers.map((user) => (
-                <tr key={user.userId}>
-                  <td>{user.email}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className={`app-button ${user.enabled ? "app-button-secondary" : "app-button-danger"}`}
-                      style={{ fontSize: 12, padding: "2px 10px", minWidth: 72 }}
-                      onClick={() => onToggleUserEnabled(user.userId, !user.enabled)}
-                    >
-                      {user.enabled ? "Active" : "Disabled"}
-                    </button>
-                  </td>
-                  <td>
-                    <select
-                      value={user.role}
-                      onChange={(event) =>
-                        onRoleChange(user.userId, event.target.value as "TENANT_ADMIN" | "MEMBER")
-                      }
-                    >
-                      <option value="TENANT_ADMIN">Tenant Admin</option>
-                      <option value="MEMBER">Member</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button type="button" className="app-button app-button-secondary" onClick={() => onRemoveUser(user.userId)}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+
+        {bankAccounts.length === 0 ? (
+          <p style={{ color: "var(--ink-soft)", fontSize: "0.875rem" }}>No bank accounts connected.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {bankAccounts.map((account) => (
+              <div key={account._id} className="bank-account-card">
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600 }}>{account.displayName ?? account.aaAddress}</span>
+                    {account.bankName ? <span className="bank-account-meta">{account.bankName}</span> : null}
+                    {account.maskedAccNumber ? <span className="bank-account-meta">{account.maskedAccNumber}</span> : null}
+                    <BankStatusBadge status={account.status} />
+                  </div>
+                  {account.balanceMinor != null ? (
+                    <div style={{ marginTop: "0.25rem" }}>
+                      <span className="bank-account-balance">{fmtInr(account.balanceMinor)}</span>
+                      {account.balanceFetchedAt ? (
+                        <span className="bank-account-meta" style={{ marginLeft: "0.5rem" }}>
+                          as of {new Date(account.balanceFetchedAt).toLocaleString()}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {account.lastErrorReason ? (
+                    <div className="bank-account-meta" style={{ color: "#991b1b", marginTop: "0.2rem" }}>
+                      {account.lastErrorReason}
+                    </div>
+                  ) : null}
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    className="app-button app-button-secondary"
+                    style={{ fontSize: "0.8rem", padding: "0.25rem 0.75rem" }}
+                    onClick={() => onRefreshBankBalance(account._id)}
+                    disabled={account.status !== "active"}
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    className="app-button app-button-danger"
+                    style={{ fontSize: "0.8rem", padding: "0.25rem 0.75rem" }}
+                    onClick={() => onRevokeBankAccount(account._id)}
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

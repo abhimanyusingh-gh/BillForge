@@ -13,6 +13,8 @@ import { createSessionRouter } from "./routes/session.js";
 import { createTenantAdminRouter } from "./routes/tenantAdmin.js";
 import { createTenantLifecycleRouter } from "./routes/tenantLifecycle.js";
 import { createPlatformAdminRouter } from "./routes/platformAdmin.js";
+import { createBankAccountsRouter } from "./routes/bankAccounts.js";
+import { createBankWebhooksRouter } from "./routes/bankWebhooks.js";
 import {
   createAuthenticationMiddleware,
   requireNonPlatformAdmin,
@@ -46,6 +48,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
 
   app.use("/", healthRouter);
   app.use("/api", createAuthRouter(dependencies.authService));
+  app.use("/api", createBankWebhooksRouter(dependencies.bankService));
   // Gmail public routes bypass the authenticate middleware: /connect/gmail uses its own
   // ?token= query param auth, and /connect/gmail/callback is an OAuth callback from KC
   // that carries no Bearer token.
@@ -73,6 +76,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
+  app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";

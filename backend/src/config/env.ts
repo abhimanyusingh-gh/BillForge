@@ -193,7 +193,15 @@ const envSchema = z.object({
   MAILBOX_ALERT_SMTP_USERNAME: z.string().default(""),
   MAILBOX_ALERT_SMTP_PASSWORD: z.string().default(""),
   MAILBOX_ALERT_FROM: z.string().default(""),
-  MAILBOX_ALERT_TO: z.string().default("")
+  MAILBOX_ALERT_TO: z.string().default(""),
+
+  ANUMATI_ENTITY_ID: z.string().default(""),
+  ANUMATI_API_KEY: z.string().default(""),
+  ANUMATI_JWS_PRIVATE_KEY: z.string().default(""),
+  ANUMATI_AES_KEY: z.string().default(""),
+  ANUMATI_AA_BASE_URL: z.string().default(""),
+  ANUMATI_WEBVIEW_URL: z.string().default(""),
+  ANUMATI_CALLBACK_BASE_URL: z.string().default("")
 });
 
 const parsed = envSchema.safeParse(process.env);

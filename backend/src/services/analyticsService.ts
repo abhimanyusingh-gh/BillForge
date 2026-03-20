@@ -36,26 +36,28 @@ export interface AnalyticsOverview {
 
 const AGG_OPTIONS = { allowDiskUse: true };
 
-export async function getOverview(tenantId: string, from: Date, to: Date): Promise<AnalyticsOverview> {
+export async function getOverview(tenantId: string, from: Date, to: Date, approverId?: string): Promise<AnalyticsOverview> {
+  const approverFilter = approverId ? { "approval.approvedBy": approverId } : {};
+
   const [kpiResult, dailyApprovalsResult, dailyIngestionResult, dailyExportsResult, statusResult, vendorsApprovedResult, vendorsPendingResult] =
     await Promise.all([
       InvoiceModel.aggregate(
         [
           { $match: { tenantId, createdAt: { $gte: from, $lte: to } } },
-          { $project: { status: 1, "parsed.totalAmountMinor": 1 } },
+          { $project: { status: 1, "parsed.totalAmountMinor": 1, "approval.approvedBy": 1, "export.exportedAt": 1 } },
           {
             $facet: {
               total: [{ $count: "n" }],
-              approved: [{ $match: { status: { $in: ["APPROVED", "EXPORTED"] } } }, { $count: "n" }],
+              approved: [{ $match: { status: { $in: ["APPROVED", "EXPORTED"] }, ...approverFilter } }, { $count: "n" }],
               approvedAmount: [
-                { $match: { status: { $in: ["APPROVED", "EXPORTED"] } } },
+                { $match: { status: { $in: ["APPROVED", "EXPORTED"] }, ...approverFilter } },
                 { $group: { _id: null, total: { $sum: "$parsed.totalAmountMinor" } } }
               ],
               pendingAmount: [
                 { $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } },
                 { $group: { _id: null, total: { $sum: "$parsed.totalAmountMinor" } } }
               ],
-              exported: [{ $match: { status: "EXPORTED" } }, { $count: "n" }],
+              exported: [{ $match: { status: "EXPORTED", ...approverFilter } }, { $count: "n" }],
               needsReview: [{ $match: { status: "NEEDS_REVIEW" } }, { $count: "n" }]
             }
           }
@@ -65,7 +67,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date): Promi
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, "approval.approvedAt": { $gte: from, $lte: to } } },
+          { $match: { tenantId, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
           { $project: { "approval.approvedAt": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {
@@ -121,7 +123,7 @@ export async function getOverview(tenantId: string, from: Date, to: Date): Promi
 
       InvoiceModel.aggregate(
         [
-          { $match: { tenantId, status: { $in: ["APPROVED", "EXPORTED"] }, "approval.approvedAt": { $gte: from, $lte: to } } },
+          { $match: { tenantId, status: { $in: ["APPROVED", "EXPORTED"] }, "approval.approvedAt": { $gte: from, $lte: to }, ...approverFilter } },
           { $project: { "parsed.vendorName": 1, "parsed.totalAmountMinor": 1 } },
           {
             $group: {

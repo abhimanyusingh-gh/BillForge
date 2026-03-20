@@ -1,13 +1,15 @@
 import axios from "axios";
 import type {
   AnalyticsOverview,
+  BankAccount,
   ExportHistoryResponse,
   GmailConnectionStatus,
   IngestionJobStatus,
   Invoice,
   InvoiceListResponse,
   TallyExportResponse,
-  TallyFileExportResponse
+  TallyFileExportResponse,
+  TenantMailbox
 } from "./types";
 import { normalizeApiError } from "./apiError";
 
@@ -181,9 +183,9 @@ export async function changePassword(currentPassword: string, newPassword: strin
   await apiClient.post("/auth/change-password", { currentPassword, newPassword });
 }
 
-export async function fetchAnalyticsOverview(from: string, to: string): Promise<AnalyticsOverview> {
+export async function fetchAnalyticsOverview(from: string, to: string, scope: "mine" | "all" = "mine"): Promise<AnalyticsOverview> {
   const response = await apiClient.get<AnalyticsOverview>("/analytics/overview", {
-    params: { from, to }
+    params: { from, to, scope }
   });
   return response.data;
 }
@@ -460,4 +462,39 @@ function appendAuthTokenQuery(url: string): string {
   const resolved = new URL(url, window.location.origin);
   resolved.searchParams.set("authToken", token);
   return resolved.toString();
+}
+
+export async function fetchMailboxes(): Promise<TenantMailbox[]> {
+  const response = await apiClient.get<{ items: TenantMailbox[] }>("/admin/mailboxes");
+  return response.data.items;
+}
+
+export async function assignMailboxUser(integrationId: string, userId: string): Promise<void> {
+  await apiClient.post(`/admin/mailboxes/${integrationId}/assign`, { userId });
+}
+
+export async function removeMailboxAssignment(integrationId: string, userId: string): Promise<void> {
+  await apiClient.delete(`/admin/mailboxes/${integrationId}/assign/${userId}`);
+}
+
+export async function removeMailbox(integrationId: string): Promise<void> {
+  await apiClient.delete(`/admin/mailboxes/${integrationId}`);
+}
+
+export async function fetchBankAccounts(): Promise<BankAccount[]> {
+  const response = await apiClient.get<{ items: BankAccount[] }>("/bank/accounts");
+  return response.data.items;
+}
+
+export async function initiateBankConsent(aaAddress: string, displayName: string): Promise<{ _id: string; redirectUrl: string }> {
+  const response = await apiClient.post<{ _id: string; redirectUrl: string }>("/bank/accounts", { aaAddress, displayName });
+  return response.data;
+}
+
+export async function revokeBankAccount(id: string): Promise<void> {
+  await apiClient.delete(`/bank/accounts/${id}`);
+}
+
+export async function refreshBankBalance(id: string): Promise<void> {
+  await apiClient.post(`/bank/accounts/${id}/refresh`);
 }

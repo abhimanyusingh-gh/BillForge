@@ -1,4 +1,4 @@
-export type TenantViewTab = "overview" | "dashboard" | "config" | "exports";
+export type TenantViewTab = "overview" | "dashboard" | "config" | "exports" | "connections";
 
 interface TenantViewTabsProps {
   activeTab: TenantViewTab;
@@ -40,6 +40,13 @@ export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: 
         onClick={() => onTabChange("exports")}
       >
         Exports
+      </button>
+      <button
+        type="button"
+        className={activeTab === "connections" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+        onClick={() => onTabChange("connections")}
+      >
+        Connections
       </button>
     </div>
   );

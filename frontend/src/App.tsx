@@ -16,10 +16,18 @@ import {
   inviteTenantUser,
   setStoredSessionToken,
   removeTenantUser,
-  setUserEnabled
+  setUserEnabled,
+  fetchMailboxes,
+  assignMailboxUser,
+  removeMailboxAssignment,
+  removeMailbox,
+  fetchBankAccounts,
+  initiateBankConsent,
+  revokeBankAccount,
+  refreshBankBalance
 } from "./api";
 import { OverviewDashboard } from "./components/OverviewDashboard";
-import type { GmailConnectionStatus } from "./types";
+import type { BankAccount, GmailConnectionStatus, TenantMailbox } from "./types";
 import type { PlatformTenantUsageSummary } from "./api";
 import { LoginPage } from "./components/login/LoginPage";
 import { PlatformAdminTopNav } from "./components/platformAdmin/PlatformAdminTopNav";
@@ -31,6 +39,7 @@ import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/Ten
 import { TenantConfigTab } from "./components/tenantAdmin/TenantConfigTab";
 import { TenantInvoicesView } from "./components/tenantAdmin/TenantInvoicesView";
 import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
+import { BankConnectionsTab } from "./components/BankConnectionsTab";
 import { getUserFacingErrorMessage } from "./apiError";
 
 export function App() {
@@ -62,6 +71,8 @@ export function App() {
   });
   const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0 });
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
+  const [mailboxes, setMailboxes] = useState<TenantMailbox[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
@@ -88,18 +99,24 @@ export function App() {
       void loadPlatformUsage();
       setTenantUsers([]);
       setGmailConnection(null);
+      setMailboxes([]);
+      setBankAccounts([]);
     } else {
       setPlatformUsage([]);
       setSelectedPlatformTenantId(null);
       void loadGmailConnectionStatus();
       if (session.user.role === "TENANT_ADMIN") {
         void loadTenantUsers();
+        void loadMailboxes();
+        void loadBankAccounts();
         setOnboardingForm({
           tenantName: session.tenant.name,
           adminEmail: session.user.email
         });
       } else {
         setTenantUsers([]);
+        setMailboxes([]);
+        setBankAccounts([]);
       }
     }
   }, [session?.user.id, session?.tenant.id]);
@@ -137,6 +154,8 @@ export function App() {
       void loadGmailConnectionStatus();
       if (session.user.isPlatformAdmin) {
         void loadPlatformUsage();
+      } else if (session.user.role === "TENANT_ADMIN") {
+        void loadMailboxes();
       }
     }
     params.delete("gmail");
@@ -252,6 +271,79 @@ export function App() {
       window.location.assign(connectUrl);
     } catch (connectError) {
       setError(getUserFacingErrorMessage(connectError, "Failed to start Gmail connection flow."));
+    }
+  }
+
+  async function loadMailboxes() {
+    try {
+      const items = await fetchMailboxes();
+      setMailboxes(items);
+    } catch {
+      setMailboxes([]);
+    }
+  }
+
+  async function handleAssignMailboxUser(integrationId: string, userId: string) {
+    try {
+      await assignMailboxUser(integrationId, userId);
+      await loadMailboxes();
+    } catch (assignError) {
+      setError(getUserFacingErrorMessage(assignError, "Failed to assign user to mailbox."));
+    }
+  }
+
+  async function handleRemoveMailboxAssignment(integrationId: string, userId: string) {
+    try {
+      await removeMailboxAssignment(integrationId, userId);
+      await loadMailboxes();
+    } catch (removeError) {
+      setError(getUserFacingErrorMessage(removeError, "Failed to remove mailbox assignment."));
+    }
+  }
+
+  async function handleRemoveMailbox(integrationId: string) {
+    try {
+      await removeMailbox(integrationId);
+      setMailboxes((prev) => prev.filter((m) => m._id !== integrationId));
+    } catch (removeError) {
+      setError(getUserFacingErrorMessage(removeError, "Failed to remove mailbox."));
+    }
+  }
+
+  async function loadBankAccounts() {
+    try {
+      const items = await fetchBankAccounts();
+      setBankAccounts(items);
+    } catch {
+      setBankAccounts([]);
+    }
+  }
+
+  async function handleAddBankAccount(aaAddress: string, displayName: string) {
+    try {
+      const result = await initiateBankConsent(aaAddress, displayName);
+      await loadBankAccounts();
+      window.location.assign(result.redirectUrl);
+    } catch (addError) {
+      setError(getUserFacingErrorMessage(addError, "Failed to initiate bank connection."));
+    }
+  }
+
+  async function handleRefreshBankBalance(id: string) {
+    try {
+      await refreshBankBalance(id);
+      await loadBankAccounts();
+    } catch (refreshError) {
+      setError(getUserFacingErrorMessage(refreshError, "Failed to refresh bank balance."));
+    }
+  }
+
+  async function handleRevokeBankAccount(id: string) {
+    try {
+      await revokeBankAccount(id);
+      setBankAccounts((prev) => prev.filter((a) => a._id !== id));
+    } catch (revokeError) {
+      setError(getUserFacingErrorMessage(revokeError, "Failed to disconnect bank account."));
     }
   }
 
@@ -550,6 +642,25 @@ export function App() {
             onRoleChange={(userId, role) => void handleRoleChange(userId, role)}
             onToggleUserEnabled={(userId, enabled) => void handleToggleUserEnabled(userId, enabled)}
             onRemoveUser={(userId) => void handleRemoveUser(userId)}
+            mailboxes={mailboxes}
+            onAssignMailboxUser={(integrationId, userId) => void handleAssignMailboxUser(integrationId, userId)}
+            onRemoveMailboxAssignment={(integrationId, userId) => void handleRemoveMailboxAssignment(integrationId, userId)}
+            onRemoveMailbox={(integrationId) => void handleRemoveMailbox(integrationId)}
+          />
+        ) : null}
+
+        {activeTab === "connections" && isTenantAdmin && !isPlatformAdmin ? (
+          <BankConnectionsTab
+            mailboxes={mailboxes}
+            tenantUsers={tenantUsers}
+            onAddGmailInbox={() => void handleConnectGmail()}
+            onAssignMailboxUser={(integrationId, userId) => void handleAssignMailboxUser(integrationId, userId)}
+            onRemoveMailboxAssignment={(integrationId, userId) => void handleRemoveMailboxAssignment(integrationId, userId)}
+            onRemoveMailbox={(integrationId) => void handleRemoveMailbox(integrationId)}
+            bankAccounts={bankAccounts}
+            onAddBankAccount={(aaAddress, displayName) => void handleAddBankAccount(aaAddress, displayName)}
+            onRefreshBankBalance={(id) => void handleRefreshBankBalance(id)}
+            onRevokeBankAccount={(id) => void handleRevokeBankAccount(id)}
           />
         ) : null}
 

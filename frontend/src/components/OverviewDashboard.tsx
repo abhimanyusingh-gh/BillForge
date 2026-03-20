@@ -94,6 +94,7 @@ function KpiCard({ label, value, sub, accent, warn }: KpiCardProps) {
 export function OverviewDashboard() {
   const [from, setFrom] = useState(firstOfMonthStr());
   const [to, setTo] = useState(todayStr());
+  const [scope, setScope] = useState<"mine" | "all">("mine");
   const [data, setData] = useState<AnalyticsOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export function OverviewDashboard() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchAnalyticsOverview(from, to)
+    fetchAnalyticsOverview(from, to, scope)
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -113,7 +114,7 @@ export function OverviewDashboard() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [from, to]);
+  }, [from, to, scope]);
 
   function applyPreset(f: string, t: string) {
     setFrom(f);
@@ -136,6 +137,16 @@ export function OverviewDashboard() {
         <button className="overview-preset-btn" onClick={() => applyPreset(nDaysAgoStr(30), todayStr())}>Last 30 Days</button>
         <button className="overview-preset-btn" onClick={() => applyPreset(firstOfQuarterStr(), todayStr())}>This Quarter</button>
         {loading ? <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>Refreshing…</span> : null}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 0, borderRadius: 6, overflow: "hidden", border: "1px solid var(--line)" }}>
+          <button
+            style={{ padding: "0.3rem 0.8rem", fontSize: "0.8rem", fontWeight: scope === "mine" ? 700 : 400, background: scope === "mine" ? "var(--accent)" : "var(--bg)", color: scope === "mine" ? "#fff" : "var(--ink)", border: "none", cursor: "pointer" }}
+            onClick={() => setScope("mine")}
+          >My Approvals</button>
+          <button
+            style={{ padding: "0.3rem 0.8rem", fontSize: "0.8rem", fontWeight: scope === "all" ? 700 : 400, background: scope === "all" ? "var(--accent)" : "var(--bg)", color: scope === "all" ? "#fff" : "var(--ink)", border: "none", cursor: "pointer" }}
+            onClick={() => setScope("all")}
+          >All Users</button>
+        </div>
       </div>
 
       {error ? <p className="error">{error}</p> : null}
