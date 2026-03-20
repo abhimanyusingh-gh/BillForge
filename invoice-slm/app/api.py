@@ -54,6 +54,11 @@ def health_v1() -> dict[str, Any]:
   return health()
 
 
+@app.get("/ping")
+def ping() -> dict[str, Any]:
+  return {"pong": True}
+
+
 @app.post("/v1/verify/invoice", response_model=VerifyInvoiceResponse)
 def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
   current = {key: value for key, value in request.parsed.items() if value not in ("", None)}

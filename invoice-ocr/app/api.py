@@ -55,6 +55,11 @@ def health_v1() -> dict[str, Any]:
   return health()
 
 
+@app.get("/ping")
+def ping() -> dict[str, Any]:
+  return {"pong": True}
+
+
 @app.get("/v1/models")
 def list_models() -> dict[str, Any]:
   return {
