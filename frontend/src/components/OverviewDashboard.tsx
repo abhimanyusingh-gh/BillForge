@@ -15,7 +15,7 @@ import {
 } from "recharts";
 import { fetchAnalyticsOverview } from "../api";
 import { EmptyState } from "./EmptyState";
-import type { AnalyticsOverview, DailyStat } from "../types";
+import type { AnalyticsOverview, DailyStat, VendorStat } from "../types";
 import { STATUS_LABELS } from "../invoiceView";
 
 function todayStr(): string {
@@ -100,7 +100,20 @@ const STATUS_COLORS: Record<string, string> = {
   FAILED_PARSE: "var(--status-failed-parse)"
 };
 
-const VENDOR_COLORS = ["var(--chart-blue)", "var(--chart-emerald)", "var(--chart-amber)", "var(--chart-rose)", "var(--chart-violet)", "var(--chart-cyan)", "#6366f1", "#a855f7", "#db2777", "#0ea5e9"];
+const VENDOR_COLORS = ["var(--chart-blue)", "var(--chart-emerald)", "var(--chart-amber)", "var(--chart-rose)", "var(--chart-violet)", "#94a3b8"];
+const TOP_VENDOR_COUNT = 5;
+
+function collapseVendors(vendors: VendorStat[]): VendorStat[] {
+  if (vendors.length <= TOP_VENDOR_COUNT) return vendors;
+  const top = vendors.slice(0, TOP_VENDOR_COUNT);
+  const rest = vendors.slice(TOP_VENDOR_COUNT);
+  const others: VendorStat = {
+    vendor: `Others (${rest.length})`,
+    count: rest.reduce((s, v) => s + v.count, 0),
+    amountMinor: rest.reduce((s, v) => s + v.amountMinor, 0)
+  };
+  return [...top, others];
+}
 
 const KPI_ICONS: Record<string, string> = {
   total: "receipt_long",
@@ -433,46 +446,52 @@ export function OverviewDashboard() {
           <div className="overview-vendors-grid">
             <div className="overview-chart-card">
               <h4>
-                Top 10 Vendors by Approved Amount
+                Top Vendors by Approved Amount
                 <span className="chart-subtitle">Highest-value approved vendors</span>
               </h4>
-              {data.topVendorsByApproved.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={data.topVendorsByApproved} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
-                    <YAxis type="category" dataKey="vendor" width={110} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => [fmtInr(v), "Approved"]} />
-                    <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
-                      {data.topVendorsByApproved.map((_, i) => (
-                        <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <ChartEmptyState />}
+              {data.topVendorsByApproved.length > 0 ? (() => {
+                const collapsed = collapseVendors(data.topVendorsByApproved);
+                return (
+                  <ResponsiveContainer width="100%" height={Math.max(160, collapsed.length * 36)}>
+                    <BarChart data={collapsed} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
+                      <YAxis type="category" dataKey="vendor" width={120} tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(v: number) => [fmtInr(v), "Approved"]} />
+                      <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
+                        {collapsed.map((_, i) => (
+                          <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })() : <ChartEmptyState />}
             </div>
 
             <div className="overview-chart-card">
               <h4>
-                Top 10 Vendors by Pending Amount
+                Top Vendors by Pending Amount
                 <span className="chart-subtitle">Vendors with highest pending value</span>
               </h4>
-              {data.topVendorsByPending.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={data.topVendorsByPending} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
-                    <YAxis type="category" dataKey="vendor" width={110} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => [fmtInr(v), "Pending"]} />
-                    <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
-                      {data.topVendorsByPending.map((_, i) => (
-                        <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : <ChartEmptyState />}
+              {data.topVendorsByPending.length > 0 ? (() => {
+                const collapsed = collapseVendors(data.topVendorsByPending);
+                return (
+                  <ResponsiveContainer width="100%" height={Math.max(160, collapsed.length * 36)}>
+                    <BarChart data={collapsed} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmtInrShort(v)} />
+                      <YAxis type="category" dataKey="vendor" width={120} tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(v: number) => [fmtInr(v), "Pending"]} />
+                      <Bar dataKey="amountMinor" radius={[0, 3, 3, 0]} animationDuration={800}>
+                        {collapsed.map((_, i) => (
+                          <Cell key={i} fill={VENDOR_COLORS[i % VENDOR_COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })() : <ChartEmptyState />}
             </div>
           </div>
 
