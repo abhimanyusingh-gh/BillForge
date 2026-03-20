@@ -85,6 +85,21 @@ export function requireTenantAdmin(request: Request, response: Response, next: N
   next();
 }
 
+export function requireNotViewer(request: Request, response: Response, next: NextFunction): void {
+  const context = request.authContext;
+  if (!context) {
+    response.status(401).json({ message: "Authentication required." });
+    return;
+  }
+
+  if (context.role === "VIEWER") {
+    response.status(403).json({ message: "Viewers have read-only access." });
+    return;
+  }
+
+  next();
+}
+
 export function requirePlatformAdmin(request: Request, response: Response, next: NextFunction): void {
   const context = request.authContext;
   if (!context) {

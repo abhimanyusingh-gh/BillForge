@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   assignTenantUserRole,
   changePassword,
@@ -34,6 +34,7 @@ import { PlatformAdminTopNav } from "./components/platformAdmin/PlatformAdminTop
 import { PlatformActivityMonitor } from "./components/platformAdmin/PlatformActivityMonitor";
 import { PlatformOnboardSection } from "./components/platformAdmin/PlatformOnboardSection";
 import { PlatformUsageOverviewSection } from "./components/platformAdmin/PlatformUsageOverviewSection";
+import { PlatformAnalyticsDashboard } from "./components/platformAdmin/PlatformAnalyticsDashboard";
 import { TenantAdminTopNav } from "./components/tenantAdmin/TenantAdminTopNav";
 import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/TenantViewTabs";
 import { TenantConfigTab } from "./components/tenantAdmin/TenantConfigTab";
@@ -41,11 +42,13 @@ import { TenantInvoicesView } from "./components/tenantAdmin/TenantInvoicesView"
 import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
 import { BankConnectionsTab } from "./components/BankConnectionsTab";
 import { getUserFacingErrorMessage } from "./apiError";
+import { useToast } from "./hooks/useToast";
+import { ToastContainer } from "./components/ToastContainer";
 
 export function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<{
-    user: { id: string; email: string; role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
+    user: { id: string; email: string; role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER" | "VIEWER"; isPlatformAdmin: boolean };
     tenant: { id: string; name: string; onboarding_status: "pending" | "completed"; mode?: "test" | "live" };
     flags: {
       requires_tenant_setup: boolean;
@@ -85,6 +88,7 @@ export function App() {
   const [changePasswordForm, setChangePasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [platformOnboardResult, setPlatformOnboardResult] = useState<{ tempPassword: string; adminEmail: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
     void bootstrapSession();
@@ -96,6 +100,7 @@ export function App() {
       return;
     }
     if (session.user.isPlatformAdmin) {
+      setActiveTab("dashboard");
       void loadPlatformUsage();
       setTenantUsers([]);
       setGmailConnection(null);
@@ -133,6 +138,18 @@ export function App() {
         : platformUsage[0].tenantId
     );
   }, [platformUsage]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const bankStatus = params.get("bank");
+    if (bankStatus === "error") {
+      addToast("error", "Bank connection failed. Please try again.");
+      params.delete("bank");
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query.length > 0 ? `?${query}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, "", nextUrl);
+    }
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -570,6 +587,7 @@ export function App() {
   }
 
   const isTenantAdmin = session.user.role === "TENANT_ADMIN";
+  const isViewer = session.user.role === "VIEWER";
   const isPlatformAdmin = session.user.isPlatformAdmin;
   const requiresTenantSetup = session.flags.requires_tenant_setup;
 
@@ -627,7 +645,7 @@ export function App() {
           </div>
         ) : null}
 
-        {activeTab === "exports" && isTenantAdmin && !isPlatformAdmin ? (
+        {activeTab === "exports" && !isPlatformAdmin ? (
           <ExportHistoryDashboard />
         ) : null}
 
@@ -674,6 +692,7 @@ export function App() {
               onSubmit={() => {
                 void handlePlatformOnboardTenantAdmin();
               }}
+              helpText="Create a new tenant organization and its first admin user. The admin will receive a temporary password."
             />
             {platformOnboardResult ? (
               <div style={{ background: "#e8f5e9", border: "1px solid #4caf50", borderRadius: 6, padding: "12px 16px", margin: "8px 0 16px" }}>
@@ -681,6 +700,7 @@ export function App() {
                 <button type="button" style={{ marginLeft: 12 }} className="app-button app-button-secondary" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
               </div>
             ) : null}
+            <PlatformAnalyticsDashboard usage={platformUsage} />
             <PlatformUsageOverviewSection
               usage={platformUsage}
               selectedTenantId={selectedPlatformTenantId}
@@ -718,11 +738,15 @@ export function App() {
           isTenantAdmin={isTenantAdmin}
           requiresTenantSetup={requiresTenantSetup}
           tenantMode={session.tenant.mode}
+          isViewer={isViewer}
+          tenantUsers={isTenantAdmin ? tenantUsers : undefined}
           onGmailStatusRefresh={() => void loadGmailConnectionStatus()}
           onNavCountsChange={setNavCounts}
           onSessionExpired={() => { clearStoredSessionToken(); setSession(null); }}
+          addToast={addToast}
         />
       ) : null}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { TenantInviteService } from "../services/tenantInviteService.js";
 import { requireTenantAdmin } from "../auth/middleware.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { TenantMailboxAssignmentModel } from "../models/TenantMailboxAssignment.js";
+import { ViewerScopeModel } from "../models/ViewerScope.js";
 import { Types } from "mongoose";
 
 export function createTenantAdminRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
@@ -167,6 +168,33 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
       await TenantMailboxAssignmentModel.deleteMany({ tenantId, integrationId });
       await TenantIntegrationModel.deleteOne({ _id: integrationId, tenantId });
       response.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/admin/users/:userId/viewer-scope", requireTenantAdmin, async (request, response, next) => {
+    try {
+      const context = request.authContext!;
+      const scope = await ViewerScopeModel.findOne({ tenantId: context.tenantId, viewerUserId: request.params.userId }).lean();
+      response.json({ visibleUserIds: scope?.visibleUserIds ?? [] });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.put("/admin/users/:userId/viewer-scope", requireTenantAdmin, async (request, response, next) => {
+    try {
+      const context = request.authContext!;
+      const visibleUserIds = Array.isArray(request.body?.visibleUserIds)
+        ? request.body.visibleUserIds.filter((id: unknown) => typeof id === "string")
+        : [];
+      await ViewerScopeModel.findOneAndUpdate(
+        { tenantId: context.tenantId, viewerUserId: request.params.userId },
+        { $set: { visibleUserIds } },
+        { upsert: true }
+      );
+      response.json({ visibleUserIds });
     } catch (error) {
       next(error);
     }
