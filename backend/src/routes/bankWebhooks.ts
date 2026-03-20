@@ -13,11 +13,11 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
 
     try {
       await bankService.handleConsentCallback({ sessionId, success: true, ecres, iv });
+      res.redirect(302, "/");
     } catch (error) {
-      logger.error("bank.aa-callback.error", { sessionId, error: error instanceof Error ? error.message : String(error) });
+      logger.warn("bank.aa-callback.error", { sessionId, error: error instanceof Error ? error.message : String(error) });
+      res.redirect(302, "/?bank=error");
     }
-
-    res.redirect(302, "/");
   });
 
   router.get("/bank/mock-callback", async (req, res) => {
@@ -26,11 +26,11 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
 
     try {
       await bankService.handleConsentCallback({ sessionId, success });
+      res.redirect(302, "/");
     } catch (error) {
-      logger.error("bank.mock-callback.error", { sessionId, error: error instanceof Error ? error.message : String(error) });
+      logger.warn("bank.mock-callback.error", { sessionId, error: error instanceof Error ? error.message : String(error) });
+      res.redirect(302, "/?bank=error");
     }
-
-    res.redirect(302, "/");
   });
 
   router.post("/bank/consent-notify", async (req, res) => {
@@ -38,7 +38,7 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
       await bankService.handleConsentNotify(req.body);
       res.status(200).json({ status: "ok" });
     } catch (error) {
-      logger.error("bank.consent-notify.error", { error: error instanceof Error ? error.message : String(error) });
+      logger.warn("bank.consent-notify.error", { error: error instanceof Error ? error.message : String(error) });
       res.status(200).json({ status: "ok" });
     }
   });
@@ -48,7 +48,7 @@ export function createBankWebhooksRouter(bankService: IBankConnectionService) {
       await bankService.handleFiNotify(req.body);
       res.status(200).json({ status: "ok" });
     } catch (error) {
-      logger.error("bank.fi-notify.error", { error: error instanceof Error ? error.message : String(error) });
+      logger.warn("bank.fi-notify.error", { error: error instanceof Error ? error.message : String(error) });
       res.status(200).json({ status: "ok" });
     }
   });

@@ -190,51 +190,27 @@ export async function fetchAnalyticsOverview(from: string, to: string, scope: "m
   return response.data;
 }
 
-export async function fetchInvoices(status?: string, from?: string, to?: string) {
-  const pageSize = 100;
-  let page = 1;
-  let total = 0;
-  let totalAll: number | undefined;
-  let approvedAll: number | undefined;
-  let pendingAll: number | undefined;
-  const items: Invoice[] = [];
-
-  while (true) {
-    const response = await apiClient.get<InvoiceListResponse>("/invoices", {
-      params: {
-        page,
-        limit: pageSize,
-        status: status || undefined,
-        from: from || undefined,
-        to: to || undefined
-      }
-    });
-
-    const data = sanitizeInvoiceListResponse(response.data);
-    if (page === 1) {
-      total = data.total;
-      totalAll = data.totalAll;
-      approvedAll = data.approvedAll;
-      pendingAll = data.pendingAll;
+export async function fetchInvoices(status?: string, from?: string, to?: string, page = 1, limit = 20, approvedBy?: string) {
+  const response = await apiClient.get<InvoiceListResponse>("/invoices", {
+    params: {
+      page,
+      limit,
+      status: status || undefined,
+      from: from || undefined,
+      to: to || undefined,
+      approvedBy: approvedBy || undefined
     }
+  });
 
-    items.push(...data.items);
-
-    if (data.items.length === 0 || items.length >= total || data.items.length < pageSize) {
-      break;
-    }
-
-    page += 1;
-  }
-
+  const data = sanitizeInvoiceListResponse(response.data);
   return {
-    items,
-    page: 1,
-    limit: items.length,
-    total: total || items.length,
-    totalAll,
-    approvedAll,
-    pendingAll
+    items: data.items,
+    page: data.page,
+    limit: data.limit,
+    total: data.total,
+    totalAll: data.totalAll,
+    approvedAll: data.approvedAll,
+    pendingAll: data.pendingAll
   };
 }
 

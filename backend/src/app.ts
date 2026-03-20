@@ -22,13 +22,17 @@ import {
 } from "./auth/middleware.js";
 import { logger, runWithLogContext } from "./utils/logger.js";
 import { isHttpError } from "./errors/HttpError.js";
+import { env } from "./config/env.js";
 
 export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof buildDependencies>>) {
   const dependencies = prebuiltDependencies ?? await buildDependencies();
   const app = express();
   const authenticate = createAuthenticationMiddleware(dependencies.authService);
 
-  app.use(cors({ exposedHeaders: ["Content-Disposition"] }));
+  app.use(cors({
+    origin: env.ENV === "local" ? true : env.FRONTEND_BASE_URL,
+    exposedHeaders: ["Content-Disposition"]
+  }));
   app.use(express.json({ limit: "10mb" }));
   app.use((req, res, next) => {
     const incoming = req.header("x-correlation-id");
@@ -49,9 +53,6 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/", healthRouter);
   app.use("/api", createAuthRouter(dependencies.authService));
   app.use("/api", createBankWebhooksRouter(dependencies.bankService));
-  // Gmail public routes bypass the authenticate middleware: /connect/gmail uses its own
-  // ?token= query param auth, and /connect/gmail/callback is an OAuth callback from KC
-  // that carries no Bearer token.
   app.use("/api", createGmailPublicRouter(dependencies.gmailIntegrationService, dependencies.authService));
   app.use("/api", authenticate);
   app.use("/api", createSessionRouter(dependencies.authService));
