@@ -35,6 +35,7 @@ import {
   renameInvoiceAttachment,
   uploadInvoiceFiles
 } from "./api";
+import { OverviewDashboard } from "./components/OverviewDashboard";
 import type { GmailConnectionStatus, IngestionJobStatus, Invoice } from "./types";
 import type { PlatformTenantUsageSummary } from "./api";
 import { ConfidenceBadge } from "./components/ConfidenceBadge";
@@ -126,7 +127,9 @@ export function App() {
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<TenantViewTab>("dashboard");
+  const [activeTab, setActiveTab] = useState<TenantViewTab>("overview");
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState("");
+  const [invoiceDateTo, setInvoiceDateTo] = useState("");
   const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
   const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
@@ -162,7 +165,7 @@ export function App() {
       return;
     }
     void loadInvoices();
-  }, [session, statusFilter]);
+  }, [session, statusFilter, invoiceDateFrom, invoiceDateTo]);
 
   useEffect(() => {
     if (!session) {
@@ -568,7 +571,11 @@ export function App() {
     setError(null);
 
     try {
-      const data = await fetchInvoices(statusFilter === "ALL" ? undefined : statusFilter);
+      const data = await fetchInvoices(
+        statusFilter === "ALL" ? undefined : statusFilter,
+        invoiceDateFrom || undefined,
+        invoiceDateTo || undefined
+      );
       setInvoices(data.items);
       setNavCounts({
         total: data.totalAll ?? data.total,
@@ -1381,6 +1388,32 @@ export function App() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                  <input
+                    type="date"
+                    className="overview-date-bar"
+                    style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
+                    value={invoiceDateFrom}
+                    max={invoiceDateTo || undefined}
+                    onChange={(e) => setInvoiceDateFrom(e.target.value)}
+                    title="Filter from date"
+                  />
+                  <input
+                    type="date"
+                    style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
+                    value={invoiceDateTo}
+                    min={invoiceDateFrom || undefined}
+                    onChange={(e) => setInvoiceDateTo(e.target.value)}
+                    title="Filter to date"
+                  />
+                  {(invoiceDateFrom || invoiceDateTo) ? (
+                    <button
+                      type="button"
+                      className="overview-preset-btn"
+                      onClick={() => { setInvoiceDateFrom(""); setInvoiceDateTo(""); }}
+                    >
+                      Clear dates
+                    </button>
+                  ) : null}
                   <div className="status-tabs">
                     {STATUSES.map((status) => (
                       <button
@@ -1463,6 +1496,10 @@ export function App() {
       </section>
 
       {error ? <p className="error">{error}</p> : null}
+
+      {!isPlatformAdmin && activeTab === "overview" ? (
+        <OverviewDashboard />
+      ) : null}
 
       {!isPlatformAdmin && activeTab === "dashboard" ? (
         <main ref={contentRef} className={contentClassName} style={contentStyle}>

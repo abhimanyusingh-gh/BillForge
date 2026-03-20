@@ -2213,3 +2213,14 @@ pre {
 .toolbar-icon-wrap:hover .toolbar-icon-label {
   display: block;
 }
+
+/* Overview Dashboard */
+.overview-dashboard { display: flex; flex-direction: column; gap: 1.5rem; padding: 1.2rem; overflow-y: auto; }
+.overview-date-bar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.overview-date-bar input[type="date"] { border: 1px solid var(--line); border-radius: 6px; padding: 0.35rem 0.55rem; font-size: 0.85rem; }
+.overview-preset-btn { font-size: 0.78rem; padding: 0.3rem 0.65rem; border: 1px solid var(--line); border-radius: 5px; background: #fff; cursor: pointer; color: var(--ink-soft); }
+.overview-preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+.overview-charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.overview-chart-card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 1rem; }
+.overview-chart-card h4 { margin: 0 0 0.75rem; font-size: 0.9rem; font-weight: 700; color: var(--ink); }
+.overview-vendors-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }

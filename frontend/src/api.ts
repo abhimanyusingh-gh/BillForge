@@ -1,5 +1,6 @@
 import axios from "axios";
 import type {
+  AnalyticsOverview,
   ExportHistoryResponse,
   GmailConnectionStatus,
   IngestionJobStatus,
@@ -180,7 +181,14 @@ export async function changePassword(currentPassword: string, newPassword: strin
   await apiClient.post("/auth/change-password", { currentPassword, newPassword });
 }
 
-export async function fetchInvoices(status?: string) {
+export async function fetchAnalyticsOverview(from: string, to: string): Promise<AnalyticsOverview> {
+  const response = await apiClient.get<AnalyticsOverview>("/analytics/overview", {
+    params: { from, to }
+  });
+  return response.data;
+}
+
+export async function fetchInvoices(status?: string, from?: string, to?: string) {
   const pageSize = 100;
   let page = 1;
   let total = 0;
@@ -194,7 +202,9 @@ export async function fetchInvoices(status?: string) {
       params: {
         page,
         limit: pageSize,
-        status: status || undefined
+        status: status || undefined,
+        from: from || undefined,
+        to: to || undefined
       }
     });
 

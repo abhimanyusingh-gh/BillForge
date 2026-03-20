@@ -5,6 +5,7 @@ import { healthRouter } from "./routes/health.js";
 import { buildDependencies } from "./core/dependencies.js";
 import { createInvoiceRouter } from "./routes/invoices.js";
 import { createExportRouter } from "./routes/export.js";
+import { createAnalyticsRouter } from "./routes/analytics.js";
 import { createJobsRouter } from "./routes/jobs.js";
 import { createGmailConnectionRouter, createGmailPublicRouter } from "./routes/gmailConnection.js";
 import { createAuthRouter } from "./routes/auth.js";
@@ -71,6 +72,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService, dependencies.fileStore)
   );
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createExportRouter(dependencies.exportService));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";

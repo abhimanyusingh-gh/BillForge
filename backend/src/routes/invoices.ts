@@ -38,13 +38,18 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
       const limit = Math.min(Math.max(Number(req.query.limit ?? 20), 1), 100);
       const status = typeof req.query.status === "string" ? req.query.status : undefined;
       const workloadTier = parseWorkloadTier(req.query.workloadTier);
+      const fromDate = parseIsoDate(req.query.from);
+      const toDate = parseIsoDate(req.query.to);
+      if (toDate) toDate.setHours(23, 59, 59, 999);
 
       const result = await invoiceService.listInvoices({
         page,
         limit,
         status,
         tenantId: authContext.tenantId,
-        workloadTier
+        workloadTier,
+        from: fromDate ?? undefined,
+        to: toDate ?? undefined
       });
       res.json(result);
     } catch (error) {
@@ -553,4 +558,12 @@ function parseWorkloadTier(value: unknown): WorkloadTier | undefined {
     return value;
   }
   return undefined;
+}
+
+function parseIsoDate(value: unknown): Date | null {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+  const d = new Date(value.trim());
+  return isNaN(d.getTime()) ? null : d;
 }

@@ -15,6 +15,8 @@ interface ListInvoicesParams {
   workloadTier?: WorkloadTier;
   page: number;
   limit: number;
+  from?: Date;
+  to?: Date;
 }
 
 export type UpdateParsedFieldInput = Partial<{
@@ -54,6 +56,12 @@ export class InvoiceService {
     const query: Record<string, unknown> = { ...baseQuery };
     if (params.status) {
       query.status = params.status;
+    }
+    if (params.from || params.to) {
+      const dateFilter: Record<string, Date> = {};
+      if (params.from) dateFilter.$gte = params.from;
+      if (params.to) dateFilter.$lte = params.to;
+      query.createdAt = dateFilter;
     }
 
     const skip = (params.page - 1) * params.limit;

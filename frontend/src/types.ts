@@ -133,6 +133,27 @@ export interface IngestionJobStatus {
 
 export type GmailConnectionState = "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";
 
+export interface DailyStat { date: string; count: number; amountMinor?: number; }
+export interface VendorStat { vendor: string; count: number; amountMinor: number; }
+export interface StatusStat { status: string; count: number; }
+
+export interface AnalyticsOverview {
+  kpis: {
+    totalInvoices: number;
+    approvedCount: number;
+    approvedAmountMinor: number;
+    pendingAmountMinor: number;
+    exportedCount: number;
+    needsReviewCount: number;
+  };
+  dailyApprovals: DailyStat[];
+  dailyIngestion: DailyStat[];
+  dailyExports: DailyStat[];
+  statusBreakdown: StatusStat[];
+  topVendorsByApproved: VendorStat[];
+  topVendorsByPending: VendorStat[];
+}
+
 export interface GmailConnectionStatus {
   provider: "gmail";
   emailAddress?: string;

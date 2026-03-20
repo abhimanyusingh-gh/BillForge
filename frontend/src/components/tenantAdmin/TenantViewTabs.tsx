@@ -1,4 +1,4 @@
-export type TenantViewTab = "dashboard" | "config" | "exports";
+export type TenantViewTab = "overview" | "dashboard" | "config" | "exports";
 
 interface TenantViewTabsProps {
   activeTab: TenantViewTab;
@@ -15,10 +15,17 @@ export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: 
     <div className="tenant-view-tabs" role="tablist" aria-label="Tenant workspace sections">
       <button
         type="button"
+        className={activeTab === "overview" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+        onClick={() => onTabChange("overview")}
+      >
+        Overview
+      </button>
+      <button
+        type="button"
         className={activeTab === "dashboard" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
         onClick={() => onTabChange("dashboard")}
       >
-        Dashboard
+        Invoices
       </button>
       <button
         type="button"
