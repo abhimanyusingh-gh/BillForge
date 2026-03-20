@@ -50,6 +50,7 @@ export interface Invoice {
   approval?: {
     approvedBy?: string;
     approvedAt?: string;
+    email?: string;
   };
   export?: {
     system?: string;

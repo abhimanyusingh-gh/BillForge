@@ -18,25 +18,32 @@ import { EmptyState } from "./EmptyState";
 import type { AnalyticsOverview, DailyStat, VendorStat } from "../types";
 import { STATUS_LABELS } from "../invoiceView";
 
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateStr(new Date());
 }
 
 function firstOfMonthStr(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  return toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
 }
 
 function firstOfQuarterStr(): string {
   const now = new Date();
   const quarterStart = Math.floor(now.getMonth() / 3) * 3;
-  return new Date(now.getFullYear(), quarterStart, 1).toISOString().slice(0, 10);
+  return toLocalDateStr(new Date(now.getFullYear(), quarterStart, 1));
 }
 
 function nDaysAgoStr(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n + 1);
-  return d.toISOString().slice(0, 10);
+  return toLocalDateStr(d);
 }
 
 function lastMonthRange(): { from: string; to: string } {
@@ -45,10 +52,12 @@ function lastMonthRange(): { from: string; to: string } {
   const lastOfLastMonth = new Date(firstOfThisMonth.getTime() - 1);
   const firstOfLastMonth = new Date(lastOfLastMonth.getFullYear(), lastOfLastMonth.getMonth(), 1);
   return {
-    from: firstOfLastMonth.toISOString().slice(0, 10),
-    to: lastOfLastMonth.toISOString().slice(0, 10)
+    from: toLocalDateStr(firstOfLastMonth),
+    to: toLocalDateStr(lastOfLastMonth)
   };
 }
+
+type PresetKey = "this-month" | "last-month" | "7d" | "30d" | "quarter" | null;
 
 function priorPeriodRange(from: string, to: string): { from: string; to: string } {
   const start = new Date(from);
@@ -212,6 +221,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 export function OverviewDashboard() {
   const [from, setFrom] = useState(firstOfMonthStr());
   const [to, setTo] = useState(todayStr());
+  const [activePreset, setActivePreset] = useState<PresetKey>("this-month");
   const [scope, setScope] = useState<"mine" | "all">("all");
   const [data, setData] = useState<AnalyticsOverview | null>(null);
   const [priorData, setPriorData] = useState<AnalyticsOverview | null>(null);
@@ -242,9 +252,10 @@ export function OverviewDashboard() {
     return () => { cancelled = true; };
   }, [from, to, scope]);
 
-  function applyPreset(f: string, t: string) {
+  function applyPreset(f: string, t: string, key: PresetKey) {
     setFrom(f);
     setTo(t);
+    setActivePreset(key);
   }
 
   const kpis = data?.kpis;
@@ -270,14 +281,14 @@ export function OverviewDashboard() {
     <div className="overview-dashboard">
       <div className="overview-date-bar">
         <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink-soft)" }}>Date range:</span>
-        <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+        <input type="date" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setActivePreset(null); }} />
         <span style={{ color: "var(--ink-soft)" }}>–</span>
-        <input type="date" value={to} min={from} max={todayStr()} onChange={(e) => setTo(e.target.value)} />
-        <button className="overview-preset-btn" onClick={() => applyPreset(firstOfMonthStr(), todayStr())}>This Month</button>
-        <button className="overview-preset-btn" onClick={() => { const r = lastMonthRange(); applyPreset(r.from, r.to); }}>Last Month</button>
-        <button className="overview-preset-btn" onClick={() => applyPreset(nDaysAgoStr(7), todayStr())}>Last 7 Days</button>
-        <button className="overview-preset-btn" onClick={() => applyPreset(nDaysAgoStr(30), todayStr())}>Last 30 Days</button>
-        <button className="overview-preset-btn" onClick={() => applyPreset(firstOfQuarterStr(), todayStr())}>This Quarter</button>
+        <input type="date" value={to} min={from} onChange={(e) => { setTo(e.target.value); setActivePreset(null); }} />
+        <button className={`overview-preset-btn${activePreset === "this-month" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(firstOfMonthStr(), todayStr(), "this-month")}>This Month</button>
+        <button className={`overview-preset-btn${activePreset === "last-month" ? " overview-preset-btn-active" : ""}`} onClick={() => { const r = lastMonthRange(); applyPreset(r.from, r.to, "last-month"); }}>Last Month</button>
+        <button className={`overview-preset-btn${activePreset === "7d" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(nDaysAgoStr(7), todayStr(), "7d")}>Last 7 Days</button>
+        <button className={`overview-preset-btn${activePreset === "30d" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(nDaysAgoStr(30), todayStr(), "30d")}>Last 30 Days</button>
+        <button className={`overview-preset-btn${activePreset === "quarter" ? " overview-preset-btn-active" : ""}`} onClick={() => applyPreset(firstOfQuarterStr(), todayStr(), "quarter")}>This Quarter</button>
         {loading ? <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>Refreshing…</span> : null}
         <div style={{ marginLeft: "auto", display: "flex", gap: 0, borderRadius: 6, overflow: "hidden", border: "1px solid var(--line)" }}>
           <button
@@ -524,7 +535,7 @@ export function OverviewDashboard() {
           icon="insights"
           heading="No data for this period"
           description="Try adjusting the date range or check back after some invoices are processed."
-          action={<button type="button" className="app-button app-button-primary" onClick={() => applyPreset(firstOfMonthStr(), todayStr())}>Reset to This Month</button>}
+          action={<button type="button" className="app-button app-button-primary" onClick={() => applyPreset(firstOfMonthStr(), todayStr(), "this-month")}>Reset to This Month</button>}
         />
       ) : null}
     </div>
