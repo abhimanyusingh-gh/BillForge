@@ -5,8 +5,8 @@ import { completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const frontendBaseUrl = process.env.E2E_FRONTEND_BASE_URL ?? "http://127.0.0.1:5177";
-const ocrHealthUrl = process.env.E2E_OCR_HEALTH_URL ?? "http://127.0.0.1:8200/v1/health";
-const slmHealthUrl = process.env.E2E_SLM_HEALTH_URL ?? "http://127.0.0.1:8300/v1/health";
+const ocrHealthUrl = process.env.E2E_OCR_HEALTH_URL ?? "http://127.0.0.1:8200/health";
+const slmHealthUrl = process.env.E2E_SLM_HEALTH_URL ?? "http://127.0.0.1:8300/health";
 const inboxDir =
   process.env.E2E_INBOX_DIR ?? path.resolve(process.cwd(), "..", "sample-invoices", "e2e-inbox");
 

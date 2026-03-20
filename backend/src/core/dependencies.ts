@@ -52,16 +52,16 @@ export async function buildDependencies(): Promise<Dependencies> {
   const keycloakAdmin = new KeycloakAdminClient(
     env.keycloakInternalBaseUrl,
     env.keycloakRealm,
-    env.STS_CLIENT_ID,
-    env.STS_CLIENT_SECRET
+    env.OIDC_CLIENT_ID,
+    env.OIDC_CLIENT_SECRET
   );
   const oidcProvider = new HttpOidcProvider({
-    clientId: env.STS_CLIENT_ID,
-    clientSecret: env.STS_CLIENT_SECRET,
-    authUrl: env.STS_AUTH_URL,
-    tokenUrl: env.STS_TOKEN_URL,
-    validateUrl: env.STS_VALIDATE_URL,
-    userInfoUrl: env.STS_USERINFO_URL,
+    clientId: env.OIDC_CLIENT_ID,
+    clientSecret: env.OIDC_CLIENT_SECRET,
+    authUrl: env.OIDC_AUTH_URL,
+    tokenUrl: env.OIDC_TOKEN_URL,
+    validateUrl: env.OIDC_VALIDATE_URL,
+    userInfoUrl: env.OIDC_USERINFO_URL,
     timeoutMs: 10_000
   });
   const authService = new AuthService(oidcProvider, keycloakAdmin);

@@ -9,7 +9,7 @@ export function resolveBearerToken(request: Request): string {
   }
 
   const [scheme, token] = authorization.split(" ");
-  const normalizedToken = typeof token === "string" ? token.trim() : "";
+  const normalizedToken = token.trim();
   if (scheme?.toLowerCase() !== "bearer" || !normalizedToken || normalizedToken === "undefined" || normalizedToken === "null") {
     return queryToken;
   }

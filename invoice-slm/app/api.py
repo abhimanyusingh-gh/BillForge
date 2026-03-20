@@ -49,11 +49,6 @@ def health() -> dict[str, Any]:
   return provider.health()
 
 
-@app.get("/v1/health")
-def health_v1() -> dict[str, Any]:
-  return health()
-
-
 @app.get("/ping")
 def ping() -> dict[str, Any]:
   return {"pong": True}
