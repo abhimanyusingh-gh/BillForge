@@ -103,7 +103,10 @@ export function TenantInvoicesView({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
-  const [listPanelPercent, setListPanelPercent] = useState(58);
+  const [listPanelPercent, setListPanelPercent] = useState(() => {
+    const stored = localStorage.getItem("billforge:panel-split");
+    return stored ? Number(stored) : 58;
+  });
   const contentRef = useRef<HTMLElement>(null);
   const [invoiceDateFrom, setInvoiceDateFrom] = useState("");
   const [invoiceDateTo, setInvoiceDateTo] = useState("");
@@ -266,10 +269,13 @@ export function TenantInvoicesView({
     [popupInvoice]
   );
 
+  const activeCropUrlByField = useMemo(() => {
+    if (!activeInvoice) return {};
+    return buildFieldCropUrlMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoiceBlockCropUrl);
+  }, [activeInvoice]);
+
   const popupCropUrlByField = useMemo(() => {
-    if (!popupInvoice) {
-      return {};
-    }
+    if (!popupInvoice) return {};
     return buildFieldCropUrlMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoiceBlockCropUrl);
   }, [popupInvoice]);
 
@@ -380,6 +386,7 @@ export function TenantInvoicesView({
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      localStorage.setItem("billforge:panel-split", String(listPanelPercent));
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
@@ -1128,15 +1135,24 @@ export function TenantInvoicesView({
 
                 {activeInvoice ? (
                   <div className="detail-scroll">
-                    {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
-                    <InvoiceSourceViewer
-                      invoice={activeInvoice}
-                      overlayUrlByField={activeOverlayUrlByField}
-                      resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
-                    />
+                    <div className="detail-content">
+                      {activeInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
+                      <div className="detail-grid">
+                        <p><span>Status</span><strong>{activeInvoice.status}</strong></p>
+                        <p><span>Received</span>{new Date(activeInvoice.receivedAt).toLocaleString()}</p>
+                        <p><span>Confidence</span><ConfidenceBadge score={activeInvoice.confidenceScore} /></p>
+                        <p><span>File</span>{activeInvoice.attachmentName}</p>
+                      </div>
+                      <ExtractedFieldsTable
+                        rows={getExtractedFieldRows(activeInvoice)}
+                        cropUrlByField={activeCropUrlByField}
+                        editable={activeInvoice.status !== "EXPORTED" && !isViewer}
+                        onSaveField={(fieldKey, value) => handleSaveField(activeInvoice, fieldKey, value, refreshActiveInvoiceDetail)}
+                      />
+                    </div>
                   </div>
                 ) : (
-                  <p className="muted">Select an invoice to inspect details.</p>
+                  <p className="muted" style={{ padding: "1rem" }}>Select an invoice to inspect details.</p>
                 )}
               </section>
             </>
