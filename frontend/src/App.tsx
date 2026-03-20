@@ -79,7 +79,15 @@ export function App() {
   const [loginEmail, setLoginEmail] = useState<string>("");
   const [loginPassword, setLoginPassword] = useState<string>("");
   const [loginSubmitting, setLoginSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<TenantViewTab>("overview");
+  const [activeTab, setActiveTabRaw] = useState<TenantViewTab>(() => {
+    const stored = localStorage.getItem("billforge:active-tab");
+    const valid: TenantViewTab[] = ["overview", "dashboard", "config", "exports", "connections"];
+    return stored && valid.includes(stored as TenantViewTab) ? (stored as TenantViewTab) : "overview";
+  });
+  const setActiveTab = useCallback((tab: TenantViewTab) => {
+    setActiveTabRaw(tab);
+    localStorage.setItem("billforge:active-tab", tab);
+  }, []);
   const [selectedPlatformTenantId, setSelectedPlatformTenantId] = useState<string | null>(null);
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
   const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);

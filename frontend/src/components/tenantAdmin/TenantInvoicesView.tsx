@@ -48,6 +48,7 @@ import { useInvoiceDetail } from "../../hooks/useInvoiceDetail";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getUserFacingErrorMessage, isAuthenticationError } from "../../apiError";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { EmptyState } from "../EmptyState";
 
 const STATUS_ICONS: Record<string, string> = {
   PENDING: "hourglass_empty",
@@ -115,6 +116,8 @@ export function TenantInvoicesView({
   const [editingListCell, setEditingListCell] = useState<{ invoiceId: string; field: string } | null>(null);
   const [editListValue, setEditListValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
@@ -329,17 +332,37 @@ export function TenantInvoicesView({
   );
 
   const filteredInvoices = useMemo(() => {
-    if (!debouncedSearch.trim()) {
-      return invoices;
+    let result = invoices;
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.trim().toLowerCase();
+      result = result.filter(
+        (invoice) =>
+          invoice.attachmentName.toLowerCase().includes(q) ||
+          (invoice.parsed?.vendorName ?? "").toLowerCase().includes(q) ||
+          (invoice.parsed?.invoiceNumber ?? "").toLowerCase().includes(q)
+      );
     }
-    const q = debouncedSearch.trim().toLowerCase();
-    return invoices.filter(
-      (invoice) =>
-        invoice.attachmentName.toLowerCase().includes(q) ||
-        (invoice.parsed?.vendorName ?? "").toLowerCase().includes(q) ||
-        (invoice.parsed?.invoiceNumber ?? "").toLowerCase().includes(q)
-    );
-  }, [invoices, debouncedSearch]);
+    if (sortColumn) {
+      const dir = sortDirection === "asc" ? 1 : -1;
+      result = [...result].sort((a, b) => {
+        let va: string | number = "";
+        let vb: string | number = "";
+        switch (sortColumn) {
+          case "file": va = a.attachmentName; vb = b.attachmentName; break;
+          case "vendor": va = a.parsed?.vendorName ?? ""; vb = b.parsed?.vendorName ?? ""; break;
+          case "invoiceNumber": va = a.parsed?.invoiceNumber ?? ""; vb = b.parsed?.invoiceNumber ?? ""; break;
+          case "invoiceDate": va = a.parsed?.invoiceDate ?? ""; vb = b.parsed?.invoiceDate ?? ""; break;
+          case "total": va = a.parsed?.totalAmountMinor ?? 0; vb = b.parsed?.totalAmountMinor ?? 0; break;
+          case "confidence": va = a.confidenceScore ?? 0; vb = b.confidenceScore ?? 0; break;
+          case "status": va = a.status; vb = b.status; break;
+          case "received": va = a.receivedAt; vb = b.receivedAt; break;
+        }
+        if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+        return String(va).localeCompare(String(vb)) * dir;
+      });
+    }
+    return result;
+  }, [invoices, debouncedSearch, sortColumn, sortDirection]);
 
   const selectableVisibleIds = useMemo(
     () => filteredInvoices.filter((invoice) => isInvoiceSelectable(invoice)).map((invoice) => invoice._id),
@@ -894,7 +917,7 @@ export function TenantInvoicesView({
           <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
             <span className="material-symbols-outlined">{detailsPanelVisible ? "visibility_off" : "visibility"}</span>
           </button>
-          <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide panel" : "Show panel"}</span>
+          <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide Details" : "Show Details"}</span>
         </span>
       </div>
       <IngestionProgressCard
@@ -918,19 +941,26 @@ export function TenantInvoicesView({
               </div>
             ) : null}
 
+            {!loading && invoices.length === 0 ? (
+              <EmptyState
+                icon="receipt_long"
+                heading="No invoices yet"
+                description="Upload invoice PDFs or connect a Gmail inbox to start processing."
+                action={!isViewer ? <button type="button" className="app-button app-button-primary" onClick={() => uploadInputRef.current?.click()}>Upload Files</button> : undefined}
+              />
+            ) : null}
+
             <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
               <table>
                 <thead>
                   <tr>
                     <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
-                    <th>File</th>
-                    <th>Vendor</th>
-                    <th>Invoice #</th>
-                    <th>Invoice Date</th>
-                    <th>Total</th>
-                    <th>Confidence</th>
-                    <th>Status</th>
-                    <th>Received</th>
+                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["confidence", "Confidence"], ["status", "Status"], ["received", "Received"]] as const).map(([key, label]) => (
+                      <th key={key} className="sortable-th" onClick={() => { if (sortColumn === key) { setSortDirection((d) => d === "asc" ? "desc" : "asc"); } else { setSortColumn(key); setSortDirection("asc"); } }}>
+                        {label}
+                        {sortColumn === key ? <span className="sort-indicator">{sortDirection === "asc" ? " \u25B2" : " \u25BC"}</span> : null}
+                      </th>
+                    ))}
                     <th></th>
                   </tr>
                 </thead>

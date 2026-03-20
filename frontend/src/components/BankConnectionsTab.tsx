@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { BankAccount, TenantMailbox } from "../types";
+import { EmptyState } from "./EmptyState";
 
 interface BankConnectionsTabProps {
   mailboxes: TenantMailbox[];
@@ -60,7 +61,7 @@ export function BankConnectionsTab({
           </button>
         </div>
         {mailboxes.length === 0 ? (
-          <p style={{ color: "var(--ink-soft)", fontSize: "0.875rem", margin: "0.5rem 0" }}>No inboxes connected.</p>
+          <EmptyState icon="mail" heading="No inboxes connected" description="Connect a Gmail inbox to automatically receive and process invoices." />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
             {mailboxes.map((mailbox) => (
@@ -182,7 +183,7 @@ export function BankConnectionsTab({
         </div>
 
         {bankAccounts.length === 0 ? (
-          <p style={{ color: "var(--ink-soft)", fontSize: "0.875rem" }}>No bank accounts connected.</p>
+          <EmptyState icon="account_balance" heading="No bank accounts connected" description="Link a bank account via Account Aggregator to view balances." />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {bankAccounts.map((account) => (
