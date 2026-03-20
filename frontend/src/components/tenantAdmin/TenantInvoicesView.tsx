@@ -125,6 +125,12 @@ export function TenantInvoicesView({
     const stored = localStorage.getItem("billforge:table-density");
     return stored === "compact" || stored === "spacious" ? stored : "comfortable";
   });
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem("billforge:col-widths");
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
   const [popupSourcePreviewExpanded, setPopupSourcePreviewExpanded] = useState(false);
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
@@ -422,6 +428,33 @@ export function TenantInvoicesView({
     },
     onShowHelp: () => setShowShortcutsHelp(true)
   });
+
+  const handleColumnResize = useCallback((colKey: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.target as HTMLElement).parentElement;
+    if (!th) return;
+    const startX = e.clientX;
+    const startWidth = th.offsetWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const onMove = (ev: MouseEvent) => {
+      const newWidth = Math.max(60, startWidth + ev.clientX - startX);
+      setColumnWidths((prev) => {
+        const next = { ...prev, [colKey]: newWidth };
+        localStorage.setItem("billforge:col-widths", JSON.stringify(next));
+        return next;
+      });
+    };
+    const onUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, []);
 
   const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -954,18 +987,11 @@ export function TenantInvoicesView({
           <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide Details" : "Show Details"}</span>
         </span>
         <div className="toolbar-divider" />
-        {(["compact", "comfortable", "spacious"] as const).map((d) => (
-          <span key={d} className="toolbar-icon-wrap">
-            <button
-              type="button"
-              className={`toolbar-icon-button${tableDensity === d ? " toolbar-icon-button-active" : ""}`}
-              onClick={() => { setTableDensity(d); localStorage.setItem("billforge:table-density", d); }}
-            >
-              <span className="material-symbols-outlined">{d === "compact" ? "density_small" : d === "comfortable" ? "density_medium" : "density_large"}</span>
-            </button>
-            <span className="toolbar-icon-label">{d.charAt(0).toUpperCase() + d.slice(1)}</span>
-          </span>
-        ))}
+        <select className="search-input" style={{ flex: "none", minWidth: "auto", width: "auto", fontSize: "0.8rem" }} value={tableDensity} onChange={(e) => { const d = e.target.value as "compact" | "comfortable" | "spacious"; setTableDensity(d); localStorage.setItem("billforge:table-density", d); }}>
+          <option value="compact">Compact</option>
+          <option value="comfortable">Comfortable</option>
+          <option value="spacious">Spacious</option>
+        </select>
       </div>
       <IngestionProgressCard
         status={ingestionStatus}
@@ -1003,9 +1029,15 @@ export function TenantInvoicesView({
                   <tr>
                     <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
                     {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["confidence", "Confidence"], ["status", "Status"], ["received", "Received"]] as const).map(([key, label]) => (
-                      <th key={key} className="sortable-th" onClick={() => { if (sortColumn === key) { setSortDirection((d) => d === "asc" ? "desc" : "asc"); } else { setSortColumn(key); setSortDirection("asc"); } }}>
+                      <th
+                        key={key}
+                        className="sortable-th"
+                        style={columnWidths[key] ? { width: columnWidths[key], position: "relative" } : { position: "relative" }}
+                        onClick={() => { if (sortColumn === key) { setSortDirection((d) => d === "asc" ? "desc" : "asc"); } else { setSortColumn(key); setSortDirection("asc"); } }}
+                      >
                         {label}
                         {sortColumn === key ? <span className="sort-indicator">{sortDirection === "asc" ? " \u25B2" : " \u25BC"}</span> : null}
+                        <span className="col-resize-handle" onMouseDown={(e) => handleColumnResize(key, e)} />
                       </th>
                     ))}
                     <th></th>
@@ -1235,16 +1267,16 @@ export function TenantInvoicesView({
                         <p><span>Confidence</span><ConfidenceBadge score={activeInvoice.confidenceScore} /></p>
                         <p><span>File</span>{activeInvoice.attachmentName}</p>
                       </div>
+                      <InvoiceSourceViewer
+                        invoice={activeInvoice}
+                        overlayUrlByField={activeOverlayUrlByField}
+                        resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
+                      />
                       <ExtractedFieldsTable
                         rows={getExtractedFieldRows(activeInvoice)}
                         cropUrlByField={activeCropUrlByField}
                         editable={activeInvoice.status !== "EXPORTED" && !isViewer}
                         onSaveField={(fieldKey, value) => handleSaveField(activeInvoice, fieldKey, value, refreshActiveInvoiceDetail)}
-                      />
-                      <InvoiceSourceViewer
-                        invoice={activeInvoice}
-                        overlayUrlByField={activeOverlayUrlByField}
-                        resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
                       />
                     </div>
                   </div>
