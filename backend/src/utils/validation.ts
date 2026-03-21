@@ -1,6 +1,14 @@
 import { Types } from "mongoose";
 import { ALLOWED_UPLOAD_EXTENSIONS } from "../constants.js";
 
+export function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function toValidObjectId(value: string): Types.ObjectId | null {
   return Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
 }

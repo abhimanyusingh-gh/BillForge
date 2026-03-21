@@ -18,7 +18,7 @@ import { ViewerScopeModel } from "../models/ViewerScope.js";
 import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { logger } from "../utils/logger.js";
-import { validateDateRange } from "../utils/validation.js";
+import { isRecord, isString, validateDateRange } from "../utils/validation.js";
 
 let s3Client: S3Client | null = null;
 const SOURCE_OVERLAY_FIELDS = new Set([
@@ -560,20 +560,12 @@ async function assertPathReadable(filePath: string): Promise<void> {
   await access(filePath, fsConstants.R_OK);
 }
 
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
-
 function safeSendFile(res: Response, filePath: string, next: (err: unknown) => void): void {
   res.sendFile(filePath, (err) => {
     if (err && !res.headersSent) {
       next(err);
     }
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseWorkloadTier(value: unknown): WorkloadTier | undefined {
