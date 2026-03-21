@@ -123,10 +123,13 @@ const invoiceSchema = new Schema(
     },
 
     workflowState: {
-      workflowId: { type: String },
-      currentStep: { type: Number },
-      status: { type: String, enum: ["in_progress", "approved", "rejected"] },
-      stepResults: { type: [workflowStepResultSchema], default: [] }
+      type: new Schema({
+        workflowId: { type: String },
+        currentStep: { type: Number },
+        status: { type: String, enum: ["in_progress", "approved", "rejected"] },
+        stepResults: { type: [workflowStepResultSchema], default: [] }
+      }, { _id: false }),
+      default: undefined
     },
 
     export: {

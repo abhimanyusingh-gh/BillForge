@@ -203,9 +203,16 @@ export class InvoiceService {
           advanced++;
           continue;
         }
+        try {
+          const result = await this.workflowService!.approveStep(invoiceId, authContext);
+          if (result.advanced) advanced++;
+        } catch {
+          advanced++;
+        }
+        continue;
       }
 
-      if (invoice.status === "AWAITING_APPROVAL" || invoice.status === "PARSED" || invoice.status === "NEEDS_REVIEW") {
+      if (invoice.status === "AWAITING_APPROVAL") {
         try {
           const result = await this.workflowService!.approveStep(invoiceId, authContext);
           if (result.advanced) advanced++;
