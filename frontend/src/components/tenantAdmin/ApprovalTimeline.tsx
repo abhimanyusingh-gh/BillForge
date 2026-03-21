@@ -1,11 +1,6 @@
-import type { Invoice, WorkflowStep } from "../../types";
+import type { Invoice } from "../../types";
 
-interface ApprovalTimelineProps {
-  invoice: Invoice;
-  workflowSteps?: WorkflowStep[];
-}
-
-export function ApprovalTimeline({ invoice }: ApprovalTimelineProps) {
+export function ApprovalTimeline({ invoice }: { invoice: Invoice }) {
   const ws = invoice.workflowState;
   if (!ws || !ws.stepResults || ws.stepResults.length === 0) {
     if (invoice.approval?.approvedAt) {
@@ -45,7 +40,7 @@ export function ApprovalTimeline({ invoice }: ApprovalTimelineProps) {
         detail: `Rejected by ${lastResult.email ?? "unknown"}${lastResult.note ? `: ${lastResult.note}` : ""}`
       });
     } else if (lastResult?.action === "approved") {
-      if (ws.currentStep && ws.currentStep > i || ws.status === "approved") {
+      if ((ws.currentStep && ws.currentStep > i) || ws.status === "approved") {
         const approvers = results.filter((r) => r.action === "approved").map((r) => r.email ?? "unknown");
         steps.push({
           step: i,

@@ -121,7 +121,7 @@ export async function buildDependencies(): Promise<Dependencies> {
 
   return {
     ingestionService,
-    invoiceService: new InvoiceService({ fileStore: storage.fileStore }),
+    invoiceService: new InvoiceService({ fileStore: storage.fileStore, workflowService: approvalWorkflowService }),
     exportService: storage.exportService,
     emailSimulationService: new EmailSimulationService(),
     ...auth,

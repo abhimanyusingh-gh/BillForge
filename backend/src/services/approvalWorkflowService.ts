@@ -15,11 +15,39 @@ interface WorkflowStep {
   condition?: { field: string; operator: string; value: number } | null;
 }
 
-interface WorkflowConfig {
+export interface WorkflowConfig {
   enabled: boolean;
   mode: "simple" | "advanced";
   simpleConfig: { requireManagerReview: boolean; requireFinalSignoff: boolean };
   steps: WorkflowStep[];
+}
+
+interface WorkflowStateData {
+  workflowId: string;
+  currentStep: number;
+  status: string;
+  stepResults: Array<{
+    step: number;
+    name: string;
+    action: string;
+    userId?: string;
+    email?: string;
+    role?: string;
+    timestamp: Date;
+    note?: string;
+  }>;
+}
+
+function mapStepsFromDoc(steps: Array<{ order: number; name: string; approverType: string; approverRole?: string | null; approverUserIds?: string[]; rule: string; condition?: { field?: string | null; operator?: string | null; value?: number | null } | null }>): WorkflowStep[] {
+  return steps.map((s) => ({
+    order: s.order,
+    name: s.name,
+    approverType: s.approverType as WorkflowStep["approverType"],
+    approverRole: s.approverRole ?? undefined,
+    approverUserIds: s.approverUserIds ?? [],
+    rule: s.rule as "any" | "all",
+    condition: s.condition?.field ? { field: s.condition.field, operator: s.condition.operator!, value: s.condition.value! } : null
+  }));
 }
 
 export class ApprovalWorkflowService {
@@ -33,15 +61,7 @@ export class ApprovalWorkflowService {
         requireManagerReview: doc.simpleConfig?.requireManagerReview ?? false,
         requireFinalSignoff: doc.simpleConfig?.requireFinalSignoff ?? false
       },
-      steps: (doc.steps ?? []).map((s) => ({
-        order: s.order,
-        name: s.name,
-        approverType: s.approverType as WorkflowStep["approverType"],
-        approverRole: s.approverRole ?? undefined,
-        approverUserIds: s.approverUserIds ?? [],
-        rule: s.rule as "any" | "all",
-        condition: s.condition?.field ? { field: s.condition.field, operator: s.condition.operator!, value: s.condition.value! } : null
-      }))
+      steps: mapStepsFromDoc(doc.steps ?? [])
     };
   }
 
@@ -50,14 +70,7 @@ export class ApprovalWorkflowService {
 
     const doc = await ApprovalWorkflowModel.findOneAndUpdate(
       { tenantId },
-      {
-        tenantId,
-        enabled: config.enabled,
-        mode: config.mode,
-        simpleConfig: config.simpleConfig,
-        steps,
-        updatedBy: userId
-      },
+      { tenantId, enabled: config.enabled, mode: config.mode, simpleConfig: config.simpleConfig, steps, updatedBy: userId },
       { upsert: true, new: true }
     ).lean();
 
@@ -78,19 +91,11 @@ export class ApprovalWorkflowService {
         requireManagerReview: doc.simpleConfig?.requireManagerReview ?? false,
         requireFinalSignoff: doc.simpleConfig?.requireFinalSignoff ?? false
       },
-      steps: (doc.steps ?? []).map((s) => ({
-        order: s.order,
-        name: s.name,
-        approverType: s.approverType as WorkflowStep["approverType"],
-        approverRole: s.approverRole ?? undefined,
-        approverUserIds: s.approverUserIds ?? [],
-        rule: s.rule as "any" | "all",
-        condition: s.condition?.field ? { field: s.condition.field, operator: s.condition.operator!, value: s.condition.value! } : null
-      }))
+      steps: mapStepsFromDoc(doc.steps ?? [])
     };
   }
 
-  private buildSimpleSteps(config: { requireManagerReview: boolean; requireFinalSignoff: boolean }): WorkflowStep[] {
+  buildSimpleSteps(config: { requireManagerReview: boolean; requireFinalSignoff: boolean }): WorkflowStep[] {
     const steps: WorkflowStep[] = [
       { order: 1, name: "Team member approval", approverType: "any_member", rule: "any" }
     ];
@@ -101,6 +106,11 @@ export class ApprovalWorkflowService {
       steps.push({ order: steps.length + 1, name: "Final sign-off", approverType: "role", approverRole: "TENANT_ADMIN", rule: "any" });
     }
     return steps;
+  }
+
+  async isWorkflowEnabled(tenantId: string): Promise<boolean> {
+    const doc = await ApprovalWorkflowModel.findOne({ tenantId, enabled: true }).select({ _id: 1 }).lean();
+    return !!doc;
   }
 
   async canUserApproveStep(userId: string, tenantId: string, step: WorkflowStep): Promise<boolean> {
@@ -130,21 +140,21 @@ export class ApprovalWorkflowService {
     }
   }
 
-  async initiateWorkflow(invoiceId: string, tenantId: string): Promise<void> {
+  async initiateWorkflow(invoiceId: string, tenantId: string): Promise<boolean> {
     const workflow = await ApprovalWorkflowModel.findOne({ tenantId, enabled: true }).lean();
-    if (!workflow || workflow.steps.length === 0) return;
+    if (!workflow || workflow.steps.length === 0) return false;
 
     const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
-    if (!invoice) return;
-    if (invoice.status !== "PARSED" && invoice.status !== "NEEDS_REVIEW") return;
+    if (!invoice) return false;
+    if (invoice.status !== "PARSED" && invoice.status !== "NEEDS_REVIEW") return false;
 
     const firstStep = workflow.steps.find((s) => s.order === 1);
-    if (!firstStep) return;
+    if (!firstStep) return false;
 
     const skipFirst = !this.evaluateCondition(firstStep as WorkflowStep, invoice);
 
     if (skipFirst && workflow.steps.length === 1) {
-      return;
+      return false;
     }
 
     invoice.status = "AWAITING_APPROVAL";
@@ -154,7 +164,9 @@ export class ApprovalWorkflowService {
       status: "in_progress",
       stepResults: skipFirst ? [{ step: 1, name: firstStep.name, action: "skipped", timestamp: new Date(), note: "Condition not met" }] : []
     });
+    invoice.processingIssues.push("Approval workflow initiated.");
     await invoice.save();
+    return true;
   }
 
   async approveStep(invoiceId: string, authContext: AuthenticatedRequestContext): Promise<{ advanced: boolean; fullyApproved: boolean }> {
@@ -166,12 +178,7 @@ export class ApprovalWorkflowService {
       throw new HttpError("Invoice is not awaiting approval.", 400, "invoice_not_awaiting");
     }
 
-    const workflowState = invoice.get("workflowState") as {
-      workflowId: string;
-      currentStep: number;
-      status: string;
-      stepResults: Array<{ step: number; name: string; action: string; userId?: string; email?: string; role?: string; timestamp: Date; note?: string }>;
-    };
+    const workflowState = invoice.get("workflowState") as WorkflowStateData | undefined;
     if (!workflowState || workflowState.status !== "in_progress") {
       throw new HttpError("No active workflow for this invoice.", 400, "no_active_workflow");
     }
@@ -213,11 +220,9 @@ export class ApprovalWorkflowService {
       if (currentStep.approverType === "specific_users") {
         requiredCount = (currentStep.approverUserIds ?? []).length;
       } else if (currentStep.approverType === "role") {
-        const roleUsers = await TenantUserRoleModel.countDocuments({ tenantId: authContext.tenantId, role: currentStep.approverRole });
-        requiredCount = roleUsers;
+        requiredCount = await TenantUserRoleModel.countDocuments({ tenantId: authContext.tenantId, role: currentStep.approverRole });
       } else {
-        const allUsers = await TenantUserRoleModel.countDocuments({ tenantId: authContext.tenantId, role: { $in: ["MEMBER", "TENANT_ADMIN"] } });
-        requiredCount = allUsers;
+        requiredCount = await TenantUserRoleModel.countDocuments({ tenantId: authContext.tenantId, role: { $in: ["MEMBER", "TENANT_ADMIN"] } });
       }
       const approvedCount = workflowState.stepResults.filter((r) => r.step === workflowState.currentStep && r.action === "approved").length;
       if (approvedCount < requiredCount) {
@@ -274,12 +279,7 @@ export class ApprovalWorkflowService {
       throw new HttpError("Invoice is not awaiting approval.", 400, "invoice_not_awaiting");
     }
 
-    const workflowState = invoice.get("workflowState") as {
-      workflowId: string;
-      currentStep: number;
-      status: string;
-      stepResults: Array<{ step: number; name: string; action: string; userId?: string; email?: string; role?: string; timestamp: Date; note?: string }>;
-    };
+    const workflowState = invoice.get("workflowState") as WorkflowStateData | undefined;
     if (!workflowState || workflowState.status !== "in_progress") {
       throw new HttpError("No active workflow for this invoice.", 400, "no_active_workflow");
     }
@@ -314,7 +314,7 @@ export class ApprovalWorkflowService {
     const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
     if (!invoice || invoice.status !== "AWAITING_APPROVAL") return;
 
-    const workflowState = invoice.get("workflowState") as { status: string; stepResults: unknown[] } | undefined;
+    const workflowState = invoice.get("workflowState") as WorkflowStateData | undefined;
     if (!workflowState || workflowState.status !== "in_progress") return;
 
     invoice.status = "NEEDS_REVIEW";

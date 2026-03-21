@@ -49,6 +49,7 @@ import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { getUserFacingErrorMessage, isAuthenticationError } from "../../apiError";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { EmptyState } from "../EmptyState";
+import { ApprovalTimeline } from "./ApprovalTimeline";
 import { KeyboardShortcutsOverlay } from "../KeyboardShortcutsOverlay";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 
@@ -1163,7 +1164,9 @@ export function TenantInvoicesView({
                           ) : (
                             <span className={`status status-${invoice.status.toLowerCase()}`}>
                               {STATUS_ICONS[invoice.status] ? <span className="material-symbols-outlined status-badge-icon">{STATUS_ICONS[invoice.status]}</span> : null}
-                              {STATUS_LABELS[invoice.status] ?? invoice.status}
+                              {invoice.status === "AWAITING_APPROVAL" && invoice.workflowState?.currentStep
+                                ? `Step ${invoice.workflowState.currentStep}`
+                                : (STATUS_LABELS[invoice.status] ?? invoice.status)}
                             </span>
                           )}
                           {invoice.possibleDuplicate ? (
@@ -1318,8 +1321,11 @@ export function TenantInvoicesView({
               </button>
             </div>
             <p className="muted popup-meta">
-              Status: <strong>{popupInvoice.status}</strong> | Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
+              Status: <strong>{STATUS_LABELS[popupInvoice.status] ?? popupInvoice.status}</strong>
+              {popupInvoice.workflowState?.currentStep ? ` (Step ${popupInvoice.workflowState.currentStep})` : ""}
+              {" | "}Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
             </p>
+            <ApprovalTimeline invoice={popupInvoice} />
             <div className="popup-content">
               {popupInvoiceDetailLoading ? <p className="muted">Loading full invoice details...</p> : null}
               <div className="source-preview-section">

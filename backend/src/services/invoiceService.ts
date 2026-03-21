@@ -8,6 +8,7 @@ import type { WorkloadTier } from "../types/tenant.js";
 import type { AuthenticatedRequestContext } from "../types/auth.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { logger } from "../utils/logger.js";
+import type { ApprovalWorkflowService } from "./approvalWorkflowService.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -43,9 +44,11 @@ export class InvoiceUpdateError extends Error {
 
 export class InvoiceService {
   private readonly fileStore?: FileStore;
+  private readonly workflowService?: ApprovalWorkflowService;
 
-  constructor(options?: { fileStore?: FileStore }) {
+  constructor(options?: { fileStore?: FileStore; workflowService?: ApprovalWorkflowService }) {
     this.fileStore = options?.fileStore;
+    this.workflowService = options?.workflowService;
   }
 
   async listInvoices(params: ListInvoicesParams) {
@@ -142,12 +145,19 @@ export class InvoiceService {
       return 0;
     }
 
+    if (this.workflowService) {
+      const workflowEnabled = await this.workflowService.isWorkflowEnabled(authContext.tenantId);
+      if (workflowEnabled) {
+        return this.approveWithWorkflow(validIds, authContext);
+      }
+    }
+
     const now = new Date();
     const result = await InvoiceModel.updateMany(
       {
         _id: { $in: validIds },
         tenantId: authContext.tenantId,
-        status: { $in: ["PARSED", "NEEDS_REVIEW", "AWAITING_APPROVAL"] }
+        status: { $in: ["PARSED", "NEEDS_REVIEW"] }
       },
       {
         $set: {
@@ -170,6 +180,41 @@ export class InvoiceService {
     );
 
     return result.modifiedCount;
+  }
+
+  private async approveWithWorkflow(validIds: Types.ObjectId[], authContext: AuthenticatedRequestContext): Promise<number> {
+    let advanced = 0;
+    for (const id of validIds) {
+      const invoiceId = String(id);
+      const invoice = await InvoiceModel.findOne({ _id: id, tenantId: authContext.tenantId }).lean();
+      if (!invoice) continue;
+
+      if (invoice.status === "PARSED" || invoice.status === "NEEDS_REVIEW") {
+        const initiated = await this.workflowService!.initiateWorkflow(invoiceId, authContext.tenantId);
+        if (!initiated) {
+          const now = new Date();
+          await InvoiceModel.updateOne(
+            { _id: id, tenantId: authContext.tenantId, status: { $in: ["PARSED", "NEEDS_REVIEW"] } },
+            {
+              $set: { status: "APPROVED", approval: { approvedBy: authContext.email, approvedAt: now, userId: authContext.userId, email: authContext.email, role: authContext.role } },
+              $push: { processingIssues: `Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})` }
+            }
+          );
+          advanced++;
+          continue;
+        }
+      }
+
+      if (invoice.status === "AWAITING_APPROVAL" || invoice.status === "PARSED" || invoice.status === "NEEDS_REVIEW") {
+        try {
+          const result = await this.workflowService!.approveStep(invoiceId, authContext);
+          if (result.advanced) advanced++;
+        } catch {
+          continue;
+        }
+      }
+    }
+    return advanced;
   }
 
   async retryInvoices(ids: string[], authContext: AuthenticatedRequestContext) {

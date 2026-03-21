@@ -7,6 +7,19 @@ interface ApprovalWorkflowSectionProps {
   tenantUsers: Array<{ userId: string; email: string; role: string }>;
 }
 
+function buildSimpleSteps(config: { requireManagerReview: boolean; requireFinalSignoff: boolean }): WorkflowStep[] {
+  const steps: WorkflowStep[] = [
+    { order: 1, name: "Team member approval", approverType: "any_member", rule: "any", condition: null }
+  ];
+  if (config.requireManagerReview) {
+    steps.push({ order: 2, name: "Manager review", approverType: "role", approverRole: "TENANT_ADMIN", rule: "any", condition: null });
+  }
+  if (config.requireFinalSignoff) {
+    steps.push({ order: steps.length + 1, name: "Final sign-off", approverType: "role", approverRole: "TENANT_ADMIN", rule: "any", condition: null });
+  }
+  return steps;
+}
+
 export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSectionProps) {
   const [config, setConfig] = useState<ApprovalWorkflowConfig>({
     enabled: false,
@@ -35,6 +48,10 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
   }, []);
 
   const handleSave = useCallback(async () => {
+    if (config.enabled && config.mode === "advanced" && config.steps.length === 0) {
+      setError("Add at least one approval step.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setSuccess(false);
@@ -50,6 +67,15 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       setSaving(false);
     }
   }, [config]);
+
+  const switchToAdvanced = useCallback(() => {
+    setConfig((prev) => ({
+      ...prev,
+      mode: "advanced" as const,
+      steps: prev.steps.length > 0 ? prev.steps : buildSimpleSteps(prev.simpleConfig)
+    }));
+    setDirty(true);
+  }, []);
 
   const addStep = useCallback(() => {
     setConfig((prev) => {
@@ -148,7 +174,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
           </div>
 
           <div className="workflow-actions">
-            <button type="button" className="workflow-mode-switch" onClick={() => update({ mode: "advanced" })}>
+            <button type="button" className="workflow-mode-switch" onClick={switchToAdvanced}>
               Switch to Advanced Workflow →
             </button>
           </div>
@@ -272,20 +298,10 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
         </div>
       ) : null}
 
-      {config.enabled && dirty ? (
+      {dirty ? (
         <div className="workflow-actions">
           <button type="button" className="app-button app-button-primary" style={{ fontSize: "0.85rem" }} onClick={() => void handleSave()} disabled={saving}>
-            {saving ? "Saving…" : "Save Workflow"}
-          </button>
-          {error ? <span style={{ color: "var(--warn)", fontSize: "0.82rem" }}>{error}</span> : null}
-          {success ? <span style={{ color: "var(--status-approved)", fontSize: "0.82rem" }}>Saved</span> : null}
-        </div>
-      ) : null}
-
-      {!config.enabled && dirty ? (
-        <div className="workflow-actions">
-          <button type="button" className="app-button app-button-primary" style={{ fontSize: "0.85rem" }} onClick={() => void handleSave()} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : config.enabled ? "Save Workflow" : "Save"}
           </button>
           {error ? <span style={{ color: "var(--warn)", fontSize: "0.82rem" }}>{error}</span> : null}
           {success ? <span style={{ color: "var(--status-approved)", fontSize: "0.82rem" }}>Saved</span> : null}
