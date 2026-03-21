@@ -179,7 +179,8 @@
 
 [data-theme="dark"] .editor-card select { background: #0f172a; border-color: var(--line); color: var(--ink); }
 
-[data-theme="dark"] .overview-date-bar input[type="date"] { background: #0f172a; border-color: var(--line); color: var(--ink); color-scheme: dark; }
+[data-theme="dark"] .overview-date-bar input[type="date"],
+[data-theme="dark"] .toolbar-date-input { background: #0f172a; border-color: var(--line); color: var(--ink); color-scheme: dark; }
 
 * {
   box-sizing: border-box;
@@ -834,10 +835,36 @@ body {
   margin-left: auto;
 }
 
+.toolbar-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.toolbar-date-input {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.5rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  background: var(--bg-panel);
+  color: var(--ink);
+}
+
 .status-tabs {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.1rem;
+}
+
+.status-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
@@ -848,6 +875,8 @@ body {
   border-radius: 999px;
   cursor: pointer;
   font-size: 0.82rem;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: transform 120ms ease, background 120ms ease;
 }
 
