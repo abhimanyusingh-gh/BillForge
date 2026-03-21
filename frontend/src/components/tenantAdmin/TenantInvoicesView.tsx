@@ -1212,7 +1212,7 @@ export function TenantInvoicesView({
                 <button type="button" className="app-button app-button-primary app-button-sm" disabled={selectedApprovableIds.length === 0} onClick={() => void handleApprove()}>
                   Approve ({selectedApprovableIds.length})
                 </button>
-                <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={handleExport}>
+                <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={() => void handleDownloadXml()}>
                   Export ({selectedExportableIds.length})
                 </button>
                 <button type="button" className="app-button app-button-sm" style={{ background: "var(--warn)", borderColor: "var(--warn)", color: "#fff" }} onClick={handleDelete}>
