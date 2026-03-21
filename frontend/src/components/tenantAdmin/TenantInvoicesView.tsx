@@ -872,44 +872,33 @@ export function TenantInvoicesView({
 
   return (
     <>
-      <div className="toolbar-filter-row">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search by file, vendor, or invoice #..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <input
-          type="date"
-          className="toolbar-date-input"
-          value={invoiceDateFrom}
-          max={invoiceDateTo || undefined}
-          onChange={(e) => setInvoiceDateFrom(e.target.value)}
-          title="Filter from date"
-        />
-        <input
-          type="date"
-          className="toolbar-date-input"
-          value={invoiceDateTo}
-          min={invoiceDateFrom || undefined}
-          onChange={(e) => setInvoiceDateTo(e.target.value)}
-          title="Filter to date"
-        />
-        {isTenantAdmin && tenantUsers && tenantUsers.length > 0 ? (
-          <select className="toolbar-date-input" style={{ minWidth: "auto", width: "auto" }} value={approvedByFilter} onChange={(e) => setApprovedByFilter(e.target.value)}>
-            <option value="">All Users</option>
-            {tenantUsers.map((u) => <option key={u.userId} value={u.userId}>{u.email}</option>)}
-          </select>
-        ) : null}
-        {hasActiveFilters ? (
-          <button type="button" className="clear-filters-pill" onClick={clearAllFilters}>
-            <span className="material-symbols-outlined" style={{ fontSize: "0.85rem" }}>close</span>
-            Clear
-          </button>
-        ) : null}
-      </div>
       <div className="toolbar">
+        <div className="toolbar-filter-group">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search by file, vendor, or invoice #..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <input
+            type="date"
+            style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
+            value={invoiceDateFrom}
+            max={invoiceDateTo || undefined}
+            onChange={(e) => setInvoiceDateFrom(e.target.value)}
+            title="Filter from date"
+          />
+          <input
+            type="date"
+            style={{ border: "1px solid var(--line)", borderRadius: 6, padding: "0.3rem 0.5rem", fontSize: "0.82rem" }}
+            value={invoiceDateTo}
+            min={invoiceDateFrom || undefined}
+            onChange={(e) => setInvoiceDateTo(e.target.value)}
+            title="Filter to date"
+          />
+        </div>
+        <div className="toolbar-divider" />
         <div className="status-tabs">
           {STATUSES.map((status) => (
             <button
@@ -922,40 +911,89 @@ export function TenantInvoicesView({
             </button>
           ))}
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "var(--sp-1)" }}>
-          {!isViewer ? (
-            <>
+        {hasActiveFilters ? (
+          <button type="button" className="clear-filters-pill" onClick={clearAllFilters}>
+            <span className="material-symbols-outlined" style={{ fontSize: "0.85rem" }}>close</span>
+            Clear filters
+          </button>
+        ) : null}
+        {isTenantAdmin && tenantUsers && tenantUsers.length > 0 ? (
+          <>
+            <div className="toolbar-divider" />
+            <select className="search-input" style={{ flex: "none", minWidth: "auto", width: "auto" }} value={approvedByFilter} onChange={(e) => setApprovedByFilter(e.target.value)}>
+              <option value="">All Users</option>
+              {tenantUsers.map((u) => <option key={u.userId} value={u.userId}>{u.email}</option>)}
+            </select>
+          </>
+        ) : null}
+        {!isViewer ? (
+          <>
+            <div className="toolbar-divider" />
+            <span className="toolbar-icon-wrap">
+              <button type="button" className={`toolbar-icon-button${actionLoading === "approve" ? " app-button-loading" : ""}`} onClick={() => void handleApprove()} disabled={requiresTenantSetup || selectedApprovableIds.length === 0}>
+                <span className="material-symbols-outlined">check_circle</span>
+              </button>
+              <span className="toolbar-icon-label">Approve</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className={`toolbar-icon-button${actionLoading === "delete" ? " app-button-loading" : ""}`} onClick={handleDelete} disabled={requiresTenantSetup || selectedIds.length === 0}>
+                <span className="material-symbols-outlined">delete</span>
+              </button>
+              <span className="toolbar-icon-label">Delete</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => void handleRetry()} disabled={requiresTenantSetup || selectedRetryableIds.length === 0}>
+                <span className="material-symbols-outlined">replay</span>
+              </button>
+              <span className="toolbar-icon-label">Retry</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className={`toolbar-icon-button${actionLoading === "export" ? " app-button-loading" : ""}`} onClick={handleExport} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                <span className="material-symbols-outlined">upload</span>
+              </button>
+              <span className="toolbar-icon-label">Export to Tally</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => void handleDownloadXml()} disabled={requiresTenantSetup || selectedExportableIds.length === 0 || selectedNonExportableCount > 0}>
+                <span className="material-symbols-outlined">download</span>
+              </button>
+              <span className="toolbar-icon-label">Download XML</span>
+            </span>
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
+                <span className="material-symbols-outlined">upload_file</span>
+              </button>
+              <span className="toolbar-icon-label">Upload</span>
+            </span>
+            <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={(e) => void handleUpload(e)} />
+            <span className="toolbar-icon-wrap">
+              <button type="button" className="toolbar-icon-button" onClick={() => void handleIngest()} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
+                <span className="material-symbols-outlined">play_arrow</span>
+              </button>
+              <span className="toolbar-icon-label">{ingestionStatus?.state === "paused" ? "Resume" : "Ingest"}</span>
+            </span>
+            {ingestionStatus?.running === true ? (
               <span className="toolbar-icon-wrap">
-                <button type="button" className="toolbar-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={requiresTenantSetup}>
-                  <span className="material-symbols-outlined">upload_file</span>
+                <button type="button" className="toolbar-icon-button" onClick={() => void handlePauseIngestion()}>
+                  <span className="material-symbols-outlined">pause</span>
                 </button>
+                <span className="toolbar-icon-label">Pause</span>
               </span>
-              <input ref={uploadInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={(e) => void handleUpload(e)} />
-              <span className="toolbar-icon-wrap">
-                <button type="button" className="toolbar-icon-button" onClick={() => void handleIngest()} disabled={requiresTenantSetup || ingestionStatus?.running === true}>
-                  <span className="material-symbols-outlined">play_arrow</span>
-                </button>
-              </span>
-              {ingestionStatus?.running === true ? (
-                <span className="toolbar-icon-wrap">
-                  <button type="button" className="toolbar-icon-button" onClick={() => void handlePauseIngestion()}>
-                    <span className="material-symbols-outlined">pause</span>
-                  </button>
-                </span>
-              ) : null}
-            </>
-          ) : null}
-          <span className="toolbar-icon-wrap">
-            <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
-              <span className="material-symbols-outlined">{detailsPanelVisible ? "visibility_off" : "visibility"}</span>
-            </button>
-          </span>
-          <select className="toolbar-date-input" style={{ minWidth: "auto", width: "auto" }} value={tableDensity} onChange={(e) => { const d = e.target.value as "compact" | "comfortable" | "spacious"; setTableDensity(d); localStorage.setItem("billforge:table-density", d); }}>
-            <option value="compact">Compact</option>
-            <option value="comfortable">Comfortable</option>
-            <option value="spacious">Spacious</option>
-          </select>
-        </div>
+            ) : null}
+          </>
+        ) : null}
+        <span className="toolbar-icon-wrap">
+          <button type="button" className="toolbar-icon-button" onClick={() => setDetailsPanelVisible((currentValue) => !currentValue)}>
+            <span className="material-symbols-outlined">{detailsPanelVisible ? "visibility_off" : "visibility"}</span>
+          </button>
+          <span className="toolbar-icon-label">{detailsPanelVisible ? "Hide Details" : "Show Details"}</span>
+        </span>
+        <div className="toolbar-divider" />
+        <select className="search-input" style={{ flex: "none", minWidth: "auto", width: "auto", fontSize: "0.8rem" }} value={tableDensity} onChange={(e) => { const d = e.target.value as "compact" | "comfortable" | "spacious"; setTableDensity(d); localStorage.setItem("billforge:table-density", d); }}>
+          <option value="compact">Compact</option>
+          <option value="comfortable">Comfortable</option>
+          <option value="spacious">Spacious</option>
+        </select>
       </div>
       <IngestionProgressCard
         status={ingestionStatus}
@@ -1176,9 +1214,6 @@ export function TenantInvoicesView({
                 </button>
                 <button type="button" className="app-button app-button-sm" style={{ background: "var(--chart-violet)", borderColor: "var(--chart-violet)", color: "#fff" }} disabled={selectedExportableIds.length === 0} onClick={handleExport}>
                   Export ({selectedExportableIds.length})
-                </button>
-                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={selectedRetryableIds.length === 0} onClick={() => void handleRetry()}>
-                  Retry ({selectedRetryableIds.length})
                 </button>
                 <button type="button" className="app-button app-button-sm" style={{ background: "var(--warn)", borderColor: "var(--warn)", color: "#fff" }} onClick={handleDelete}>
                   Delete ({selectedIds.length})
