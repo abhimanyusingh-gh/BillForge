@@ -1,4 +1,5 @@
 import type { GmailConnectionStatus, TenantMailbox } from "../../types";
+import { ApprovalWorkflowSection } from "./ApprovalWorkflowSection";
 
 interface TenantConfigTabProps {
   gmailConnection: GmailConnectionStatus | null;
@@ -136,6 +137,8 @@ export function TenantConfigTab({
           </div>
         )}
       </div>
+
+      <ApprovalWorkflowSection tenantUsers={tenantUsers} />
 
       <div className="editor-card">
         <div className="editor-header">

@@ -147,7 +147,7 @@ export class InvoiceService {
       {
         _id: { $in: validIds },
         tenantId: authContext.tenantId,
-        status: { $in: ["PARSED", "NEEDS_REVIEW"] }
+        status: { $in: ["PARSED", "NEEDS_REVIEW", "AWAITING_APPROVAL"] }
       },
       {
         $set: {
@@ -325,7 +325,10 @@ export class InvoiceService {
     invoice.set("riskFlags", confidence.riskFlags);
     invoice.set("riskMessages", confidence.riskMessages);
 
-    if (invoice.status !== "APPROVED") {
+    if (invoice.status === "AWAITING_APPROVAL") {
+      invoice.status = "NEEDS_REVIEW";
+      invoice.set("workflowState", undefined);
+    } else if (invoice.status !== "APPROVED") {
       invoice.status = isCompleteParsedData(nextParsed) && confidence.riskFlags.length === 0 ? "PARSED" : "NEEDS_REVIEW";
     }
 

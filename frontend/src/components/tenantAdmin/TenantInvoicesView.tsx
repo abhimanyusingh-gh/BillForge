@@ -56,6 +56,7 @@ const STATUS_ICONS: Record<string, string> = {
   PENDING: "hourglass_empty",
   PARSED: "task_alt",
   NEEDS_REVIEW: "flag",
+  AWAITING_APPROVAL: "pending_actions",
   FAILED_OCR: "error",
   FAILED_PARSE: "error",
   APPROVED: "check_circle",

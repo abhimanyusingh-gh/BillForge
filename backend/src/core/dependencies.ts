@@ -31,6 +31,7 @@ import { TenantInviteService } from "../services/tenantInviteService.js";
 import { createInviteEmailSenderProvider } from "../providers/email/createInviteEmailSenderProvider.js";
 import { PlatformAdminService } from "../services/platformAdminService.js";
 import { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { ApprovalWorkflowService } from "../services/approvalWorkflowService.js";
 import { env } from "../config/env.js";
 
 import {
@@ -51,6 +52,7 @@ interface Dependencies {
   bankService: IBankConnectionService;
   fileStore: FileStore;
   keycloakAdmin: KeycloakAdminClient;
+  approvalWorkflowService: ApprovalWorkflowService;
 }
 
 function buildAuthServices(manifest: RuntimeManifest) {
@@ -115,6 +117,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     pipeline: extraction.pipeline,
     fileStore: storage.fileStore
   });
+  const approvalWorkflowService = new ApprovalWorkflowService();
 
   return {
     ingestionService,
@@ -124,7 +127,8 @@ export async function buildDependencies(): Promise<Dependencies> {
     ...auth,
     gmailIntegrationService,
     bankService,
-    fileStore: storage.fileStore
+    fileStore: storage.fileStore,
+    approvalWorkflowService
   };
 }
 
