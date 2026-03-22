@@ -8,7 +8,6 @@ import type {
   IngestionJobStatus,
   Invoice,
   InvoiceListResponse,
-  TallyExportResponse,
   TallyFileExportResponse,
   TenantMailbox
 } from "./types";
@@ -263,11 +262,6 @@ export async function retryInvoices(ids: string[]) {
   return response.data;
 }
 
-export async function exportToTally(ids?: string[]) {
-  const response = await apiClient.post<TallyExportResponse>("/exports/tally", { ids });
-  return response.data;
-}
-
 export async function generateTallyXmlFile(ids?: string[]) {
   const response = await apiClient.post<TallyFileExportResponse>("/exports/tally/download", { ids });
   return response.data;
@@ -486,11 +480,3 @@ export async function saveApprovalWorkflow(config: ApprovalWorkflowConfig): Prom
   return response.data;
 }
 
-export async function workflowApproveInvoice(invoiceId: string): Promise<{ advanced: boolean; fullyApproved: boolean }> {
-  const response = await apiClient.post(`/invoices/${invoiceId}/workflow-approve`);
-  return response.data;
-}
-
-export async function workflowRejectInvoice(invoiceId: string, reason: string): Promise<void> {
-  await apiClient.post(`/invoices/${invoiceId}/workflow-reject`, { reason });
-}

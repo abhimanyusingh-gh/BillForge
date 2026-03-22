@@ -16,55 +16,145 @@ function formatElapsed(startedAt?: string): string {
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 }
 
+function initOverlay(el: HTMLDivElement) {
+  let dragging = false;
+  let ox = 0;
+  let oy = 0;
+
+  const saved = localStorage.getItem("billforge:ingestion-pos");
+  if (saved) {
+    try {
+      const p = JSON.parse(saved);
+      if (typeof p.x === "number" && typeof p.y === "number") {
+        el.style.left = `${Math.max(0, Math.min(p.x, window.innerWidth - el.offsetWidth))}px`;
+        el.style.top = `${Math.max(0, Math.min(p.y, window.innerHeight - el.offsetHeight))}px`;
+        el.style.right = "auto";
+        el.style.bottom = "auto";
+        el.style.transform = "none";
+      }
+    } catch {}
+  }
+
+  el.addEventListener("pointerdown", (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-action]")) return;
+    dragging = true;
+    const rect = el.getBoundingClientRect();
+    ox = e.clientX - rect.left;
+    oy = e.clientY - rect.top;
+    el.setPointerCapture(e.pointerId);
+    el.style.cursor = "grabbing";
+    el.style.transition = "none";
+  });
+
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const x = Math.max(0, Math.min(e.clientX - ox, window.innerWidth - el.offsetWidth));
+    const y = Math.max(0, Math.min(e.clientY - oy, window.innerHeight - el.offsetHeight));
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+    el.style.transform = "none";
+  });
+
+  el.addEventListener("pointerup", (e) => {
+    if (!dragging) return;
+    dragging = false;
+    el.releasePointerCapture(e.pointerId);
+    el.style.cursor = "grab";
+    el.style.transition = "";
+    const rect = el.getBoundingClientRect();
+    localStorage.setItem("billforge:ingestion-pos", JSON.stringify({ x: Math.round(rect.left), y: Math.round(rect.top) }));
+  });
+}
+
 export function IngestionProgressCard({ status, progressPercent, successfulFiles, fading }: IngestionProgressCardProps) {
-  if (!status || status.state === "idle") {
+  if (!status || status.state === "idle" || status.state === "completed") {
     return null;
   }
 
-  const cardClassName = status.running
+  const isRunning = status.running;
+  const isFailed = status.state === "failed";
+  const isPaused = status.state === "paused";
+  const isComplete = !isRunning && !isFailed && !isPaused;
+
+  const stateClass = isRunning || isPaused
     ? "ingestion-progress-running"
-    : status.state === "failed"
+    : isFailed
       ? "ingestion-progress-failed"
-      : status.state === "paused"
-        ? "ingestion-progress-running"
-        : "ingestion-progress-complete";
+      : "ingestion-progress-complete";
 
   const headline = useMemo(() => {
-    if (status.running) {
+    if (isRunning) {
       return status.totalFiles > 0
-        ? `Processing invoice ${status.processedFiles} of ${status.totalFiles}...`
-        : "Ingestion in progress";
+        ? `${status.processedFiles}/${status.totalFiles} processed`
+        : "Ingesting…";
     }
-    if (status.state === "paused") return "Ingestion paused";
-    if (status.state === "failed") return "Ingestion failed";
-    return `Ingestion completed \u2014 ${status.newInvoices} new, ${status.duplicates} duplicates, ${status.failures} failed`;
-  }, [status.running, status.state, status.totalFiles, status.processedFiles, status.newInvoices, status.duplicates, status.failures]);
+    if (isPaused) return "Paused";
+    if (isFailed) return "Failed";
+    return `Done — ${status.newInvoices} new`;
+  }, [isRunning, isPaused, isFailed, status.totalFiles, status.processedFiles, status.newInvoices]);
 
   const elapsed = formatElapsed(status.startedAt);
+  const icon = isRunning ? "sync" : isFailed ? "error" : isPaused ? "pause_circle" : "check_circle";
 
   return (
-    <div className={`ingestion-progress ${cardClassName}${fading ? " ingestion-progress-fading" : ""}`} role="status" aria-live="polite">
-      <div className="ingestion-progress-head">
-        {status.running ? <span className="ingestion-spinner" aria-hidden="true" /> : null}
-        <strong>{headline}</strong>
-        <span>
-          {status.processedFiles}/{status.totalFiles > 0 ? status.totalFiles : "?"} processed
-          {elapsed ? ` \u00b7 ${elapsed}` : ""}
-        </span>
+    <div
+      ref={(el) => { if (el && !el.dataset.init) { el.dataset.init = "1"; initOverlay(el); } }}
+      className={`ingestion-overlay ${stateClass}${fading ? " ingestion-progress-fading" : ""}`}
+      role="status"
+      aria-live="polite"
+      style={{ cursor: "grab" }}
+    >
+      <div className="ingestion-overlay-header">
+        <div className="ingestion-overlay-toggle">
+          {isRunning ? <span className="ingestion-spinner" aria-hidden="true" /> : <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>{icon}</span>}
+          <span className="ingestion-overlay-headline">{headline}</span>
+          {elapsed && isRunning ? <span className="ingestion-overlay-elapsed">{elapsed}</span> : null}
+        </div>
+        <div className="ingestion-overlay-actions">
+          <button
+            type="button"
+            data-action="minimize"
+            className="ingestion-overlay-btn"
+            title="Minimize"
+            onClick={(e) => {
+              e.stopPropagation();
+              const overlay = (e.target as HTMLElement).closest(".ingestion-overlay");
+              overlay?.classList.toggle("ingestion-overlay-minimized");
+            }}
+          >
+            <span className="material-symbols-outlined">remove</span>
+          </button>
+          {(isComplete || isFailed) ? (
+            <button
+              type="button"
+              data-action="close"
+              className="ingestion-overlay-btn"
+              title="Close"
+              onClick={(e) => {
+                e.stopPropagation();
+                const overlay = (e.target as HTMLElement).closest(".ingestion-overlay");
+                if (overlay) (overlay as HTMLElement).style.display = "none";
+              }}
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          ) : null}
+        </div>
       </div>
-
-      <div className="ingestion-progress-track">
-        <div className={`ingestion-progress-fill${status.running ? " ingestion-progress-fill-shimmer" : ""}`} style={{ width: `${progressPercent}%` }} />
+      <div className="ingestion-overlay-body">
+        <div className="ingestion-progress-track">
+          <div className={`ingestion-progress-fill${isRunning ? " ingestion-progress-fill-shimmer" : ""}`} style={{ width: `${progressPercent}%` }} />
+        </div>
+        <p className="muted ingestion-progress-meta">
+          Successful {successfulFiles} | New {status.newInvoices} | Dup {status.duplicates} | Fail {status.failures}
+        </p>
+        {isFailed && status.error ? (
+          <p className="error ingestion-progress-error">{status.error}</p>
+        ) : null}
       </div>
-
-      <p className="muted ingestion-progress-meta">
-        Successful {successfulFiles} | New {status.newInvoices} | Duplicates {status.duplicates} | Failures{" "}
-        {status.failures}
-      </p>
-
-      {status.state === "failed" && status.error ? (
-        <p className="error ingestion-progress-error">{status.error}. Check service health and retry.</p>
-      ) : null}
     </div>
   );
 }

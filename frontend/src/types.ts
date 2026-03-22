@@ -96,14 +96,6 @@ export interface ExportResultItem {
   error?: string;
 }
 
-export interface TallyExportResponse {
-  batchId?: string;
-  total: number;
-  successCount: number;
-  failureCount: number;
-  items: ExportResultItem[];
-}
-
 export interface TallyFileExportResponse {
   batchId?: string;
   fileKey?: string;
@@ -154,8 +146,6 @@ export interface DailyStat { date: string; count: number; amountMinor?: number; 
 export interface VendorStat { vendor: string; count: number; amountMinor: number; }
 export interface StatusStat { status: string; count: number; }
 
-export interface AgingBucket { bucket: string; count: number; amountMinor: number; }
-
 export interface AnalyticsOverview {
   kpis: {
     totalInvoices: number;
@@ -171,7 +161,6 @@ export interface AnalyticsOverview {
   statusBreakdown: StatusStat[];
   topVendorsByApproved: VendorStat[];
   topVendorsByPending: VendorStat[];
-  agingBuckets: AgingBucket[];
 }
 
 export interface GmailConnectionStatus {
@@ -189,6 +178,12 @@ export interface TenantMailbox {
   status: string;
   assignments: "all" | Array<{ userId: string; email: string }>;
   lastSyncedAt?: string;
+  pollingConfig?: {
+    enabled: boolean;
+    intervalHours: number;
+    lastPolledAt?: string;
+    nextPollAfter?: string;
+  };
 }
 
 export interface WorkflowStepCondition {
