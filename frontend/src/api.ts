@@ -476,6 +476,10 @@ export async function refreshBankBalance(id: string): Promise<void> {
   await apiClient.post(`/bank/accounts/${id}/refresh`);
 }
 
+export async function updateMailboxPolling(integrationId: string, enabled: boolean, intervalHours: number): Promise<void> {
+  await apiClient.put(`/integrations/gmail/${integrationId}/polling`, { enabled, intervalHours });
+}
+
 export async function fetchApprovalWorkflow(): Promise<ApprovalWorkflowConfig> {
   const response = await apiClient.get("/admin/approval-workflow");
   return response.data;
