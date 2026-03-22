@@ -5,7 +5,7 @@ import { SSE_HEARTBEAT_INTERVAL_MS, RERUN_MAX_COUNT } from "../constants.js";
 
 type IngestionJobState = "idle" | "running" | "completed" | "failed" | "paused";
 
-export interface IngestionJobStatus {
+interface IngestionJobStatus {
   state: IngestionJobState;
   running: boolean;
   totalFiles: number;

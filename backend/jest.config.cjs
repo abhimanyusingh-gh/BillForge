@@ -1,3 +1,10 @@
+if (!process.env.MONGO_URI) {
+  process.env.MONGO_URI = 'mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge';
+}
+if (!process.env.ENV) {
+  process.env.ENV = 'local';
+}
+
 /** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'node',
