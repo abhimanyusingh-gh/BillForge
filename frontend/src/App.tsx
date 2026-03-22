@@ -106,7 +106,6 @@ export function App() {
 
   useEffect(() => {
     if (!session) {
-      setActiveTab("overview");
       return;
     }
     if (session.user.isPlatformAdmin) {
@@ -165,6 +164,11 @@ export function App() {
     const params = new URLSearchParams(window.location.search);
     const gmailStatus = params.get("gmail");
     if (!gmailStatus) {
+      return;
+    }
+
+    if (window.opener) {
+      window.close();
       return;
     }
 
@@ -295,7 +299,13 @@ export function App() {
   async function handleConnectGmail() {
     try {
       const connectUrl = await fetchGmailConnectUrl();
-      window.location.assign(connectUrl);
+      const popup = window.open(connectUrl, "_blank", "noopener");
+      const onFocus = () => {
+        window.removeEventListener("focus", onFocus);
+        void loadGmailConnectionStatus();
+        void loadMailboxes();
+      };
+      if (popup) window.addEventListener("focus", onFocus);
     } catch (connectError) {
       setError(getUserFacingErrorMessage(connectError, "Failed to start Gmail connection flow."));
     }
@@ -664,6 +674,7 @@ export function App() {
 
         {activeTab === "config" && isTenantAdmin && !isPlatformAdmin ? (
           <TenantConfigTab
+            currentUserId={session.user.id}
             gmailConnection={gmailConnection}
             onConnectGmail={() => void handleConnectGmail()}
             inviteEmail={inviteEmail}
@@ -673,10 +684,6 @@ export function App() {
             onRoleChange={(userId, role) => void handleRoleChange(userId, role)}
             onToggleUserEnabled={(userId, enabled) => void handleToggleUserEnabled(userId, enabled)}
             onRemoveUser={(userId) => void handleRemoveUser(userId)}
-            mailboxes={mailboxes}
-            onAssignMailboxUser={(integrationId, userId) => void handleAssignMailboxUser(integrationId, userId)}
-            onRemoveMailboxAssignment={(integrationId, userId) => void handleRemoveMailboxAssignment(integrationId, userId)}
-            onRemoveMailbox={(integrationId) => void handleRemoveMailbox(integrationId)}
           />
         ) : null}
 

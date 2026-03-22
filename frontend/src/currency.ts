@@ -65,7 +65,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   SAR: "SAR"
 };
 
-export function getCurrencySymbol(currency?: string): string {
+function getCurrencySymbol(currency?: string): string {
   if (!currency) return "";
   return CURRENCY_SYMBOLS[currency.toUpperCase()] ?? currency;
 }

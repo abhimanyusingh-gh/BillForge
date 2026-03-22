@@ -149,7 +149,7 @@ export function BankConnectionsTab({
         <div className="editor-header">
           <h3>Bank Accounts</h3>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem", marginBottom: "1rem" }}>
           <input
             value={aaAddress}
             onChange={(e) => setAaAddress(e.target.value)}
