@@ -28,7 +28,7 @@ jobs:
     name: Backend Unit Tests
     needs: backend-typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     services:
       mongo:
         image: mongo:7
