@@ -79,6 +79,7 @@ class LocalMlxLLMProvider(LLMProvider):
       output_text = extract_generation_text(output)
       completion_tokens = len(self.tokenizer.encode(output_text))
       usage = {"promptTokens": prompt_tokens, "completionTokens": completion_tokens}
+      log_info("slm.raw_output", output_length=len(output_text), completion_tokens=completion_tokens, first_200=output_text[:200], last_200=output_text[-200:] if len(output_text) > 200 else "")
       parsed = parse_json_object(output_text)
       if parsed is not None:
         parsed["_usage"] = usage
@@ -148,32 +149,24 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     if parts:
       prior_corrections_text = " PRIOR_CORRECTIONS: " + "; ".join(parts) + "."
 
-  if strict:
-    instruction = (
-      "Return only one minified JSON object. "
-      "No markdown. No code fence. No explanation. No preamble. "
-      "Schema: "
-      "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
-      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"}. "
-      "totalAmountMinor is the total in minor units (cents/paise). For INR multiply rupees by 100. "
-      "Example: ₹1,11,510.00 = 11151000. Dates in YYYY-MM-DD format. "
-      "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
-      "professional-service, purchase-order, credit-note, proforma, other."
-      + prior_corrections_text
-    )
-  else:
-    instruction = (
-      "Use OCR text blocks and bounding boxes to choose invoice fields. "
-      "Output schema must be exactly: "
-      "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
-      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"} "
-      "totalAmountMinor is the total in minor units (cents/paise). For INR multiply rupees by 100. "
-      "Example: ₹1,11,510.00 = 11151000. Dates in YYYY-MM-DD format. "
-      "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
-      "professional-service, purchase-order, credit-note, proforma, other. "
-      "Rules: vendorName cannot be an address; if unknown keep empty string or 0."
-      + prior_corrections_text
-    )
+  instruction = (
+    "You are an information extraction engine.\n\n"
+    "Task: Extract structured data from OCR invoice input.\n\n"
+    "Rules:\n"
+    "- Perform all reasoning internally.\n"
+    "- DO NOT output reasoning.\n"
+    "- DO NOT explain anything.\n"
+    "- Output MUST be valid JSON only.\n"
+    "- No extra text, no comments, no markdown.\n"
+    "- If a field is missing, use null.\n"
+    "- totalAmountMinor = total in minor units (paise/cents). INR example: ₹1,11,510.00 = 11151000.\n"
+    "- Dates in YYYY-MM-DD format.\n\n"
+    "Output format:\n"
+    '{"selected":{"invoiceNumber":"","vendorName":"","currency":"","totalAmountMinor":0,'
+    '"invoiceDate":"","dueDate":""},"reasonCodes":{},"issues":[],"invoiceType":""}\n\n'
+    "Input:\n"
+    + prior_corrections_text
+  )
 
   prompt_payload = sanitize_payload_for_prompt(payload)
   user_message = (
@@ -310,14 +303,29 @@ def parse_json_object(text: str) -> dict[str, Any] | None:
   if parsed is not None:
     return normalize_keys(parsed)
 
+  best: dict[str, Any] | None = None
   for match in re.finditer(r"\{", candidate):
     start = match.start()
-    for end in range(len(candidate), start, -1):
+    depth = 0
+    end = start
+    for i in range(start, len(candidate)):
+      if candidate[i] == "{":
+        depth += 1
+      elif candidate[i] == "}":
+        depth -= 1
+        if depth == 0:
+          end = i + 1
+          break
+    if end > start:
       parsed = try_parse_json(candidate[start:end].strip())
       if parsed is not None:
-        return normalize_keys(parsed)
+        result = normalize_keys(parsed)
+        if "selected" in result or "invoiceNumber" in result or "vendorName" in result:
+          return result
+        if best is None:
+          best = result
 
-  return None
+  return best
 
 
 def normalize_keys(obj: dict[str, Any]) -> dict[str, Any]:
