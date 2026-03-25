@@ -599,20 +599,20 @@ function candidateTerms(field: string, value: string): string[] {
     return [base];
   }
 
-  const minor = Number(base);
-  if (!Number.isFinite(minor) || minor <= 0) {
+  const amount = Number(base);
+  if (!Number.isFinite(amount) || amount <= 0) {
     return [base];
   }
 
-  const major = (minor / 100).toFixed(2);
-  const majorNoDecimals = Number.isInteger(minor / 100) ? String(Math.round(minor / 100)) : "";
-  const normalizedMajor = major.replace(/\.00$/, "");
+  const withDecimals = amount.toFixed(2);
+  const noDecimals = Number.isInteger(amount) ? String(amount) : "";
+  const digitsOnly = base.replace(/[^0-9]/g, "");
 
   const terms: string[] = [];
   const seen = new Set<string>();
-  for (const raw of [base, major, normalizedMajor, majorNoDecimals]) {
+  for (const raw of [base, withDecimals, noDecimals, digitsOnly]) {
     const entry = raw.trim().toLowerCase();
-    if (entry.length > 0 && !seen.has(entry)) {
+    if (entry.length >= 3 && !seen.has(entry)) {
       seen.add(entry);
       terms.push(entry);
     }
@@ -868,6 +868,18 @@ function findBlockForField(
       }
     }
 
+    if (matchedTerms > 0 && index < blocks.length * 0.3) {
+      score += 2;
+    }
+
+    if (matchedTerms > 0 && /\b(beneficiary|bank|payment|bill\s*to|ship\s*to)\b/i.test(normalizedText)) {
+      score -= 6;
+    }
+
+    if (normalizedText.startsWith(":") && matchedTerms > 0) {
+      score += 3;
+    }
+
     score -= blockShapePenalty(field, normalizedText);
 
     if (score <= 0) {
@@ -966,7 +978,11 @@ function containsTerm(haystack: string, term: string): boolean {
 
   if (/\d/.test(term)) {
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`(^|[^\\d])${escaped}([^\\d]|$)`, "i").test(haystack);
+    if (new RegExp(`(^|[^\\d])${escaped}([^\\d]|$)`, "i").test(haystack)) {
+      return true;
+    }
+    const strippedHaystack = haystack.replace(/[,.\s]/g, "");
+    return strippedHaystack.includes(term.replace(/[,.\s]/g, ""));
   }
 
   return haystack.includes(term);
