@@ -105,16 +105,12 @@ export class HttpFieldVerifier implements FieldVerifier {
         tokenUsage: usage
       };
     } catch (error) {
-      logger.warn("verifier.http.failed", {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error("verifier.http.failed", {
         latencyMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : String(error)
+        error: errorMessage
       });
-      return {
-        parsed: input.parsed,
-        issues: ["Field verifier request failed; continuing with deterministic extraction."],
-        changedFields: [],
-        reasonCodes: {}
-      };
+      throw new Error(`SLM verification failed: ${errorMessage}`);
     }
   }
 }

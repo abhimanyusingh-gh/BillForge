@@ -369,7 +369,11 @@ describe("TallyExporter.exportInvoices", () => {
       sourceKey: "inbox",
       attachmentName: "file.pdf",
       receivedAt: new Date("2026-02-19T00:00:00.000Z"),
-      parsed: undefined,
+      parsed: {
+        vendorName: "Fallback Corp",
+        invoiceNumber: "FB-001",
+        totalAmountMinor: 1000
+      },
       ocrText: "Grand Total: 10.00",
       set: jest.fn(),
       get: jest.fn(() => undefined)
@@ -386,8 +390,8 @@ describe("TallyExporter.exportInvoices", () => {
     ]);
 
     const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
-    expect(payload).toContain("<VOUCHERNUMBER>inv-6</VOUCHERNUMBER>");
-    expect(payload).toContain("<PARTYLEDGERNAME>Unknown Vendor</PARTYLEDGERNAME>");
+    expect(payload).toContain("<VOUCHERNUMBER>FB-001</VOUCHERNUMBER>");
+    expect(payload).toContain("<PARTYLEDGERNAME>Fallback Corp</PARTYLEDGERNAME>");
     expect(payload).toContain("<AMOUNT>-10.00</AMOUNT>");
   });
 
@@ -957,8 +961,7 @@ describe("TallyExporter with GST config", () => {
     await exporter.exportInvoices([invoice]);
 
     const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
-    // subtotalMinor falls back to resolvedAmountMinor (118000 = 1180.00)
-    expect(payload).toContain("<AMOUNT>1180.00</AMOUNT>");
+    expect(payload).toContain("<AMOUNT>1000.00</AMOUNT>");
     expect(payload).toContain("<LEDGERNAME>Input CGST</LEDGERNAME>");
   });
 

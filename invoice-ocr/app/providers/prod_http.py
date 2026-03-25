@@ -88,6 +88,9 @@ class ProdHttpOCRProvider(OCRProvider):
     usage = payload.get("usage")
     if isinstance(usage, dict):
       result["usage"] = usage
+    page_images = payload.get("pageImages")
+    if isinstance(page_images, list) and len(page_images) > 0:
+      result["pageImages"] = page_images
     return result
 
   def _validate_remote(self) -> None:

@@ -148,14 +148,13 @@ const envSchema = z.object({
   FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(20000),
   FIELD_VERIFIER_API_KEY: z.string().optional(),
 
-  LOCAL_FILE_STORE_ROOT: z.string().default(".local-run/artifacts"),
-  S3_FILE_STORE_BUCKET: z.string().optional(),
+  S3_FILE_STORE_BUCKET: z.string().default("billforge-local"),
   S3_FILE_STORE_REGION: z.string().default("us-east-1"),
   S3_FILE_STORE_PREFIX: z.string().default("billforge"),
-  S3_FILE_STORE_ENDPOINT: z.string().optional(),
+  S3_FILE_STORE_ENDPOINT: z.string().default("http://minio:9000"),
   S3_FILE_STORE_FORCE_PATH_STYLE: z
     .string()
-    .default("false")
+    .default("true")
     .transform((value) => value === "true"),
 
   CONFIDENCE_EXPECTED_MAX_TOTAL: z.coerce.number().default(100000),

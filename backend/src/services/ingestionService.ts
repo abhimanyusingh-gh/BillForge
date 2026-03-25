@@ -1,7 +1,6 @@
 import type { IngestionSource, IngestedFile } from "../core/interfaces/IngestionSource.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { OcrBlock, OcrPageImage, OcrProvider } from "../core/interfaces/OcrProvider.js";
 import sharp from "sharp";
@@ -17,7 +16,6 @@ import { S3UploadIngestionSource } from "../sources/S3UploadIngestionSource.js";
 import { InvoiceExtractionPipeline, ExtractionPipelineError } from "./extraction/InvoiceExtractionPipeline.js";
 import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { MongoVendorTemplateStore } from "./extraction/vendorTemplateStore.js";
-import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
 
 interface IngestionRunSummary {
   totalFiles: number;
@@ -315,7 +313,12 @@ export class IngestionService {
     const fieldProvenance = parseFieldProvenance(extraction.metadata.fieldProvenance);
 
     const [previewImagePaths, cropPathsByIndex] = await Promise.all([
-      persistPreviewImages(file, mimeType, extraction.ocrPageImages, getPreviewStorageRoot(), artifactPrefix),
+      this.fileStore
+        ? persistPreviewImages({
+            file, mimeType, images: extraction.ocrPageImages,
+            keyPrefix: `${artifactPrefix}/previews`, fileStore: this.fileStore
+          })
+        : Promise.resolve({}),
       this.fileStore
         ? persistOcrBlockCrops({
             file, mimeType, blocks: ocrBlocks, pageSources,
@@ -437,6 +440,7 @@ function buildSuccessData(
   }
 
   let finalBlocks = ocrBlocks;
+  const textBlockCount = ocrBlocks.filter((block) => block.text.trim().length > 0).length;
   if (artifacts.cropPathsByIndex.size > 0) {
     metadata.ocrBlockCropCount = String(artifacts.cropPathsByIndex.size);
     metadata.ocrBlockCropProvider = "";
@@ -445,6 +449,11 @@ function buildSuccessData(
       const cropPath = artifacts.cropPathsByIndex.get(index);
       return cropPath ? { ...block, cropPath } : block;
     });
+  }
+  if (textBlockCount > 0 && artifacts.cropPathsByIndex.size === 0) {
+    processingIssues.push(`Crop generation failed for all ${textBlockCount} OCR blocks.`);
+  } else if (textBlockCount > 0 && artifacts.cropPathsByIndex.size < textBlockCount) {
+    processingIssues.push(`Crop generation partial: ${artifacts.cropPathsByIndex.size}/${textBlockCount} blocks.`);
   }
   if (artifacts.fieldOverlayPaths.size > 0) {
     metadata.fieldOverlayPaths = JSON.stringify(Object.fromEntries(artifacts.fieldOverlayPaths));
@@ -508,46 +517,51 @@ function isDuplicateKeyError(error: unknown): boolean {
   );
 }
 
-async function persistPreviewImages(
-  file: IngestedFile,
-  mimeType: string,
-  images: OcrPageImage[],
-  storageRoot: string,
-  artifactPrefix: string
-): Promise<Record<string, string>> {
-  if (images.length === 0 && !mimeType.startsWith("image/")) {
+async function persistPreviewImages(input: {
+  file: IngestedFile;
+  mimeType: string;
+  images: OcrPageImage[];
+  keyPrefix: string;
+  fileStore: FileStore;
+}): Promise<Record<string, string>> {
+  if (input.images.length === 0 && !input.mimeType.startsWith("image/")) {
     return {};
   }
 
-  const targetDirectory = path.join(storageRoot, artifactPrefix);
-  await fs.mkdir(targetDirectory, { recursive: true });
-
   const output: Record<string, string> = {};
-  if (mimeType.startsWith("image/")) {
-    const extension = extensionForMimeType(mimeType);
-    const fileName = `page-1.${extension}`;
-    const filePath = path.resolve(targetDirectory, fileName);
-    if (isPathInsideRoot(storageRoot, filePath)) {
-      await fs.writeFile(filePath, file.buffer);
-      output["1"] = filePath;
-    }
+  if (input.mimeType.startsWith("image/")) {
+    const extension = extensionForMimeType(input.mimeType);
+    const objectRef = await input.fileStore.putObject({
+      key: `${input.keyPrefix}/page-1.${extension}`,
+      body: input.file.buffer,
+      contentType: input.mimeType,
+      metadata: {
+        tenantId: input.file.tenantId,
+        sourceKey: input.file.sourceKey,
+        sourceDocumentId: input.file.sourceDocumentId
+      }
+    });
+    output["1"] = objectRef.path;
   }
 
-  for (const image of images) {
+  for (const image of input.images) {
     const parsed = decodeDataUrl(image.dataUrl);
     if (!parsed) {
       continue;
     }
 
     const extension = extensionForMimeType(parsed.mimeType);
-    const fileName = `page-${image.page}.${extension}`;
-    const filePath = path.resolve(targetDirectory, fileName);
-    if (!isPathInsideRoot(storageRoot, filePath)) {
-      continue;
-    }
-
-    await fs.writeFile(filePath, parsed.buffer);
-    output[String(image.page)] = filePath;
+    const objectRef = await input.fileStore.putObject({
+      key: `${input.keyPrefix}/page-${image.page}.${extension}`,
+      body: parsed.buffer,
+      contentType: parsed.mimeType,
+      metadata: {
+        tenantId: input.file.tenantId,
+        sourceKey: input.file.sourceKey,
+        sourceDocumentId: input.file.sourceDocumentId
+      }
+    });
+    output[String(image.page)] = objectRef.path;
   }
 
   return output;
@@ -820,6 +834,33 @@ function normalizeAbsoluteBox(value: Box4, pageWidth: number, pageHeight: number
   return [
     Math.max(0, Math.min(1, x1 / pageWidth)), Math.max(0, Math.min(1, y1 / pageHeight)),
     Math.max(0, Math.min(1, x2 / pageWidth)), Math.max(0, Math.min(1, y2 / pageHeight))
+  ];
+}
+
+function classifyAndNormalizeBox(
+  value: Box4 | undefined,
+  pageWidth: number,
+  pageHeight: number
+): Box4 | undefined {
+  const v = validateBox(value);
+  if (!v) return undefined;
+  const [x1, y1, x2, y2] = v;
+  const maxCoord = Math.max(x1, y1, x2, y2);
+
+  if (maxCoord <= 1) {
+    return v;
+  }
+
+  if (maxCoord <= 999) {
+    const scale = 999;
+    return v.map((n) => Math.max(0, Math.min(1, n / scale))) as Box4;
+  }
+
+  return [
+    Math.max(0, Math.min(1, x1 / pageWidth)),
+    Math.max(0, Math.min(1, y1 / pageHeight)),
+    Math.max(0, Math.min(1, x2 / pageWidth)),
+    Math.max(0, Math.min(1, y2 / pageHeight))
   ];
 }
 

@@ -4,7 +4,7 @@ interface TenantAdminTopNavProps {
   userEmail: string;
   onLogout: () => void;
   onChangePassword: () => void;
-  counts: { total: number; approved: number; pending: number };
+  counts: { total: number; approved: number; pending: number; failed: number };
   themeToggle?: React.ReactNode;
 }
 
@@ -29,7 +29,10 @@ export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, count
         <div className="tenant-nav-divider" />
         <span className="toolbar-icon-wrap">
           <span className="tenant-nav-stat">{counts.total} invoices</span>
-          <span className="toolbar-icon-label">{counts.approved} approved, {counts.pending} pending review</span>
+          <span className="toolbar-icon-label">
+            {counts.approved} approved, {counts.pending} pending
+            {counts.failed > 0 ? <span className="nav-failed-badge">, {counts.failed} failed</span> : null}
+          </span>
         </span>
       </div>
 
