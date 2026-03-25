@@ -205,7 +205,7 @@ export class InvoiceExtractionPipeline {
 
     metadata.ocrGate = "slm-direct";
       const bestText = extractionCandidates[0]?.text ?? "";
-      const slmResult = await withTimeout(this.verifierTimeoutMs, this.fieldVerifier.verify({
+      const slmResult = await this.fieldVerifier.verify({
         parsed: {} as ParsedInvoiceData,
         ocrText: bestText,
         ocrBlocks,
@@ -219,7 +219,7 @@ export class InvoiceExtractionPipeline {
           pageImages: ocrPageImages.slice(0, 3),
           llmAssist: true
         }
-      }));
+      });
 
       if (slmResult.tokenUsage?.totalTokens) slmTokensUsed += slmResult.tokenUsage.totalTokens;
       const slmParsed = slmResult.parsed;
