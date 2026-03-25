@@ -212,10 +212,6 @@ export function TenantInvoicesView({
   }, [popupInvoiceId]);
 
   useEffect(() => {
-    refreshIngestionStatus();
-  }, []);
-
-  useEffect(() => {
     if (!ingestionStatus?.running) {
       return undefined;
     }
