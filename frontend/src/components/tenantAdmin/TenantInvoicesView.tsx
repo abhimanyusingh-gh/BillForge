@@ -546,19 +546,23 @@ export function TenantInvoicesView({
       );
       setInvoices(data.items);
       setTotalInvoices(data.total);
-      const failedCount = data.items.filter((inv) => inv.status === "FAILED_OCR" || inv.status === "FAILED_PARSE").length;
       onNavCountsChange({
         total: data.totalAll ?? data.total,
         approved: data.approvedAll ?? 0,
         pending: data.pendingAll ?? 0,
-        failed: failedCount
+        failed: data.failedAll ?? 0
       });
       if (statusFilter === "ALL") {
-        const counts: Record<string, number> = { ALL: data.total };
-        for (const inv of data.items) {
-          counts[inv.status] = (counts[inv.status] ?? 0) + 1;
-        }
-        setAllStatusCounts(counts);
+        setAllStatusCounts({
+          ALL: data.totalAll ?? data.total,
+          PARSED: data.parsedAll ?? 0,
+          NEEDS_REVIEW: data.needsReviewAll ?? 0,
+          AWAITING_APPROVAL: data.awaitingApprovalAll ?? 0,
+          FAILED_OCR: data.failedOcrAll ?? 0,
+          FAILED_PARSE: data.failedParseAll ?? 0,
+          APPROVED: data.approvedAll ?? 0,
+          EXPORTED: data.exportedAll ?? 0
+        });
       }
       const ids = new Set(data.items.map((item) => item._id));
       setSelectedIds((currentSelectedIds) => mergeSelectedIds(currentSelectedIds, data.items));

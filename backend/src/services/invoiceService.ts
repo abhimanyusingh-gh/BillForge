@@ -98,6 +98,11 @@ export class InvoiceService {
             pending: [{ $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } }, { $count: "n" }],
             failed: [{ $match: { status: { $in: ["FAILED_OCR", "FAILED_PARSE"] } } }, { $count: "n" }],
             needsReview: [{ $match: { status: "NEEDS_REVIEW" } }, { $count: "n" }],
+            parsed: [{ $match: { status: "PARSED" } }, { $count: "n" }],
+            awaitingApproval: [{ $match: { status: "AWAITING_APPROVAL" } }, { $count: "n" }],
+            failedOcr: [{ $match: { status: "FAILED_OCR" } }, { $count: "n" }],
+            failedParse: [{ $match: { status: "FAILED_PARSE" } }, { $count: "n" }],
+            exported: [{ $match: { status: "EXPORTED" } }, { $count: "n" }],
             ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {}),
             ...contentHashFacet
           }
@@ -111,6 +116,11 @@ export class InvoiceService {
     const pendingAll = facet.pending?.[0]?.n ?? 0;
     const failedAll = facet.failed?.[0]?.n ?? 0;
     const needsReviewAll = facet.needsReview?.[0]?.n ?? 0;
+    const parsedAll = facet.parsed?.[0]?.n ?? 0;
+    const awaitingApprovalAll = facet.awaitingApproval?.[0]?.n ?? 0;
+    const failedOcrAll = facet.failedOcr?.[0]?.n ?? 0;
+    const failedParseAll = facet.failedParse?.[0]?.n ?? 0;
+    const exportedAll = facet.exported?.[0]?.n ?? 0;
     const total = params.status ? (facet.filtered?.[0]?.n ?? 0) : totalAll;
 
     const duplicateHashes = new Set<string>();
@@ -132,7 +142,12 @@ export class InvoiceService {
       approvedAll,
       pendingAll,
       failedAll,
-      needsReviewAll
+      needsReviewAll,
+      parsedAll,
+      awaitingApprovalAll,
+      failedOcrAll,
+      failedParseAll,
+      exportedAll
     };
   }
 
