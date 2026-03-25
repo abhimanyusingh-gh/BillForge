@@ -19,7 +19,20 @@ interface ListInvoicesParams {
   from?: Date;
   to?: Date;
   approvedBy?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
+
+const SORT_COLUMN_MAP: Record<string, string> = {
+  file: "attachmentName",
+  vendor: "parsed.vendorName",
+  invoiceNumber: "parsed.invoiceNumber",
+  invoiceDate: "parsed.invoiceDate",
+  total: "parsed.totalAmountMinor",
+  confidence: "confidenceScore",
+  status: "status",
+  received: "receivedAt"
+};
 
 export type UpdateParsedFieldInput = Partial<{
   invoiceNumber: string | null;
@@ -82,10 +95,15 @@ export class InvoiceService {
       ]
     };
 
+    const mongoSortField = params.sortBy && SORT_COLUMN_MAP[params.sortBy]
+      ? SORT_COLUMN_MAP[params.sortBy]
+      : "receivedAt";
+    const mongoSortDir = params.sortDir === "asc" ? 1 : -1;
+
     const [items, counts] = await Promise.all([
       InvoiceModel.find(query)
         .select({ ocrText: 0, ocrBlocks: 0 })
-        .sort({ createdAt: -1 })
+        .sort({ [mongoSortField]: mongoSortDir })
         .skip(skip)
         .limit(params.limit)
         .lean(),

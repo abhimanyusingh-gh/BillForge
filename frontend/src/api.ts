@@ -190,7 +190,7 @@ export async function fetchAnalyticsOverview(from: string, to: string, scope: "m
   return response.data;
 }
 
-export async function fetchInvoices(status?: string, from?: string, to?: string, page = 1, limit = 20, approvedBy?: string) {
+export async function fetchInvoices(status?: string, from?: string, to?: string, page = 1, limit = 20, approvedBy?: string, sortBy?: string, sortDir?: "asc" | "desc") {
   const response = await apiClient.get<InvoiceListResponse>("/invoices", {
     params: {
       page,
@@ -198,7 +198,9 @@ export async function fetchInvoices(status?: string, from?: string, to?: string,
       status: status || undefined,
       from: from || undefined,
       to: to || undefined,
-      approvedBy: approvedBy || undefined
+      approvedBy: approvedBy || undefined,
+      sortBy: sortBy || undefined,
+      sortDir: sortBy ? sortDir : undefined
     }
   });
 
