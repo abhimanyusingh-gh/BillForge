@@ -99,8 +99,8 @@ describe("HttpFieldVerifier", () => {
     expect(hints?.priorCorrections).toHaveLength(1);
   });
 
-  it("returns fallback result and logs warning when verifier request fails", async () => {
-    const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => undefined);
+  it("throws when verifier request fails (SLM is mandatory)", async () => {
+    const errorSpy = jest.spyOn(logger, "error").mockImplementation(() => undefined);
     const post = jest.fn(async () => {
       throw new Error("connection refused");
     });
@@ -123,12 +123,8 @@ describe("HttpFieldVerifier", () => {
       }
     };
 
-    const result = await verifier.verify(input);
-
-    expect(result.parsed).toEqual(input.parsed);
-    expect(result.issues).toEqual(["Field verifier request failed; continuing with deterministic extraction."]);
-    expect(result.changedFields).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith(
+    await expect(verifier.verify(input)).rejects.toThrow("SLM verification failed: connection refused");
+    expect(errorSpy).toHaveBeenCalledWith(
       "verifier.http.failed",
       expect.objectContaining({
         error: "connection refused"

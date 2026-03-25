@@ -88,7 +88,7 @@ interface TenantInvoicesViewProps {
   tenantMode?: "test" | "live";
   tenantUsers?: Array<{ userId: string; email: string; role: string; enabled: boolean }>;
   onGmailStatusRefresh: () => void;
-  onNavCountsChange: (counts: { total: number; approved: number; pending: number }) => void;
+  onNavCountsChange: (counts: { total: number; approved: number; pending: number; failed: number }) => void;
   onSessionExpired: () => void;
   addToast: (type: "success" | "error" | "info", message: string) => void;
 }
@@ -145,6 +145,7 @@ export function TenantInvoicesView({
   const [popupRawOcrExpanded, setPopupRawOcrExpanded] = useState(false);
   const [popupMappingExpanded, setPopupMappingExpanded] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
+  const popupRef = useRef<HTMLElement>(null);
   const ingestionWasRunningRef = useRef(false);
   const sseLoadPendingRef = useRef(false);
   const sseLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -185,13 +186,17 @@ export function TenantInvoicesView({
   }, []);
 
   useEffect(() => {
-    setPopupSourcePreviewExpanded(false);
+    setPopupSourcePreviewExpanded(true);
   }, [popupInvoiceId]);
 
   useEffect(() => {
     if (!popupInvoiceId) {
       return undefined;
     }
+
+    popupRef.current?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
     function handleEsc(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -200,7 +205,10 @@ export function TenantInvoicesView({
     }
 
     window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleEsc);
+    };
   }, [popupInvoiceId]);
 
   useEffect(() => {
@@ -437,12 +445,24 @@ export function TenantInvoicesView({
     onMoveDown: () => {
       const idx = filteredInvoices.findIndex((inv) => inv._id === activeId);
       const next = filteredInvoices[idx + 1];
-      if (next) { setActiveId(next._id); setDetailsPanelVisible(true); }
+      if (next) {
+        setActiveId(next._id);
+        setDetailsPanelVisible(true);
+        requestAnimationFrame(() => {
+          document.querySelector(`[data-invoice-id="${next._id}"]`)?.scrollIntoView({ block: "nearest" });
+        });
+      }
     },
     onMoveUp: () => {
       const idx = filteredInvoices.findIndex((inv) => inv._id === activeId);
       const prev = filteredInvoices[idx - 1];
-      if (prev) { setActiveId(prev._id); setDetailsPanelVisible(true); }
+      if (prev) {
+        setActiveId(prev._id);
+        setDetailsPanelVisible(true);
+        requestAnimationFrame(() => {
+          document.querySelector(`[data-invoice-id="${prev._id}"]`)?.scrollIntoView({ block: "nearest" });
+        });
+      }
     },
     onToggleSelect: () => {
       if (!activeId) return;
@@ -526,10 +546,12 @@ export function TenantInvoicesView({
       );
       setInvoices(data.items);
       setTotalInvoices(data.total);
+      const failedCount = data.items.filter((inv) => inv.status === "FAILED_OCR" || inv.status === "FAILED_PARSE").length;
       onNavCountsChange({
         total: data.totalAll ?? data.total,
         approved: data.approvedAll ?? 0,
-        pending: data.pendingAll ?? 0
+        pending: data.pendingAll ?? 0,
+        failed: failedCount
       });
       if (statusFilter === "ALL") {
         const counts: Record<string, number> = { ALL: data.total };
@@ -571,25 +593,35 @@ export function TenantInvoicesView({
     }
   }
 
-  async function handleApprove() {
+  function handleApprove() {
     if (selectedApprovableIds.length === 0) {
       addToast("error", "Select at least one invoice to approve.");
       return;
     }
-    try {
-      setActionLoading("approve");
-      const response = await approveInvoices(selectedApprovableIds, userEmail);
-      if (response.modifiedCount === 0) {
-        addToast("info", "No eligible invoices found for approval.");
-      } else {
-        addToast("success", `${response.modifiedCount} invoice(s) approved.`);
+    const count = selectedApprovableIds.length;
+    setConfirmDialog({
+      title: "Approve Invoices",
+      message: `Approve ${count} invoice${count === 1 ? "" : "s"}? This action is recorded in the audit trail.`,
+      confirmLabel: `Approve ${count}`,
+      destructive: false,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          setActionLoading("approve");
+          const response = await approveInvoices(selectedApprovableIds, userEmail);
+          if (response.modifiedCount === 0) {
+            addToast("info", "No eligible invoices found for approval.");
+          } else {
+            addToast("success", `${response.modifiedCount} invoice(s) approved.`);
+          }
+          await loadInvoices();
+        } catch (approveError) {
+          addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
+        } finally {
+          setActionLoading(null);
+        }
       }
-      await loadInvoices();
-    } catch (approveError) {
-      addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
-    } finally {
-      setActionLoading(null);
-    }
+    });
   }
 
   function handleDelete() {
@@ -706,6 +738,7 @@ export function TenantInvoicesView({
       return;
     }
     try {
+      setActionLoading("export");
       const fileResult = await generateTallyXmlFile(selectedExportableIds);
       if (!fileResult.batchId) {
         addToast("error", "Export failed — invoices may have invalid amounts or are already exported.");
@@ -734,6 +767,8 @@ export function TenantInvoicesView({
     } catch (downloadError) {
       addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
       await loadInvoices();
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -1033,7 +1068,7 @@ export function TenantInvoicesView({
                     const canEditCell = invoice.status !== "EXPORTED";
 
                     return (
-                      <tr key={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}>
+                      <tr key={invoice._id} data-invoice-id={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}>
                         <td>
                           <input
                             type="checkbox"
@@ -1286,6 +1321,8 @@ export function TenantInvoicesView({
       {popupInvoice ? (
         <div className="popup-overlay" role="presentation" onClick={() => setPopupInvoiceId(null)}>
           <section
+            ref={popupRef}
+            tabIndex={-1}
             className="popup-card"
             role="dialog"
             aria-modal="true"

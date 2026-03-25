@@ -15,7 +15,6 @@ import type { WorkloadTier } from "../types/tenant.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { requireNotViewer } from "../auth/middleware.js";
 import { ViewerScopeModel } from "../models/ViewerScope.js";
-import { getPreviewStorageRoot, isPathInsideRoot } from "../utils/previewStorage.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { logger } from "../utils/logger.js";
 import { isRecord, isString, validateDateRange } from "../utils/validation.js";
@@ -232,9 +231,14 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
         return;
       }
       const page = Math.max(1, Number(req.query.page ?? 1));
-      const previewPath = resolvePreviewImagePath(invoice.metadata, page, getPreviewStorageRoot());
+      const previewPath = resolvePreviewImagePath(invoice.metadata, page);
 
-      if (!previewPath && invoice.sourceType === "s3-upload" && fileStore) {
+      if (previewPath) {
+        await sendStoredImage(res, previewPath, "Preview image", next);
+        return;
+      }
+
+      if (invoice.sourceType === "s3-upload" && fileStore) {
         const uploadKey = invoice.metadata?.uploadKey;
         if (typeof uploadKey === "string" && uploadKey.length > 0) {
           try {
@@ -248,20 +252,11 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
               invoiceId: req.params.id,
               error: error instanceof Error ? error.message : String(error)
             });
-            res.status(404).json({ message: "Uploaded file not found in storage." });
-            return;
           }
         }
       }
 
-      if (invoice.mimeType.startsWith("image/")) {
-        if (previewPath) {
-          await assertPathReadable(previewPath);
-          res.type(previewPath.endsWith(".jpg") || previewPath.endsWith(".jpeg") ? "image/jpeg" : "image/png");
-          safeSendFile(res, previewPath, next);
-          return;
-        }
-
+      if (invoice.sourceType === "folder" && invoice.mimeType.startsWith("image/")) {
         const folderSource = runtimeManifest.sources.find(
           (source): source is FolderSourceManifest =>
             source.type === "folder" &&
@@ -269,35 +264,18 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
             source.tenantId === invoice.tenantId &&
             source.workloadTier === invoice.workloadTier
         );
-        if (!folderSource) {
-          res.status(404).json({ message: "Preview image not found for this invoice." });
-          return;
+        if (folderSource) {
+          const imagePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
+          if (imagePath) {
+            await assertPathReadable(imagePath);
+            res.type(invoice.mimeType);
+            safeSendFile(res, imagePath, next);
+            return;
+          }
         }
-
-        const imagePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
-        if (!imagePath) {
-          res.status(400).json({ message: "Invoice source document path is invalid." });
-          return;
-        }
-        await assertPathReadable(imagePath);
-        res.type(invoice.mimeType);
-        safeSendFile(res, imagePath, next);
-        return;
       }
 
-      if (invoice.mimeType !== "application/pdf") {
-        res.status(415).json({ message: "Preview is unsupported for this file type." });
-        return;
-      }
-
-      if (!previewPath) {
-        res.status(404).json({ message: "Preview image not found for this PDF invoice." });
-        return;
-      }
-
-      await assertPathReadable(previewPath);
-      res.type(previewPath.endsWith(".jpg") || previewPath.endsWith(".jpeg") ? "image/jpeg" : "image/png");
-      safeSendFile(res, previewPath, next);
+      res.status(404).json({ message: "Preview image not found for this invoice." });
     } catch (error) {
       next(error);
     }
@@ -378,8 +356,7 @@ function sanitizeContentDispositionName(value: string): string {
 
 function resolvePreviewImagePath(
   metadata: Record<string, string | undefined> | undefined,
-  page: number,
-  storageRoot: string
+  page: number
 ): string | null {
   const rawMap = metadata?.previewPageImages;
   if (!rawMap) {
@@ -404,8 +381,7 @@ function resolvePreviewImagePath(
     return null;
   }
 
-  const resolved = path.resolve(candidate);
-  return isPathInsideRoot(storageRoot, resolved) ? resolved : null;
+  return candidate.trim().length > 0 ? candidate.trim() : null;
 }
 
 function resolveOcrBlockCropPath(
@@ -540,9 +516,9 @@ async function sendStoredImage(res: Response, value: string, label: string, next
     return;
   }
 
-  const storageRoot = path.resolve(env.LOCAL_FILE_STORE_ROOT);
   const resolved = path.resolve(value);
-  if (!isPathInsideRoot(storageRoot, resolved)) {
+  const relative = path.relative(path.resolve("."), resolved);
+  if (relative.startsWith("..") && path.isAbsolute(relative)) {
     res.status(404).json({ message: `${label} path is invalid.` });
     return;
   }

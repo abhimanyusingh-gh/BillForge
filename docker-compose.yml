@@ -98,8 +98,7 @@ services:
       OCR_HIGH_CONFIDENCE_THRESHOLD: "0.92"
       FIELD_VERIFIER_PROVIDER: http
       FIELD_VERIFIER_BASE_URL: http://invoice-slm:8100/v1
-      FIELD_VERIFIER_TIMEOUT_MS: "20000"
-      LOCAL_FILE_STORE_ROOT: ${LOCAL_FILE_STORE_ROOT:-/app/.local-run/artifacts}
+      FIELD_VERIFIER_TIMEOUT_MS: "60000"
       S3_FILE_STORE_BUCKET: ${S3_FILE_STORE_BUCKET:-billforge-local}
       S3_FILE_STORE_REGION: ${S3_FILE_STORE_REGION:-us-east-1}
       S3_FILE_STORE_PREFIX: ${S3_FILE_STORE_PREFIX:-billforge}
@@ -335,7 +334,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       SLM_ENGINE: prod_http
-      SLM_REMOTE_BASE_URL: ${SLM_REMOTE_BASE_URL:-http://host.docker.internal:8300/v1}
+      SLM_REMOTE_BASE_URL: ${SLM_REMOTE_BASE_URL:-http://host.docker.internal:8300}
       SLM_PROBE_TIMEOUT_MS: "3000"
       SLM_VALIDATE_REMOTE_ON_STARTUP: "false"
     healthcheck:

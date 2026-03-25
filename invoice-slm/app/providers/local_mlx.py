@@ -79,6 +79,7 @@ class LocalMlxLLMProvider(LLMProvider):
       output_text = extract_generation_text(output)
       completion_tokens = len(self.tokenizer.encode(output_text))
       usage = {"promptTokens": prompt_tokens, "completionTokens": completion_tokens}
+      log_info("slm.raw_output", output_length=len(output_text), completion_tokens=completion_tokens, first_200=output_text[:200], last_200=output_text[-200:] if len(output_text) > 200 else "")
       parsed = parse_json_object(output_text)
       if parsed is not None:
         parsed["_usage"] = usage
@@ -148,29 +149,25 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     if parts:
       prior_corrections_text = " PRIOR_CORRECTIONS: " + "; ".join(parts) + "."
 
-  if strict:
-    instruction = (
-      "Return only one minified JSON object. "
-      "No markdown. No code fence. No explanation. No preamble. "
-      "Schema: "
-      "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
-      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"}. "
-      "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
-      "professional-service, purchase-order, credit-note, proforma, other."
-      + prior_corrections_text
-    )
-  else:
-    instruction = (
-      "Use OCR text blocks and bounding boxes to choose invoice fields. "
-      "Output schema must be exactly: "
-      "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
-      "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"} "
-      "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
-      "professional-service, purchase-order, credit-note, proforma, other. "
-      "Rules: vendorName cannot be an address; totalAmountMinor must be integer minor units; "
-      "if unknown keep empty string or 0."
-      + prior_corrections_text
-    )
+  instruction = (
+    "You are an information extraction engine.\n\n"
+    "Task: Extract structured data from OCR invoice input.\n\n"
+    "Rules:\n"
+    "- Perform all reasoning internally.\n"
+    "- DO NOT output reasoning.\n"
+    "- DO NOT explain anything.\n"
+    "- Output MUST be valid JSON only.\n"
+    "- No extra text, no comments, no markdown.\n"
+    "- If a field is missing, use null.\n"
+    "- totalAmountMinor = total in minor units (paise/cents). INR example: ₹1,11,510.00 = 11151000.\n"
+    "- Dates in YYYY-MM-DD format.\n"
+    "- If GSTIN, CGST, SGST, or IGST appears in the text, currency MUST be INR regardless of any $ symbol.\n\n"
+    "Output format:\n"
+    '{"selected":{"invoiceNumber":"","vendorName":"","currency":"","totalAmountMinor":0,'
+    '"invoiceDate":"","dueDate":""},"reasonCodes":{},"issues":[],"invoiceType":""}\n\n'
+    "Input:\n"
+    + prior_corrections_text
+  )
 
   prompt_payload = sanitize_payload_for_prompt(payload)
   user_message = (
@@ -297,18 +294,59 @@ def parse_json_object(text: str) -> dict[str, Any] | None:
   if not candidate:
     return None
 
+  fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", candidate, re.DOTALL)
+  if fence_match:
+    parsed = try_parse_json(fence_match.group(1).strip())
+    if parsed is not None:
+      return normalize_keys(parsed)
+
   parsed = try_parse_json(candidate)
   if parsed is not None:
-    return parsed
+    return normalize_keys(parsed)
 
+  best: dict[str, Any] | None = None
   for match in re.finditer(r"\{", candidate):
     start = match.start()
-    for end in range(len(candidate), start, -1):
+    depth = 0
+    end = start
+    for i in range(start, len(candidate)):
+      if candidate[i] == "{":
+        depth += 1
+      elif candidate[i] == "}":
+        depth -= 1
+        if depth == 0:
+          end = i + 1
+          break
+    if end > start:
       parsed = try_parse_json(candidate[start:end].strip())
       if parsed is not None:
-        return parsed
+        result = normalize_keys(parsed)
+        if "selected" in result or "invoiceNumber" in result or "vendorName" in result:
+          return result
+        if best is None:
+          best = result
 
-  return None
+  return best
+
+
+def normalize_keys(obj: dict[str, Any]) -> dict[str, Any]:
+  KEY_MAP = {
+    "invoicenumber": "invoiceNumber",
+    "vendorname": "vendorName",
+    "totalamountminor": "totalAmountMinor",
+    "invoicedate": "invoiceDate",
+    "duedate": "dueDate",
+    "invoicetype": "invoiceType",
+    "reasoncodes": "reasonCodes",
+  }
+  result: dict[str, Any] = {}
+  for key, value in obj.items():
+    normalized_key = KEY_MAP.get(key.lower(), key)
+    if isinstance(value, dict):
+      result[normalized_key] = normalize_keys(value)
+    else:
+      result[normalized_key] = value
+  return result
 
 
 def try_parse_json(text: str) -> dict[str, Any] | None:

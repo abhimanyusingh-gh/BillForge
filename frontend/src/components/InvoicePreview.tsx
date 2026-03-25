@@ -26,8 +26,13 @@ export function InvoicePreview({ imageUrl, alt, boundingBox, persistKey }: Invoi
     } catch { return 1; }
   });
   const [dragging, setDragging] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+
+  useEffect(() => {
+    setImageError(false);
+  }, [imageUrl]);
 
   useEffect(() => {
     if (persistKey) {
@@ -99,10 +104,16 @@ export function InvoicePreview({ imageUrl, alt, boundingBox, persistKey }: Invoi
         style={{ cursor: cursorStyle }}
         onMouseDown={handleMouseDown}
       >
-        <div className="source-preview-canvas" style={{ transform: `scale(${zoom})` }}>
-          <img src={imageUrl} alt={alt} loading="lazy" draggable={false} />
-          {boundingBox ? <div className="source-preview-box" style={boundingBox} /> : null}
-        </div>
+        {imageError ? (
+          <div className="source-preview-error">
+            <span>Image unavailable</span>
+          </div>
+        ) : (
+          <div className="source-preview-canvas" style={{ transform: `scale(${zoom})` }}>
+            <img src={imageUrl} alt={alt} loading="lazy" draggable={false} onError={() => setImageError(true)} />
+            {boundingBox ? <div className="source-preview-box" style={boundingBox} /> : null}
+          </div>
+        )}
       </div>
     </div>
   );

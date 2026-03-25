@@ -17,7 +17,6 @@ import { logger } from "../utils/logger.js";
 import { loadRuntimeManifest, type RuntimeManifest } from "./runtimeManifest.js";
 import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
 import { HttpFieldVerifier } from "../verifier/HttpFieldVerifier.js";
-import { LocalDiskFileStore } from "../storage/LocalDiskFileStore.js";
 import { S3FileStore } from "../storage/S3FileStore.js";
 import { EmailSimulationService } from "../services/emailSimulationService.js";
 import { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
@@ -133,32 +132,18 @@ export async function buildDependencies(): Promise<Dependencies> {
 }
 
 function resolveFileStore(runtimeManifest: RuntimeManifest): FileStore {
-  if (runtimeManifest.fileStore.provider === "local") {
-    logger.info("Using file store provider", {
-      provider: "local",
-      rootPath: runtimeManifest.fileStore.local.rootPath
-    });
-    return new LocalDiskFileStore({
-      rootPath: runtimeManifest.fileStore.local.rootPath
-    });
-  }
-
-  if (runtimeManifest.fileStore.provider === "s3") {
-    logger.info("Using file store provider", {
-      provider: "s3",
-      bucket: runtimeManifest.fileStore.s3.bucket,
-      region: runtimeManifest.fileStore.s3.region
-    });
-    return new S3FileStore({
-      bucket: runtimeManifest.fileStore.s3.bucket,
-      region: runtimeManifest.fileStore.s3.region,
-      prefix: runtimeManifest.fileStore.s3.prefix,
-      endpoint: runtimeManifest.fileStore.s3.endpoint,
-      forcePathStyle: runtimeManifest.fileStore.s3.forcePathStyle
-    });
-  }
-
-  throw new Error(`Unsupported file store provider '${runtimeManifest.fileStore.provider}'.`);
+  logger.info("Using file store provider", {
+    provider: "s3",
+    bucket: runtimeManifest.fileStore.s3.bucket,
+    region: runtimeManifest.fileStore.s3.region
+  });
+  return new S3FileStore({
+    bucket: runtimeManifest.fileStore.s3.bucket,
+    region: runtimeManifest.fileStore.s3.region,
+    prefix: runtimeManifest.fileStore.s3.prefix,
+    endpoint: runtimeManifest.fileStore.s3.endpoint,
+    forcePathStyle: runtimeManifest.fileStore.s3.forcePathStyle
+  });
 }
 
 async function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): Promise<FieldVerifier> {

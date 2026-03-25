@@ -96,6 +96,8 @@ export class InvoiceService {
             totalAll: [{ $count: "n" }],
             approved: [{ $match: { status: "APPROVED" } }, { $count: "n" }],
             pending: [{ $match: { status: { $in: ["PARSED", "NEEDS_REVIEW"] } } }, { $count: "n" }],
+            failed: [{ $match: { status: { $in: ["FAILED_OCR", "FAILED_PARSE"] } } }, { $count: "n" }],
+            needsReview: [{ $match: { status: "NEEDS_REVIEW" } }, { $count: "n" }],
             ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {}),
             ...contentHashFacet
           }
@@ -107,6 +109,8 @@ export class InvoiceService {
     const totalAll = facet.totalAll?.[0]?.n ?? 0;
     const approvedAll = facet.approved?.[0]?.n ?? 0;
     const pendingAll = facet.pending?.[0]?.n ?? 0;
+    const failedAll = facet.failed?.[0]?.n ?? 0;
+    const needsReviewAll = facet.needsReview?.[0]?.n ?? 0;
     const total = params.status ? (facet.filtered?.[0]?.n ?? 0) : totalAll;
 
     const duplicateHashes = new Set<string>();
@@ -126,7 +130,9 @@ export class InvoiceService {
       total,
       totalAll,
       approvedAll,
-      pendingAll
+      pendingAll,
+      failedAll,
+      needsReviewAll
     };
   }
 
@@ -172,8 +178,7 @@ export class InvoiceService {
         },
         $push: {
           processingIssues: {
-            $each: [`Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})`],
-            $slice: -50
+            $each: [`Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})`]
           }
         }
       }
@@ -235,14 +240,13 @@ export class InvoiceService {
       {
         _id: { $in: validIds },
         tenantId: authContext.tenantId,
-        status: { $ne: "EXPORTED" }
+        status: { $in: ["FAILED_OCR", "FAILED_PARSE", "NEEDS_REVIEW", "PARSED"] }
       },
       {
         $set: { status: "PENDING" },
         $push: {
           processingIssues: {
-            $each: [`Retry requested: ${now.toISOString()} by ${authContext.email}`],
-            $slice: -50
+            $each: [`Retry requested: ${now.toISOString()} by ${authContext.email}`]
           }
         }
       }
@@ -392,7 +396,7 @@ export class InvoiceService {
       [
         ...existingIssues,
         `Manual parsed field update: ${new Date().toISOString()} by ${updatedBy}.`
-      ].slice(-50)
+      ]
     );
 
     await invoice.save();

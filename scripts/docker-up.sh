@@ -268,8 +268,11 @@ LOCAL_DEMO_SEED="$LOCAL_DEMO_SEED_VALUE" \
 AUTH_AUTO_PROVISION_USERS="$AUTH_AUTO_PROVISION_USERS_VALUE" \
 LOCAL_DEMO_CONFIG_PATH="$LOCAL_DEMO_CONFIG_PATH_VALUE" \
 ENV="$ENV_MODE" \
+NO_CACHE_FLAG="--no-cache"
+
+"${COMPOSE_CMD[@]}" build $NO_CACHE_FLAG backend frontend
 "${COMPOSE_CMD[@]}" up -d --build --remove-orphans \
-  backend frontend mongo mongo-express mailhog mailhog-oauth minio-init invoice-ocr invoice-slm
+  backend frontend mongo mongo-express mailhog mailhog-oauth minio minio-init
 
 wait_for_http_contains "$BACKEND_HEALTH_URL" "\"ready\":true" "backend" 600
 wait_for_http_contains "$FRONTEND_URL" "<html" "frontend" 300

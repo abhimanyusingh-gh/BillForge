@@ -91,7 +91,7 @@ function extractTaxAmountMinor(text?: string): number | undefined {
     .filter((line) => /\b(vat|gst|mwst|ust|tax)\b/i.test(line));
 
   const amounts = taxLines
-    .flatMap((line) => Array.from(line.matchAll(/[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)(?:[.,]\d{1,3})?/g), (match) => match[0]))
+    .flatMap((line) => Array.from(line.matchAll(/[-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)(?:[.,]\d{1,3})?/g), (match) => match[0]))
     .map((raw) => parseAmountMinor(raw))
     .filter((value): value is number => value !== undefined && value > 0);
 
@@ -113,7 +113,7 @@ function detectInvalidTotalPrecision(text?: string): boolean {
     .filter((line) => /\b(grand\s*total|invoice\s*total|amount\s*due|balance\s*due|total\s*due|amount\s*payable)\b/i.test(line));
 
   return totalLines.some((line) => {
-    const match = line.match(/[-+]?(?:\d{1,3}(?:[,\s.]\d{3})+|\d+)([.,]\d{3,})\b/);
+    const match = line.match(/[-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)([.,]\d{3,})\b/);
     return Boolean(match);
   });
 }
@@ -139,8 +139,15 @@ function parseAmountMinor(raw: string): number | undefined {
       normalized = normalized.replace(/,/g, "");
     }
   } else if (normalized.includes(",")) {
-    const fractionalDigits = normalized.split(",").at(-1)?.length ?? 0;
-    normalized = fractionalDigits <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
+    const commaParts = normalized.split(",");
+    const isIndian = commaParts.length >= 3 && commaParts[commaParts.length - 1].length === 3 &&
+      commaParts.slice(1, -1).every((segment) => segment.length === 2);
+    if (isIndian) {
+      normalized = commaParts.join("");
+    } else {
+      const fractionalDigits = commaParts.at(-1)?.length ?? 0;
+      normalized = fractionalDigits <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
+    }
   }
 
   const parsed = Number(normalized);

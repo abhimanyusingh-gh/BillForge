@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -9,6 +11,27 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", destructive, onConfirm, onCancel }: ConfirmDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    cancelRef.current?.focus();
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [open, onCancel]);
+
   if (!open) return null;
 
   return (
@@ -26,10 +49,10 @@ export function ConfirmDialog({ open, title, message, confirmLabel = "Confirm", 
         </div>
         <p style={{ margin: "0.75rem 0 0", color: "var(--ink-soft)", lineHeight: 1.5 }}>{message}</p>
         <div className="confirm-actions">
-          <button type="button" className="app-button app-button-secondary" onClick={onCancel}>Cancel</button>
+          <button ref={cancelRef} type="button" className="app-button app-button-secondary" onClick={onCancel}>Cancel</button>
           <button
             type="button"
-            className={`app-button ${destructive ? "app-button-primary" : "app-button-primary"}`}
+            className={`app-button ${destructive ? "app-button-destructive" : "app-button-primary"}`}
             style={destructive ? { background: "var(--warn)", borderColor: "var(--warn)" } : undefined}
             onClick={onConfirm}
           >

@@ -59,7 +59,7 @@ env_mode = read_env_mode()
 
 settings = Settings(
   provider=read_choice("SLM_ENGINE", default_slm_engine(env_mode), SLM_ENGINES),
-  model_id=os.getenv("SLM_MODEL_ID", "mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit").strip(),
+  model_id=os.getenv("SLM_MODEL_ID", "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit").strip(),
   model_path=os.getenv("SLM_MODEL_PATH", "").strip(),
   remote_base_url=os.getenv("SLM_REMOTE_BASE_URL", "").strip(),
   remote_select_path=os.getenv("SLM_REMOTE_SELECT_PATH", "/v1/verify/invoice").strip() or "/v1/verify/invoice",
@@ -68,6 +68,6 @@ settings = Settings(
   probe_timeout_ms=read_int("SLM_PROBE_TIMEOUT_MS", 3000, 500),
   validate_remote_on_startup=read_bool("SLM_VALIDATE_REMOTE_ON_STARTUP", True),
   load_on_startup=read_bool("SLM_LOAD_ON_STARTUP", True),
-  max_new_tokens=read_int("SLM_MAX_NEW_TOKENS", 384, 64),
+  max_new_tokens=read_int("SLM_MAX_NEW_TOKENS", 2048, 64),
   max_blocks=read_int("SLM_MAX_BLOCKS", 220, 1)
 )

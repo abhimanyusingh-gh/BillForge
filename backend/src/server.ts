@@ -5,10 +5,11 @@ import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { seedLocalDemoData } from "./bootstrap/seedLocalDemoData.js";
 import { buildDependencies } from "./core/dependencies.js";
+import { TenantModel } from "./models/Tenant.js";
 
 let server: Server | undefined;
 let shuttingDown = false;
-let pollingTimer: ReturnType<typeof setInterval> | undefined;
+let pollingTimer: ReturnType<typeof setTimeout> | undefined;
 
 const POLLING_TICK_INTERVAL_MS = 60_000;
 
@@ -29,11 +30,19 @@ async function bootstrap() {
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
 
-  pollingTimer = setInterval(() => {
-    void runPollingTick(dependencies).catch((error) => {
-      logger.error("polling.tick.failed", { error: error instanceof Error ? error.message : String(error) });
-    });
-  }, POLLING_TICK_INTERVAL_MS);
+  function scheduleNextPoll() {
+    pollingTimer = setTimeout(async () => {
+      try {
+        await runPollingTick(dependencies);
+      } catch (error) {
+        logger.error("polling.tick.failed", { error: error instanceof Error ? error.message : String(error) });
+      }
+      if (!shuttingDown) {
+        scheduleNextPoll();
+      }
+    }, POLLING_TICK_INTERVAL_MS);
+  }
+  scheduleNextPoll();
 }
 
 async function runPollingTick(dependencies: Awaited<ReturnType<typeof buildDependencies>>): Promise<void> {
@@ -42,6 +51,11 @@ async function runPollingTick(dependencies: Awaited<ReturnType<typeof buildDepen
 
   for (const { tenantId, integrationId } of eligible) {
     try {
+      const tenant = await TenantModel.findById(tenantId).select({ mode: 1 }).lean();
+      if (tenant?.mode === "test") {
+        logger.info("polling.skipped.test-tenant", { tenantId });
+        continue;
+      }
       await dependencies.ingestionService.runOnce({ tenantId });
       await dependencies.gmailIntegrationService.markPollingCompleted(integrationId);
       logger.info("polling.completed", { tenantId, integrationId });
@@ -63,7 +77,7 @@ async function shutdown(signal: string) {
   logger.info("shutdown.start", { signal });
 
   if (pollingTimer) {
-    clearInterval(pollingTimer);
+    clearTimeout(pollingTimer);
   }
 
   if (server) {

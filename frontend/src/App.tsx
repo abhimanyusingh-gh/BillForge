@@ -73,7 +73,7 @@ export function App() {
     adminDisplayName: "",
     mode: "test" as string
   });
-  const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0 });
+  const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0, failed: 0 });
   const [gmailConnection, setGmailConnection] = useState<GmailConnectionStatus | null>(null);
   const [mailboxes, setMailboxes] = useState<TenantMailbox[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -744,7 +744,9 @@ export function App() {
         ) : null}
       </section>
 
-      {error ? <p className="error">{error}</p> : null}
+      <div role="alert" aria-live="assertive">
+        {error ? <p className="error">{error}</p> : null}
+      </div>
 
       {!isPlatformAdmin && activeTab === "overview" ? (
         <OverviewDashboard />

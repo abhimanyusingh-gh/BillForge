@@ -1,6 +1,11 @@
 import type { OcrBlock, OcrPageImage } from "../../core/interfaces/OcrProvider.js";
-import type { ParseResult } from "../../parser/invoiceParser.js";
+import type { ParsedInvoiceData } from "../../types/invoice.js";
 import type { ConfidenceAssessment } from "../confidenceAssessment.js";
+
+export interface ParseResult {
+  parsed: ParsedInvoiceData;
+  warnings: string[];
+}
 
 export interface ExtractionAttemptSummary {
   provider: string;

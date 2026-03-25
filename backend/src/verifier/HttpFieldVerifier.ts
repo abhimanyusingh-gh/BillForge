@@ -37,6 +37,7 @@ export class HttpFieldVerifier implements FieldVerifier {
   private readonly timeoutMs: number;
   private readonly apiKey: string;
   private readonly httpClient: AxiosInstance;
+  private queueTail: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: HttpFieldVerifierOptions) {
     this.timeoutMs = options.timeoutMs;
@@ -45,6 +46,50 @@ export class HttpFieldVerifier implements FieldVerifier {
   }
 
   async verify(input: FieldVerifierInput): Promise<FieldVerifierResult> {
+    return new Promise<FieldVerifierResult>((resolve, reject) => {
+      this.queueTail = this.queueTail
+        .then(() => this.verifySerial(input))
+        .then(resolve, reject);
+    });
+  }
+
+  private async verifySerial(input: FieldVerifierInput): Promise<FieldVerifierResult> {
+    const maxRetries = 3;
+    const retryDelayMs = 15_000;
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        logger.warn("verifier.http.retry", { attempt, waitMs: retryDelayMs });
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        try {
+          await this.httpClient.get("/../health", { timeout: 5_000 });
+        } catch {
+          logger.warn("verifier.http.health.failed", { attempt });
+          continue;
+        }
+      }
+
+      const result = await this.tryVerify(input);
+      if (result.success) {
+        return result.value!;
+      }
+      lastError = result.error;
+
+      const isConnectionError = lastError?.message?.includes("ECONNREFUSED") ||
+        lastError?.message?.includes("ECONNRESET") ||
+        lastError?.message?.includes("socket hang up") ||
+        lastError?.message?.includes("Network is unreachable") ||
+        lastError?.message?.includes("timeout");
+      if (!isConnectionError) {
+        break;
+      }
+    }
+
+    throw new Error(`SLM verification failed after ${maxRetries} attempts: ${lastError?.message ?? "unknown"}`);
+  }
+
+  private async tryVerify(input: FieldVerifierInput): Promise<{ success: boolean; value?: FieldVerifierResult; error?: Error }> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json"
     };
@@ -97,24 +142,23 @@ export class HttpFieldVerifier implements FieldVerifier {
       });
 
       return {
-        parsed: normalizeParsed(response.data?.parsed) ?? input.parsed,
-        issues: normalizeStringList(response.data?.issues),
-        changedFields: normalizeStringList(response.data?.changedFields),
-        reasonCodes: normalizeReasonCodes(response.data?.reasonCodes),
-        invoiceType,
-        tokenUsage: usage
+        success: true,
+        value: {
+          parsed: normalizeParsed(response.data?.parsed) ?? input.parsed,
+          issues: normalizeStringList(response.data?.issues),
+          changedFields: normalizeStringList(response.data?.changedFields),
+          reasonCodes: normalizeReasonCodes(response.data?.reasonCodes),
+          invoiceType,
+          tokenUsage: usage
+        }
       };
     } catch (error) {
-      logger.warn("verifier.http.failed", {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error("verifier.http.failed", {
         latencyMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : String(error)
+        error: errorMessage
       });
-      return {
-        parsed: input.parsed,
-        issues: ["Field verifier request failed; continuing with deterministic extraction."],
-        changedFields: [],
-        reasonCodes: {}
-      };
+      return { success: false, error: error instanceof Error ? error : new Error(errorMessage) };
     }
   }
 }

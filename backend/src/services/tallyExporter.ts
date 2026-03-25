@@ -90,6 +90,18 @@ export class TallyExporter implements AccountingExporter {
           continue;
         }
 
+        const vendorName = invoice.parsed?.vendorName?.trim();
+        if (!vendorName || vendorName === "Unknown Vendor") {
+          results.push({ invoiceId, success: false, error: "Vendor name is missing or invalid for Tally export." });
+          continue;
+        }
+
+        const invoiceNumber = invoice.parsed?.invoiceNumber?.trim();
+        if (!invoiceNumber || /^[0-9a-f]{24}$/i.test(invoiceNumber)) {
+          results.push({ invoiceId, success: false, error: "Invoice number is missing or invalid for Tally export." });
+          continue;
+        }
+
         if (invoice.parsed?.totalAmountMinor !== resolvedTotalAmountMinor) {
           invoice.set("parsed", {
             ...(invoice.parsed ?? {}),
@@ -98,7 +110,7 @@ export class TallyExporter implements AccountingExporter {
           const existingIssues = (invoice.get("processingIssues") as string[] | undefined) ?? [];
           invoice.set(
             "processingIssues",
-            [...existingIssues, "Total amount was recovered from OCR text during export mapping."].slice(-50)
+            [...existingIssues, "Total amount was recovered from OCR text during export mapping."]
           );
         }
 
@@ -505,8 +517,18 @@ function buildVoucherInput(
   const gst = invoice.parsed?.gst;
   if (gst && config.gstLedgers) {
     input.gstin = gst.gstin ?? undefined;
+    const taxSum = (gst.cgstMinor ?? 0) + (gst.sgstMinor ?? 0) + (gst.igstMinor ?? 0) + (gst.cessMinor ?? 0);
+    let derivedSubtotal = gst.subtotalMinor;
+    if (derivedSubtotal === undefined || derivedSubtotal === null) {
+      derivedSubtotal = taxSum > 0 ? resolvedAmountMinor - taxSum : resolvedAmountMinor;
+    } else if (taxSum > 0) {
+      const expectedTotal = derivedSubtotal + taxSum;
+      if (Math.abs(expectedTotal - resolvedAmountMinor) > 1) {
+        derivedSubtotal = resolvedAmountMinor - taxSum;
+      }
+    }
     input.gst = {
-      subtotalMinor: gst.subtotalMinor ?? resolvedAmountMinor,
+      subtotalMinor: derivedSubtotal > 0 ? derivedSubtotal : resolvedAmountMinor,
       cgstMinor: gst.cgstMinor ?? undefined,
       sgstMinor: gst.sgstMinor ?? undefined,
       igstMinor: gst.igstMinor ?? undefined,

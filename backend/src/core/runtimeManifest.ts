@@ -7,7 +7,7 @@ import type { WorkloadTier } from "../types/tenant.js";
 
 type OcrProviderType = "auto" | "deepseek" | "mock";
 type VerifierProviderType = "none" | "http";
-type FileStoreProviderType = "local" | "s3";
+type FileStoreProviderType = "s3";
 type SourceType = "email" | "folder";
 
 interface SourceBaseManifest {
@@ -82,9 +82,6 @@ export interface RuntimeManifest {
   };
   fileStore: {
     provider: FileStoreProviderType;
-    local: {
-      rootPath: string;
-    };
     s3: {
       bucket: string;
       region: string;
@@ -281,9 +278,6 @@ export function loadRuntimeManifest(): RuntimeManifest {
     },
     fileStore: {
       provider: defaults.fileStore.provider,
-      local: {
-        rootPath: parsed.fileStore?.local?.rootPath ?? defaults.fileStore.local.rootPath
-      },
       s3: {
         bucket: parsed.fileStore?.s3?.bucket ?? defaults.fileStore.s3.bucket,
         region: parsed.fileStore?.s3?.region ?? defaults.fileStore.s3.region,
@@ -386,15 +380,12 @@ function createDefaultManifest(): RuntimeManifest {
       }
     },
     fileStore: {
-      provider: (env.S3_FILE_STORE_BUCKET?.trim() ?? "").length > 0 ? "s3" : "local",
-      local: {
-        rootPath: env.LOCAL_FILE_STORE_ROOT
-      },
+      provider: "s3",
       s3: {
-        bucket: env.S3_FILE_STORE_BUCKET?.trim() ?? "",
+        bucket: env.S3_FILE_STORE_BUCKET,
         region: env.S3_FILE_STORE_REGION,
         prefix: env.S3_FILE_STORE_PREFIX,
-        endpoint: env.S3_FILE_STORE_ENDPOINT?.trim() ?? "",
+        endpoint: env.S3_FILE_STORE_ENDPOINT,
         forcePathStyle: env.S3_FILE_STORE_FORCE_PATH_STYLE
       }
     },

@@ -34,6 +34,7 @@ export interface FieldVerifierResult {
   reasonCodes?: Record<string, string>;
   invoiceType?: string;
   tokenUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+  slmUnavailable?: boolean;
 }
 
 export interface FieldVerifier {
