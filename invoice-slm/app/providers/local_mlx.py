@@ -155,6 +155,8 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
       "Schema: "
       "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
       "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"}. "
+      "totalAmountMinor is the total in minor units (cents/paise). For INR multiply rupees by 100. "
+      "Example: ₹1,11,510.00 = 11151000. Dates in YYYY-MM-DD format. "
       "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
       "professional-service, purchase-order, credit-note, proforma, other."
       + prior_corrections_text
@@ -165,10 +167,11 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
       "Output schema must be exactly: "
       "{\"selected\":{\"invoiceNumber\":\"\",\"vendorName\":\"\",\"currency\":\"\",\"totalAmountMinor\":0,"
       "\"invoiceDate\":\"\",\"dueDate\":\"\"},\"reasonCodes\":{},\"issues\":[],\"invoiceType\":\"\"} "
+      "totalAmountMinor is the total in minor units (cents/paise). For INR multiply rupees by 100. "
+      "Example: ₹1,11,510.00 = 11151000. Dates in YYYY-MM-DD format. "
       "invoiceType must be one of: standard, gst-tax-invoice, vat-invoice, receipt, utility-bill, "
       "professional-service, purchase-order, credit-note, proforma, other. "
-      "Rules: vendorName cannot be an address; totalAmountMinor must be integer minor units; "
-      "if unknown keep empty string or 0."
+      "Rules: vendorName cannot be an address; if unknown keep empty string or 0."
       + prior_corrections_text
     )
 
@@ -297,18 +300,44 @@ def parse_json_object(text: str) -> dict[str, Any] | None:
   if not candidate:
     return None
 
+  fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", candidate, re.DOTALL)
+  if fence_match:
+    parsed = try_parse_json(fence_match.group(1).strip())
+    if parsed is not None:
+      return normalize_keys(parsed)
+
   parsed = try_parse_json(candidate)
   if parsed is not None:
-    return parsed
+    return normalize_keys(parsed)
 
   for match in re.finditer(r"\{", candidate):
     start = match.start()
     for end in range(len(candidate), start, -1):
       parsed = try_parse_json(candidate[start:end].strip())
       if parsed is not None:
-        return parsed
+        return normalize_keys(parsed)
 
   return None
+
+
+def normalize_keys(obj: dict[str, Any]) -> dict[str, Any]:
+  KEY_MAP = {
+    "invoicenumber": "invoiceNumber",
+    "vendorname": "vendorName",
+    "totalamountminor": "totalAmountMinor",
+    "invoicedate": "invoiceDate",
+    "duedate": "dueDate",
+    "invoicetype": "invoiceType",
+    "reasoncodes": "reasonCodes",
+  }
+  result: dict[str, Any] = {}
+  for key, value in obj.items():
+    normalized_key = KEY_MAP.get(key.lower(), key)
+    if isinstance(value, dict):
+      result[normalized_key] = normalize_keys(value)
+    else:
+      result[normalized_key] = value
+  return result
 
 
 def try_parse_json(text: str) -> dict[str, Any] | None:
