@@ -160,7 +160,8 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     "- No extra text, no comments, no markdown.\n"
     "- If a field is missing, use null.\n"
     "- totalAmountMinor = total in minor units (paise/cents). INR example: ₹1,11,510.00 = 11151000.\n"
-    "- Dates in YYYY-MM-DD format.\n\n"
+    "- Dates in YYYY-MM-DD format.\n"
+    "- If GSTIN, CGST, SGST, or IGST appears in the text, currency MUST be INR regardless of any $ symbol.\n\n"
     "Output format:\n"
     '{"selected":{"invoiceNumber":"","vendorName":"","currency":"","totalAmountMinor":0,'
     '"invoiceDate":"","dueDate":""},"reasonCodes":{},"issues":[],"invoiceType":""}\n\n'
