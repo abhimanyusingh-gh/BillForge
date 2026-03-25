@@ -65,7 +65,7 @@ export class InvoiceExtractionPipeline {
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
     this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
-    this.verifierTimeoutMs = 30_000;
+    this.verifierTimeoutMs = 60_000;
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
