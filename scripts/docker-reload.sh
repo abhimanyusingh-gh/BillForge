@@ -31,42 +31,41 @@ done
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 
-# Restart native OCR/SLM processes
+# Kill and restart native OCR/SLM processes (prompts/code may have changed)
 RUN_DIR="$ROOT_DIR/.local-run"
-for pidfile in "$RUN_DIR/ocr.pid" "$RUN_DIR/slm.pid"; do
+stop_pid() {
+  local label="$1" pidfile="$2"
   if [[ -f "$pidfile" ]]; then
-    pid="$(cat "$pidfile" 2>/dev/null || true)"
+    local pid; pid="$(cat "$pidfile" 2>/dev/null || true)"
     if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
-      echo "Restarting $(basename "$pidfile" .pid) (pid $pid)..."
+      echo "Stopping $label (pid $pid)..."
       kill "$pid" 2>/dev/null || true
-      rm -f "$pidfile"
     fi
+    rm -f "$pidfile"
   fi
-done
+}
+
+stop_pid "OCR" "$RUN_DIR/ocr.pid"
+stop_pid "SLM" "$RUN_DIR/slm.pid"
+sleep 2
 
 PYTHON_BIN="$ROOT_DIR/.venv-ml/bin/python"
 if [[ -x "$PYTHON_BIN" ]]; then
-  OCR_HEALTH="${OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
-  SLM_HEALTH="${SLM_HEALTH_URL:-http://127.0.0.1:8300/health}"
-  if ! curl -fsS "$OCR_HEALTH" >/dev/null 2>&1; then
-    echo "Starting OCR..."
-    "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/ocr.pid" --log-file "$RUN_DIR/ocr.log" --cwd "$ROOT_DIR" -- \
-      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200 >/dev/null 2>&1 || true
-  fi
-  if ! curl -fsS "$SLM_HEALTH" >/dev/null 2>&1; then
-    echo "Starting SLM..."
-    "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/slm.pid" --log-file "$RUN_DIR/slm.log" --cwd "$ROOT_DIR" -- \
-      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300 >/dev/null 2>&1 || true
-  fi
+  echo "Starting OCR..."
+  "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/ocr.pid" --log-file "$RUN_DIR/ocr.log" --cwd "$ROOT_DIR" -- \
+    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200 >/dev/null 2>&1 || true
+  echo "Starting SLM..."
+  "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/slm.pid" --log-file "$RUN_DIR/slm.log" --cwd "$ROOT_DIR" -- \
+    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300 >/dev/null 2>&1 || true
 fi
 
-# Build images with no cache to ensure latest code
-echo "Building backend and frontend images (no cache)..."
-"${COMPOSE_CMD[@]}" build --no-cache backend frontend
+# Build all images with no cache (backend, frontend, OCR proxy, SLM proxy)
+echo "Building images (no cache)..."
+"${COMPOSE_CMD[@]}" build --no-cache backend frontend invoice-ocr invoice-slm
 
-# Swap containers (fast — images already built)
+# Swap containers
 echo "Recreating containers..."
-"${COMPOSE_CMD[@]}" up -d --no-deps --force-recreate backend frontend
+"${COMPOSE_CMD[@]}" up -d --no-deps --force-recreate backend frontend invoice-ocr invoice-slm
 
 # Wait for backend health
 echo "Waiting for backend..."
