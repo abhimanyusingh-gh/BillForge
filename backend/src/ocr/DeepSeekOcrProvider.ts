@@ -12,7 +12,7 @@ const SUPPORTED_MIME_TYPES = new Set([
 ]);
 const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"]);
 const DEFAULT_PROMPT =
-  "Transcribe all visible text exactly as written. Preserve numbers, punctuation, spacing, and line breaks. Do not summarize. Do not format as key-value pairs.";
+  "Transcribe all visible text exactly as written. Preserve numbers, punctuation, spacing, and line breaks. Do not summarize. Do not format as key-value pairs. In Indian invoices, /- or /= after a number means 'rupees only' — transcribe as separate characters (e.g., 300/- not 3001).";
 const DEFAULT_MAX_TOKENS = 2048;
 const DEFAULT_TIMEOUT_MS = 3_600_000;
 
