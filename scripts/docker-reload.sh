@@ -31,39 +31,11 @@ done
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 
-# Kill and restart native OCR/SLM processes (prompts/code may have changed)
-RUN_DIR="$ROOT_DIR/.local-run"
-stop_pid() {
-  local label="$1" pidfile="$2"
-  if [[ -f "$pidfile" ]]; then
-    local pid; pid="$(cat "$pidfile" 2>/dev/null || true)"
-    if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
-      echo "Stopping $label (pid $pid)..."
-      kill "$pid" 2>/dev/null || true
-    fi
-    rm -f "$pidfile"
-  fi
-}
-
-stop_pid "OCR" "$RUN_DIR/ocr.pid"
-stop_pid "SLM" "$RUN_DIR/slm.pid"
-sleep 2
-
-PYTHON_BIN="$ROOT_DIR/.venv-ml/bin/python"
-if [[ -x "$PYTHON_BIN" ]]; then
-  echo "Starting OCR..."
-  "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/ocr.pid" --log-file "$RUN_DIR/ocr.log" --cwd "$ROOT_DIR" -- \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200 >/dev/null 2>&1 || true
-  echo "Starting SLM..."
-  "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/slm.pid" --log-file "$RUN_DIR/slm.log" --cwd "$ROOT_DIR" -- \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300 >/dev/null 2>&1 || true
-fi
-
 # Build all images with no cache (backend, frontend, OCR proxy, SLM proxy)
 echo "Building images (no cache)..."
 "${COMPOSE_CMD[@]}" build --no-cache backend frontend invoice-ocr invoice-slm
 
-# Swap containers
+# Swap containers (native OCR/SLM model servers stay running)
 echo "Recreating containers..."
 "${COMPOSE_CMD[@]}" up -d --no-deps --force-recreate backend frontend invoice-ocr invoice-slm
 
