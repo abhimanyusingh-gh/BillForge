@@ -31,9 +31,9 @@ done
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 
-# Build images first (no timeout pressure)
-echo "Building backend and frontend images..."
-"${COMPOSE_CMD[@]}" build backend frontend
+# Build images with no cache to ensure latest code
+echo "Building backend and frontend images (no cache)..."
+"${COMPOSE_CMD[@]}" build --no-cache backend frontend
 
 # Swap containers (fast — images already built)
 echo "Recreating containers..."
