@@ -31,6 +31,35 @@ done
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:4100/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://127.0.0.1:5177}"
 
+# Restart native OCR/SLM processes
+RUN_DIR="$ROOT_DIR/.local-run"
+for pidfile in "$RUN_DIR/ocr.pid" "$RUN_DIR/slm.pid"; do
+  if [[ -f "$pidfile" ]]; then
+    pid="$(cat "$pidfile" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
+      echo "Restarting $(basename "$pidfile" .pid) (pid $pid)..."
+      kill "$pid" 2>/dev/null || true
+      rm -f "$pidfile"
+    fi
+  fi
+done
+
+PYTHON_BIN="$ROOT_DIR/.venv-ml/bin/python"
+if [[ -x "$PYTHON_BIN" ]]; then
+  OCR_HEALTH="${OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
+  SLM_HEALTH="${SLM_HEALTH_URL:-http://127.0.0.1:8300/health}"
+  if ! curl -fsS "$OCR_HEALTH" >/dev/null 2>&1; then
+    echo "Starting OCR..."
+    "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/ocr.pid" --log-file "$RUN_DIR/ocr.log" --cwd "$ROOT_DIR" -- \
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200 >/dev/null 2>&1 || true
+  fi
+  if ! curl -fsS "$SLM_HEALTH" >/dev/null 2>&1; then
+    echo "Starting SLM..."
+    "$PYTHON_BIN" scripts/start-detached.py --pid-file "$RUN_DIR/slm.pid" --log-file "$RUN_DIR/slm.log" --cwd "$ROOT_DIR" -- \
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300 >/dev/null 2>&1 || true
+  fi
+fi
+
 # Build images with no cache to ensure latest code
 echo "Building backend and frontend images (no cache)..."
 "${COMPOSE_CMD[@]}" build --no-cache backend frontend
