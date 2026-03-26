@@ -163,6 +163,8 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     "- totalAmountMinor = total in minor units (paise/cents).\n"
     "  INR examples: ₹1,11,510.00 = 11151000. Rs.1,18,000/- = 11800000. Rs.1,00,000/- = 10000000.\n"
     "  USD example: $279.84 = 27984. In Indian notation X,XX,XXX means lakhs not thousands.\n"
+    "  IMPORTANT: /- or /= after a number means 'rupees only' (no paise). 300/- means ₹300 = 30000 minor. Do NOT treat /- as extra digits.\n"
+    "  Cross-check: if rate × qty is shown, total must equal rate × qty.\n"
     "- Dates in YYYY-MM-DD format.\n"
     "- If GSTIN, CGST, SGST, or IGST appears, currency MUST be INR.\n"
     "- For each field, include blockIndex: the index of the ocrBlock containing the VALUE (not the label).\n"
