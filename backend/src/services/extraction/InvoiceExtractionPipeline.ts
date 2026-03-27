@@ -205,6 +205,17 @@ export class InvoiceExtractionPipeline {
 
     metadata.ocrGate = "slm-direct";
       const bestText = extractionCandidates[0]?.text ?? "";
+
+      let priorCorrections: Array<{ field: string; hint: string; count: number }> = [];
+      if (this.learningStore) {
+        try {
+          const corrections = await this.learningStore.findCorrections(input.tenantId, template?.vendorName ?? "", fingerprint.key);
+          priorCorrections = corrections.map((c) => ({ field: c.field, hint: c.hint, count: c.count }));
+        } catch {
+          logger.warn("extraction.learning.lookup.skipped", { tenantId: input.tenantId });
+        }
+      }
+
       const slmResult = await this.fieldVerifier.verify({
         parsed: {} as ParsedInvoiceData,
         ocrText: bestText,
@@ -217,10 +228,12 @@ export class InvoiceExtractionPipeline {
           vendorTemplateMatched: false,
           fieldCandidates: {},
           pageImages: ocrPageImages.slice(0, 3),
-          llmAssist: true
+          llmAssist: true,
+          priorCorrections: priorCorrections.length > 0 ? priorCorrections : undefined
         }
       });
 
+      if (slmResult.invoiceType) metadata.invoiceType = slmResult.invoiceType;
       if (slmResult.tokenUsage?.totalTokens) slmTokensUsed += slmResult.tokenUsage.totalTokens;
       const slmBlockIndices: Record<string, number> = (slmResult.parsed as Record<string, unknown>)._blockIndices as Record<string, number> ?? {};
       const slmParsed = { ...slmResult.parsed };

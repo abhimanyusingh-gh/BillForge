@@ -232,6 +232,19 @@ export function OverviewDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (from && to && from > to) {
+      setError("Start date must be before end date");
+      return;
+    }
+    if (to) {
+      const maxDate = new Date();
+      maxDate.setFullYear(maxDate.getFullYear() + 1);
+      const maxDateStr = maxDate.toISOString().slice(0, 10);
+      if (to > maxDateStr) {
+        setError("End date cannot be more than one year from today");
+        return;
+      }
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);

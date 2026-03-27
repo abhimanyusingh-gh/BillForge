@@ -41,6 +41,7 @@ import { TenantViewTabs, type TenantViewTab } from "./components/tenantAdmin/Ten
 import { TenantConfigTab } from "./components/tenantAdmin/TenantConfigTab";
 import { TenantInvoicesView } from "./components/tenantAdmin/TenantInvoicesView";
 import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
+import { EmptyState } from "./components/EmptyState";
 import { BankConnectionsTab } from "./components/BankConnectionsTab";
 import { getUserFacingErrorMessage } from "./apiError";
 import { useToast } from "./hooks/useToast";
@@ -58,7 +59,7 @@ export function App() {
       requires_email_confirmation: boolean;
     };
   } | null>(null);
-  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; enabled: boolean }>>(
+  const [tenantUsers, setTenantUsers] = useState<Array<{ userId: string; email: string; role: "TENANT_ADMIN" | "MEMBER" | "VIEWER"; enabled: boolean }>>(
     []
   );
   const [platformUsage, setPlatformUsage] = useState<PlatformTenantUsageSummary[]>([]);
@@ -497,7 +498,7 @@ export function App() {
     }
   }
 
-  async function handleRoleChange(userId: string, role: "TENANT_ADMIN" | "MEMBER") {
+  async function handleRoleChange(userId: string, role: "TENANT_ADMIN" | "MEMBER" | "VIEWER") {
     try {
       setError(null);
       await assignTenantUserRole(userId, role);
@@ -636,22 +637,19 @@ export function App() {
       ) : null}
 
       <section className="controls">
-        {requiresTenantSetup && !isPlatformAdmin ? (
+        {requiresTenantSetup && !isPlatformAdmin && isTenantAdmin ? (
           <div className="editor-card">
             <div className="editor-header">
               <h3>Tenant Onboarding</h3>
-              {isTenantAdmin ? (
-                <button type="button" onClick={() => void handleCompleteOnboarding()}>
-                  Complete Onboarding
-                </button>
-              ) : null}
+              <button type="button" onClick={() => void handleCompleteOnboarding()}>
+                Complete Onboarding
+              </button>
             </div>
             <div className="edit-grid">
               <label>
                 Tenant Name
                 <input
                   value={onboardingForm.tenantName}
-                  disabled={!isTenantAdmin}
                   onChange={(event) => setOnboardingForm((state) => ({ ...state, tenantName: event.target.value }))}
                 />
               </label>
@@ -659,13 +657,19 @@ export function App() {
                 Admin Email
                 <input
                   value={onboardingForm.adminEmail}
-                  disabled={!isTenantAdmin}
                   onChange={(event) => setOnboardingForm((state) => ({ ...state, adminEmail: event.target.value }))}
                 />
               </label>
             </div>
-            {!isTenantAdmin ? <p className="muted">Only tenant admins can complete onboarding.</p> : null}
           </div>
+        ) : null}
+
+        {requiresTenantSetup && !isPlatformAdmin && !isTenantAdmin ? (
+          <EmptyState
+            icon="hourglass_top"
+            heading="Tenant setup in progress"
+            description="Your tenant is being set up. Please contact your tenant administrator to complete the setup."
+          />
         ) : null}
 
         {activeTab === "exports" && !isPlatformAdmin ? (

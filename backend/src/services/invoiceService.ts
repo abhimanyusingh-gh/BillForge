@@ -9,6 +9,7 @@ import type { AuthenticatedRequestContext } from "../types/auth.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
 import { logger } from "../utils/logger.js";
 import type { ApprovalWorkflowService } from "./approvalWorkflowService.js";
+import { buildCorrectionHint, type ExtractionLearningStore } from "./extraction/extractionLearningStore.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -58,10 +59,12 @@ export class InvoiceUpdateError extends Error {
 export class InvoiceService {
   private readonly fileStore?: FileStore;
   private readonly workflowService?: ApprovalWorkflowService;
+  private readonly learningStore?: ExtractionLearningStore;
 
-  constructor(options?: { fileStore?: FileStore; workflowService?: ApprovalWorkflowService }) {
+  constructor(options?: { fileStore?: FileStore; workflowService?: ApprovalWorkflowService; learningStore?: ExtractionLearningStore }) {
     this.fileStore = options?.fileStore;
     this.workflowService = options?.workflowService;
+    this.learningStore = options?.learningStore;
   }
 
   async listInvoices(params: ListInvoicesParams) {
@@ -350,7 +353,7 @@ export class InvoiceService {
     }
 
     if (invoice.status === "EXPORTED") {
-      throw new InvoiceUpdateError("Exported invoices cannot be modified.", 400);
+      throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
     }
 
     const currentParsed = sanitizeParsedData(invoice.toObject().parsed);
@@ -398,6 +401,38 @@ export class InvoiceService {
     }
 
     invoice.set("parsed", nextParsed);
+
+    if (this.learningStore) {
+      const correctionFields = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor"] as const;
+      const corrections = correctionFields
+        .filter((f) => {
+          const oldVal = (currentParsed as Record<string, unknown>)[f];
+          const newVal = (nextParsed as Record<string, unknown>)[f];
+          return newVal !== undefined && String(newVal) !== String(oldVal ?? "");
+        })
+        .map((f) => ({
+          field: f,
+          hint: buildCorrectionHint(f, (currentParsed as Record<string, unknown>)[f], (nextParsed as Record<string, unknown>)[f]),
+          count: 1,
+          lastSeen: new Date()
+        }))
+        .filter((c) => c.hint.length > 0);
+
+      if (corrections.length > 0) {
+        const vendorFingerprint = invoice.metadata?.get("vendorFingerprint");
+        const invoiceType = invoice.metadata?.get("invoiceType");
+        if (vendorFingerprint) {
+          this.learningStore.recordCorrections(tenantId, vendorFingerprint, "vendor", corrections).catch((err) =>
+            logger.warn("learning.record.vendor.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
+          );
+        }
+        if (invoiceType) {
+          this.learningStore.recordCorrections(tenantId, invoiceType, "invoice-type", corrections).catch((err) =>
+            logger.warn("learning.record.type.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
+          );
+        }
+      }
+    }
 
     const confidence = assessInvoiceConfidence({
       ocrConfidence: invoice.ocrConfidence ?? undefined,
@@ -450,7 +485,7 @@ export class InvoiceService {
       throw new InvoiceUpdateError("Invoice not found.", 404);
     }
     if (invoice.status === "EXPORTED") {
-      throw new InvoiceUpdateError("Exported invoices cannot be modified.", 400);
+      throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
     }
 
     invoice.attachmentName = trimmed;

@@ -37,7 +37,7 @@ interface SessionContextResponse {
   user: {
     id: string;
     email: string;
-    role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER";
+    role: "PLATFORM_ADMIN" | "TENANT_ADMIN" | "MEMBER" | "VIEWER";
     isPlatformAdmin: boolean;
   };
   tenant: {
@@ -57,7 +57,7 @@ interface SessionContextResponse {
 interface TenantUserSummary {
   userId: string;
   email: string;
-  role: "TENANT_ADMIN" | "MEMBER";
+  role: "TENANT_ADMIN" | "MEMBER" | "VIEWER";
   enabled: boolean;
 }
 
@@ -137,7 +137,7 @@ export async function inviteTenantUser(email: string): Promise<void> {
   await apiClient.post("/admin/users/invite", { email });
 }
 
-export async function assignTenantUserRole(userId: string, role: "TENANT_ADMIN" | "MEMBER"): Promise<void> {
+export async function assignTenantUserRole(userId: string, role: "TENANT_ADMIN" | "MEMBER" | "VIEWER"): Promise<void> {
   await apiClient.post(`/admin/users/${userId}/role`, { role });
 }
 
