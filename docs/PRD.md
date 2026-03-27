@@ -21,11 +21,15 @@ BillForge eliminates the search. For every extracted field — vendor name, invo
 **1. Verification in seconds, not minutes.**
 Every extracted field is paired with its source crop — the exact region of the document where the value was found, highlighted with a bounding box overlay. The reviewer doesn't search the document; the document's evidence is brought to them. This is the core interaction pattern that makes BillForge faster than any alternative that shows extracted data without showing proof.
 
-**2. Accuracy that compounds over time.**
-Every correction a reviewer makes is recorded per vendor and per invoice type. The next time an invoice from that vendor arrives, the system applies those learned corrections automatically. BillForge gets more accurate the longer a tenant uses it — which means the switching cost works in the customer's favor. After 30 days, the system requires fewer corrections; after 90 days, it handles known vendors almost autonomously. This is a retention mechanism, not just a feature.
+**2. You corrected it once. You'll never correct it again.**
+When a reviewer fixes a vendor name or an amount format, that correction is recorded. The next time an invoice from that vendor arrives, the system already knows the right answer. This is what compounding accuracy feels like from the reviewer's chair: on day 1, they correct Sharma & Associates. On day 30, Sharma invoices extract correctly without intervention. On day 90, most recurring vendors need zero corrections. The system gets better because they used it — and that's why switching to a competitor means starting over from scratch.
+
+*The 30-day and 90-day timelines are internal hypotheses, not validated claims. They must be confirmed with correction rate data from the first production tenant before they appear in any external communication. See Pre-Launch Validation Gates below.*
 
 **3. India-first accounting connectivity.**
-Tally is the dominant accounting system for Indian SMBs and mid-market finance teams. BillForge generates Tally-native XML with full GST breakdown (CGST/SGST/IGST/Cess) — ready to import with no manual mapping. This is the go-to-market wedge: competitors serving the Indian market either don't support Tally natively or don't handle GST itemization correctly. Export connectivity is built on a boundary/adapter pattern — Tally is the first connector, not the last. Adding QuickBooks, Zoho, or any ERP is an adapter implementation behind the same `AccountingExporter` interface.
+Tally is the dominant accounting system for Indian SMBs and mid-market finance teams. BillForge generates Tally-native XML with full GST breakdown (CGST/SGST/IGST/Cess) — ready to import with no manual mapping. Export connectivity is built on a boundary/adapter pattern — Tally is the first connector, not the last. Adding QuickBooks, Zoho, or any ERP is an adapter implementation behind the same `AccountingExporter` interface.
+
+*The claim "competitors don't support Tally natively" is currently unsubstantiated. Before this becomes external positioning, the competitive analysis must name specific competitors, document their specific capability gaps, and ideally include evidence from a customer who evaluated them. See Pre-Launch Validation Gates below.*
 
 ### Architecture as Product Capability
 
@@ -44,6 +48,14 @@ This means when the second adopter arrives with different tools, BillForge adapt
 ### First Adopter Profile
 
 The first adopter is an Indian accounting services firm where each staff member handles invoices for a specific client. Invoices arrive at a client-specific Gmail inbox. The tenant admin assigns each inbox to the responsible team member. The workflow is flat: one person, one client, one inbox.
+
+### What They Did Before (and What They Fired)
+
+**Not yet documented.** Understanding what the first adopter was doing before BillForge — Excel, manual PDF review, a junior accountant, a WhatsApp group, or just tolerating errors — is critical for positioning. The real competitive set is probably not other invoice software; it might be a manual process that was "good enough" until something changed.
+
+**The trigger question:** What finally made this firm say "today's the day we do something different"? Was it a client complaint? A missed deadline? A costly error? A new client with higher volume? The push that caused action — not just the pain that existed for years — tells us who else is about to have the same problem and how to find them.
+
+**This must be answered through a direct conversation with the first adopter before any external positioning work.** The trigger event belongs here, front and center in the Target Users section, not buried in an open questions table.
 
 ### Operational Model
 
@@ -331,7 +343,32 @@ Engineering-specific quality gates (100% branch coverage, Knip dead code analysi
 
 ---
 
-## 8. Open Questions & Validation Needed
+## 8. Pre-Launch Validation Gates
+
+These are not open questions — they are hard dependencies that must be resolved before external positioning, marketing, or second-adopter sales.
+
+| Gate | What Must Happen | Owner | Blocks |
+|------|-----------------|-------|--------|
+| **G1: Timed user observation** | Sit with 3+ AP clerks at the first adopter. Time their current process (baseline) and their BillForge process (with source crops). Record median and P90 per invoice. | Product | Any external use of the "seconds not minutes" claim |
+| **G2: First adopter trigger** | Interview the decision-maker (not the AP clerk) at adopter one. Document: what they were doing before, what changed, why now, what they evaluated, why BillForge. | Product | Target Users section, go-to-market strategy, positioning |
+| **G3: Competitive analysis** | Name 3-5 competitors in the Indian invoice processing space. For each: document Tally support (yes/no/partial), GST itemization capability, source-verified review (yes/no). Get this from the first adopter's evaluation process if possible. | Product | "India-first wedge" positioning claim |
+| **G4: GST line-item validation** | Call with the first adopter's CA. Ask: "For ITC reconciliation during a GST audit, do you need per-line-item tax breakdowns, or are header-level CGST/SGST/IGST totals sufficient?" | Product + CA | Tally export value prop; may escalate line-item extraction from out-of-scope to blocker |
+| **G5: Learning loop effectiveness** | After 30 days of first adopter production use, measure: correction rate for returning vendors (should be decreasing), false correction rate (stale hints that made things worse). | Engineering | "Compounding accuracy" retention claim; decision on active vs assistive mode |
+| **G6: Second adopter profile** | Name a specific firm or firm type that has a documented AP hierarchy problem. If none exists, acknowledge the advanced workflow builder as a bet and stop investing in it. | Product | Workflow builder roadmap priority |
+
+---
+
+## 9. Open Questions
+
+| Question | Owner | Status |
+|----------|-------|--------|
+| Is 6 corrections per key enough signal to improve accuracy? | Engineering | Pipeline integrated — needs production telemetry (see G5) |
+| Does the 90-day TTL match vendor template change frequency? | Product + Customer | Design a deliberate test: introduce a vendor format change, measure impact |
+| What % of real invoices fall into "other" type? | Engineering | Needs production telemetry |
+| Active vs assistive learning mode | Product | Implemented as active. Decision trigger: if correction rate for returning vendors increases. Consider starting assistive in first production deployment. |
+| Concurrent edit protection (optimistic locking)? | Product | Needed if multiple reviewers work on overlapping invoice sets |
+| Anumati bank connection in scope? | Product | Infrastructure built ahead of validated need. Document the bet or descope. |
+| Tenant mode transition API (test → live)? | Engineering | No API exists; must be added before second adopter |
 
 | Question | Owner | Status |
 |----------|-------|--------|
@@ -405,3 +442,51 @@ Engineering-specific quality gates (100% branch coverage, Knip dead code analysi
 | Tally | Accounting export | `AccountingExporter` interface |
 | SendGrid / SMTP | Invite emails | `InviteEmailSender` boundary |
 | Anumati | Bank connection | `IBankConnectionService` interface |
+
+---
+
+## 13. Go-to-Market Readiness Review
+
+This section tracks sign-off from each stakeholder perspective. Each persona must confirm their concerns are addressed before the product goes to market.
+
+### Senior Product Manager
+
+| Concern | Status | Resolution |
+|---------|--------|------------|
+| Value proposition validated with real users | BLOCKED on G1 | Time real AP clerks; confirm search fatigue is the actual bottleneck |
+| First adopter trigger documented | BLOCKED on G2 | Interview decision-maker; document what they fired |
+| Competitive analysis documented | BLOCKED on G3 | Name competitors, specific gaps, customer evidence |
+| Second adopter profile exists | OPEN on G6 | Name the profile or stop building for it |
+| Success metrics are measurable | DONE | Cohort export volume + correction rate + P90 verification time |
+| Onboarding path to first value is clear | IN PROGRESS | Empty states exist; formal first-use guidance needed |
+
+### Senior Account Auditor (CA Perspective)
+
+| Concern | Status | Resolution |
+|---------|--------|------------|
+| GST export meets ITC reconciliation requirements | BLOCKED on G4 | Validate header-level vs line-item with CA |
+| Audit trail for approvals is complete | DONE | Approval timeline tracks who, when, role, rejection reason |
+| Exported data is immutable | DONE | EXPORTED invoices return 403 on edit attempts |
+| VIEWER role provides appropriate read-only access | DONE | `requireNotViewer` on all write routes, `ViewerScope` for data scope |
+| Human approval is always explicit | DONE | System pre-selects but never auto-approves; hard constraint |
+
+### Senior Technical Architect
+
+| Concern | Status | Resolution |
+|---------|--------|------------|
+| Interface boundaries support future integrations | DONE | 8 boundaries (IngestionSource, OcrProvider, FieldVerifier, FileStore, AccountingExporter, InviteEmailSender, OidcProvider, IBankConnectionService) |
+| Same image serves all environments | DONE | Runtime manifest + ENV switch |
+| Learning loop is instrumented | DONE | Hint provision logged (`extraction.learning.hints.provided`), hint-vs-SLM comparison logged (`extraction.learning.hints.result`), corrections logged (`extraction.learning.correction.recorded`), "N corrections applied" badge shown in review UI |
+| Concurrent edit safety | OPEN | No optimistic locking; low risk with single-reviewer-per-client model but unprotected |
+| ML provider swap is non-disruptive | DONE | Provider config change, no pipeline changes |
+
+### Senior Software Engineer
+
+| Concern | Status | Resolution |
+|---------|--------|------------|
+| CI quality gates pass | DONE | Knip clean, coverage thresholds met, all tests green |
+| TypeScript types match backend contracts | DONE | VIEWER added to all role unions |
+| Pre-existing test failures resolved | DONE | HttpFieldVerifier assertion, currency formatting, extractedFields formatting |
+| Extraction learning is wired end-to-end | DONE | Pipeline fetches corrections → SLM receives hints → user edits recorded |
+| Invoice type classification stored and displayed | DONE | `metadata.invoiceType` from SLM, shown in detail panel + popup |
+| Dead code managed | DONE | Knip ignores for retained utility modules (parser, in-memory stores) |

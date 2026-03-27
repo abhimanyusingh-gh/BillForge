@@ -216,6 +216,15 @@ export class InvoiceExtractionPipeline {
         }
       }
 
+      if (priorCorrections.length > 0) {
+        logger.info("extraction.learning.hints.provided", {
+          tenantId: input.tenantId,
+          vendorFingerprint: fingerprint.key,
+          hintCount: priorCorrections.length,
+          hintFields: priorCorrections.map(c => c.field)
+        });
+      }
+
       const slmResult = await this.fieldVerifier.verify({
         parsed: {} as ParsedInvoiceData,
         ocrText: bestText,
@@ -238,6 +247,24 @@ export class InvoiceExtractionPipeline {
       const slmBlockIndices: Record<string, number> = (slmResult.parsed as Record<string, unknown>)._blockIndices as Record<string, number> ?? {};
       const slmParsed = { ...slmResult.parsed };
       delete (slmParsed as Record<string, unknown>)._blockIndices;
+      if (priorCorrections.length > 0) {
+        metadata.learningHintsApplied = String(priorCorrections.length);
+      }
+      if (priorCorrections.length > 0) {
+        const hintedFieldResults = priorCorrections.map(c => ({
+          field: c.field,
+          hintValue: c.hint,
+          extractedValue: String((slmParsed as Record<string, unknown>)[c.field] ?? ""),
+          matched: c.hint.includes(String((slmParsed as Record<string, unknown>)[c.field] ?? "")) || String((slmParsed as Record<string, unknown>)[c.field] ?? "").includes(c.hint.split(" not ")[0])
+        }));
+        logger.info("extraction.learning.hints.result", {
+          tenantId: input.tenantId,
+          vendorFingerprint: fingerprint.key,
+          hintCount: priorCorrections.length,
+          matchedCount: hintedFieldResults.filter(r => r.matched).length,
+          fields: hintedFieldResults
+        });
+      }
       const slmWarnings = uniqueIssues([...processingIssues, ...slmResult.issues]);
       const slmConfidence = this.assessConfidence(input, slmParsed, slmWarnings, ocrConfidence);
       const slmValidation = validateInvoiceFields({

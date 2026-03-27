@@ -421,6 +421,13 @@ export class InvoiceService {
       if (corrections.length > 0) {
         const vendorFingerprint = invoice.metadata?.get("vendorFingerprint");
         const invoiceType = invoice.metadata?.get("invoiceType");
+        logger.info("extraction.learning.correction.recorded", {
+          tenantId,
+          invoiceId: id,
+          correctedFields: corrections.map(c => c.field),
+          vendorFingerprint: vendorFingerprint ?? null,
+          invoiceType: invoiceType ?? null
+        });
         if (vendorFingerprint) {
           this.learningStore.recordCorrections(tenantId, vendorFingerprint, "vendor", corrections).catch((err) =>
             logger.warn("learning.record.vendor.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
