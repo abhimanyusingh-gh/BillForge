@@ -37,6 +37,7 @@ interface ExtractionPipelineOptions {
   ocrHighConfidenceThreshold?: number;
   enableOcrKeyValueGrounding?: boolean;
   llmAssistConfidenceThreshold?: number;
+  learningMode?: "active" | "assistive";
 }
 
 export class ExtractionPipelineError extends Error {
@@ -54,6 +55,7 @@ export class InvoiceExtractionPipeline {
   private readonly enableOcrKeyValueGrounding: boolean;
   private readonly llmAssistConfidenceThreshold: number;
   private readonly verifierTimeoutMs: number;
+  private readonly learningMode: "active" | "assistive";
 
   constructor(
     private readonly ocrProvider: OcrProvider,
@@ -66,6 +68,7 @@ export class InvoiceExtractionPipeline {
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
     this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
     this.verifierTimeoutMs = 60_000;
+    this.learningMode = options?.learningMode ?? "assistive";
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
@@ -238,7 +241,7 @@ export class InvoiceExtractionPipeline {
           fieldCandidates: {},
           pageImages: ocrPageImages.slice(0, 3),
           llmAssist: true,
-          priorCorrections: priorCorrections.length > 0 ? priorCorrections : undefined
+          priorCorrections: this.learningMode === "active" && priorCorrections.length > 0 ? priorCorrections : undefined
         }
       });
 

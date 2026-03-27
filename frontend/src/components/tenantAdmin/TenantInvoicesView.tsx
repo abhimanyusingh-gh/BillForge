@@ -1324,7 +1324,7 @@ export function TenantInvoicesView({
                         <p><span>Confidence</span><ConfidenceBadge score={activeInvoice.confidenceScore} /></p>
                         {activeInvoice.metadata?.invoiceType ? <p><span>Type</span><strong>{formatInvoiceType(activeInvoice.metadata.invoiceType)}</strong></p> : null}
                         {activeInvoice.metadata?.learningHintsApplied && Number(activeInvoice.metadata.learningHintsApplied) > 0 ? (
-                          <p><span>Learning</span><strong className="learning-badge">{activeInvoice.metadata.learningHintsApplied} correction{Number(activeInvoice.metadata.learningHintsApplied) === 1 ? "" : "s"} applied</strong></p>
+                          <p><span>Learning</span><strong className="learning-badge">{activeInvoice.metadata.learningHintsApplied} learned pattern{Number(activeInvoice.metadata.learningHintsApplied) === 1 ? "" : "s"} available</strong></p>
                         ) : null}
                         <p><span>File</span>{activeInvoice.attachmentName}</p>
                       </div>
@@ -1382,7 +1382,7 @@ export function TenantInvoicesView({
               Status: <strong>{STATUS_LABELS[popupInvoice.status] ?? popupInvoice.status}</strong>
               {popupInvoice.workflowState?.currentStep ? ` (Step ${popupInvoice.workflowState.currentStep})` : ""}
               {popupInvoice.metadata?.invoiceType ? ` | Type: ${formatInvoiceType(popupInvoice.metadata.invoiceType)}` : ""}
-              {popupInvoice.metadata?.learningHintsApplied && Number(popupInvoice.metadata.learningHintsApplied) > 0 ? ` | ${popupInvoice.metadata.learningHintsApplied} learned correction${Number(popupInvoice.metadata.learningHintsApplied) === 1 ? "" : "s"} applied` : ""}
+              {popupInvoice.metadata?.learningHintsApplied && Number(popupInvoice.metadata.learningHintsApplied) > 0 ? ` | ${popupInvoice.metadata.learningHintsApplied} learned pattern${Number(popupInvoice.metadata.learningHintsApplied) === 1 ? "" : "s"} available` : ""}
               {" | "}Received: {new Date(popupInvoice.receivedAt).toLocaleString()}
             </p>
             <ApprovalTimeline invoice={popupInvoice} />

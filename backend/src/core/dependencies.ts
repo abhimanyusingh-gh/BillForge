@@ -88,7 +88,8 @@ async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore:
     learningStore,
     {
       ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold,
-      llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold
+      llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold,
+      learningMode: env.LEARNING_MODE
     }
   );
   return { ocrProvider, fieldVerifier, pipeline };
