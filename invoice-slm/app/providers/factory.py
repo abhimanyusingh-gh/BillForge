@@ -13,6 +13,11 @@ def create_llm_provider() -> LLMProvider:
 
     return LocalCodexCliLLMProvider()
 
+  if settings.provider == "local_claude_cli":
+    from .local_claude_cli import LocalClaudeCliLLMProvider
+
+    return LocalClaudeCliLLMProvider()
+
   if settings.provider == "prod_http":
     if not settings.remote_base_url:
       raise RuntimeError("SLM_ENGINE=prod_http requires SLM_REMOTE_BASE_URL.")

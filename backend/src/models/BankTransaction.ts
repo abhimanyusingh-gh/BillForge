@@ -21,6 +21,7 @@ const bankTransactionSchema = new Schema(
 bankTransactionSchema.index({ tenantId: 1, statementId: 1 });
 bankTransactionSchema.index({ tenantId: 1, matchStatus: 1 });
 bankTransactionSchema.index({ tenantId: 1, matchedInvoiceId: 1 }, { sparse: true });
+bankTransactionSchema.index({ tenantId: 1, date: 1, description: 1, debitMinor: 1, creditMinor: 1 });
 
 type BankTransaction = InferSchemaType<typeof bankTransactionSchema>;
 type BankTransactionDocument = HydratedDocument<BankTransaction>;

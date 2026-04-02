@@ -6,12 +6,14 @@ import { BankStatementParser } from "../services/reconciliation/BankStatementPar
 import { ReconciliationService } from "../services/reconciliation/ReconciliationService.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { requireCap } from "../auth/requireCapability.js";
+import { requireNotViewer } from "../auth/middleware.js";
+import type { FileStore } from "../core/interfaces/FileStore.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const parser = new BankStatementParser();
 const reconciler = new ReconciliationService();
 
-export function createBankStatementsRouter() {
+export function createBankStatementsRouter(fileStore?: FileStore) {
   const router = Router();
   router.use(requireAuth);
 
@@ -42,7 +44,7 @@ export function createBankStatementsRouter() {
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/upload-csv", requireCap("canManageConnections"), upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
+  router.post("/bank-statements/upload-csv", requireNotViewer, requireCap("canManageConnections"), upload.single("file") as unknown as import("express").RequestHandler, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const file = req.file;
@@ -59,17 +61,24 @@ export function createBankStatementsRouter() {
         req.authContext!.email
       );
 
+      if (fileStore) {
+        const s3Key = `bank-statements/${tenantId}/${result.statementId}/${file.originalname}`;
+        await fileStore.putObject({ key: s3Key, body: file.buffer, contentType: "text/csv" });
+        await BankStatementModel.updateOne({ _id: result.statementId }, { $set: { s3Key } });
+      }
+
       const reconciliation = await reconciler.reconcileStatement(tenantId, result.statementId);
 
       res.status(201).json({
         statementId: result.statementId,
         transactionCount: result.transactionCount,
+        duplicatesSkipped: result.duplicatesSkipped,
         ...reconciliation
       });
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/:id/reconcile", requireCap("canManageConnections"), async (req, res, next) => {
+  router.post("/bank-statements/:id/reconcile", requireNotViewer, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const result = await reconciler.reconcileStatement(tenantId, req.params.id);
@@ -77,7 +86,7 @@ export function createBankStatementsRouter() {
     } catch (error) { next(error); }
   });
 
-  router.post("/bank-statements/transactions/:txnId/match", requireCap("canApproveInvoices"), async (req, res, next) => {
+  router.post("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const invoiceId = req.body.invoiceId;
@@ -85,6 +94,14 @@ export function createBankStatementsRouter() {
 
       await reconciler.manualMatch(tenantId, req.params.txnId, invoiceId);
       res.json({ matched: true });
+    } catch (error) { next(error); }
+  });
+
+  router.delete("/bank-statements/transactions/:txnId/match", requireNotViewer, requireCap("canApproveInvoices"), async (req, res, next) => {
+    try {
+      const tenantId = req.authContext!.tenantId;
+      await reconciler.unmatch(tenantId, req.params.txnId);
+      res.json({ unmatched: true });
     } catch (error) { next(error); }
   });
 

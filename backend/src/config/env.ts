@@ -145,7 +145,7 @@ const envSchema = z.object({
 
   FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),
   FIELD_VERIFIER_BASE_URL: z.string().optional(),
-  FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(20000),
+  FIELD_VERIFIER_TIMEOUT_MS: z.coerce.number().default(600000),
   FIELD_VERIFIER_API_KEY: z.string().optional(),
 
   S3_FILE_STORE_BUCKET: z.string().default("billforge-local"),

@@ -26,6 +26,7 @@ import { createCostCentersRouter } from "./routes/costCenters.js";
 import { createVendorCommunicationRouter } from "./routes/vendorCommunication.js";
 import { createCsvExportRouter } from "./routes/csvExport.js";
 import { createBankStatementsRouter } from "./routes/bankStatements.js";
+import { createTcsConfigRouter } from "./routes/tcsConfig.js";
 import {
   createAuthenticationMiddleware,
   requireNonPlatformAdmin,
@@ -99,7 +100,8 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceAnalyticsRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createVendorCommunicationRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createCsvExportRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter(dependencies.fileStore));
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTcsConfigRouter());
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";

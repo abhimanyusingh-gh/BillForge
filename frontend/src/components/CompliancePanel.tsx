@@ -28,8 +28,9 @@ export function CompliancePanel({
   const hasTds = compliance.tds?.section;
   const hasGl = compliance.glCode?.code;
   const hasPan = compliance.pan?.value;
+  const hasReconciliation = compliance.reconciliation != null;
 
-  if (!hasTds && !hasGl && !hasPan) return null;
+  if (!hasTds && !hasGl && !hasPan && !hasReconciliation) return null;
 
   const currency = invoice.parsed?.currency ?? "INR";
   const tdsReadOnly = isReadOnly || !canOverrideTds;
@@ -115,6 +116,24 @@ export function CompliancePanel({
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", fontWeight: 500 }}>
           <span>Net Payable:</span>
           <span>{minorUnitsToMajorString(compliance.tds.netPayableMinor, currency)}</span>
+        </div>
+      )}
+
+      {hasReconciliation && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.4rem", fontSize: "0.85rem" }}>
+          <span style={{ fontWeight: 500 }}>Bank Payment:</span>
+          {compliance.reconciliation?.verifiedByStatement ? (
+            <>
+              <span style={{ color: "var(--color-success, #166534)", fontWeight: 600 }}>Verified</span>
+              {compliance.reconciliation.matchedAt ? (
+                <span style={{ color: "var(--ink-soft)", fontSize: "0.78rem" }}>
+                  {new Date(compliance.reconciliation.matchedAt).toLocaleString()}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span style={{ color: "var(--ink-soft)" }}>Not yet reconciled</span>
+          )}
         </div>
       )}
     </div>
