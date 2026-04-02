@@ -188,4 +188,113 @@ describe("getInvoiceSourceHighlights", () => {
     expect(total!.bboxNormalized[0]).toBeCloseTo(500 / 999, 3);
     expect(total!.bboxNormalized[2]).toBeCloseTo(800 / 999, 3);
   });
+
+  it("prefers structured extraction provenance and confidence over metadata", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      extraction: {
+        fieldProvenance: {
+          invoiceNumber: {
+            source: "slm",
+            page: 1,
+            bboxNormalized: [0.2, 0.1, 0.4, 0.2]
+          }
+        },
+        fieldConfidence: {
+          invoiceNumber: 0.97
+        }
+      },
+      metadata: {
+        fieldProvenance: JSON.stringify({
+          invoiceNumber: {
+            source: "heuristic",
+            page: 1,
+            bboxNormalized: [0.01, 0.01, 0.02, 0.02]
+          }
+        }),
+        fieldConfidence: JSON.stringify({
+          invoiceNumber: 0.25
+        })
+      }
+    };
+
+    const highlights = getInvoiceSourceHighlights(invoice);
+    const invoiceNumber = highlights.find((entry) => entry.fieldKey === "invoiceNumber");
+
+    expect(invoiceNumber).toBeDefined();
+    expect(invoiceNumber?.source).toBe("slm");
+    expect(invoiceNumber?.confidence).toBe(0.97);
+    expect(invoiceNumber?.bboxNormalized).toEqual([0.2, 0.1, 0.4, 0.2]);
+  });
+
+  it("adds line-item highlights when extraction provenance is available", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      parsed: {
+        ...baseInvoice.parsed,
+        lineItems: [
+          {
+            description: "Consulting services",
+            amountMinor: 25000
+          }
+        ]
+      },
+      extraction: {
+        lineItemProvenance: [
+          {
+            index: 0,
+            fields: {
+              description: {
+                source: "slm",
+                page: 1,
+                bboxNormalized: [0.08, 0.4, 0.45, 0.45]
+              },
+              amountMinor: {
+                source: "slm",
+                page: 1,
+                bboxNormalized: [0.72, 0.4, 0.9, 0.45]
+              }
+            }
+          }
+        ]
+      }
+    };
+
+    const highlights = getInvoiceSourceHighlights(invoice);
+    const description = highlights.find((entry) => entry.fieldKey === "lineItems.0.description");
+    const amount = highlights.find((entry) => entry.fieldKey === "lineItems.0.amountMinor");
+
+    expect(description).toBeDefined();
+    expect(description?.label).toBe("Line 1 Description");
+    expect(description?.source).toBe("slm");
+    expect(amount).toBeDefined();
+    expect(amount?.label).toBe("Line 1 Amount");
+    expect(amount?.source).toBe("slm");
+  });
+
+  it("decodes persisted extraction keys that replace dots", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      parsed: {
+        ...baseInvoice.parsed,
+        gst: {
+          gstin: "22AAAAA0000A1Z5"
+        }
+      },
+      extraction: {
+        fieldProvenance: {
+          gst__dot__gstin: {
+            source: "slm",
+            page: 1,
+            bboxNormalized: [0.12, 0.28, 0.42, 0.33]
+          }
+        }
+      }
+    };
+
+    const highlights = getInvoiceSourceHighlights(invoice);
+    const gstin = highlights.find((entry) => entry.fieldKey === "gst.gstin");
+    expect(gstin).toBeDefined();
+    expect(gstin?.source).toBe("slm");
+  });
 });
