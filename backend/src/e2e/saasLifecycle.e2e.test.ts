@@ -118,7 +118,7 @@ describe("saas lifecycle e2e", () => {
       {
         tenantId: adminUser!.tenantId,
         userId: String(seededMember!._id),
-        role: "MEMBER"
+        role: "ap_clerk"
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -252,7 +252,7 @@ describe("saas lifecycle e2e", () => {
       tenantId,
       userId: String(candidateUser?._id)
     }).lean();
-    expect(candidateRole?.role).toBe("MEMBER");
+    expect(candidateRole?.role).toBe("ap_clerk");
 
     const nonAdminInvite = await api.post(
       "/api/admin/users/invite",
@@ -421,7 +421,7 @@ async function loginAs(email: string): Promise<string> {
 }
 
 async function getSession(token: string): Promise<{
-  user: { id: string; email: string; role: "TENANT_ADMIN" | "MEMBER" };
+  user: { id: string; email: string; role: string };
   tenant: { id: string; name: string; onboarding_status: "pending" | "completed" };
   flags: {
     requires_tenant_setup: boolean;

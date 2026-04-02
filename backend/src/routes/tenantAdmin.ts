@@ -1,14 +1,14 @@
 import { Router } from "express";
-import { TenantRoles, type TenantRole } from "../models/TenantUserRole.js";
+import { TenantAssignableRoles, type TenantAssignableRole } from "../models/TenantUserRole.js";
 import type { TenantAdminService } from "../services/tenantAdminService.js";
 import type { TenantInviteService } from "../services/tenantInviteService.js";
-import { requireTenantAdmin } from "../auth/middleware.js";
+import { requireCap } from "../auth/requireCapability.js";
 import { toValidObjectId } from "../utils/validation.js";
 
 export function createTenantAdminRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
   const router = Router();
 
-  router.get("/admin/users", requireTenantAdmin, async (request, response, next) => {
+  router.get("/admin/users", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const users = await tenantAdminService.listTenantUsers(request.authContext!.tenantId);
       response.json({ items: users });
@@ -17,7 +17,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.post("/admin/users/invite", requireTenantAdmin, async (request, response, next) => {
+  router.post("/admin/users/invite", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const context = request.authContext!;
       const email = typeof request.body?.email === "string" ? request.body.email : "";
@@ -32,21 +32,21 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.post("/admin/users/:userId/role", requireTenantAdmin, async (request, response, next) => {
+  router.post("/admin/users/:userId/role", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       if (!toValidObjectId(request.params.userId)) {
         response.status(400).json({ message: "Invalid userId." });
         return;
       }
       const role = typeof request.body?.role === "string" ? request.body.role : "";
-      if (!TenantRoles.includes(role as TenantRole)) {
+      if (!TenantAssignableRoles.includes(role as TenantAssignableRole)) {
         response.status(400).json({ message: "Invalid role." });
         return;
       }
       await tenantAdminService.assignRole({
         tenantId: request.authContext!.tenantId,
         userId: request.params.userId,
-        role: role as TenantRole,
+        role: role as TenantAssignableRole,
         actingUserId: request.authContext!.userId
       });
       response.status(204).send();
@@ -55,7 +55,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.patch("/admin/users/:userId/enabled", requireTenantAdmin, async (request, response, next) => {
+  router.patch("/admin/users/:userId/enabled", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const enabled = request.body?.enabled;
       if (typeof enabled !== "boolean") {
@@ -74,7 +74,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/users/:userId", requireTenantAdmin, async (request, response, next) => {
+  router.delete("/admin/users/:userId", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       await tenantAdminService.removeUser({
         tenantId: request.authContext!.tenantId,
@@ -86,7 +86,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.get("/admin/mailboxes", requireTenantAdmin, async (request, response, next) => {
+  router.get("/admin/mailboxes", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const items = await tenantAdminService.listMailboxes(request.authContext!.tenantId);
       response.json({ items });
@@ -95,7 +95,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.post("/admin/mailboxes/:id/assign", requireTenantAdmin, async (request, response, next) => {
+  router.post("/admin/mailboxes/:id/assign", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const userId = typeof request.body?.userId === "string" ? request.body.userId : "";
       if (!userId) {
@@ -109,7 +109,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/mailboxes/:id/assign/:userId", requireTenantAdmin, async (request, response, next) => {
+  router.delete("/admin/mailboxes/:id/assign/:userId", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       await tenantAdminService.removeMailboxAssignment(request.authContext!.tenantId, request.params.id, request.params.userId);
       response.status(204).send();
@@ -118,7 +118,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/mailboxes/:id", requireTenantAdmin, async (request, response, next) => {
+  router.delete("/admin/mailboxes/:id", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       await tenantAdminService.deleteMailbox(request.authContext!.tenantId, request.params.id);
       response.status(204).send();
@@ -127,7 +127,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.get("/admin/users/:userId/viewer-scope", requireTenantAdmin, async (request, response, next) => {
+  router.get("/admin/users/:userId/viewer-scope", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const result = await tenantAdminService.getViewerScope(request.authContext!.tenantId, request.params.userId);
       response.json(result);
@@ -136,7 +136,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.put("/admin/users/:userId/viewer-scope", requireTenantAdmin, async (request, response, next) => {
+  router.put("/admin/users/:userId/viewer-scope", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       if (!toValidObjectId(request.params.userId)) {
         response.status(400).json({ message: "Invalid userId." });

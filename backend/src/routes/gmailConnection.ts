@@ -1,9 +1,11 @@
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
-import { requireTenantAdmin } from "../auth/middleware.js";
+import { requireCap } from "../auth/requireCapability.js";
 import type { TenantGmailIntegrationService } from "../services/tenantGmailIntegrationService.js";
 import { logger } from "../utils/logger.js";
 import { apiUrl } from "../config/env.js";
+import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { mergeCapabilitiesWithDefaults } from "../auth/personaDefaults.js";
 
 /**
  * Public Gmail routes — mounted BEFORE the authenticate middleware.
@@ -26,8 +28,15 @@ export function createGmailPublicRouter(
       }
 
       const context = await authService.resolveRequestContext(token);
-      if (context.role !== "TENANT_ADMIN") {
-        response.status(403).send("Tenant admin role required.");
+      const roleDoc = await TenantUserRoleModel.findOne({ tenantId: context.tenantId, userId: context.userId }).lean();
+      const rawRoleDoc = roleDoc as Record<string, unknown> | null;
+      const roleForDefaults = typeof rawRoleDoc?.role === "string" ? rawRoleDoc.role : context.role;
+      const capabilities = mergeCapabilitiesWithDefaults(
+        roleForDefaults,
+        rawRoleDoc?.capabilities as Record<string, unknown> | null | undefined
+      );
+      if (capabilities.canManageConnections !== true) {
+        response.status(403).send("Permission denied: canManageConnections is required.");
         return;
       }
 
@@ -128,7 +137,7 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
     }
   });
 
-  router.get("/integrations/gmail/connect-url", requireTenantAdmin, async (request, response, next) => {
+  router.get("/integrations/gmail/connect-url", requireCap("canManageConnections"), async (request, response, next) => {
     try {
       const context = request.authContext!;
       const sessionToken = request.header("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
@@ -144,7 +153,7 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
     }
   });
 
-  router.put("/integrations/gmail/:id/polling", requireTenantAdmin, async (request, response, next) => {
+  router.put("/integrations/gmail/:id/polling", requireCap("canManageConnections"), async (request, response, next) => {
     try {
       const context = request.authContext!;
       const enabled = typeof request.body?.enabled === "boolean" ? request.body.enabled : false;

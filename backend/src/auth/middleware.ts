@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { AuthService } from "./AuthService.js";
+import { normalizeTenantRole } from "../models/TenantUserRole.js";
 
 export function resolveBearerToken(request: Request): string {
   const authorization = request.header("authorization");
@@ -65,7 +66,7 @@ export function requireNonPlatformAdmin(request: Request, response: Response, ne
   next();
 }
 
-export function requireTenantAdmin(request: Request, response: Response, next: NextFunction): void {
+function requireTenantAdmin(request: Request, response: Response, next: NextFunction): void {
   const context = request.authContext;
   if (!context) {
     response.status(401).json({ message: "Authentication required." });
@@ -77,7 +78,7 @@ export function requireTenantAdmin(request: Request, response: Response, next: N
     return;
   }
 
-  if (context.role !== "TENANT_ADMIN") {
+  if (normalizeTenantRole(context.role) !== "TENANT_ADMIN") {
     response.status(403).json({ message: "Tenant admin role required." });
     return;
   }
@@ -92,7 +93,7 @@ export function requireNotViewer(request: Request, response: Response, next: Nex
     return;
   }
 
-  if (context.role === "VIEWER") {
+  if (normalizeTenantRole(context.role) === "audit_clerk") {
     response.status(403).json({ message: "Viewers have read-only access." });
     return;
   }

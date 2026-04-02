@@ -21,6 +21,62 @@
   ],
   "users": [
     {
+      "email": "firm-partner@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Rajesh Sharma (Partner)",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "firm_partner"
+    },
+    {
+      "email": "ops-admin@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Vikram IT Admin",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "ops_admin"
+    },
+    {
+      "email": "senior-accountant@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Meena Iyer (Sr. Accountant)",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "senior_accountant"
+    },
+    {
+      "email": "ap-clerk-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Priya AP Clerk",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "ap_clerk"
+    },
+    {
+      "email": "ap-clerk-2@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Anita AP Clerk",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "ap_clerk"
+    },
+    {
+      "email": "ca@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Suresh CA",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "ca"
+    },
+    {
+      "email": "tax-specialist@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Deepak Tax Specialist",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "tax_specialist"
+    },
+    {
+      "email": "audit-clerk@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Kavita Audit Clerk",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "audit_clerk"
+    },
+    {
       "email": "tenant-admin-1@local.test",
       "password": "DemoPass!1",
       "displayName": "Tenant Admin 1",
@@ -32,7 +88,14 @@
       "password": "DemoPass!1",
       "displayName": "Tenant User 1",
       "tenantId": "65f0000000000000000000a1",
-      "role": "MEMBER"
+      "role": "ap_clerk"
+    },
+    {
+      "email": "viewer-1@local.test",
+      "password": "DemoPass!1",
+      "displayName": "Viewer 1",
+      "tenantId": "65f0000000000000000000a1",
+      "role": "audit_clerk"
     },
     {
       "email": "tenant-admin-2@local.test",
@@ -46,7 +109,7 @@
       "password": "DemoPass!1",
       "displayName": "Tenant User 2",
       "tenantId": "65f0000000000000000000b2",
-      "role": "MEMBER"
+      "role": "ap_clerk"
     },
     {
       "email": "platform-admin@local.test",

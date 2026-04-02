@@ -1,13 +1,13 @@
 import { Router } from "express";
 import type { ApprovalWorkflowService } from "../services/approvalWorkflowService.js";
-import { requireTenantAdmin, requireNotViewer } from "../auth/middleware.js";
 import { requireAuth } from "../auth/requireAuth.js";
+import { requireCap } from "../auth/requireCapability.js";
 
 export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowService) {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/approval-workflow", requireTenantAdmin, async (req, res, next) => {
+  router.get("/admin/approval-workflow", requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const config = await workflowService.getWorkflowConfig(req.authContext!.tenantId);
       res.json(config ?? { enabled: false, mode: "simple", simpleConfig: { requireManagerReview: false, requireFinalSignoff: false }, steps: [] });
@@ -16,7 +16,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.put("/admin/approval-workflow", requireTenantAdmin, async (req, res, next) => {
+  router.put("/admin/approval-workflow", requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const context = req.authContext!;
       const enabled = typeof req.body?.enabled === "boolean" ? req.body.enabled : false;
@@ -38,7 +38,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.post("/invoices/:id/workflow-approve", requireNotViewer, async (req, res, next) => {
+  router.post("/invoices/:id/workflow-approve", requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
       const result = await workflowService.approveStep(req.params.id, req.authContext!);
       res.json(result);
@@ -47,7 +47,7 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
     }
   });
 
-  router.post("/invoices/:id/workflow-reject", requireNotViewer, async (req, res, next) => {
+  router.post("/invoices/:id/workflow-reject", requireCap("canApproveInvoices"), async (req, res, next) => {
     try {
       const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
       if (!reason) {

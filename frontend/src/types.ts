@@ -8,6 +8,39 @@ export type InvoiceStatus =
   | "APPROVED"
   | "EXPORTED";
 
+type BoundingBox = [number, number, number, number];
+
+export interface InvoiceFieldProvenance {
+  source?: string;
+  page?: number;
+  bbox?: BoundingBox;
+  bboxNormalized?: BoundingBox;
+  bboxModel?: BoundingBox;
+  blockIndex?: number;
+  confidence?: number;
+}
+
+export interface InvoiceLineItemProvenance {
+  index: number;
+  row?: InvoiceFieldProvenance;
+  fields?: Record<string, InvoiceFieldProvenance>;
+}
+
+export interface InvoiceExtractionData {
+  source?: string;
+  strategy?: string;
+  invoiceType?: string;
+  classification?: {
+    invoiceType?: string;
+    category?: string;
+    tdsSection?: string;
+  };
+  fieldConfidence?: Record<string, number>;
+  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
+  lineItemProvenance?: InvoiceLineItemProvenance[];
+  fieldOverlayPaths?: Record<string, string>;
+}
+
 export interface Invoice {
   _id: string;
   tenantId: string;
@@ -43,6 +76,17 @@ export interface Invoice {
     totalAmountMinor?: number;
     currency?: string;
     notes?: string[];
+    lineItems?: Array<{
+      description: string;
+      hsnSac?: string;
+      quantity?: number;
+      rate?: number;
+      amountMinor: number;
+      taxRate?: number;
+      cgstMinor?: number;
+      sgstMinor?: number;
+      igstMinor?: number;
+    }>;
     gst?: {
       gstin?: string;
       subtotalMinor?: number;
@@ -53,6 +97,7 @@ export interface Invoice {
       totalTaxMinor?: number;
     };
   };
+  extraction?: InvoiceExtractionData;
   metadata?: Record<string, string | undefined>;
   status: InvoiceStatus;
   possibleDuplicate?: boolean;
@@ -84,8 +129,186 @@ export interface Invoice {
     externalReference?: string;
     error?: string;
   };
+  compliance?: InvoiceCompliance;
+  complianceSummary?: {
+    tdsSection: string | null;
+    glCode: string | null;
+    riskSignalCount: number;
+    riskSignalMaxSeverity: "info" | "warning" | "critical" | null;
+  };
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InvoiceCompliance {
+  pan?: {
+    value: string | null;
+    source: "extracted" | "vendor-master" | "manual";
+    validationLevel: "L1" | "L2" | "L3" | null;
+    validationResult: "valid" | "format-invalid" | "gstin-mismatch" | "struck-off" | null;
+    gstinCrossRef: boolean;
+  };
+  tds?: {
+    section: string | null;
+    rate: number | null;
+    amountMinor: number | null;
+    netPayableMinor: number | null;
+    source: "auto" | "manual";
+    confidence: "high" | "medium" | "low";
+  };
+  glCode?: {
+    code: string | null;
+    name: string | null;
+    source: "vendor-default" | "description-match" | "category-default" | "manual";
+    confidence: number | null;
+    suggestedAlternatives?: Array<{ code: string; name: string; score: number }>;
+  };
+  costCenter?: {
+    code: string | null;
+    name: string | null;
+    source: "vendor-default" | "gl-linked" | "manual";
+    confidence: number | null;
+  };
+  tcs?: {
+    rate: number | null;
+    amountMinor: number | null;
+    source: "extracted" | "configured" | "manual";
+  };
+  vendorBank?: {
+    accountHash: string | null;
+    ifsc: string | null;
+    bankName: string | null;
+    isChanged: boolean;
+    verifiedChange: boolean;
+  };
+  reconciliation?: {
+    bankTransactionId: string | null;
+    verifiedByStatement: boolean;
+    matchedAt: string | null;
+  };
+  riskSignals?: Array<{
+    code: string;
+    category: "financial" | "compliance" | "fraud" | "data-quality";
+    severity: "info" | "warning" | "critical";
+    message: string;
+    confidencePenalty: number;
+    status: "open" | "dismissed" | "acted-on";
+    resolvedBy: string | null;
+    resolvedAt: string | null;
+  }>;
+}
+
+export interface GlCode {
+  _id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  category: string;
+  linkedTdsSection: string | null;
+  isActive: boolean;
+}
+
+export interface TdsRate {
+  section: string;
+  description: string;
+  rateCompanyBps: number;
+  rateIndividualBps: number;
+  rateNoPanBps: number;
+}
+
+export interface TenantComplianceConfig {
+  complianceEnabled: boolean;
+  autoSuggestGlCodes: boolean;
+  autoDetectTds: boolean;
+  disabledSignals: string[];
+  defaultTdsSection: string | null;
+}
+
+export type TenantRole =
+  | "TENANT_ADMIN"
+  | "ap_clerk"
+  | "senior_accountant"
+  | "ca"
+  | "tax_specialist"
+  | "firm_partner"
+  | "ops_admin"
+  | "audit_clerk";
+
+export type SessionRole = "PLATFORM_ADMIN" | TenantRole;
+
+export const TENANT_ROLE_OPTIONS: Array<{ value: TenantRole; label: string }> = [
+  { value: "TENANT_ADMIN", label: "Tenant Admin" },
+  { value: "ap_clerk", label: "AP Clerk" },
+  { value: "senior_accountant", label: "Senior Accountant" },
+  { value: "ca", label: "Chartered Accountant" },
+  { value: "tax_specialist", label: "Tax Specialist" },
+  { value: "firm_partner", label: "Firm Partner" },
+  { value: "ops_admin", label: "IT/Ops Admin" },
+  { value: "audit_clerk", label: "Audit Clerk" }
+];
+
+export interface UserCapabilities {
+  approvalLimitMinor: number | null;
+  canApproveInvoices: boolean;
+  canEditInvoiceFields: boolean;
+  canDeleteInvoices: boolean;
+  canRetryInvoices: boolean;
+  canUploadFiles: boolean;
+  canStartIngestion: boolean;
+  canOverrideTds: boolean;
+  canOverrideGlCode: boolean;
+  canSignOffCompliance: boolean;
+  canConfigureTdsMappings: boolean;
+  canConfigureGlCodes: boolean;
+  canManageUsers: boolean;
+  canManageConnections: boolean;
+  canExportToTally: boolean;
+  canExportToCsv: boolean;
+  canDownloadComplianceReports: boolean;
+  canViewAllInvoices: boolean;
+  canConfigureWorkflow: boolean;
+  canConfigureCompliance: boolean;
+  canManageCostCenters: boolean;
+  canSendVendorEmails: boolean;
+}
+
+export interface BankStatementSummary {
+  _id: string;
+  tenantId: string;
+  fileName: string;
+  bankName: string | null;
+  accountNumberMasked: string | null;
+  periodFrom: string | null;
+  periodTo: string | null;
+  transactionCount: number;
+  matchedCount: number;
+  unmatchedCount: number;
+  source: "pdf-parsed" | "csv-import";
+  createdAt: string;
+}
+
+interface BankTransactionEntry {
+  _id: string;
+  statementId: string;
+  date: string;
+  description: string;
+  reference: string | null;
+  debitMinor: number | null;
+  creditMinor: number | null;
+  balanceMinor: number | null;
+  matchedInvoiceId: string | null;
+  matchConfidence: number | null;
+  matchStatus: "matched" | "suggested" | "unmatched" | "manual";
+}
+
+interface CostCenter {
+  _id: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  department: string | null;
+  linkedGlCodes: string[];
+  isActive: boolean;
 }
 
 export interface InvoiceListResponse {

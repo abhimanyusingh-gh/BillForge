@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ApprovalWorkflowConfig, WorkflowStep } from "../../types";
+import { TENANT_ROLE_OPTIONS } from "../../types";
 import { fetchApprovalWorkflow, saveApprovalWorkflow } from "../../api";
 import { getUserFacingErrorMessage } from "../../apiError";
 
@@ -214,8 +215,11 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
                     <label>
                       Role:
                       <select value={step.approverRole ?? "TENANT_ADMIN"} onChange={(e) => updateStep(step.order, { approverRole: e.target.value })}>
-                        <option value="TENANT_ADMIN">Tenant Admin</option>
-                        <option value="MEMBER">Member</option>
+                        {TENANT_ROLE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                     </label>
                   ) : null}

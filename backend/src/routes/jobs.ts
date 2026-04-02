@@ -7,7 +7,7 @@ import type { FileStore } from "../core/interfaces/FileStore.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { logger } from "../utils/logger.js";
 import { requireAuth } from "../auth/requireAuth.js";
-import { requireNotViewer } from "../auth/middleware.js";
+import { requireCap } from "../auth/requireCapability.js";
 import { IngestionJobOrchestrator } from "../services/IngestionJobOrchestrator.js";
 import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "../constants.js";
 import { isAllowedFileExtension } from "../utils/validation.js";
@@ -34,7 +34,7 @@ export function createJobsRouter(
     orchestrator.addSubscriber(req.authContext!.tenantId, res, req);
   });
 
-  router.post("/jobs/ingest", requireNotViewer, async (req, res, next) => {
+  router.post("/jobs/ingest", requireCap("canStartIngestion"), async (req, res, next) => {
     try {
       res.status(202).json(orchestrator.startJob(ingestionService, req.authContext!.tenantId));
     } catch (error) {
@@ -42,7 +42,7 @@ export function createJobsRouter(
     }
   });
 
-  router.post("/jobs/ingest/email-simulate", requireNotViewer, async (req, res, next) => {
+  router.post("/jobs/ingest/email-simulate", requireCap("canStartIngestion"), async (req, res, next) => {
     try {
       const context = req.authContext!;
       const current = orchestrator.getCurrentStatus(context.tenantId);
@@ -73,7 +73,7 @@ export function createJobsRouter(
     }
   });
 
-  router.post("/jobs/upload", requireNotViewer, (req, res, next) => {
+  router.post("/jobs/upload", requireCap("canUploadFiles"), (req, res, next) => {
     (upload.array("files", MAX_UPLOAD_FILE_COUNT) as unknown as import("express").RequestHandler)(req, res, (error: unknown) => {
       if (error instanceof multer.MulterError) {
         res.status(400).json({ message: multerErrorMessage(error) });
@@ -163,7 +163,7 @@ export function createJobsRouter(
     }
   });
 
-  router.post("/jobs/ingest/pause", requireNotViewer, (req, res) => {
+  router.post("/jobs/ingest/pause", requireCap("canStartIngestion"), (req, res) => {
     res.json(orchestrator.pauseJob(ingestionService, req.authContext!.tenantId));
   });
 

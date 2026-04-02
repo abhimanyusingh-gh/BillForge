@@ -10,6 +10,7 @@ interface ConfidenceInput {
   expectedMaxDueDays: number;
   autoSelectMin: number;
   referenceDate?: Date;
+  complianceRiskPenalty?: number;
 }
 
 export interface ConfidenceAssessment {
@@ -36,8 +37,10 @@ export function assessInvoiceConfidence(input: ConfidenceInput): ConfidenceAsses
   const riskAssessment = assessRiskFlags(input.parsed, input.expectedMaxTotal, input.expectedMaxDueDays, input.referenceDate);
   const warningsPenalty = Math.min(25, input.warnings.length * 4);
 
+  const compliancePenalty = input.complianceRiskPenalty ?? 0;
+
   const score = clamp(
-    Math.round(ocrScore * 0.65 + completenessScore * 0.35 - warningsPenalty - riskAssessment.penalty),
+    Math.round(ocrScore * 0.65 + completenessScore * 0.35 - warningsPenalty - riskAssessment.penalty - compliancePenalty),
     0,
     100
   );

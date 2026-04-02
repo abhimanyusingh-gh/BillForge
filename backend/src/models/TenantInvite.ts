@@ -5,7 +5,7 @@ const tenantInviteSchema = new Schema(
     tenantId: { type: String, required: true },
     email: { type: String, required: true },
     tokenHash: { type: String, required: true },
-    role: { type: String, enum: ["MEMBER"], required: true, default: "MEMBER" },
+    role: { type: String, enum: ["ap_clerk"], required: true, default: "ap_clerk" },
     invitedByUserId: { type: String, required: true },
     expiresAt: { type: Date, required: true },
     acceptedAt: { type: Date }

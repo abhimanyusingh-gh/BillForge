@@ -40,7 +40,7 @@ export class TenantInviteService {
         email: normalizedEmail,
         tokenHash,
         invitedByUserId: input.invitedByUserId,
-        role: "MEMBER",
+        role: "ap_clerk",
         expiresAt,
         acceptedAt: undefined
       },
@@ -103,7 +103,7 @@ export class TenantInviteService {
       {
         tenantId: invite.tenantId,
         userId: String(user._id),
-        role: "MEMBER"
+        role: "ap_clerk"
       },
       {
         upsert: true,

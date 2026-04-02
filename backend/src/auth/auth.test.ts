@@ -188,8 +188,8 @@ describe("auth middleware", () => {
 });
 
 describe("requireNotViewer", () => {
-  it("blocks VIEWER role with 403", () => {
-    const request = { authContext: { userId: "v1", role: "VIEWER" } } as unknown as Request;
+  it("blocks audit_clerk role with 403", () => {
+    const request = { authContext: { userId: "v1", role: "audit_clerk" } } as unknown as Request;
     const response = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
     const next = jest.fn();
     requireNotViewer(request, response, next);
@@ -197,8 +197,8 @@ describe("requireNotViewer", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("allows MEMBER role", () => {
-    const request = { authContext: { userId: "m1", role: "MEMBER" } } as unknown as Request;
+  it("allows ap_clerk role", () => {
+    const request = { authContext: { userId: "m1", role: "ap_clerk" } } as unknown as Request;
     const response = { status: jest.fn().mockReturnThis(), json: jest.fn() } as unknown as Response;
     const next = jest.fn();
     requireNotViewer(request, response, next);
@@ -240,7 +240,7 @@ describe("sessionToken", () => {
   it("rejects token payload without valid role", () => {
     const token = createSessionToken({
       userId: "user-1", email: "user@example.com", tenantId: "tenant-1",
-      role: "MEMBER", isPlatformAdmin: false, ttlSeconds: 600, secret
+      role: "ap_clerk", isPlatformAdmin: false, ttlSeconds: 600, secret
     });
     const [header, payload] = token.split(".");
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Record<string, unknown>;

@@ -13,16 +13,22 @@ import { env } from "../config/env.js";
 import { loadRuntimeManifest, type FolderSourceManifest } from "../core/runtimeManifest.js";
 import type { WorkloadTier } from "../types/tenant.js";
 import type { FileStore } from "../core/interfaces/FileStore.js";
-import { requireNotViewer } from "../auth/middleware.js";
+import { requireCap, resolveCapabilities } from "../auth/requireCapability.js";
 import { ViewerScopeModel } from "../models/ViewerScope.js";
+import { InvoiceModel } from "../models/Invoice.js";
+import { VendorMasterService } from "../services/compliance/VendorMasterService.js";
+import { GlCodeSuggestionService } from "../services/compliance/GlCodeSuggestionService.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { logger } from "../utils/logger.js";
 import { isRecord, isString, validateDateRange } from "../utils/validation.js";
 
 let s3Client: S3Client | null = null;
 const SOURCE_OVERLAY_FIELDS = new Set([
-  "vendorName", "invoiceNumber", "invoiceDate", "dueDate", "totalAmountMinor", "currency"
+  "vendorName", "invoiceNumber", "invoiceDate", "dueDate", "totalAmountMinor", "currency",
+  "gst.gstin", "gst.subtotalMinor", "gst.cgstMinor", "gst.sgstMinor", "gst.igstMinor", "gst.cessMinor", "gst.totalTaxMinor"
 ]);
+const SOURCE_OVERLAY_LINE_ITEM_RE =
+  /^lineItems\.\d+\.(?:row|description|hsnSac|quantity|rate|amountMinor|taxRate|cgstMinor|sgstMinor|igstMinor)$/;
 
 type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
@@ -79,7 +85,8 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     if (!dateCheck.valid) { res.status(400).json({ message: dateCheck.message }); return; }
     let approvedBy = typeof req.query.approvedBy === "string" ? req.query.approvedBy : undefined;
 
-    if (authContext.role === "VIEWER" && !approvedBy) {
+    const capabilities = await resolveCapabilities(req);
+    if (capabilities.canViewAllInvoices !== true && !approvedBy) {
       const scope = await ViewerScopeModel.findOne({ tenantId: authContext.tenantId, viewerUserId: authContext.userId }).lean();
       if (scope && scope.visibleUserIds.length > 0) approvedBy = scope.visibleUserIds.join(",");
     }
@@ -101,32 +108,87 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     res.json(invoice);
   }));
 
-  router.post("/invoices/approve", requireNotViewer, wrap(async (req, res) => {
+  router.post("/invoices/approve", requireCap("canApproveInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     const approvedBy = typeof req.body?.approvedBy === "string" ? req.body.approvedBy : undefined;
     res.json({ modifiedCount: await invoiceService.approveInvoices(ids, approvedBy, req.authContext!) });
   }));
 
-  router.post("/invoices/retry", requireNotViewer, wrap(async (req, res) => {
+  router.post("/invoices/retry", requireCap("canRetryInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     res.json({ modifiedCount: await invoiceService.retryInvoices(ids, req.authContext!) });
   }));
 
-  router.post("/invoices/delete", requireNotViewer, wrap(async (req, res) => {
+  router.post("/invoices/delete", requireCap("canDeleteInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     res.json({ deletedCount: await invoiceService.deleteInvoices(ids, req.authContext!) });
   }));
 
-  router.patch("/invoices/:id", requireNotViewer, wrap(async (req, res, next) => {
+  router.patch("/invoices/:id", requireCap("canEditInvoiceFields"), wrap(async (req, res, next) => {
     try {
       const authContext = req.authContext!;
       if (typeof req.body?.attachmentName === "string") {
         res.json(await invoiceService.renameAttachmentName(req.params.id, req.body.attachmentName, authContext.tenantId));
         return;
       }
+
+      const hasComplianceOverride = req.body?.glCode || req.body?.tdsSection || req.body?.vendorBankVerified || req.body?.dismissRiskSignal;
+      if (hasComplianceOverride) {
+        const invoice = await InvoiceModel.findOne({ _id: req.params.id, tenantId: authContext.tenantId });
+        if (!invoice) { res.status(404).json({ message: "Invoice not found." }); return; }
+        if (invoice.status === "EXPORTED") { res.status(403).json({ message: "Cannot modify an exported invoice." }); return; }
+
+        const compliance = (invoice as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined ?? {};
+
+        if (typeof req.body.glCode === "string") {
+          const glService = new GlCodeSuggestionService();
+          const fingerprint = invoice.metadata?.get("vendorFingerprint");
+          if (fingerprint) {
+            await glService.recordUsage(authContext.tenantId, fingerprint, req.body.glCode, req.body.glCode);
+          }
+          (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: req.body.glCode, source: "manual", confidence: 100 };
+        }
+
+        if (typeof req.body.tdsSection === "string") {
+          const existingTds = (compliance as Record<string, unknown>).tds as Record<string, unknown> | undefined;
+          (compliance as Record<string, unknown>).tds = { ...existingTds, section: req.body.tdsSection, source: "manual" };
+        }
+
+        if (req.body.vendorBankVerified === true) {
+          const vendorBank = (compliance as Record<string, unknown>).vendorBank as Record<string, unknown> | undefined;
+          if (vendorBank) {
+            vendorBank.verifiedChange = true;
+            vendorBank.isChanged = false;
+          }
+          const signals = ((compliance as Record<string, unknown>).riskSignals as Array<Record<string, unknown>>) ?? [];
+          const bankSignal = signals.find(s => s.code === "VENDOR_BANK_CHANGED");
+          if (bankSignal) {
+            bankSignal.status = "acted-on";
+            bankSignal.resolvedBy = authContext.userId;
+            bankSignal.resolvedAt = new Date();
+          }
+        }
+
+        if (typeof req.body.dismissRiskSignal === "string") {
+          const signals = ((compliance as Record<string, unknown>).riskSignals as Array<Record<string, unknown>>) ?? [];
+          const target = signals.find(s => s.code === req.body.dismissRiskSignal && s.status === "open");
+          if (target) {
+            target.status = "dismissed";
+            target.resolvedBy = authContext.userId;
+            target.resolvedAt = new Date();
+          }
+        }
+
+        invoice.set("compliance", compliance);
+        await invoice.save();
+        const sanitized = JSON.parse(JSON.stringify(invoice.toObject()));
+        res.json(sanitized);
+        return;
+      }
+
       res.json(await invoiceService.updateInvoiceParsedFields(
         req.params.id,
         (isRecord(req.body?.parsed) ? req.body.parsed : {}) as UpdateParsedFieldInput,
@@ -214,7 +276,10 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
 
   router.get("/invoices/:id/source-overlays/:field", wrap(async (req, res, next) => {
     const field = String(req.params.field ?? "");
-    if (!SOURCE_OVERLAY_FIELDS.has(field)) { res.status(400).json({ message: "Unsupported source overlay field." }); return; }
+    if (!SOURCE_OVERLAY_FIELDS.has(field) && !SOURCE_OVERLAY_LINE_ITEM_RE.test(field)) {
+      res.status(400).json({ message: "Unsupported source overlay field." });
+      return;
+    }
 
     const invoice = await invoiceService.getInvoiceById(req.params.id, req.authContext!.tenantId);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }

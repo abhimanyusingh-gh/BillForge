@@ -142,6 +142,26 @@ export class InvoiceService {
         const sanitized = sanitizeForApi(item);
         const hash = (item as Record<string, unknown>).contentHash as string | undefined;
         if (hash && duplicateHashes.has(hash)) (sanitized as Record<string, unknown>).possibleDuplicate = true;
+
+        const compliance = (item as Record<string, unknown>).compliance as Record<string, unknown> | undefined;
+        if (compliance) {
+          const riskSignals = compliance.riskSignals as Array<{ severity: string; status: string }> | undefined;
+          const openSignals = riskSignals?.filter(s => s.status === "open") ?? [];
+          const maxSev = openSignals.reduce((m: string | null, s) => {
+            if (s.severity === "critical") return "critical";
+            if (s.severity === "warning" && m !== "critical") return "warning";
+            return m ?? s.severity;
+          }, null as string | null);
+
+          (sanitized as Record<string, unknown>).complianceSummary = {
+            tdsSection: (compliance.tds as Record<string, unknown> | undefined)?.section ?? null,
+            glCode: (compliance.glCode as Record<string, unknown> | undefined)?.code ?? null,
+            riskSignalCount: openSignals.length,
+            riskSignalMaxSeverity: maxSev
+          };
+          delete (sanitized as Record<string, unknown>).compliance;
+        }
+
         return sanitized;
       }),
       page: params.page,

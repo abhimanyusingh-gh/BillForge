@@ -170,6 +170,7 @@ const envSchema = z.object({
   TALLY_SGST_LEDGER: z.string().default("Input SGST"),
   TALLY_IGST_LEDGER: z.string().default("Input IGST"),
   TALLY_CESS_LEDGER: z.string().default("Input Cess"),
+  TALLY_TDS_LEDGER: z.string().default("TDS Payable"),
   DEFAULT_APPROVER: z.string().default("system"),
   INVITE_EMAIL_PROVIDER: z.enum(["smtp", "sendgrid"]).default("smtp"),
   INVITE_SMTP_HOST: z.string().default("mailhog"),
