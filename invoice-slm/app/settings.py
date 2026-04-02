@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 
 ENV_MODES = {"local", "dev", "stg", "prod"}
-SLM_ENGINES = {"local_mlx", "local_codex_cli", "prod_http"}
+SLM_ENGINES = {"local_mlx", "local_codex_cli", "local_claude_cli", "prod_http"}
 
 
 def read_bool(name: str, default: bool) -> bool:
@@ -48,6 +48,11 @@ class Settings:
   codex_model: str
   codex_workdir: str
   codex_timeout_ms: int
+  claude_command: str
+  claude_model: str
+  claude_workdir: str
+  claude_timeout_ms: int
+  claude_max_tokens: int
   remote_base_url: str
   remote_select_path: str
   remote_api_key: str
@@ -69,6 +74,11 @@ settings = Settings(
   codex_model=os.getenv("SLM_CODEX_MODEL", "").strip(),
   codex_workdir=os.getenv("SLM_CODEX_WORKDIR", "").strip(),
   codex_timeout_ms=read_int("SLM_CODEX_TIMEOUT_MS", 300000, 1000),
+  claude_command=os.getenv("SLM_CLAUDE_COMMAND", "claude").strip() or "claude",
+  claude_model=os.getenv("SLM_CLAUDE_MODEL", "sonnet").strip(),
+  claude_workdir=os.getenv("SLM_CLAUDE_WORKDIR", "").strip(),
+  claude_timeout_ms=read_int("SLM_CLAUDE_TIMEOUT_MS", 300000, 1000),
+  claude_max_tokens=read_int("SLM_CLAUDE_MAX_TOKENS", 4096, 1),
   remote_base_url=os.getenv("SLM_REMOTE_BASE_URL", "").strip(),
   remote_select_path=os.getenv("SLM_REMOTE_SELECT_PATH", "/v1/verify/invoice").strip() or "/v1/verify/invoice",
   remote_api_key=os.getenv("SLM_REMOTE_API_KEY", "").strip(),
