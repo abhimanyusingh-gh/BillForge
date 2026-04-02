@@ -12,7 +12,8 @@ const bankStatementSchema = new Schema(
     matchedCount: { type: Number, default: 0 },
     unmatchedCount: { type: Number, default: 0 },
     source: { type: String, enum: ["pdf-parsed", "csv-import"], required: true },
-    uploadedBy: { type: String }
+    uploadedBy: { type: String },
+    s3Key: { type: String, default: null }
   },
   { timestamps: true }
 );

@@ -287,7 +287,7 @@ export interface BankStatementSummary {
   createdAt: string;
 }
 
-interface BankTransactionEntry {
+export interface BankTransactionEntry {
   _id: string;
   statementId: string;
   date: string;
@@ -449,6 +449,26 @@ export interface ApprovalWorkflowConfig {
     requireFinalSignoff: boolean;
   };
   steps: WorkflowStep[];
+}
+
+export interface TcsRateChange {
+  previousRate: number;
+  newRate: number;
+  changedBy: string;
+  changedByName: string;
+  changedAt: string;
+  reason?: string | null;
+  effectiveFrom: string;
+}
+
+export interface TcsConfig {
+  ratePercent: number;
+  effectiveFrom: string;
+  enabled: boolean;
+  updatedBy: string;
+  updatedAt: string;
+  tcsModifyRoles: string[];
+  history: TcsRateChange[];
 }
 
 export interface BankAccount {

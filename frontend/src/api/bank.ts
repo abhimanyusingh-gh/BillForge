@@ -52,14 +52,18 @@ export async function uploadBankStatementCsv(file: File, columnMapping?: Record<
   })).data;
 }
 
-async function fetchBankTransactions(statementId: string, params?: { status?: string; page?: number; limit?: number }): Promise<{ items: import("../types").BankTransactionEntry[]; total: number }> {
+export async function fetchBankTransactions(statementId: string, params?: { status?: string; page?: number; limit?: number }): Promise<{ items: import("../types").BankTransactionEntry[]; total: number }> {
   return (await apiClient.get(`/bank-statements/${statementId}/transactions`, { params })).data;
 }
 
-async function reconcileStatement(statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
+export async function reconcileStatement(statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
   return (await apiClient.post(`/bank-statements/${statementId}/reconcile`)).data;
 }
 
-async function matchTransactionToInvoice(transactionId: string, invoiceId: string): Promise<void> {
+export async function matchTransactionToInvoice(transactionId: string, invoiceId: string): Promise<void> {
   await apiClient.post(`/bank-statements/transactions/${transactionId}/match`, { invoiceId });
+}
+
+export async function unmatchTransaction(transactionId: string): Promise<void> {
+  await apiClient.delete(`/bank-statements/transactions/${transactionId}/match`);
 }

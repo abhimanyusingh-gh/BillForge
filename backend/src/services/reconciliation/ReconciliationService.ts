@@ -1,5 +1,6 @@
 import { InvoiceModel } from "../../models/Invoice.js";
 import { BankTransactionModel } from "../../models/BankTransaction.js";
+import { TenantTcsConfigModel } from "../../models/TenantTcsConfig.js";
 import { logger } from "../../utils/logger.js";
 
 interface MatchCandidate {
@@ -19,12 +20,15 @@ export class ReconciliationService {
       debitMinor: { $gt: 0 }
     }).lean();
 
+    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    const tcsRatePercent = tcsConfig?.enabled ? (tcsConfig.ratePercent ?? 0) : 0;
+
     let matched = 0;
     let suggested = 0;
     let unmatched = 0;
 
     for (const txn of transactions) {
-      const candidates = await this.findMatchCandidates(tenantId, txn);
+      const candidates = await this.findMatchCandidates(tenantId, txn, tcsRatePercent);
 
       if (candidates.length === 0) {
         unmatched++;
@@ -58,18 +62,15 @@ export class ReconciliationService {
 
   async findMatchCandidates(
     tenantId: string,
-    txn: { debitMinor?: number | null; description: string; date: string }
+    txn: { debitMinor?: number | null; description: string; date: string },
+    tcsRatePercent: number = 0
   ): Promise<MatchCandidate[]> {
     if (!txn.debitMinor || txn.debitMinor <= 0) return [];
 
     const tolerance = 100;
     const invoices = await InvoiceModel.find({
       tenantId,
-      status: { $in: ["APPROVED", "EXPORTED"] },
-      "compliance.tds.netPayableMinor": {
-        $gte: txn.debitMinor - tolerance,
-        $lte: txn.debitMinor + tolerance
-      }
+      status: { $in: ["APPROVED", "EXPORTED"] }
     }).lean();
 
     const candidates: MatchCandidate[] = [];
@@ -80,7 +81,11 @@ export class ReconciliationService {
       let score = 0;
       const compliance = (inv as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined;
       const tds = compliance?.tds as Record<string, unknown> | undefined;
-      const netPayable = (tds?.netPayableMinor as number) ?? inv.parsed?.totalAmountMinor ?? 0;
+      const baseNetPayable = (tds?.netPayableMinor as number) ?? inv.parsed?.totalAmountMinor ?? 0;
+      const tcsAdjustment = tcsRatePercent > 0 ? Math.round(baseNetPayable * tcsRatePercent / 100) : 0;
+      const netPayable = baseNetPayable + tcsAdjustment;
+
+      if (Math.abs(netPayable - txn.debitMinor) > tolerance) continue;
 
       if (Math.abs(netPayable - txn.debitMinor) <= 1) {
         score += 50;
@@ -136,7 +141,15 @@ export class ReconciliationService {
           }
         },
         $push: {
-          processingIssues: `Bank payment verified: matched to transaction ${transactionId} (confidence ${confidence})`
+          processingIssues: `Bank payment verified: matched to transaction ${transactionId} (confidence ${confidence})`,
+          "compliance.riskSignals": {
+            code: "BANK_PAYMENT_VERIFIED",
+            category: "financial",
+            severity: "info",
+            message: `Payment verified against bank statement transaction (confidence: ${confidence})`,
+            confidencePenalty: 0,
+            status: "open"
+          }
         }
       }
     );
@@ -148,5 +161,27 @@ export class ReconciliationService {
       { _id: transactionId },
       { $set: { matchStatus: "manual" } }
     );
+  }
+
+  async unmatch(tenantId: string, transactionId: string): Promise<void> {
+    const txn = await BankTransactionModel.findOne({ _id: transactionId, tenantId }).lean();
+    if (!txn) return;
+
+    const invoiceId = txn.matchedInvoiceId;
+
+    await BankTransactionModel.updateOne(
+      { _id: transactionId },
+      { $set: { matchedInvoiceId: null, matchConfidence: null, matchStatus: "unmatched" } }
+    );
+
+    if (invoiceId) {
+      await InvoiceModel.updateOne(
+        { _id: invoiceId, tenantId },
+        {
+          $unset: { "compliance.reconciliation": 1 },
+          $pull: { "compliance.riskSignals": { code: "BANK_PAYMENT_VERIFIED" } } as unknown as Record<string, unknown>
+        }
+      );
+    }
   }
 }

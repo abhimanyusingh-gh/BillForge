@@ -18,11 +18,11 @@ export class BankStatementParser {
     csvContent: string,
     columnMapping: { date: number; description: number; debit: number; credit: number; reference?: number; balance?: number },
     uploadedBy: string
-  ): Promise<{ statementId: string; transactionCount: number }> {
+  ): Promise<{ statementId: string; transactionCount: number; duplicatesSkipped: number }> {
     const lines = csvContent.split("\n").filter(l => l.trim());
     if (lines.length < 2) throw new Error("CSV must have at least a header row and one data row.");
 
-    const transactions: ParsedTransaction[] = [];
+    const parsed: ParsedTransaction[] = [];
     for (let i = 1; i < lines.length; i++) {
       const cols = parseCsvLine(lines[i]);
       const date = cols[columnMapping.date]?.trim();
@@ -36,14 +36,56 @@ export class BankStatementParser {
 
       if (!debitMinor && !creditMinor) continue;
 
-      transactions.push({
+      const reference = columnMapping.reference !== undefined ? cols[columnMapping.reference]?.trim() : undefined;
+
+      parsed.push({
         date: normalizeDate(date),
         description,
-        reference: columnMapping.reference !== undefined ? cols[columnMapping.reference]?.trim() : undefined,
+        reference,
         debitMinor: debitMinor ?? undefined,
         creditMinor: creditMinor ?? undefined,
         balanceMinor: columnMapping.balance !== undefined ? parseAmountToMinor(cols[columnMapping.balance]?.trim()) ?? undefined : undefined
       });
+    }
+
+    if (parsed.length === 0) {
+      const statement = await BankStatementModel.create({
+        tenantId,
+        fileName,
+        transactionCount: 0,
+        matchedCount: 0,
+        unmatchedCount: 0,
+        source: "csv-import",
+        uploadedBy
+      });
+      const statementId = String(statement._id);
+      logger.info("bank.statement.csv.parsed", { tenantId, statementId, transactionCount: 0, duplicatesSkipped: 0 });
+      return { statementId, transactionCount: 0, duplicatesSkipped: 0 };
+    }
+
+    const dates = parsed.map(t => t.date);
+    const minDate = dates.reduce((a, b) => (a < b ? a : b));
+    const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+
+    const existing = await BankTransactionModel.find({
+      tenantId,
+      date: { $gte: minDate, $lte: maxDate }
+    }).lean();
+
+    const existingFingerprints = new Set(
+      existing.map(e => `${e.date}|${e.description}|${e.debitMinor ?? ""}|${e.creditMinor ?? ""}|${e.reference ?? ""}`)
+    );
+
+    const transactions: ParsedTransaction[] = [];
+    let duplicatesSkipped = 0;
+    for (const txn of parsed) {
+      const fp = `${txn.date}|${txn.description}|${txn.debitMinor ?? ""}|${txn.creditMinor ?? ""}|${txn.reference ?? ""}`;
+      if (existingFingerprints.has(fp)) {
+        duplicatesSkipped++;
+      } else {
+        transactions.push(txn);
+        existingFingerprints.add(fp);
+      }
     }
 
     const statement = await BankStatementModel.create({
@@ -75,8 +117,8 @@ export class BankStatementParser {
       );
     }
 
-    logger.info("bank.statement.csv.parsed", { tenantId, statementId, transactionCount: transactions.length });
-    return { statementId, transactionCount: transactions.length };
+    logger.info("bank.statement.csv.parsed", { tenantId, statementId, transactionCount: transactions.length, duplicatesSkipped });
+    return { statementId, transactionCount: transactions.length, duplicatesSkipped };
   }
 }
 

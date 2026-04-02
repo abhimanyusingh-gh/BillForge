@@ -1,6 +1,7 @@
 import { useRef, useState, type DragEvent } from "react";
 import type { BankAccount, BankStatementSummary, TenantMailbox, TenantRole } from "../types";
 import { EmptyState } from "./EmptyState";
+import { BankStatementTransactionsPanel } from "./BankStatementTransactionsPanel";
 
 interface BankConnectionsTabProps {
   mailboxes: TenantMailbox[];
@@ -48,6 +49,7 @@ export function BankConnectionsTab({
   const [aaAddress, setAaAddress] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [statementDragActive, setStatementDragActive] = useState(false);
+  const [selectedStatementId, setSelectedStatementId] = useState<string | null>(null);
   const statementInputRef = useRef<HTMLInputElement>(null);
 
   function handleAddBank() {
@@ -309,7 +311,11 @@ export function BankConnectionsTab({
               </thead>
               <tbody>
                 {bankStatements.map((statement) => (
-                  <tr key={statement._id}>
+                  <tr
+                    key={statement._id}
+                    style={{ cursor: "pointer", background: selectedStatementId === statement._id ? "var(--bg-hover, rgba(99,102,241,0.06))" : undefined }}
+                    onClick={() => setSelectedStatementId(selectedStatementId === statement._id ? null : statement._id)}
+                  >
                     <td><div className="table-cell-scroll">{statement.fileName}</div></td>
                     <td><div className="table-cell-scroll">{statement.bankName ?? "-"}</div></td>
                     <td><div className="table-cell-scroll">{statement.accountNumberMasked ?? "-"}</div></td>
@@ -328,6 +334,13 @@ export function BankConnectionsTab({
             </table>
           </div>
         )}
+
+        {selectedStatementId ? (
+          <BankStatementTransactionsPanel
+            statementId={selectedStatementId}
+            onClose={() => setSelectedStatementId(null)}
+          />
+        ) : null}
       </div>
     </div>
   );
