@@ -55,7 +55,7 @@ const mockEnv = {
   MOCK_OCR_CONFIDENCE: undefined as number | undefined,
   FIELD_VERIFIER_PROVIDER: "none" as "none" | "http",
   FIELD_VERIFIER_BASE_URL: "http://localhost:8300/v1",
-  FIELD_VERIFIER_TIMEOUT_MS: 20000,
+  FIELD_VERIFIER_TIMEOUT_MS: 600000,
   FIELD_VERIFIER_API_KEY: undefined as string | undefined,
   LOCAL_FILE_STORE_ROOT: "/tmp/billforge-artifacts",
   S3_FILE_STORE_BUCKET: undefined as string | undefined,

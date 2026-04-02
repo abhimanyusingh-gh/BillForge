@@ -52,7 +52,9 @@ class Settings:
   claude_model: str
   claude_workdir: str
   claude_timeout_ms: int
-  claude_max_tokens: int
+  claude_max_budget_usd: float
+  claude_max_retries: int
+  claude_retry_base_delay_ms: int
   remote_base_url: str
   remote_select_path: str
   remote_api_key: str
@@ -78,7 +80,9 @@ settings = Settings(
   claude_model=os.getenv("SLM_CLAUDE_MODEL", "sonnet").strip(),
   claude_workdir=os.getenv("SLM_CLAUDE_WORKDIR", "").strip(),
   claude_timeout_ms=read_int("SLM_CLAUDE_TIMEOUT_MS", 300000, 1000),
-  claude_max_tokens=read_int("SLM_CLAUDE_MAX_TOKENS", 4096, 1),
+  claude_max_budget_usd=float(os.getenv("SLM_CLAUDE_MAX_BUDGET_USD", "0.50").strip() or "0.50"),
+  claude_max_retries=read_int("SLM_CLAUDE_MAX_RETRIES", 3, 0),
+  claude_retry_base_delay_ms=read_int("SLM_CLAUDE_RETRY_BASE_DELAY_MS", 2000, 100),
   remote_base_url=os.getenv("SLM_REMOTE_BASE_URL", "").strip(),
   remote_select_path=os.getenv("SLM_REMOTE_SELECT_PATH", "/v1/verify/invoice").strip() or "/v1/verify/invoice",
   remote_api_key=os.getenv("SLM_REMOTE_API_KEY", "").strip(),

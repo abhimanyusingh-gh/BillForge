@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import random
 import subprocess
+import time
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -87,14 +89,43 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     }
 
   def _run_claude(self, prompt: str) -> str:
+    max_retries = settings.claude_max_retries
+    base_delay_ms = settings.claude_retry_base_delay_ms
+    last_error: Exception | None = None
+
+    for attempt in range(max_retries + 1):
+      try:
+        return self._exec_claude_subprocess(prompt)
+      except subprocess.TimeoutExpired as e:
+        last_error = e
+        if attempt >= max_retries:
+          break
+        delay = self._backoff_delay(attempt, base_delay_ms)
+        log_info("slm.claude_cli.retry", attempt=attempt + 1, max_retries=max_retries, delay_ms=delay, reason="timeout")
+        time.sleep(delay / 1000)
+      except RuntimeError as e:
+        error_msg = str(e)
+        if self._is_retryable_error(error_msg):
+          last_error = e
+          if attempt >= max_retries:
+            break
+          delay = self._backoff_delay(attempt, base_delay_ms)
+          log_info("slm.claude_cli.retry", attempt=attempt + 1, max_retries=max_retries, delay_ms=delay, reason=error_msg[:100])
+          time.sleep(delay / 1000)
+        else:
+          raise
+
+    raise RuntimeError(f"claude CLI failed after {max_retries + 1} attempts: {last_error}")
+
+  def _exec_claude_subprocess(self, prompt: str) -> str:
     cmd = [
       settings.claude_command,
       "--print",
       "--output-format", "text",
       "--model", settings.claude_model or "sonnet",
     ]
-    if settings.claude_max_tokens:
-      cmd.extend(["--max-tokens", str(settings.claude_max_tokens)])
+    if settings.claude_max_budget_usd:
+      cmd.extend(["--max-budget-usd", str(settings.claude_max_budget_usd)])
     cmd.extend(["-p", prompt])
 
     completed = subprocess.run(
@@ -108,6 +139,24 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     if completed.returncode != 0:
       raise RuntimeError(f"claude exited {completed.returncode}: {completed.stderr.strip()}")
     return completed.stdout.strip()
+
+  @staticmethod
+  def _backoff_delay(attempt: int, base_delay_ms: int) -> int:
+    delay = base_delay_ms * (2 ** attempt)
+    jitter = int(delay * random.random() * 0.25)
+    return min(delay + jitter, 30_000)
+
+  @staticmethod
+  def _is_retryable_error(error_msg: str) -> bool:
+    retryable_patterns = [
+      "connection", "timeout", "timed out",
+      "network", "ECONNREFUSED", "ECONNRESET",
+      "overloaded", "rate limit", "429", "503", "502",
+      "internal server error", "500",
+      "socket hang up"
+    ]
+    lower = error_msg.lower()
+    return any(p in lower for p in retryable_patterns)
 
   def _resolve_workdir(self) -> Path:
     configured = settings.claude_workdir.strip()
