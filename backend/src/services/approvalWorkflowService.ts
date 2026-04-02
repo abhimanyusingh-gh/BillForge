@@ -1,6 +1,6 @@
 import { ApprovalWorkflowModel } from "../models/ApprovalWorkflow.js";
 import { InvoiceModel } from "../models/Invoice.js";
-import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { TenantAssignableRoles, TenantUserRoleModel, normalizeTenantRole } from "../models/TenantUserRole.js";
 import { HttpError } from "../errors/HttpError.js";
 import { logger } from "../utils/logger.js";
 import type { AuthenticatedRequestContext } from "../types/auth.js";
@@ -8,11 +8,16 @@ import type { AuthenticatedRequestContext } from "../types/auth.js";
 interface WorkflowStep {
   order: number;
   name: string;
-  approverType: "any_member" | "role" | "specific_users";
+  type?: "approval" | "compliance_signoff" | "escalation";
+  approverType: "any_member" | "role" | "specific_users" | "persona" | "capability";
   approverRole?: string;
   approverUserIds?: string[];
+  approverPersona?: string;
+  approverCapability?: string;
   rule: "any" | "all";
-  condition?: { field: string; operator: string; value: number } | null;
+  condition?: { field: string; operator: string; value: unknown } | null;
+  timeoutHours?: number | null;
+  escalateTo?: string | null;
 }
 
 interface WorkflowConfig {
@@ -38,15 +43,37 @@ interface WorkflowStateData {
   }>;
 }
 
-function mapStepsFromDoc(steps: Array<{ order: number; name: string; approverType: string; approverRole?: string | null; approverUserIds?: string[]; rule: string; condition?: { field?: string | null; operator?: string | null; value?: number | null } | null }>): WorkflowStep[] {
+const ANY_MEMBER_DB_ROLES = [...TenantAssignableRoles];
+
+function mapStepsFromDoc(steps: Array<{
+  order: number;
+  name: string;
+  type?: "approval" | "compliance_signoff" | "escalation" | null;
+  approverType: string;
+  approverRole?: string | null;
+  approverUserIds?: string[];
+  approverPersona?: string | null;
+  approverCapability?: string | null;
+  rule: string;
+  condition?: { field?: string | null; operator?: string | null; value?: unknown } | null;
+  timeoutHours?: number | null;
+  escalateTo?: string | null;
+}>): WorkflowStep[] {
   return steps.map((s) => ({
     order: s.order,
     name: s.name,
+    type: s.type ?? "approval",
     approverType: s.approverType as WorkflowStep["approverType"],
     approverRole: s.approverRole ?? undefined,
     approverUserIds: s.approverUserIds ?? [],
+    approverPersona: s.approverPersona ?? undefined,
+    approverCapability: s.approverCapability ?? undefined,
     rule: s.rule as "any" | "all",
-    condition: s.condition?.field ? { field: s.condition.field, operator: s.condition.operator!, value: s.condition.value! } : null
+    condition: s.condition?.field
+      ? { field: s.condition.field, operator: s.condition.operator!, value: s.condition.value! }
+      : null,
+    timeoutHours: s.timeoutHours ?? null,
+    escalateTo: s.escalateTo ?? null
   }));
 }
 
@@ -77,7 +104,11 @@ export class ApprovalWorkflowService {
     if (config.enabled === false) {
       const result = await InvoiceModel.updateMany(
         { tenantId, status: "AWAITING_APPROVAL" },
-        { $set: { status: "NEEDS_REVIEW" }, $push: { processingIssues: "Approval workflow disabled — returned to review." } }
+        {
+          $set: { status: "NEEDS_REVIEW" },
+          $unset: { workflowState: "" },
+          $push: { processingIssues: "Approval workflow disabled — returned to review." }
+        }
       );
       if (result.modifiedCount > 0) {
         logger.info("workflow.disabled.invoices_reverted", { tenantId, count: result.modifiedCount });
@@ -118,18 +149,58 @@ export class ApprovalWorkflowService {
       return (step.approverUserIds ?? []).includes(userId);
     }
     const roleRecord = await TenantUserRoleModel.findOne({ tenantId, userId }).lean();
+    if (!roleRecord) return false;
+    const userRole = normalizeTenantRole(roleRecord.role);
     if (step.approverType === "role") {
-      return roleRecord?.role === step.approverRole;
+      if (!step.approverRole) {
+        return false;
+      }
+      return userRole === normalizeTenantRole(step.approverRole);
     }
-    return roleRecord?.role === "MEMBER" || roleRecord?.role === "TENANT_ADMIN";
+    if (step.approverType === "persona") {
+      if (!step.approverPersona) {
+        return false;
+      }
+      return userRole === normalizeTenantRole(step.approverPersona);
+    }
+    if (step.approverType === "capability") {
+      const capabilities = (roleRecord as Record<string, unknown>).capabilities as Record<string, boolean> | undefined;
+      return capabilities?.[step.approverCapability ?? ""] === true;
+    }
+    return userRole !== "PLATFORM_ADMIN";
   }
 
-  evaluateCondition(step: WorkflowStep, invoice: { parsed?: { totalAmountMinor?: number | null } | null }): boolean {
+  evaluateCondition(step: WorkflowStep, invoice: { parsed?: { totalAmountMinor?: number | null } | null; compliance?: unknown }): boolean {
     if (!step.condition?.field) return true;
-    if (step.condition.field !== "totalAmountMinor") return true;
-    const value = invoice.parsed?.totalAmountMinor;
+    const field = step.condition.field;
+
+    let value: unknown;
+    if (field === "totalAmountMinor") {
+      value = invoice.parsed?.totalAmountMinor;
+    } else if (field === "tdsAmountMinor") {
+      const comp = invoice.compliance as Record<string, unknown> | null | undefined;
+      value = (comp?.tds as Record<string, unknown> | undefined)?.amountMinor;
+    } else if (field === "riskSignalMaxSeverity") {
+      const comp = invoice.compliance as Record<string, unknown> | null | undefined;
+      const signals = comp?.riskSignals as Array<{ severity: string }> | undefined;
+      if (signals && signals.length > 0) {
+        const severityOrder: Record<string, number> = { critical: 3, warning: 2, info: 1 };
+        value = signals.reduce((max, s) => Math.max(max, severityOrder[s.severity] ?? 0), 0);
+      }
+    } else if (field === "glCodeSource") {
+      const comp = invoice.compliance as Record<string, unknown> | null | undefined;
+      value = (comp?.glCode as Record<string, unknown> | undefined)?.source;
+    } else {
+      return true;
+    }
+
     if (value === undefined || value === null) return true;
     const threshold = step.condition.value;
+
+    if (step.condition.operator === "eq") return value === threshold;
+    if (step.condition.operator === "in") return Array.isArray(threshold) && threshold.includes(value);
+
+    if (typeof value !== "number" || typeof threshold !== "number") return true;
     switch (step.condition.operator) {
       case "gt": return value > threshold;
       case "gte": return value >= threshold;
@@ -219,9 +290,20 @@ export class ApprovalWorkflowService {
       if (currentStep.approverType === "specific_users") {
         requiredCount = (currentStep.approverUserIds ?? []).length;
       } else if (currentStep.approverType === "role") {
-        requiredCount = await TenantUserRoleModel.countDocuments({ tenantId: authContext.tenantId, role: currentStep.approverRole });
+        requiredCount = await TenantUserRoleModel.countDocuments({
+          tenantId: authContext.tenantId,
+          role: normalizeTenantRole(currentStep.approverRole ?? "")
+        });
+      } else if (currentStep.approverType === "persona") {
+        requiredCount = await TenantUserRoleModel.countDocuments({
+          tenantId: authContext.tenantId,
+          role: normalizeTenantRole(currentStep.approverPersona ?? "")
+        });
       } else {
-        requiredCount = await TenantUserRoleModel.countDocuments({ tenantId: authContext.tenantId, role: { $in: ["MEMBER", "TENANT_ADMIN"] } });
+        requiredCount = await TenantUserRoleModel.countDocuments({
+          tenantId: authContext.tenantId,
+          role: { $in: ANY_MEMBER_DB_ROLES }
+        });
       }
       const approvedCount = workflowState.stepResults.filter((r) => r.step === workflowState.currentStep && r.action === "approved").length;
       if (approvedCount < requiredCount) {

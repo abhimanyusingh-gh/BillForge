@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { requireTenantAdmin } from "../auth/middleware.js";
+import { requireCap } from "../auth/requireCapability.js";
 import type { TenantAdminService } from "../services/tenantAdminService.js";
 import type { TenantInviteService } from "../services/tenantInviteService.js";
 
 export function createTenantLifecycleRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
   const router = Router();
 
-  router.post("/tenant/onboarding/complete", requireTenantAdmin, async (request, response, next) => {
+  router.post("/tenant/onboarding/complete", requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const context = request.authContext!;
       const tenantName = typeof request.body?.tenantName === "string" ? request.body.tenantName : "";

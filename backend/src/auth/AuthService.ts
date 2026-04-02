@@ -1,7 +1,7 @@
 import { randomBytes, createHash } from "node:crypto";
 import { AuthLoginStateModel } from "../models/AuthLoginState.js";
 import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel, type TenantRole } from "../models/TenantUserRole.js";
+import { TenantUserRoleModel, normalizeTenantRole } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { env } from "../config/env.js";
 import type { OidcProvider } from "../sts/OidcProvider.js";
@@ -11,6 +11,7 @@ import type { AuthenticatedRequestContext, SessionFlagsPayload } from "../types/
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
 import { HttpError } from "../errors/HttpError.js";
 import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { mergeCapabilitiesWithDefaults } from "./personaDefaults.js";
 
 interface LoginCallbackResult {
   sessionToken: string;
@@ -181,26 +182,32 @@ export class AuthService {
       tenantId: verified.tenantId,
       tenantName: tenant.name,
       onboardingStatus: tenant.onboardingStatus,
-      role: verified.role,
+      role: normalizeTenantRole(verified.role),
       isPlatformAdmin: verified.isPlatformAdmin
     };
   }
 
   async getSessionFlags(context: AuthenticatedRequestContext): Promise<SessionFlagsPayload> {
-    const [gmailIntegration, userDoc] = await Promise.all([
+    const [gmailIntegration, userDoc, roleDoc] = await Promise.all([
       TenantIntegrationModel.findOne({
         tenantId: context.tenantId,
         provider: "gmail"
       }).lean(),
-      UserModel.findById(context.userId).select({ mustChangePassword: 1, emailVerified: 1 }).lean()
+      UserModel.findById(context.userId).select({ mustChangePassword: 1, emailVerified: 1 }).lean(),
+      TenantUserRoleModel.findOne({ tenantId: context.tenantId, userId: context.userId }).lean()
     ]);
     const requiresReauth = gmailIntegration?.status === "requires_reauth";
-    const isAdmin = context.role === "TENANT_ADMIN";
+    const rawRoleDoc = roleDoc as Record<string, unknown> | null;
+    const roleForDefaults = typeof rawRoleDoc?.role === "string" ? rawRoleDoc.role : context.role;
+    const capabilities = mergeCapabilitiesWithDefaults(
+      roleForDefaults,
+      rawRoleDoc?.capabilities as Record<string, unknown> | null | undefined
+    );
 
     return {
       requires_tenant_setup: context.onboardingStatus !== "completed",
       requires_reauth: requiresReauth,
-      requires_admin_action: requiresReauth && isAdmin,
+      requires_admin_action: requiresReauth && capabilities.canManageConnections === true,
       requires_email_confirmation: false,
       must_change_password: userDoc?.mustChangePassword === true
     };
@@ -285,13 +292,13 @@ export class AuthService {
 function buildContext(
   user: { _id: unknown; email: string; tenantId: string },
   tenant: { _id?: unknown; name: string; onboardingStatus: "pending" | "completed" },
-  role: TenantRole
+  role: string
 ): AuthenticatedRequestContext {
   const tenantId = user.tenantId || String(tenant._id);
   return {
     userId: String(user._id), email: user.email, tenantId,
     tenantName: tenant.name, onboardingStatus: tenant.onboardingStatus,
-    role, isPlatformAdmin: isPlatformAdminEmail(user.email)
+    role: normalizeTenantRole(role), isPlatformAdmin: isPlatformAdminEmail(user.email)
   };
 }
 

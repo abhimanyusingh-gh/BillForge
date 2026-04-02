@@ -1,5 +1,5 @@
 import { TenantModel } from "../models/Tenant.js";
-import { TenantUserRoleModel, type TenantRole } from "../models/TenantUserRole.js";
+import { TenantUserRoleModel, normalizeTenantRole, type TenantAssignableRole } from "../models/TenantUserRole.js";
 import { UserModel } from "../models/User.js";
 import { HttpError } from "../errors/HttpError.js";
 import { TenantIntegrationModel } from "../models/TenantIntegration.js";
@@ -56,7 +56,7 @@ export class TenantAdminService {
     await UserModel.updateOne({ _id: input.userId }, { $set: { enabled: input.enabled } });
   }
 
-  async listTenantUsers(tenantId: string): Promise<Array<{ userId: string; email: string; role: TenantRole; enabled: boolean }>> {
+  async listTenantUsers(tenantId: string): Promise<Array<{ userId: string; email: string; role: TenantAssignableRole; enabled: boolean }>> {
     const roleRecords = await TenantUserRoleModel.find({ tenantId }).lean();
     if (roleRecords.length === 0) {
       return [];
@@ -67,8 +67,11 @@ export class TenantAdminService {
     const userMap = new Map(users.map((user) => [String(user._id), user]));
 
     return roleRecords
-      .filter((roleRecord) => roleRecord.role !== "PLATFORM_ADMIN")
       .map((roleRecord) => {
+        const normalizedRole = normalizeTenantRole(roleRecord.role);
+        if (normalizedRole === "PLATFORM_ADMIN") {
+          return null;
+        }
         const user = userMap.get(roleRecord.userId);
         if (!user) {
           return null;
@@ -76,14 +79,14 @@ export class TenantAdminService {
         return {
           userId: String(user._id),
           email: user.email,
-          role: roleRecord.role as TenantRole,
+          role: normalizedRole as TenantAssignableRole,
           enabled: user.enabled !== false
         };
       })
       .filter((value): value is NonNullable<typeof value> => value !== null);
   }
 
-  async assignRole(input: { tenantId: string; userId: string; role: TenantRole; actingUserId?: string }): Promise<void> {
+  async assignRole(input: { tenantId: string; userId: string; role: TenantAssignableRole; actingUserId?: string }): Promise<void> {
     if (input.actingUserId && input.userId === input.actingUserId && input.role !== "TENANT_ADMIN") {
       throw new HttpError("You cannot change your own role.", 400, "cannot_demote_self");
     }

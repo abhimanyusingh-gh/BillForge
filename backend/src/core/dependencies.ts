@@ -31,6 +31,15 @@ import { createInviteEmailSenderProvider } from "../providers/email/createInvite
 import { PlatformAdminService } from "../services/platformAdminService.js";
 import { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 import { ApprovalWorkflowService } from "../services/approvalWorkflowService.js";
+import { ComplianceEnrichmentService } from "../services/compliance/ComplianceEnrichmentService.js";
+import { PanValidationService } from "../services/compliance/PanValidationService.js";
+import { VendorMasterService } from "../services/compliance/VendorMasterService.js";
+import { TdsCalculationService } from "../services/compliance/TdsCalculationService.js";
+import { GlCodeSuggestionService } from "../services/compliance/GlCodeSuggestionService.js";
+import { IrnValidationService } from "../services/compliance/IrnValidationService.js";
+import { MsmeTrackingService } from "../services/compliance/MsmeTrackingService.js";
+import { DuplicateInvoiceDetector } from "../services/compliance/DuplicateInvoiceDetector.js";
+import { CostCenterService } from "../services/compliance/CostCenterService.js";
 import { env } from "../config/env.js";
 
 import {
@@ -81,6 +90,17 @@ function buildAuthServices(manifest: RuntimeManifest) {
 async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore: MongoExtractionLearningStore) {
   const ocrProvider = await resolveOcrProvider(manifest);
   const fieldVerifier = await resolveFieldVerifier(manifest);
+  const complianceEnricher = new ComplianceEnrichmentService({
+    panValidation: new PanValidationService(),
+    vendorMaster: new VendorMasterService(),
+    tdsCalculation: new TdsCalculationService(),
+    glCodeSuggestion: new GlCodeSuggestionService(),
+    irnValidation: new IrnValidationService(),
+    msmeTracking: new MsmeTrackingService(),
+    duplicateDetector: new DuplicateInvoiceDetector(),
+    costCenter: new CostCenterService()
+  });
+
   const pipeline = new InvoiceExtractionPipeline(
     ocrProvider,
     fieldVerifier,
@@ -90,7 +110,8 @@ async function buildExtractionPipeline(manifest: RuntimeManifest, learningStore:
       ocrHighConfidenceThreshold: manifest.extraction.ocrHighConfidenceThreshold,
       llmAssistConfidenceThreshold: manifest.extraction.llmAssistConfidenceThreshold,
       learningMode: env.LEARNING_MODE
-    }
+    },
+    complianceEnricher
   );
   return { ocrProvider, fieldVerifier, pipeline };
 }
@@ -174,29 +195,27 @@ export async function resolveOcrProvider(runtimeManifest = loadRuntimeManifest()
       confidence: runtimeManifest.ocr.mock.confidence
     });
   }
-  if (runtimeManifest.ocr.provider === "deepseek") {
-    await assertDeepSeekConfigIsValid(runtimeManifest);
-    logger.info("Using OCR provider", { provider: "deepseek", model: runtimeManifest.ocr.deepseek.model });
-    return new DeepSeekOcrProvider({
-      apiKey: runtimeManifest.ocr.deepseek.apiKey,
-      baseUrl: runtimeManifest.ocr.deepseek.baseUrl,
-      model: runtimeManifest.ocr.deepseek.model,
-      timeoutMs: runtimeManifest.ocr.deepseek.timeoutMs
-    });
-  }
 
-  if (runtimeManifest.ocr.provider === "auto") {
-    await assertDeepSeekConfigIsValid(runtimeManifest);
-    logger.info("Using OCR provider", { provider: "deepseek", model: runtimeManifest.ocr.deepseek.model });
-    return new DeepSeekOcrProvider({
-      apiKey: runtimeManifest.ocr.deepseek.apiKey,
-      baseUrl: runtimeManifest.ocr.deepseek.baseUrl,
-      model: runtimeManifest.ocr.deepseek.model,
-      timeoutMs: runtimeManifest.ocr.deepseek.timeoutMs
-    });
+  if (runtimeManifest.ocr.provider === "deepseek" || runtimeManifest.ocr.provider === "auto") {
+    return createHttpOcrProvider(runtimeManifest);
   }
 
   throw new Error(`Unsupported OCR provider '${runtimeManifest.ocr.provider}'.`);
+}
+
+async function createHttpOcrProvider(runtimeManifest: RuntimeManifest): Promise<OcrProvider> {
+  await assertHttpOcrConfigIsValid(runtimeManifest);
+  logger.info("Using OCR provider", {
+    provider: "http",
+    model: runtimeManifest.ocr.deepseek.model,
+    baseUrl: runtimeManifest.ocr.deepseek.baseUrl
+  });
+  return new DeepSeekOcrProvider({
+    apiKey: runtimeManifest.ocr.deepseek.apiKey,
+    baseUrl: runtimeManifest.ocr.deepseek.baseUrl,
+    model: runtimeManifest.ocr.deepseek.model,
+    timeoutMs: runtimeManifest.ocr.deepseek.timeoutMs
+  });
 }
 
 function buildExporter(runtimeManifest: RuntimeManifest): AccountingExporter | null {
@@ -208,11 +227,12 @@ function buildExporter(runtimeManifest: RuntimeManifest): AccountingExporter | n
     endpoint: runtimeManifest.export.tallyEndpoint,
     companyName: runtimeManifest.export.tallyCompany,
     purchaseLedgerName: runtimeManifest.export.tallyPurchaseLedger,
-    gstLedgers: runtimeManifest.export.tallyGstLedgers
+    gstLedgers: runtimeManifest.export.tallyGstLedgers,
+    tdsLedgerPrefix: env.TALLY_TDS_LEDGER
   });
 }
 
-async function assertDeepSeekConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
+async function assertHttpOcrConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
   const baseUrl = runtimeManifest.ocr.deepseek.baseUrl.replace(/\/+$/, "");
   const configuredModel = runtimeManifest.ocr.deepseek.model;
   const apiKey = runtimeManifest.ocr.deepseek.apiKey.trim();
@@ -239,7 +259,7 @@ async function assertDeepSeekConfigIsValid(runtimeManifest: RuntimeManifest): Pr
     await assertServiceHealth(baseUrl, headers, OCR_BOOTSTRAP_TIMEOUT_MS, "OCR service");
   } catch (error) {
     throw new Error(
-      `DeepSeek OCR bootstrap validation failed. Configure an endpoint that serves '${configuredModel}' at '${baseUrl}'. Cause: ${describeDependencyError(error)}`
+      `OCR HTTP bootstrap validation failed. Configure an endpoint that serves '${configuredModel}' at '${baseUrl}'. Cause: ${describeDependencyError(error)}`
     );
   }
 }

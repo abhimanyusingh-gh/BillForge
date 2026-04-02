@@ -5,6 +5,8 @@ import { UserModel } from "../models/User.js";
 import { logger } from "../utils/logger.js";
 import { loadLocalDemoUsersConfig } from "../config/localDemoUsers.js";
 import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { seedTdsRates } from "./seedTdsRates.js";
+import { getRoleDefaults } from "../auth/personaDefaults.js";
 
 export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Promise<void> {
   const config = loadLocalDemoUsersConfig();
@@ -43,6 +45,8 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
       throw new Error(`Failed to upsert local demo user '${user.email}'.`);
     }
 
+    const capabilities = getRoleDefaults(user.role);
+
     await TenantUserRoleModel.findOneAndUpdate(
       {
         tenantId: user.tenantId,
@@ -51,7 +55,8 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
       {
         tenantId: user.tenantId,
         userId: String(resolvedUser._id),
-        role: user.role
+        role: user.role,
+        capabilities
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -71,6 +76,8 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
       });
     }
   }
+
+  await seedTdsRates();
 
   logger.info("local.demo.seed.complete", {
     tenants: config.tenants.length,

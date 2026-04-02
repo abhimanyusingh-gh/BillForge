@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { requireTenantAdmin } from "../auth/middleware.js";
+import { requireCap } from "../auth/requireCapability.js";
 import { BankAccountModel } from "../models/BankAccount.js";
 import type { IBankConnectionService } from "../services/anumati/IBankConnectionService.js";
 
 export function createBankAccountsRouter(bankService: IBankConnectionService) {
   const router = Router();
 
-  router.get("/bank/accounts", requireTenantAdmin, async (req, res, next) => {
+  router.get("/bank/accounts", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const { tenantId } = req.authContext!;
       const accounts = await BankAccountModel.find({ tenantId }).sort({ createdAt: -1 }).lean();
@@ -31,7 +31,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.post("/bank/accounts", requireTenantAdmin, async (req, res, next) => {
+  router.post("/bank/accounts", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const { tenantId, userId } = req.authContext!;
       const aaAddress = typeof req.body?.aaAddress === "string" ? req.body.aaAddress.trim() : "";
@@ -64,7 +64,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.delete("/bank/accounts/:id", requireTenantAdmin, async (req, res, next) => {
+  router.delete("/bank/accounts/:id", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const { tenantId } = req.authContext!;
       const account = await BankAccountModel.findOne({ _id: req.params.id, tenantId });
@@ -80,7 +80,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
     }
   });
 
-  router.post("/bank/accounts/:id/refresh", requireTenantAdmin, async (req, res, next) => {
+  router.post("/bank/accounts/:id/refresh", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const { tenantId } = req.authContext!;
       const account = await BankAccountModel.findOne({ _id: req.params.id, tenantId });

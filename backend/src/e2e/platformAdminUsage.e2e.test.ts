@@ -187,7 +187,7 @@ describe("platform admin tenant usage e2e", () => {
 });
 
 async function fetchSession(token: string): Promise<{
-  user: { id: string; email: string; role: "TENANT_ADMIN" | "MEMBER"; isPlatformAdmin: boolean };
+  user: { id: string; email: string; role: string; isPlatformAdmin: boolean };
   tenant: { id: string; name: string; onboarding_status: "pending" | "completed" };
 }> {
   const response = await api.get("/api/session", {

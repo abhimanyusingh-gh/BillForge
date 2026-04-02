@@ -3,10 +3,11 @@ export type TenantViewTab = "overview" | "dashboard" | "config" | "exports" | "c
 interface TenantViewTabsProps {
   activeTab: TenantViewTab;
   canViewTenantConfig: boolean;
+  canViewConnections: boolean;
   onTabChange: (tab: TenantViewTab) => void;
 }
 
-export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: TenantViewTabsProps) {
+export function TenantViewTabs({ activeTab, canViewTenantConfig, canViewConnections, onTabChange }: TenantViewTabsProps) {
   return (
     <div className="tenant-view-tabs" role="tablist" aria-label="Tenant workspace sections">
       <button
@@ -39,7 +40,7 @@ export function TenantViewTabs({ activeTab, canViewTenantConfig, onTabChange }: 
           Tenant Config
         </button>
       ) : null}
-      {canViewTenantConfig ? (
+      {canViewConnections ? (
         <button
           type="button"
           className={activeTab === "connections" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}

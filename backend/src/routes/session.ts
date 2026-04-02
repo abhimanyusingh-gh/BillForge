@@ -1,6 +1,8 @@
 import { Router } from "express";
 import type { AuthService } from "../auth/AuthService.js";
 import { TenantModel } from "../models/Tenant.js";
+import { TenantUserRoleModel } from "../models/TenantUserRole.js";
+import { mergeCapabilitiesWithDefaults } from "../auth/personaDefaults.js";
 
 export function createSessionRouter(authService: AuthService) {
   const router = Router();
@@ -13,16 +15,26 @@ export function createSessionRouter(authService: AuthService) {
         return;
       }
 
-      const [flags, tenantDoc] = await Promise.all([
+      const [flags, tenantDoc, userRoleDoc] = await Promise.all([
         authService.getSessionFlags(context),
-        TenantModel.findById(context.tenantId).select({ mode: 1 }).lean()
+        TenantModel.findById(context.tenantId).select({ mode: 1 }).lean(),
+        TenantUserRoleModel.findOne({ tenantId: context.tenantId, userId: context.userId }).lean()
       ]);
+
+      const rawRoleDoc = userRoleDoc as Record<string, unknown> | null;
+      const roleForDefaults = typeof rawRoleDoc?.role === "string" ? rawRoleDoc.role : context.role;
+      const capabilities = mergeCapabilitiesWithDefaults(
+        roleForDefaults,
+        rawRoleDoc?.capabilities as Record<string, unknown> | null | undefined
+      );
+
       response.json({
         user: {
           id: context.userId,
           email: context.email,
           role: context.role,
-          isPlatformAdmin: context.isPlatformAdmin
+          isPlatformAdmin: context.isPlatformAdmin,
+          capabilities
         },
         tenant: {
           id: context.tenantId,
