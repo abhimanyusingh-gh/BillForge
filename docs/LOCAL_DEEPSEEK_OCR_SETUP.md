@@ -19,7 +19,7 @@ yarn docker:up
 Defaults:
 - OCR provider: `local_hybrid` (DeepSeek MLX + Apple Vision arbitration)
 - OCR model: `mlx-community/DeepSeek-OCR-4bit`
-- SLM model: `mlx-community/DeepSeek-R1-Distill-Qwen-1.5B-4bit`
+- SLM model: `mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit`
 
 `yarn docker:up` starts:
 - native OCR service on host (`8200`) — Docker proxy at `8202`
