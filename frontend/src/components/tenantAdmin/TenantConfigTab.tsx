@@ -3,7 +3,6 @@ import { TENANT_ROLE_OPTIONS, type TenantRole, type UserCapabilities } from "../
 import { ApprovalWorkflowSection } from "./ApprovalWorkflowSection";
 import { GlCodeManager } from "./GlCodeManager";
 import { EmptyState } from "../EmptyState";
-import { TcsConfigPanel } from "./TcsConfigPanel";
 
 interface TenantConfigTabProps {
   currentUserId: string;
@@ -69,8 +68,6 @@ export function TenantConfigTab({
           </p>
         </div>
       ) : null}
-
-      <TcsConfigPanel canConfigureCompliance={canConfigureCompliance} />
 
       {canManageUsers ? (
         <div className="editor-card">
