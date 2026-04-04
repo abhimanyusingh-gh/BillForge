@@ -18,7 +18,7 @@ export async function connectToDatabase() {
     if (db) {
       const migrations = db.collection("migrations");
       const migrationName = "cleanup_gmailMessageId_v1";
-      const already = await migrations.findOne({ _id: migrationName });
+      const already = await migrations.findOne({ _id: migrationName } as never);
       if (!already) {
         const col = db.collection("invoices");
         const cleanResult = await col.updateMany(
