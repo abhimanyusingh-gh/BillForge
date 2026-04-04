@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import random
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -13,6 +14,49 @@ from ..logging import log_error, log_info
 from ..settings import settings
 from .local_codex_cli import build_codex_prompt
 from .local_mlx import parse_json_object, recover_payload_from_candidates, recover_payload_from_text, sanitize_payload_for_prompt
+
+_KILL_GRACE_SECONDS = 5
+
+
+def _kill_process_group(proc: subprocess.Popen[str]) -> None:
+  pgid: int | None = None
+  try:
+    pgid = os.getpgid(proc.pid)
+  except OSError:
+    pass
+
+  if pgid is not None and pgid != os.getpgid(os.getpid()):
+    try:
+      os.killpg(pgid, signal.SIGTERM)
+    except OSError:
+      pass
+  else:
+    try:
+      proc.terminate()
+    except OSError:
+      pass
+
+  try:
+    proc.wait(timeout=_KILL_GRACE_SECONDS)
+    return
+  except subprocess.TimeoutExpired:
+    pass
+
+  if pgid is not None and pgid != os.getpgid(os.getpid()):
+    try:
+      os.killpg(pgid, signal.SIGKILL)
+    except OSError:
+      pass
+  else:
+    try:
+      proc.kill()
+    except OSError:
+      pass
+
+  try:
+    proc.wait(timeout=3)
+  except subprocess.TimeoutExpired:
+    pass
 
 
 class LocalClaudeCliLLMProvider(LLMProvider):
@@ -121,6 +165,7 @@ class LocalClaudeCliLLMProvider(LLMProvider):
       try:
         return self._exec_claude_subprocess(prompt)
       except subprocess.TimeoutExpired as e:
+        log_error("slm.claude_cli.timeout", attempt=attempt + 1, max_retries=max_retries, timeout_ms=settings.claude_timeout_ms, error="process killed after timeout")
         last_error = e
         if attempt >= max_retries:
           break
@@ -157,19 +202,29 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     env = os.environ.copy()
     env.pop("ANTHROPIC_API_KEY", None)
 
-    completed = subprocess.run(
+    timeout_seconds = max(10, settings.claude_timeout_ms // 1000)
+    proc = subprocess.Popen(
       cmd,
       stdin=subprocess.DEVNULL,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
       text=True,
-      capture_output=True,
       env=env,
       cwd=self._resolve_workdir(),
-      timeout=max(60, settings.claude_timeout_ms // 1000),
-      check=False
+      start_new_session=True,
     )
-    if completed.returncode != 0:
-      raise RuntimeError(f"claude exited {completed.returncode}: {completed.stderr.strip()}")
-    return completed.stdout.strip()
+    try:
+      stdout, stderr = proc.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+      _kill_process_group(proc)
+      raise
+    except BaseException:
+      _kill_process_group(proc)
+      raise
+
+    if proc.returncode != 0:
+      raise RuntimeError(f"claude exited {proc.returncode}: {stderr.strip()}")
+    return stdout.strip()
 
   @staticmethod
   def _backoff_delay(attempt: int, base_delay_ms: int) -> int:
