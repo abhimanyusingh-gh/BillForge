@@ -189,6 +189,46 @@ wait_for_http_contains() {
   return 1
 }
 
+kill_stale_slm_if_engine_mismatch() {
+  local health_url="$1"
+  local pid_file="$2"
+  local requested_engine="${SLM_ENGINE:-}"
+
+  if [[ -z "$requested_engine" || "$requested_engine" == "prod_http" ]]; then
+    return 0
+  fi
+
+  local body
+  body="$(curl -fsS "$health_url" 2>/dev/null || true)"
+  if [[ -z "$body" ]]; then
+    return 0
+  fi
+
+  local running_provider
+  running_provider="$(printf "%s" "$body" | tr -d ' \t\r\n' | sed -n 's/.*"provider":"\([^"]*\)".*/\1/p')"
+  if [[ -z "$running_provider" ]]; then
+    return 0
+  fi
+
+  if [[ "$running_provider" == "$requested_engine" ]]; then
+    return 0
+  fi
+
+  echo "SLM engine mismatch: running=$running_provider, requested=$requested_engine. Killing stale process."
+  if [[ -f "$pid_file" ]]; then
+    local stale_pid
+    stale_pid="$(cat "$pid_file" 2>/dev/null || true)"
+    if [[ -n "$stale_pid" ]] && kill -0 "$stale_pid" >/dev/null 2>&1; then
+      kill "$stale_pid" 2>/dev/null || true
+      sleep 1
+      if kill -0 "$stale_pid" >/dev/null 2>&1; then
+        kill -9 "$stale_pid" 2>/dev/null || true
+      fi
+    fi
+    rm -f "$pid_file"
+  fi
+}
+
 start_local_service_if_needed() {
   local name="$1"
   local health_url="$2"
@@ -255,6 +295,15 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     "$OCR_PID_FILE" \
     "$OCR_LOG_FILE" \
     "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
+
+  detected_ocr_model="$(curl -fsS http://localhost:8200/v1/models 2>/dev/null \
+    | "$PYTHON_BIN" -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || true)"
+  if [[ -n "$detected_ocr_model" ]]; then
+    export OCR_MODEL="$detected_ocr_model"
+    echo "OCR model detected: $OCR_MODEL"
+  fi
+
+  kill_stale_slm_if_engine_mismatch "$SLM_HEALTH_URL" "$SLM_PID_FILE"
 
   start_local_service_if_needed \
     "SLM" \
