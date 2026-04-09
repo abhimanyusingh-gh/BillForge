@@ -30,7 +30,6 @@ import {
   findPreferredVendorBlockForStrategy,
   recoverParsedFromOcr,
 } from "./pipeline/ocrRecovery.js";
-import { extractNativePdfText } from "./pipeline/nativePdfText.js";
 import {
   buildFieldCandidates,
   buildFieldRegions
@@ -154,7 +153,6 @@ export class InvoiceExtractionPipeline {
     let enhancedNormalizedAmounts: NormalizedAmount[] = [];
     let enhancedNormalizedDates: NormalizedDate[] = [];
     let enhancedNormalizedCurrencies: NormalizedCurrency[] = [];
-    const nativePdfText = extractNativePdfText(input.fileBuffer, input.mimeType);
     let ocrTokensUsed = 0;
     let slmTokensUsed = 0;
     const preOcrLanguage = detectInvoiceLanguageBeforeOcr({
@@ -193,7 +191,7 @@ export class InvoiceExtractionPipeline {
       enhancedNormalizedCurrencies = enhanced.normalized.currencies;
       if (ocrResult.tokenUsage?.totalTokens) ocrTokensUsed += ocrResult.tokenUsage.totalTokens;
       const rawText = ocrResult.text.trim();
-      rawTextForNormalization = nativePdfText.length > 0 ? nativePdfText : rawText;
+      rawTextForNormalization = rawText;
       const blockText = buildBlocksText(ocrBlocks);
       const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, blockText);
       ocrConfidence = calibrated.score;
@@ -238,14 +236,6 @@ export class InvoiceExtractionPipeline {
         processingIssues.push("OCR provider returned empty text.");
       }
 
-      if (nativePdfText.length > 0) {
-        extractionCandidates.push({
-          text: nativePdfText,
-          provider: "native-pdf-text",
-          confidence: ocrConfidence,
-          source: "pdf-native-text"
-        });
-      }
     } catch (error) {
       if (extractionCandidates.length === 0) {
         throw new ExtractionPipelineError(

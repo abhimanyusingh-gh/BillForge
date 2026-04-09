@@ -95,7 +95,26 @@ describe("buildLines", () => {
       { text: "Left", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.2, 0.14] as [number, number, number, number] }
     ];
     const result = buildLines(blocks);
-    expect(result[0].text).toBe("Left Right");
+    expect(result[0].text).toBe("Left | Right");
+  });
+
+  it("buildLines: uses pipe separator for wide-gap columns", () => {
+    const blocks = [
+      { text: "Invoice", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.2, 0.14] as [number, number, number, number] },
+      { text: "12345", page: 1, blockIndices: [1], bboxNormalized: [0.7, 0.10, 0.9, 0.14] as [number, number, number, number] }
+    ];
+    const result = buildLines(blocks);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toContain(" | ");
+  });
+
+  it("buildLines: adaptive tolerance groups slightly offset rows", () => {
+    const blocks = [
+      { text: "Left", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.2, 0.14] as [number, number, number, number] },
+      { text: "Right", page: 1, blockIndices: [1], bboxNormalized: [0.3, 0.118, 0.5, 0.158] as [number, number, number, number] }
+    ];
+    const result = buildLines(blocks);
+    expect(result).toHaveLength(1);
   });
 });
 

@@ -212,6 +212,20 @@ export function buildLines(mergedBlocks: MergedBlock[]): OcrLine[] {
   const lines: OcrLine[] = [];
 
   for (const [page, pageBlocks] of byPage) {
+    const validHeights = pageBlocks
+      .map((b) => b.bboxNormalized[3] - b.bboxNormalized[1])
+      .filter((h) => h > 0);
+    let tolerance = 0.015;
+    if (validHeights.length > 0) {
+      const sortedHeights = [...validHeights].sort((a, b) => a - b);
+      const mid = Math.floor(sortedHeights.length / 2);
+      const medianBlockHeight =
+        sortedHeights.length % 2 === 1
+          ? sortedHeights[mid]
+          : (sortedHeights[mid - 1] + sortedHeights[mid]) / 2;
+      tolerance = Math.max(0.010, medianBlockHeight * 0.55);
+    }
+
     const sorted = [...pageBlocks].sort((a, b) => {
       const aCenterY = (a.bboxNormalized[1] + a.bboxNormalized[3]) / 2;
       const bCenterY = (b.bboxNormalized[1] + b.bboxNormalized[3]) / 2;
@@ -224,7 +238,7 @@ export function buildLines(mergedBlocks: MergedBlock[]): OcrLine[] {
       let placed = false;
       for (const group of lineGroups) {
         const groupCenterY = (group[0].bboxNormalized[1] + group[0].bboxNormalized[3]) / 2;
-        if (Math.abs(centerY - groupCenterY) <= 0.015) {
+        if (Math.abs(centerY - groupCenterY) <= tolerance) {
           group.push(block);
           placed = true;
           break;
@@ -237,7 +251,11 @@ export function buildLines(mergedBlocks: MergedBlock[]): OcrLine[] {
 
     for (const group of lineGroups) {
       group.sort((a, b) => a.bboxNormalized[0] - b.bboxNormalized[0]);
-      const text = group.map((b) => b.text).join(" ");
+      let text = group[0].text;
+      for (let i = 1; i < group.length; i++) {
+        const gap = group[i].bboxNormalized[0] - group[i - 1].bboxNormalized[2];
+        text += gap > 0.04 ? ` | ${group[i].text}` : ` ${group[i].text}`;
+      }
       const blockIndices = group.flatMap((b) => b.blockIndices).sort((a, b) => a - b);
       const bboxNormalized: [number, number, number, number] = [
         Math.min(...group.map((b) => b.bboxNormalized[0])),
