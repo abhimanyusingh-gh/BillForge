@@ -328,7 +328,8 @@ def build_extractor_prompt(payload: dict[str, Any], strict: bool) -> str:
     "totalAmountMinor: prefer Total/Grand Total/Amount Payable > Balance Due. Reject subtotal, individual tax lines. MUST be > cgst+sgst (or igst) — if ≤ any single tax it is a tax line, not the total. Verify against Amount in Words.\n"
     "GST: include only if explicit. IGST=NA/0/blank → omit igstMinor.\n"
     "lineItems: one row per item, final amount column only. Each needs amountMinor + provenance.\n"
-    "INR: multiply all rupee amounts × 100 for paise. Lakh format 12,63,318 = 1263318 rupees = 126331800 paise. OCR may render ₹ as $.\n"
+    "currency: set INR if ₹/INR/GSTIN/CGST/SGST present; set USD/EUR/GBP from explicit symbol or code. Never infer INR from $ alone — $ is USD unless India tax context is present.\n"
+    "INR amounts: multiply × 100 for paise. Lakh format 12,63,318 = 1263318 rupees = 126331800 paise.\n"
     "\n"
     + (prior_corrections_text if prior_corrections_text else "")
   )
