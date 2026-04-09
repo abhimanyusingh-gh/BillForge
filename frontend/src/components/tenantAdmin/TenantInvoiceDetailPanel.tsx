@@ -36,7 +36,7 @@ interface TenantInvoiceDetailPanelProps {
   refreshActiveInvoiceDetail: () => Promise<void>;
   onClose: () => void;
   extractedRows: ExtractedFieldRow[];
-  onOverrideGlCode: (glCode: string) => Promise<void>;
+  onOverrideGlCode: (glCode: string, glName?: string) => Promise<void>;
   onOverrideTdsSection: (section: string) => Promise<void>;
   onDismissRiskSignal: (signalCode: string) => Promise<void>;
 }

@@ -18,6 +18,9 @@ import { ViewerScopeModel } from "../models/ViewerScope.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { VendorMasterService } from "../services/compliance/VendorMasterService.js";
 import { GlCodeSuggestionService } from "../services/compliance/GlCodeSuggestionService.js";
+import { TdsCalculationService } from "../services/compliance/TdsCalculationService.js";
+import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
+import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
 import { requireAuth } from "../auth/requireAuth.js";
 import { logger } from "../utils/logger.js";
 import { isRecord, isString, validateDateRange } from "../utils/validation.js";
@@ -135,7 +138,7 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
         return;
       }
 
-      const hasComplianceOverride = req.body?.glCode || req.body?.tdsSection || req.body?.vendorBankVerified || req.body?.dismissRiskSignal;
+      const hasComplianceOverride = req.body?.glCode || typeof req.body?.glCode === "string" || req.body?.tdsSection || req.body?.vendorBankVerified || req.body?.dismissRiskSignal;
       if (hasComplianceOverride) {
         const invoice = await InvoiceModel.findOne({ _id: req.params.id, tenantId: authContext.tenantId });
         if (!invoice) { res.status(404).json({ message: "Invoice not found." }); return; }
@@ -144,12 +147,52 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
         const compliance = (invoice as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined ?? {};
 
         if (typeof req.body.glCode === "string") {
-          const glService = new GlCodeSuggestionService();
-          const fingerprint = invoice.metadata?.get("vendorFingerprint");
-          if (fingerprint) {
-            await glService.recordUsage(authContext.tenantId, fingerprint, req.body.glCode, req.body.glCode);
+          if (req.body.glCode.trim() === "") {
+            (compliance as Record<string, unknown>).glCode = { code: null, name: null, source: "manual", confidence: null };
+          } else {
+            const glName = typeof req.body.glName === "string" && req.body.glName.trim() ? req.body.glName.trim() : req.body.glCode;
+            const glService = new GlCodeSuggestionService();
+            const fingerprint = invoice.metadata?.get("vendorFingerprint");
+            if (fingerprint) {
+              await glService.recordUsage(authContext.tenantId, fingerprint, req.body.glCode, glName);
+            }
+            (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: glName, source: "manual", confidence: 100 };
+
+            try {
+              const parsed = invoice.toObject().parsed ?? {};
+              const tdsService = new TdsCalculationService();
+              const glDoc = await GlCodeMasterModel.findOne({ tenantId: authContext.tenantId, code: req.body.glCode, isActive: true }).lean();
+              const glCategory = glDoc?.category ?? req.body.glCode;
+              const tdsResult = await tdsService.computeTds(parsed, authContext.tenantId, glCategory);
+              (compliance as Record<string, unknown>).tds = tdsResult.tds;
+              const existingSignals = ((compliance as Record<string, unknown>).riskSignals as Array<Record<string, unknown>>) ?? [];
+              const nonTdsSignals = existingSignals.filter(s => !String(s.code).startsWith("TDS_"));
+              (compliance as Record<string, unknown>).riskSignals = [...nonTdsSignals, ...tdsResult.riskSignals];
+            } catch (error) {
+              logger.warn("compliance.gl.retrigger.tds.failed", {
+                invoiceId: req.params.id, tenantId: authContext.tenantId,
+                error: error instanceof Error ? error.message : String(error)
+              });
+            }
+
+            try {
+              const totalAmountMinor = invoice.parsed?.totalAmountMinor;
+              const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId: authContext.tenantId }).lean();
+              if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && totalAmountMinor && totalAmountMinor > 0) {
+                const tcsAmount = Math.floor(totalAmountMinor * tcsConfig.ratePercent / 100);
+                (compliance as Record<string, unknown>).tcs = {
+                  rate: tcsConfig.ratePercent,
+                  amountMinor: tcsAmount,
+                  source: "configured"
+                };
+              }
+            } catch (error) {
+              logger.warn("compliance.gl.retrigger.tcs.failed", {
+                invoiceId: req.params.id, tenantId: authContext.tenantId,
+                error: error instanceof Error ? error.message : String(error)
+              });
+            }
           }
-          (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: req.body.glCode, source: "manual", confidence: 100 };
         }
 
         if (typeof req.body.tdsSection === "string") {
@@ -195,6 +238,20 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
         typeof req.body?.updatedBy === "string" ? req.body.updatedBy : undefined,
         authContext.tenantId
       ));
+    } catch (error) {
+      if (error instanceof InvoiceUpdateError) { res.status(error.statusCode).json({ message: error.message }); return; }
+      throw error;
+    }
+  }));
+
+  router.post("/invoices/:id/retrigger-compliance", requireCap("canEditInvoiceFields"), wrap(async (req, res) => {
+    try {
+      const authContext = getAuth(req);
+      const glCode = typeof req.body?.glCode === "string" ? req.body.glCode.trim() : null;
+      const glName = typeof req.body?.glName === "string" ? req.body.glName.trim() : glCode;
+      if (!glCode) { res.status(400).json({ message: "glCode is required." }); return; }
+      const result = await invoiceService.retriggerCompliance(req.params.id, authContext.tenantId, glCode, glName ?? glCode);
+      res.json(result);
     } catch (error) {
       if (error instanceof InvoiceUpdateError) { res.status(error.statusCode).json({ message: error.message }); return; }
       throw error;
