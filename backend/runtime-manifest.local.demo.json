@@ -7,9 +7,7 @@
   },
   "ocr": {
     "provider": "deepseek",
-    "deepseek": {
-      "model": "mlx-community/DeepSeek-OCR-4bit"
-    }
+    "deepseek": {}
   },
   "verifier": {
     "provider": "http",

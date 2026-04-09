@@ -37,7 +37,7 @@ interface NormalizedOcrDocumentResponse {
 }
 
 export function readTimeoutMsFromEnv(): number {
-  const rawValue = process.env.DEEPSEEK_TIMEOUT_MS;
+  const rawValue = process.env.OCR_TIMEOUT_MS;
   if (!rawValue) {
     return DEFAULT_TIMEOUT_MS;
   }
@@ -49,7 +49,7 @@ export function readTimeoutMsFromEnv(): number {
 }
 
 export function readMaxTokensFromEnv(): number {
-  const rawValue = process.env.DEEPSEEK_OCR_MAX_TOKENS;
+  const rawValue = process.env.OCR_MAX_TOKENS;
   if (!rawValue) {
     return DEFAULT_MAX_TOKENS;
   }
