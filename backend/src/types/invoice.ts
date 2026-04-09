@@ -86,6 +86,7 @@ export interface InvoiceVerifierContract {
 export interface InvoiceExtractionClassification {
   invoiceType?: string;
   category?: string;
+  glCategory?: string;
   tdsSection?: string;
 }
 
@@ -135,7 +136,7 @@ export interface ComplianceTdsResult {
 export interface ComplianceGlCodeResult {
   code: string | null;
   name: string | null;
-  source: "vendor-default" | "description-match" | "category-default" | "manual";
+  source: "vendor-default" | "description-match" | "slm-classification" | "category-default" | "manual";
   confidence: number | null;
   suggestedAlternatives?: Array<{ code: string; name: string; score: number }>;
 }

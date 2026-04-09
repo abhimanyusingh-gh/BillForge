@@ -12,6 +12,7 @@ import { templateFromParsed, type VendorTemplateStore } from "./vendorTemplateSt
 import type { ExtractionLearningStore } from "./extractionLearningStore.js";
 import type { PipelineExtractionResult } from "./types.js";
 import { logger } from "../../utils/logger.js";
+import { GlCodeMasterModel } from "../../models/GlCodeMaster.js";
 import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
 import { parseAmountToken, parseInvoiceText } from "../../parser/invoiceParser.js";
 import type { ComplianceEnricher } from "../compliance/ComplianceEnricher.js";
@@ -289,6 +290,15 @@ export class InvoiceExtractionPipeline {
       const bootstrapFieldCandidates = buildFieldCandidates(bestText, {}, template);
       const bootstrapFieldRegions = buildFieldRegions(ocrBlocks, bootstrapFieldCandidates);
 
+      let glCategories: string[] | undefined;
+      try {
+        const glDocs = await GlCodeMasterModel.find({ tenantId: input.tenantId, isActive: true }).select("category").lean();
+        const unique = [...new Set(glDocs.map(d => d.category).filter(Boolean))];
+        if (unique.length > 0) glCategories = unique;
+      } catch {
+        logger.warn("extraction.gl_categories.fetch.failed", { tenantId: input.tenantId });
+      }
+
       const slmResult = await this.fieldVerifier.verify({
         parsed: {},
         ocrText: bestText,
@@ -303,7 +313,8 @@ export class InvoiceExtractionPipeline {
           fieldRegions: bootstrapFieldRegions,
           pageImages: ocrPageImages.slice(0, 3),
           llmAssist: true,
-          priorCorrections: this.learningMode === "active" && priorCorrections.length > 0 ? priorCorrections : undefined
+          priorCorrections: this.learningMode === "active" && priorCorrections.length > 0 ? priorCorrections : undefined,
+          glCategories
         }
       });
 
@@ -494,12 +505,18 @@ export class InvoiceExtractionPipeline {
         metadata.lineItemProvenance = JSON.stringify(lineItemProvenance);
       }
 
+      const slmGlCategory = verifierClassification?.glCategory ?? undefined;
+      if (slmGlCategory) {
+        metadata.slmGlCategory = slmGlCategory;
+      }
+
       let complianceData: import("../../types/invoice.js").InvoiceCompliance | undefined;
       if (this.complianceEnricher) {
         try {
           const complianceResult = await this.complianceEnricher.enrich(recoveredParsed, input.tenantId, fingerprint.key, {
             emailFrom: metadata.from ?? undefined,
-            contentHash: fingerprint.hash
+            contentHash: fingerprint.hash,
+            slmGlCategory
           });
           if (complianceResult.riskSignals && complianceResult.riskSignals.length > 0 || complianceResult.pan || complianceResult.tds || complianceResult.tcs || complianceResult.glCode || complianceResult.vendorBank) {
             complianceData = {};
