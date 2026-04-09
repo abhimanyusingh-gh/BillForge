@@ -1,4 +1,4 @@
-export type TenantViewTab = "overview" | "dashboard" | "config" | "exports" | "connections";
+import type { TenantViewTab } from "../../types";
 
 interface TenantViewTabsProps {
   activeTab: TenantViewTab;
@@ -31,6 +31,15 @@ export function TenantViewTabs({ activeTab, canViewTenantConfig, canViewConnecti
       >
         Exports
       </button>
+      {canViewConnections ? (
+        <button
+          type="button"
+          className={activeTab === "statements" ? "tenant-view-tab tenant-view-tab-active" : "tenant-view-tab"}
+          onClick={() => onTabChange("statements")}
+        >
+          Statements
+        </button>
+      ) : null}
       {canViewTenantConfig ? (
         <button
           type="button"

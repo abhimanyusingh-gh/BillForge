@@ -13,7 +13,7 @@ const bankTransactionSchema = new Schema(
     matchedInvoiceId: { type: String, default: null },
     matchConfidence: { type: Number, default: null },
     matchStatus: { type: String, enum: ["matched", "suggested", "unmatched", "manual"], default: "unmatched" },
-    source: { type: String, enum: ["parsed", "csv-import"], required: true }
+    source: { type: String, enum: ["parsed", "csv-import", "pdf-parsed"], required: true }
   },
   { timestamps: true }
 );

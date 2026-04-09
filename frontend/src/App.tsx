@@ -14,6 +14,8 @@ import { TenantInvoicesView } from "./components/tenantAdmin/TenantInvoicesView"
 import { ExportHistoryDashboard } from "./components/ExportHistoryDashboard";
 import { EmptyState } from "./components/EmptyState";
 import { BankConnectionsTab } from "./components/BankConnectionsTab";
+import { BankStatementsTab } from "./components/BankStatementsTab";
+import { InvoiceDetailPage } from "./components/InvoiceDetailPage";
 import { useToast } from "./hooks/useToast";
 import { ToastContainer } from "./components/ToastContainer";
 
@@ -83,7 +85,8 @@ export function App() {
     handleRevokeBankAccount,
     handleToggleTenantEnabled,
     loadGmailConnectionStatus,
-    loadPlatformUsage
+    loadPlatformUsage,
+    loadBankStatements
   } = workspace;
 
   if (authLoading) {
@@ -92,6 +95,16 @@ export function App() {
         <main className="content content-list-expanded">
           <section className="panel list-panel"><h2>Authenticating...</h2></section>
         </main>
+      </div>
+    );
+  }
+
+  const invoiceDetailId = new URLSearchParams(window.location.search).get("invoiceDetail");
+  if (session && invoiceDetailId) {
+    return (
+      <div className="layout">
+        <InvoiceDetailPage invoiceId={invoiceDetailId} />
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     );
   }
@@ -247,6 +260,14 @@ export function App() {
           />
         )}
 
+        {activeTab === "statements" && canViewConnections && !isPlatformAdmin && (
+          <BankStatementsTab
+            bankStatements={bankStatements}
+            onUploadBankStatement={(file, gstin, gstinLabel) => void handleUploadBankStatement(file, gstin, gstinLabel)}
+            onStatementsChanged={() => void loadBankStatements()}
+          />
+        )}
+
         {activeTab === "connections" && canViewConnections && !isPlatformAdmin && (
           <BankConnectionsTab
             mailboxes={mailboxes}
@@ -256,8 +277,6 @@ export function App() {
             onRemoveMailboxAssignment={(id, uid) => void handleRemoveMailboxAssignment(id, uid)}
             onRemoveMailbox={(id) => void handleRemoveMailbox(id)}
             bankAccounts={bankAccounts}
-            bankStatements={bankStatements}
-            onUploadBankStatement={(file) => void handleUploadBankStatement(file)}
             onAddBankAccount={(aa, name) => void handleAddBankAccount(aa, name)}
             onRefreshBankBalance={(id) => void handleRefreshBankBalance(id)}
             onRevokeBankAccount={(id) => void handleRevokeBankAccount(id)}

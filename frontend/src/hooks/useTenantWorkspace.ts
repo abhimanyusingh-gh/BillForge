@@ -3,7 +3,7 @@ import { getUserFacingErrorMessage } from "../apiError";
 import { useTenantWorkspaceConnections } from "./useTenantWorkspaceConnections";
 import { useTenantWorkspacePlatform } from "./useTenantWorkspacePlatform";
 import { useTenantWorkspaceSession } from "./useTenantWorkspaceSession";
-import type { TenantViewTab } from "../components/tenantAdmin/TenantViewTabs";
+import type { TenantViewTab } from "../types";
 
 interface UseTenantWorkspaceOptions {
   addToast: (type: "success" | "error" | "info", message: string) => void;
@@ -14,7 +14,7 @@ export function useTenantWorkspace({ addToast }: UseTenantWorkspaceOptions) {
   const [navCounts, setNavCounts] = useState({ total: 0, approved: 0, pending: 0, failed: 0 });
   const [activeTab, setActiveTabRaw] = useState(() => {
     const stored = localStorage.getItem("billforge:active-tab");
-    const valid: TenantViewTab[] = ["overview", "dashboard", "config", "exports", "connections"];
+    const valid: TenantViewTab[] = ["overview", "dashboard", "config", "exports", "statements", "connections"];
     return stored && valid.includes(stored as TenantViewTab) ? (stored as TenantViewTab) : "overview";
   });
 
