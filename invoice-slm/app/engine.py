@@ -82,9 +82,13 @@ def select_with_fallback(
     issues.append("SLM returned no valid field selections.")
 
   if slm_error:
-    normalized_error = slm_error.strip().lower()
-    if "not valid json" not in normalized_error:
-      issues.append(f"SLM unavailable: {slm_error}")
+    lower = slm_error.strip().lower()
+    if any(p in lower for p in ["credit balance", "billing", "payment required", "subscription"]):
+      issues.append("slm_credit_exhausted")
+    elif any(p in lower for p in ["rate limit", "429", "overloaded"]):
+      issues.append("slm_rate_limited")
+    elif "not valid json" not in lower:
+      issues.append("slm_unavailable")
 
   fallback_selected, fallback_codes = heuristic_select(candidate_map, blocks, field_regions, current, mode)
   issues.append("Applied heuristic fallback for unresolved fields.")

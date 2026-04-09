@@ -27,6 +27,7 @@ interface IngestionRunProgress extends IngestionRunSummary {
   processedFiles: number;
   running: boolean;
   lastUpdatedAt: string;
+  systemAlert?: string;
 }
 
 interface IngestionServiceOptions {
@@ -78,9 +79,10 @@ export class IngestionService {
     };
     let processedFiles = 0;
     let paused = false;
+    const emittedAlerts = new Set<string>();
     logger.info("ingestion.run.start", { sourceCount: this.sources.length });
 
-    const emitProgress = async (running = true) => {
+    const emitProgress = async (running = true, systemAlert?: string) => {
       if (!runtimeOptions?.onProgress) {
         return;
       }
@@ -89,7 +91,8 @@ export class IngestionService {
         ...summary,
         processedFiles,
         running,
-        lastUpdatedAt: new Date().toISOString()
+        lastUpdatedAt: new Date().toISOString(),
+        ...(systemAlert ? { systemAlert } : {})
       });
     };
 
@@ -156,25 +159,28 @@ export class IngestionService {
         );
 
         for (const { scopedFile, processed } of settled) {
+          const { result, systemAlert } = processed;
           logger.info("ingestion.file.result", {
             sourceKey: scopedFile.sourceKey,
             sourceDocumentId: scopedFile.sourceDocumentId,
             attachmentName: scopedFile.attachmentName,
-            result: processed
+            result
           });
-          if (processed === "created") {
+          if (result === "created") {
             summary.newInvoices += 1;
           }
 
-          if (processed === "duplicate") {
+          if (result === "duplicate") {
             summary.duplicates += 1;
           }
 
-          if (processed === "failed") {
+          if (result === "failed") {
             summary.failures += 1;
           }
           processedFiles += 1;
-          await emitProgress(true);
+          const newAlert = systemAlert && !emittedAlerts.has(systemAlert) ? systemAlert : undefined;
+          if (newAlert) emittedAlerts.add(newAlert);
+          await emitProgress(true, newAlert);
 
           if (scopedFile.checkpointValue !== nextMarker) {
             await CheckpointModel.findOneAndUpdate(
@@ -191,7 +197,7 @@ export class IngestionService {
               workloadTier: scopedFile.workloadTier,
               sourceKey: source.key,
               checkpointValue: scopedFile.checkpointValue,
-              result: processed
+              result
             });
           }
         }
@@ -238,14 +244,14 @@ export class IngestionService {
     return files.filter((file) => !existingDocumentIds.has(file.sourceDocumentId));
   }
 
-  private async processFile(file: IngestedFile): Promise<"created" | "duplicate" | "failed"> {
+  private async processFile(file: IngestedFile): Promise<{ result: "created" | "duplicate" | "failed"; systemAlert?: string }> {
     const gmailMessageId = file.sourceType === "email" && file.metadata?.messageId
       ? String(file.metadata.messageId).trim()
       : undefined;
 
     if (gmailMessageId) {
       const msgDup = await InvoiceModel.findOne({ tenantId: file.tenantId, gmailMessageId }).lean();
-      if (msgDup) return "duplicate";
+      if (msgDup) return { result: "duplicate" };
     }
 
     const pendingDoc = await InvoiceModel.findOne({
@@ -293,19 +299,27 @@ export class IngestionService {
       }
       await upsertFromPending(file, successData);
 
-      return successData.status === "PARSED" || successData.status === "NEEDS_REVIEW" ? "created" : "failed";
+      const warnings = extraction.parseResult.warnings;
+      const systemAlert = warnings.includes("slm_credit_exhausted")
+        ? "AI processing quota exhausted. Please check your account and try again later."
+        : warnings.includes("slm_rate_limited")
+          ? "AI processing is rate-limited. Please wait a moment before retrying."
+          : undefined;
+
+      const result = successData.status === "PARSED" || successData.status === "NEEDS_REVIEW" ? "created" : "failed";
+      return { result, systemAlert };
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         logger.warn("ingestion.file.duplicate_key", {
           sourceDocumentId: file.sourceDocumentId,
           attachmentName: file.attachmentName
         });
-        return "created";
+        return { result: "created" };
       }
 
       const failureData = buildFailureData(file, normalizedMimeType, baseOcrState, error);
       await this.persistFailure(file, failureData, error);
-      return "failed";
+      return { result: "failed" };
     }
   }
 

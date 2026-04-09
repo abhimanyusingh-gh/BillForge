@@ -276,6 +276,9 @@ export function TenantInvoicesView({
 
     const unsub = subscribeIngestionSSE(
       (status) => {
+        if (status.systemAlert) {
+          addToast("error", status.systemAlert);
+        }
         setIngestionStatus(status);
         if (!sseLoadTimerRef.current) {
           void loadInvoices();

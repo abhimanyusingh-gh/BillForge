@@ -207,7 +207,8 @@ function looksLikeDateCandidate(value: string): boolean {
     /\b\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}\b/i.test(value) ||
     /\b[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}\b/i.test(value) ||
     /\b\d{4}-\d{1,2}-\d{1,2}\b/.test(value) ||
-    /\b\d{1,2}-\d{1,2}-\d{4}\b/.test(value)
+    /\b\d{1,2}-\d{1,2}-(19|20)\d{2}\b/.test(value) ||
+    /\b\d{1,2}-[A-Za-z]{3,9}-\d{2,4}\b/i.test(value)
   );
 }
 
