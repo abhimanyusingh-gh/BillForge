@@ -339,6 +339,8 @@ services:
       SLM_REMOTE_TIMEOUT_MS: ${SLM_REMOTE_TIMEOUT_MS:-600000}
       SLM_PROBE_TIMEOUT_MS: "3000"
       SLM_VALIDATE_REMOTE_ON_STARTUP: "false"
+      SLM_EXTRACTION_PIPELINE: ${SLM_EXTRACTION_PIPELINE:-single_verify}
+      SLM_MULTI_STEP_EXTRACTION: ${SLM_MULTI_STEP_EXTRACTION:-false}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8100/ping"]
       interval: 10s

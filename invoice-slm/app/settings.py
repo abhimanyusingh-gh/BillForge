@@ -3,6 +3,7 @@ import os
 
 ENV_MODES = {"local", "dev", "stg", "prod"}
 SLM_ENGINES = {"local_mlx", "local_codex_cli", "local_claude_cli", "prod_http"}
+EXTRACTION_PIPELINES = {"multi_step", "single_verify", "direct"}
 
 
 def read_bool(name: str, default: bool) -> bool:
@@ -65,6 +66,7 @@ class Settings:
   max_new_tokens: int
   max_blocks: int
   multi_step_extraction: bool
+  extraction_pipeline: str
 
 
 env_mode = read_env_mode()
@@ -93,5 +95,6 @@ settings = Settings(
   load_on_startup=read_bool("SLM_LOAD_ON_STARTUP", True),
   max_new_tokens=read_int("SLM_MAX_NEW_TOKENS", 2048, 64),
   max_blocks=read_int("SLM_MAX_BLOCKS", 220, 1),
-  multi_step_extraction=read_bool("SLM_MULTI_STEP_EXTRACTION", True)
+  multi_step_extraction=read_bool("SLM_MULTI_STEP_EXTRACTION", False),
+  extraction_pipeline=read_choice("SLM_EXTRACTION_PIPELINE", "single_verify", EXTRACTION_PIPELINES)
 )
