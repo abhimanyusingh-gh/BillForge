@@ -1,6 +1,7 @@
 import type { ParsedInvoiceData } from "../../types/invoice.js";
 import type { ComplianceRiskSignal } from "../../types/invoice.js";
 import { TenantComplianceConfigModel } from "../../models/TenantComplianceConfig.js";
+import { TenantTcsConfigModel } from "../../models/TenantTcsConfig.js";
 import { logger } from "../../utils/logger.js";
 import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "./ComplianceEnricher.js";
 import { emptyComplianceResult } from "./ComplianceEnricher.js";
@@ -8,6 +9,7 @@ import { PanValidationService } from "./PanValidationService.js";
 import { VendorMasterService } from "./VendorMasterService.js";
 import { TdsCalculationService } from "./TdsCalculationService.js";
 import { GlCodeSuggestionService } from "./GlCodeSuggestionService.js";
+import { GlCodeMasterModel } from "../../models/GlCodeMaster.js";
 import { IrnValidationService } from "./IrnValidationService.js";
 import { MsmeTrackingService } from "./MsmeTrackingService.js";
 import { DuplicateInvoiceDetector } from "./DuplicateInvoiceDetector.js";
@@ -52,7 +54,11 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     context?: ComplianceEnrichContext
   ): Promise<ComplianceResult> {
     const config = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
-    if (!config?.complianceEnabled) {
+    const anyEnabled = config?.complianceEnabled ||
+      config?.tdsEnabled ||
+      config?.riskSignalsEnabled ||
+      config?.panValidationEnabled;
+    if (!config || !anyEnabled) {
       return emptyComplianceResult();
     }
 
@@ -61,9 +67,11 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     const processingIssues: string[] = [];
 
     try {
-      const panResult = this.panValidation.validate(invoice.pan, invoice.gst?.gstin);
-      result.pan = panResult.pan;
-      riskSignals.push(...panResult.riskSignals);
+      if (config.panValidationEnabled !== false) {
+        const panResult = this.panValidation.validate(invoice.pan, invoice.gst?.gstin);
+        result.pan = panResult.pan;
+        riskSignals.push(...panResult.riskSignals);
+      }
     } catch (error) {
       processingIssues.push(`Compliance: PAN validation failed — ${error instanceof Error ? error.message : String(error)}`);
       logger.warn("compliance.pan.validation.failed", {
@@ -119,7 +127,8 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
     try {
       if (config.autoSuggestGlCodes !== false) {
-        const glSuggestion = await this.glCodeSuggestion.suggest(tenantId, vendorFingerprint, invoice);
+        const slmGlCategory = context?.slmGlCategory;
+        const glSuggestion = await this.glCodeSuggestion.suggest(tenantId, vendorFingerprint, invoice, undefined, slmGlCategory);
         result.glCode = glSuggestion.glCode;
       }
     } catch (error) {
@@ -137,18 +146,24 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
       processingIssues.push(`Compliance: Cost center suggestion failed — ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    if (config.defaultTcsRateBps && config.defaultTcsRateBps > 0 && invoice.totalAmountMinor && invoice.totalAmountMinor > 0) {
-      const tcsAmount = Math.round(invoice.totalAmountMinor * (config.defaultTcsRateBps as number) / 10000);
+    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && invoice.totalAmountMinor && invoice.totalAmountMinor > 0) {
+      const tcsAmount = Math.floor(invoice.totalAmountMinor * tcsConfig.ratePercent / 100);
       result.tcs = {
-        rate: config.defaultTcsRateBps as number,
+        rate: tcsConfig.ratePercent,
         amountMinor: tcsAmount,
         source: "configured"
       };
     }
 
     try {
-      if (config.autoDetectTds !== false) {
-        const glCategory = result.glCode?.name ?? null;
+      if (config.tdsEnabled !== false && config.autoDetectTds !== false) {
+        const glCode = result.glCode?.code ?? null;
+        let glCategory: string | null = null;
+        if (glCode) {
+          const glDoc = await GlCodeMasterModel.findOne({ tenantId, code: glCode, isActive: true }).lean();
+          glCategory = glDoc?.category ?? result.glCode?.name ?? null;
+        }
         const tdsResult = await this.tdsCalculation.computeTds(invoice, tenantId, glCategory);
         result.tds = tdsResult.tds;
         riskSignals.push(...tdsResult.riskSignals);
@@ -250,7 +265,11 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
       processingIssues.push(`Compliance: Duplicate detection failed — ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    result.riskSignals = filterSignalsByConfig(riskSignals, config);
+    if (config.riskSignalsEnabled === false) {
+      result.riskSignals = [];
+    } else {
+      result.riskSignals = filterSignalsByConfig(riskSignals, config);
+    }
 
     if (processingIssues.length > 0) {
       logger.info("compliance.enrichment.partial", {
@@ -266,15 +285,19 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
 function filterSignalsByConfig(
   signals: ComplianceRiskSignal[],
-  config: { disabledSignals?: string[]; signalSeverityOverrides?: Map<string, string> | Record<string, string> }
+  config: { activeRiskSignals?: string[]; disabledSignals?: string[]; signalSeverityOverrides?: Map<string, string> | Record<string, string> }
 ): ComplianceRiskSignal[] {
   const disabled = new Set(config.disabledSignals ?? []);
+  const active = config.activeRiskSignals && config.activeRiskSignals.length > 0
+    ? new Set(config.activeRiskSignals)
+    : null;
   const overrides = config.signalSeverityOverrides instanceof Map
     ? Object.fromEntries(config.signalSeverityOverrides)
     : (config.signalSeverityOverrides ?? {});
 
   return signals
     .filter(s => !disabled.has(s.code))
+    .filter(s => !active || active.has(s.code))
     .map(s => {
       const override = overrides[s.code];
       if (override && (override === "info" || override === "warning" || override === "critical")) {

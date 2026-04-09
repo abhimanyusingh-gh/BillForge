@@ -12,8 +12,7 @@ from typing import Any
 from ..boundary import LLMProvider
 from ..logging import log_error, log_info
 from ..settings import settings
-from .local_codex_cli import build_codex_prompt
-from .local_mlx import parse_json_object, recover_payload_from_candidates, recover_payload_from_text, sanitize_payload_for_prompt
+from .shared import build_extraction_prompt, parse_json_object, recover_payload_from_candidates, recover_payload_from_text
 
 _KILL_GRACE_SECONDS = 5
 
@@ -114,12 +113,15 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     return payload
 
   def select_fields(self, payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("extractionMode") == "bank-statement":
+      return self._select_bank_statement(payload)
+
     if payload.get("llmAssist"):
       log_info("slm.llm_assist.local_claude_cli_text_only", note="Claude CLI provider runs text-only verification against OCR payload")
 
     with self.generation_lock:
       for strict in (False, True):
-        prompt = build_codex_prompt(payload, strict=strict)
+        prompt = build_extraction_prompt(payload, strict=strict)
         try:
           output_text = self._run_claude(prompt)
         except Exception as error:
@@ -155,6 +157,36 @@ class LocalClaudeCliLLMProvider(LLMProvider):
       "reasonCodes": {},
       "issues": ["slm_output_invalid_json"]
     }
+
+  def _select_bank_statement(self, payload: dict[str, Any]) -> dict[str, Any]:
+    prompt = payload.get("bankStatementPrompt", "")
+    if not prompt:
+      return {"selected": {}, "issues": ["missing_bank_statement_prompt"]}
+
+    with self.generation_lock:
+      try:
+        output_text = self._run_claude(prompt)
+      except Exception as error:
+        self.last_error = str(error)
+        log_error("slm.claude_cli.bank_statement.failed", error=str(error))
+        if self._is_fatal_error(str(error)):
+          raise
+        return {"selected": {}, "issues": ["slm_bank_statement_error"]}
+
+    log_info(
+      "slm.bank_statement.raw_output",
+      output_length=len(output_text),
+      first_200=output_text[:200],
+      last_200=output_text[-200:] if len(output_text) > 200 else ""
+    )
+
+    parsed = parse_json_object(output_text)
+    if parsed is not None:
+      parsed["_usage"] = {"promptTokens": None, "completionTokens": None}
+      parsed["_bankStatementRaw"] = True
+      return parsed
+
+    return {"selected": {}, "issues": ["slm_bank_statement_invalid_json"], "rawText": output_text}
 
   def _run_claude(self, prompt: str) -> str:
     max_retries = settings.claude_max_retries
@@ -201,6 +233,9 @@ class LocalClaudeCliLLMProvider(LLMProvider):
 
     env = os.environ.copy()
     env.pop("ANTHROPIC_API_KEY", None)
+    env.pop("CLAUDE_CONVERSATION_ID", None)
+    env.pop("CLAUDE_SESSION_ID", None)
+    env.pop("CLAUDE_HISTORY", None)
 
     timeout_seconds = max(10, settings.claude_timeout_ms // 1000)
     proc = subprocess.Popen(

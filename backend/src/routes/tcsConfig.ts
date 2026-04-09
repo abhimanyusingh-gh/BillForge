@@ -32,7 +32,7 @@ export function createTcsConfigRouter() {
       const tenantId = getAuth(req).tenantId;
       let config = await TenantTcsConfigModel.findOne({ tenantId }).lean();
       if (!config) {
-        const created = await TenantTcsConfigModel.create({ tenantId, updatedBy: getAuth(req).userId });
+        const created = await TenantTcsConfigModel.create({ tenantId, updatedBy: getAuth(req).email || getAuth(req).userId });
         res.json(created.toObject());
         return;
       }
@@ -77,7 +77,7 @@ export function createTcsConfigRouter() {
       const updated = await TenantTcsConfigModel.findOneAndUpdate(
         { tenantId },
         {
-          $set: { ratePercent, effectiveFrom, enabled, updatedBy: getAuth(req).userId },
+          $set: { ratePercent, effectiveFrom, enabled, updatedBy: getAuth(req).email || getAuth(req).userId },
           $push: { history: { $each: [historyEntry], $position: 0, $slice: 1000 } }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }

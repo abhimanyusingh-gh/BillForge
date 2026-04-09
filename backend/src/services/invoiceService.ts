@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { InvoiceModel } from "../models/Invoice.js";
 import { env } from "../config/env.js";
-import type { GstBreakdown, ParsedInvoiceData } from "../types/invoice.js";
+import type { GstBreakdown, ParsedInvoiceData, ComplianceRiskSignal } from "../types/invoice.js";
 import { assessInvoiceConfidence } from "./confidenceAssessment.js";
 import { toMinorUnits } from "../utils/currency.js";
 import type { AuthenticatedRequestContext } from "../types/auth.js";
@@ -9,6 +9,9 @@ import type { FileStore } from "../core/interfaces/FileStore.js";
 import { logger } from "../utils/logger.js";
 import type { ApprovalWorkflowService } from "./approvalWorkflowService.js";
 import { buildCorrectionHint, type ExtractionLearningStore } from "./extraction/extractionLearningStore.js";
+import { TdsCalculationService } from "./compliance/TdsCalculationService.js";
+import { GlCodeMasterModel } from "../models/GlCodeMaster.js";
+import { TenantTcsConfigModel } from "../models/TenantTcsConfig.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -83,7 +86,10 @@ export class InvoiceService {
     const baseQuery: Record<string, unknown> = { tenantId: params.tenantId };
 
     const query: Record<string, unknown> = { ...baseQuery };
-    if (params.status) query.status = params.status;
+    if (params.status) {
+      const statuses = params.status.split(",").map(s => s.trim()).filter(Boolean);
+      query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+    }
     if (params.from || params.to) {
       const dateFilter: Record<string, Date> = {};
       if (params.from) dateFilter.$gte = params.from;
@@ -119,7 +125,7 @@ export class InvoiceService {
             failedOcr: [{ $match: { status: "FAILED_OCR" } }, { $count: "n" }],
             failedParse: [{ $match: { status: "FAILED_PARSE" } }, { $count: "n" }],
             exported: [{ $match: { status: "EXPORTED" } }, { $count: "n" }],
-            ...(params.status ? { filtered: [{ $match: { status: params.status } }, { $count: "n" }] } : {}),
+            ...(params.status ? { filtered: [{ $match: { status: query.status } }, { $count: "n" }] } : {}),
             duplicateHashes: [
               { $match: { tenantId: params.tenantId, contentHash: { $ne: null } } },
               { $group: { _id: "$contentHash", count: { $sum: 1 } } },
@@ -249,7 +255,7 @@ export class InvoiceService {
 
     const now = new Date();
     const result = await InvoiceModel.updateMany(
-      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: ["FAILED_OCR", "FAILED_PARSE", "NEEDS_REVIEW", "PARSED"] } },
+      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: ["PENDING", "FAILED_OCR", "FAILED_PARSE", "NEEDS_REVIEW", "PARSED"] } },
       { $set: { status: "PENDING" }, $push: { processingIssues: { $each: [`Retry requested: ${now.toISOString()} by ${authContext.email}`] } } }
     );
     return result.modifiedCount;
@@ -402,6 +408,67 @@ export class InvoiceService {
 
     invoice.attachmentName = trimmed;
     await invoice.save();
+    return sanitizeForApi(invoice.toObject());
+  }
+
+  async retriggerCompliance(invoiceId: string, tenantId: string, newGlCode: string, newGlName: string) {
+    if (!Types.ObjectId.isValid(invoiceId)) throw new InvoiceUpdateError("Invalid invoice id.", 400);
+
+    const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
+    if (!invoice) throw new InvoiceUpdateError("Invoice not found.", 404);
+    if (invoice.status === "EXPORTED") throw new InvoiceUpdateError("Cannot retrigger compliance on an exported invoice.", 403);
+
+    const parsed = sanitizeParsedData(invoice.toObject().parsed);
+    const compliance = (invoice as unknown as Record<string, unknown>).compliance as Record<string, unknown> | undefined ?? {};
+
+    (compliance as Record<string, unknown>).glCode = {
+      code: newGlCode,
+      name: newGlName,
+      source: "manual",
+      confidence: 100
+    };
+
+    const tdsService = new TdsCalculationService();
+    try {
+      const glDoc = await GlCodeMasterModel.findOne({ tenantId, code: newGlCode, isActive: true }).lean();
+      const glCategory = glDoc?.category ?? newGlCode;
+      const tdsResult = await tdsService.computeTds(parsed, tenantId, glCategory);
+      (compliance as Record<string, unknown>).tds = tdsResult.tds;
+
+      const existingSignals = ((compliance as Record<string, unknown>).riskSignals as ComplianceRiskSignal[]) ?? [];
+      const nonTdsSignals = existingSignals.filter(s => !s.code.startsWith("TDS_"));
+      (compliance as Record<string, unknown>).riskSignals = [...nonTdsSignals, ...tdsResult.riskSignals];
+    } catch (error) {
+      logger.warn("compliance.retrigger.tds.failed", {
+        invoiceId, tenantId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    try {
+      const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+      if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && parsed.totalAmountMinor && parsed.totalAmountMinor > 0) {
+        const tcsAmount = Math.floor(parsed.totalAmountMinor * tcsConfig.ratePercent / 100);
+        (compliance as Record<string, unknown>).tcs = {
+          rate: tcsConfig.ratePercent,
+          amountMinor: tcsAmount,
+          source: "configured"
+        };
+      }
+    } catch (error) {
+      logger.warn("compliance.retrigger.tcs.failed", {
+        invoiceId, tenantId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    invoice.set("compliance", compliance);
+    await invoice.save();
+
+    logger.info("compliance.retrigger.complete", {
+      invoiceId, tenantId, newGlCode, newGlName
+    });
+
     return sanitizeForApi(invoice.toObject());
   }
 }

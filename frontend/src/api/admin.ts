@@ -1,10 +1,14 @@
-import { apiClient, stripNulls } from "./client";
+import { apiClient, safeNum, stripNulls } from "./client";
 import type {
   AnalyticsOverview,
   ApprovalWorkflowConfig,
   GlCode,
   GmailConnectionStatus,
-  TdsRate
+  RiskSignalDefinition,
+  TallyFileExportResponse,
+  TdsRate,
+  TdsRateEntry,
+  TenantComplianceConfig
 } from "../types";
 
 export interface PlatformTenantUsageSummary {
@@ -22,6 +26,7 @@ export interface PlatformTenantUsageSummary {
   gmailConnectionState: "CONNECTED" | "NEEDS_REAUTH" | "DISCONNECTED";
   lastIngestedAt: string | null;
   createdAt: string;
+  adminTempPassword?: string;
   adminEmail?: string;
   ocrTokensTotal: number;
   slmTokensTotal: number;
@@ -73,12 +78,46 @@ export async function createGlCode(payload: { code: string; name: string; catego
   return (await apiClient.post<GlCode>("/admin/gl-codes", payload)).data;
 }
 
+async function updateGlCode(code: string, payload: Partial<{ name: string; category: string; linkedTdsSection: string | null; isActive: boolean }>): Promise<GlCode> {
+  return (await apiClient.put<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`, payload)).data;
+}
+
 export async function deleteGlCode(code: string): Promise<GlCode> {
   return (await apiClient.delete<GlCode>(`/admin/gl-codes/${encodeURIComponent(code)}`)).data;
 }
 
 export async function fetchTdsRates(): Promise<TdsRate[]> {
   return (await apiClient.get<{ items: TdsRate[] }>("/compliance/tds-rates")).data.items;
+}
+
+export async function fetchComplianceConfig(): Promise<TenantComplianceConfig> {
+  return (await apiClient.get<TenantComplianceConfig>("/admin/compliance-config")).data;
+}
+
+export async function saveComplianceConfig(config: Partial<TenantComplianceConfig>): Promise<TenantComplianceConfig> {
+  return (await apiClient.put<TenantComplianceConfig>("/admin/compliance-config", config)).data;
+}
+
+export async function fetchDefaultTdsSections(): Promise<TdsRateEntry[]> {
+  return (await apiClient.get<{ items: TdsRateEntry[] }>("/compliance/tds-sections")).data.items;
+}
+
+export async function fetchAvailableRiskSignals(): Promise<RiskSignalDefinition[]> {
+  return (await apiClient.get<{ items: RiskSignalDefinition[] }>("/compliance/risk-signals")).data.items;
+}
+
+export interface GlCodeImportResult {
+  imported: number;
+  skipped: number;
+  errors: Array<{ row: number; message: string }>;
+}
+
+export async function importGlCodesCsv(file: File): Promise<GlCodeImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return (await apiClient.post<GlCodeImportResult>("/admin/gl-codes/import-csv", formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  })).data;
 }
 
 export async function fetchGmailConnectionStatus() {

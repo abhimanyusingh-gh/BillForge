@@ -1,3 +1,5 @@
+export type TenantViewTab = "overview" | "dashboard" | "config" | "exports" | "statements" | "connections";
+
 export type InvoiceStatus =
   | "PENDING"
   | "PARSED"
@@ -33,6 +35,7 @@ export interface InvoiceExtractionData {
   classification?: {
     invoiceType?: string;
     category?: string;
+    glCategory?: string;
     tdsSection?: string;
   };
   fieldConfidence?: Record<string, number>;
@@ -159,7 +162,7 @@ export interface InvoiceCompliance {
   glCode?: {
     code: string | null;
     name: string | null;
-    source: "vendor-default" | "description-match" | "category-default" | "manual";
+    source: "vendor-default" | "description-match" | "slm-classification" | "category-default" | "manual";
     confidence: number | null;
     suggestedAlternatives?: Array<{ code: string; name: string; score: number }>;
   };
@@ -216,12 +219,36 @@ export interface TdsRate {
   rateNoPanBps: number;
 }
 
-interface TenantComplianceConfig {
+export interface TdsRateEntry {
+  section: string;
+  description: string;
+  rateIndividual: number;
+  rateCompany: number;
+  rateNoPan: number;
+  threshold: number;
+  active: boolean;
+}
+
+export interface RiskSignalDefinition {
+  code: string;
+  description: string;
+  category: string;
+}
+
+export interface TenantComplianceConfig {
   complianceEnabled: boolean;
   autoSuggestGlCodes: boolean;
   autoDetectTds: boolean;
+  tdsEnabled: boolean;
+  tdsRates: TdsRateEntry[];
+  panValidationEnabled: boolean;
+  panValidationLevel: "format" | "format_and_checksum" | "disabled";
+  riskSignalsEnabled: boolean;
+  activeRiskSignals: string[];
   disabledSignals: string[];
   defaultTdsSection: string | null;
+  updatedBy: string | null;
+  updatedAt?: string;
 }
 
 export type TenantRole =
@@ -284,7 +311,46 @@ export interface BankStatementSummary {
   matchedCount: number;
   unmatchedCount: number;
   source: "pdf-parsed" | "csv-import";
+  gstin: string | null;
+  gstinLabel: string | null;
   createdAt: string;
+}
+
+interface VendorGstinOption {
+  gstin: string;
+  vendorName: string;
+  label: string;
+}
+
+export interface ReconciliationMatchItem {
+  _id: string;
+  date: string;
+  description: string;
+  reference: string | null;
+  debitMinor: number | null;
+  creditMinor: number | null;
+  balanceMinor: number | null;
+  matchStatus: "matched" | "suggested" | "unmatched" | "manual";
+  matchConfidence: number | null;
+  matchedInvoiceId: string | null;
+  invoice: {
+    _id: string;
+    invoiceNumber: string | null;
+    vendorName: string | null;
+    totalAmountMinor: number | null;
+    invoiceDate: string | null;
+    status: string;
+  } | null;
+}
+
+interface ReconciliationMatchesResponse {
+  items: ReconciliationMatchItem[];
+  summary: {
+    totalTransactions: number;
+    matched: number;
+    suggested: number;
+    unmatched: number;
+  };
 }
 
 export interface BankTransactionEntry {

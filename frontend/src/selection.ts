@@ -30,7 +30,7 @@ type RowAction = "approve" | "reingest" | "delete";
 export function getAvailableRowActions(invoice: Invoice): RowAction[] {
   const actions: RowAction[] = [];
   if (isInvoiceApprovable(invoice)) actions.push("approve");
-  if (invoice.status !== "PENDING" && isInvoiceRetryable(invoice)) actions.push("reingest");
+  if (isInvoiceRetryable(invoice)) actions.push("reingest");
   if (invoice.status !== "EXPORTED") actions.push("delete");
   return actions;
 }

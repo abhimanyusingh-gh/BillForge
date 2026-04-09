@@ -12,6 +12,7 @@ from mlx_lm import generate, load
 from ..boundary import LLMProvider
 from ..logging import log_error, log_info
 from ..settings import settings
+from .shared import parse_json_object, recover_payload_from_candidates, recover_payload_from_text, sanitize_payload_for_prompt
 
 GENERATION_RESULT_PATTERN = re.compile(
   r"GenerationResult\(\s*text\s*=\s*(?P<literal>'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\")\s*,",
@@ -59,8 +60,6 @@ class LocalMlxLLMProvider(LLMProvider):
     if payload.get("llmAssist"):
       log_info("slm.llm_assist.local_mlx_ignores_images", note="Local MLX provider does not support vision; running text-only re-extraction")
 
-    # MLX/Metal is unstable under overlapping generations on this model;
-    # serialize inference to avoid command-buffer assertion failures.
     with self.generation_lock:
       for strict in (False, True):
         prompt = build_prompt(self.tokenizer, payload, strict=strict)
@@ -136,6 +135,13 @@ def resolve_model_reference() -> str:
   return settings.model_path if settings.model_path else settings.model_id
 
 
+_DEFAULT_GL_CATEGORIES_MLX = [
+  "Office Expenses", "Professional Services", "Rent", "Utilities", "Travel",
+  "Contractor Services", "Raw Materials", "Commission", "Insurance",
+  "Repairs & Maintenance", "Software Subscription", "Other"
+]
+
+
 def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
   hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
   prior_corrections = hints.get("priorCorrections")
@@ -168,6 +174,9 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     "- gst.gstin, gst.subtotalMinor, gst.cgstMinor, gst.sgstMinor, gst.igstMinor, gst.cessMinor, gst.totalTaxMinor\n"
     "- lineItems with description, hsnSac, quantity, rate, amountMinor, taxRate, cgstMinor, sgstMinor, igstMinor\n"
     "- _fieldConfidence, _fieldProvenance, _lineItemProvenance, _classification\n"
+    "- _classification.glCategory must be one of: " + ", ".join(
+      [c for c in hints.get("glCategories", []) if isinstance(c, str) and c.strip()] or _DEFAULT_GL_CATEGORIES_MLX
+    ) + "\n"
     "Schema:\n"
     '{"selected":{"invoiceNumber":{"value":"","blockIndex":null},"vendorName":{"value":"","blockIndex":null},'
     '"currency":{"value":"","blockIndex":null},"totalAmountMinor":{"value":null,"blockIndex":null},'
@@ -210,72 +219,6 @@ def extract_generation_text(output: Any) -> str:
   return cleanup_generation_text(str(output))
 
 
-def sanitize_payload_for_prompt(payload: dict[str, Any]) -> dict[str, Any]:
-  if not isinstance(payload, dict):
-    return {}
-
-  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
-
-  def pick(name: str, *, expected_type: type[Any] | None = None, default: Any = None) -> Any:
-    value = payload.get(name, hints.get(name, default))
-    if expected_type is not None and not isinstance(value, expected_type):
-      return default
-    return value
-
-  compact_blocks: list[dict[str, Any]] = []
-  raw_blocks = payload.get("ocrBlocks")
-  if isinstance(raw_blocks, list):
-    for index, entry in enumerate(raw_blocks[: settings.max_blocks]):
-      if not isinstance(entry, dict):
-        continue
-      compact_blocks.append(
-        {
-          "index": index,
-          "text": entry.get("text"),
-          "page": entry.get("page"),
-          "bboxNormalized": entry.get("bboxNormalized") or entry.get("bboxModel") or entry.get("bbox")
-        }
-      )
-
-  compact_page_images: list[dict[str, Any]] = []
-  raw_page_images = pick("pageImages", expected_type=list, default=[])
-  if isinstance(raw_page_images, list):
-    for entry in raw_page_images[:3]:
-      if not isinstance(entry, dict):
-        continue
-      data_url = entry.get("dataUrl")
-      if not isinstance(data_url, str) or not data_url.strip():
-        continue
-      compact_page_images.append(
-        {
-          "page": entry.get("page"),
-          "mimeType": entry.get("mimeType"),
-          "width": entry.get("width"),
-          "height": entry.get("height"),
-          "dpi": entry.get("dpi"),
-          "dataUrl": data_url
-        }
-      )
-
-  compact: dict[str, Any] = {
-    "parsed": payload.get("parsed") if isinstance(payload.get("parsed"), dict) else {},
-    "ocrText": payload.get("ocrText") if isinstance(payload.get("ocrText"), str) else "",
-    "ocrBlocks": compact_blocks,
-    "mode": payload.get("mode"),
-  }
-  if compact_page_images:
-    compact["pageImages"] = compact_page_images
-
-  compact["hints"] = {
-    "documentLanguage": pick("documentLanguage"),
-    "languageHint": pick("languageHint"),
-    "vendorTemplateMatched": pick("vendorTemplateMatched"),
-    "fieldCandidates": pick("fieldCandidates", expected_type=dict, default={}),
-    "priorCorrections": pick("priorCorrections", expected_type=list, default=[])
-  }
-  return compact
-
-
 def cleanup_generation_text(value: str) -> str:
   text = unwrap_generation_result(value.strip())
   text = THINK_BLOCK_PATTERN.sub("", text)
@@ -304,181 +247,3 @@ def decode_python_string_literal(value: str) -> str | None:
   except Exception:
     return None
   return decoded if isinstance(decoded, str) else None
-
-
-def parse_json_object(text: str) -> dict[str, Any] | None:
-  candidate = text.strip()
-  if not candidate:
-    return None
-
-  fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", candidate, re.DOTALL)
-  if fence_match:
-    parsed = try_parse_json(fence_match.group(1).strip())
-    if parsed is not None:
-      return normalize_keys(parsed)
-
-  parsed = try_parse_json(candidate)
-  if parsed is not None:
-    return normalize_keys(parsed)
-
-  best: dict[str, Any] | None = None
-  for match in re.finditer(r"\{", candidate):
-    start = match.start()
-    depth = 0
-    end = start
-    for i in range(start, len(candidate)):
-      if candidate[i] == "{":
-        depth += 1
-      elif candidate[i] == "}":
-        depth -= 1
-        if depth == 0:
-          end = i + 1
-          break
-    if end > start:
-      parsed = try_parse_json(candidate[start:end].strip())
-      if parsed is not None:
-        result = normalize_keys(parsed)
-        if "selected" in result or "invoiceNumber" in result or "vendorName" in result:
-          return result
-        if best is None:
-          best = result
-
-  return best
-
-
-def normalize_keys(obj: dict[str, Any]) -> dict[str, Any]:
-  KEY_MAP = {
-    "invoicenumber": "invoiceNumber",
-    "vendorname": "vendorName",
-    "totalamountminor": "totalAmountMinor",
-    "invoicedate": "invoiceDate",
-    "duedate": "dueDate",
-    "invoicetype": "invoiceType",
-    "reasoncodes": "reasonCodes",
-  }
-  result: dict[str, Any] = {}
-  for key, value in obj.items():
-    normalized_key = KEY_MAP.get(key.lower(), key)
-    if isinstance(value, dict):
-      result[normalized_key] = normalize_keys(value)
-    else:
-      result[normalized_key] = value
-  return result
-
-
-def try_parse_json(text: str) -> dict[str, Any] | None:
-  if not text:
-    return None
-
-  try:
-    parsed = json.loads(text)
-  except Exception:
-    try:
-      literal_parsed = ast.literal_eval(text)
-    except Exception:
-      return None
-    return literal_parsed if isinstance(literal_parsed, dict) else None
-  return parsed if isinstance(parsed, dict) else None
-
-
-def recover_payload_from_text(text: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-  normalized = " ".join(text.strip().split())
-  if not normalized:
-    return None
-
-  selected: dict[str, Any] = {}
-  reason_codes: dict[str, str] = {}
-  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
-  field_candidates = hints.get("fieldCandidates")
-  if isinstance(field_candidates, dict):
-    for field in ("invoiceNumber", "vendorName", "currency", "totalAmountMinor", "invoiceDate", "dueDate"):
-      raw_candidates = field_candidates.get(field)
-      if not isinstance(raw_candidates, list):
-        continue
-
-      match = select_candidate_in_text(field, [str(entry) for entry in raw_candidates], normalized)
-      if match is None:
-        continue
-      selected[field] = match
-      reason_codes[field] = "slm_text_recovered"
-
-  if not selected:
-    return None
-
-  return {
-    "selected": selected,
-    "reasonCodes": reason_codes,
-    "issues": []
-  }
-
-
-def recover_payload_from_candidates(payload: dict[str, Any]) -> dict[str, Any] | None:
-  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
-  raw_candidates = hints.get("fieldCandidates")
-  if not isinstance(raw_candidates, dict):
-    return None
-
-  selected: dict[str, Any] = {}
-  reason_codes: dict[str, str] = {}
-  ordered_fields = ("invoiceNumber", "vendorName", "currency", "totalAmountMinor", "invoiceDate", "dueDate")
-  for field in ordered_fields:
-    value = pick_first_candidate(field, raw_candidates.get(field))
-    if value is None:
-      continue
-    selected[field] = value
-    reason_codes[field] = "slm_candidate_fallback"
-
-  if not selected:
-    return None
-
-  return {
-    "selected": selected,
-    "reasonCodes": reason_codes,
-    "issues": []
-  }
-
-
-def select_candidate_in_text(field: str, candidates: list[str], normalized_text: str) -> Any:
-  cleaned = [entry.strip() for entry in candidates if entry.strip()]
-  if not cleaned:
-    return None
-
-  if field == "totalAmountMinor":
-    for candidate in cleaned:
-      if candidate.isdigit() and re.search(rf"(?<!\d){re.escape(candidate)}(?!\d)", normalized_text):
-        return int(candidate)
-    return None
-
-  if field == "currency":
-    upper_text = normalized_text.upper()
-    for candidate in cleaned:
-      upper_candidate = candidate.upper()
-      if re.search(rf"\b{re.escape(upper_candidate)}\b", upper_text):
-        return upper_candidate
-    return None
-
-  lowered = normalized_text.lower()
-  for candidate in cleaned:
-    if candidate.lower() in lowered:
-      return candidate
-  return None
-
-
-def pick_first_candidate(field: str, value: Any) -> Any:
-  if not isinstance(value, list):
-    return None
-
-  candidates = [str(entry).strip() for entry in value if str(entry).strip()]
-  if not candidates:
-    return None
-
-  if field == "totalAmountMinor":
-    for candidate in candidates:
-      if candidate.isdigit():
-        return int(candidate)
-    return None
-
-  if field == "currency":
-    return candidates[0].upper()
-
-  return candidates[0]

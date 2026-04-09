@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -10,7 +9,7 @@ from typing import Any
 from ..boundary import LLMProvider
 from ..logging import log_error, log_info
 from ..settings import settings
-from .local_mlx import parse_json_object, recover_payload_from_candidates, recover_payload_from_text, sanitize_payload_for_prompt
+from .shared import build_extraction_prompt, parse_json_object, recover_payload_from_candidates, recover_payload_from_text
 
 
 class LocalCodexCliLLMProvider(LLMProvider):
@@ -48,12 +47,15 @@ class LocalCodexCliLLMProvider(LLMProvider):
     return payload
 
   def select_fields(self, payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("extractionMode") == "bank-statement":
+      return self._select_bank_statement(payload)
+
     if payload.get("llmAssist"):
       log_info("slm.llm_assist.local_codex_cli_text_only", note="Codex CLI provider runs text-only verification against OCR payload")
 
     with self.generation_lock:
       for strict in (False, True):
-        prompt = build_codex_prompt(payload, strict=strict)
+        prompt = build_extraction_prompt(payload, strict=strict)
         try:
           output_text = self._run_codex(prompt)
         except Exception as error:
@@ -87,6 +89,34 @@ class LocalCodexCliLLMProvider(LLMProvider):
       "reasonCodes": {},
       "issues": ["slm_output_invalid_json"]
     }
+
+  def _select_bank_statement(self, payload: dict[str, Any]) -> dict[str, Any]:
+    prompt = payload.get("bankStatementPrompt", "")
+    if not prompt:
+      return {"selected": {}, "issues": ["missing_bank_statement_prompt"]}
+
+    with self.generation_lock:
+      try:
+        output_text = self._run_codex(prompt)
+      except Exception as error:
+        self.last_error = str(error)
+        log_error("slm.codex_cli.bank_statement.failed", error=str(error))
+        return {"selected": {}, "issues": ["slm_bank_statement_error"]}
+
+    log_info(
+      "slm.bank_statement.raw_output",
+      output_length=len(output_text),
+      first_200=output_text[:200],
+      last_200=output_text[-200:] if len(output_text) > 200 else ""
+    )
+
+    parsed = parse_json_object(output_text)
+    if parsed is not None:
+      parsed["_usage"] = {"promptTokens": None, "completionTokens": None}
+      parsed["_bankStatementRaw"] = True
+      return parsed
+
+    return {"selected": {}, "issues": ["slm_bank_statement_invalid_json"], "rawText": output_text}
 
   def _run_codex(self, prompt: str) -> str:
     with tempfile.NamedTemporaryFile("w+", encoding="utf-8", delete=True) as output_file:
@@ -139,138 +169,4 @@ class LocalCodexCliLLMProvider(LLMProvider):
     return "codex-cli/default"
 
 
-def build_codex_prompt(payload: dict[str, Any], strict: bool) -> str:
-  hints = payload.get("hints") if isinstance(payload.get("hints"), dict) else {}
-  prior_corrections = hints.get("priorCorrections")
-  prior_corrections_text = ""
-  if isinstance(prior_corrections, list) and prior_corrections:
-    parts = []
-    for entry in prior_corrections[:6]:
-      if isinstance(entry, dict) and isinstance(entry.get("field"), str) and isinstance(entry.get("hint"), str):
-        parts.append(f"{entry['field']}: {entry['hint']}")
-    if parts:
-      prior_corrections_text = "PRIOR_CORRECTIONS:\n- " + "\n- ".join(parts) + "\n"
-
-  instruction = (
-    "You are an OCR post-processing system.\n"
-    "INPUT\n"
-    "rawText\n"
-    "blocks[]:\n"
-    "text\n"
-    "page\n"
-    "blockIndex\n"
-    "bboxNormalized [x1,y1,x2,y2]\n"
-    "pageImages[] when present:\n"
-    "page\n"
-    "mimeType\n"
-    "width\n"
-    "height\n"
-    "dpi\n"
-    "dataUrl\n"
-    "TASK\n"
-    "Extract invoice data strictly from OCR evidence.\n"
-    "Return JSON only.\n"
-    "OUTPUT SCHEMA\n"
-    "{\n"
-    '  "file": "<filename>",\n'
-    '  "lineItemCount": <int>,\n'
-    '  "invoiceNumber": { "value": "<string>", "provenance": {...} },\n'
-    '  "vendorNameContains": { "value": "<string>", "provenance": {...} },\n'
-    '  "invoiceDate": { "value": "YYYY-MM-DD", "provenance": {...} },\n'
-    '  "dueDate": { "value": "YYYY-MM-DD", "provenance": {...} },\n'
-    '  "currency": { "value": "<ISO>", "provenance": {...} },\n'
-    '  "totalAmountMinor": { "value": <int>, "provenance": {...} },\n'
-    '  "lineItems": [\n'
-    "    {\n"
-    '      "description": "<string>",\n'
-    '      "amountMinor": <int>,\n'
-    '      "provenance": {...}\n'
-    "    }\n"
-    "  ],\n"
-    '  "gst": {\n'
-    '    "cgstMinor": { "value": <int>, "provenance": {...} },\n'
-    '    "sgstMinor": { "value": <int>, "provenance": {...} },\n'
-    '    "subtotalMinor": { "value": <int>, "provenance": {...} },\n'
-    '    "totalTaxMinor": { "value": <int>, "provenance": {...} }\n'
-    "  }\n"
-    "}\n"
-    "\n"
-    "HARD RULES\n"
-    "JSON only\n"
-    "No nulls\n"
-    "Omit uncertain fields\n"
-    "Every value must have provenance\n"
-    "Never guess or infer\n"
-    "\n"
-    "DECISION RULE\n"
-    "Include a field only if it is clearly present in OCR, correctly labeled or structurally obvious, and has no conflicting values.\n"
-    "Else omit it.\n"
-    "\n"
-    "NORMALIZATION\n"
-    "Dates to YYYY-MM-DD\n"
-    "Amounts to integer minor units\n"
-    "Currency to ISO code using symbols such as ₹ to INR and $ to USD\n"
-    "If no explicit currency symbol or code is present, default currency to INR\n"
-    "\n"
-    "PROVENANCE\n"
-    "Use the value block only, not the label block\n"
-    'Single block: { "page": int, "blockIndex": int, "bboxNormalized": [...] }\n'
-    'Multi-block only if required: { "blockIndices": [...], "bboxNormalized": merged }\n'
-    "\n"
-    "FIELD RULES\n"
-    "invoiceNumber must be labeled Invoice and must reject PO, Ref, and Order numbers\n"
-    "vendorNameContains must be the top or header seller only and never Bill To\n"
-    "invoiceDate and dueDate must be explicitly labeled with no derivation\n"
-    "totalAmountMinor priority order:\n"
-    "1. Total or Grand Total\n"
-    "2. Final payable\n"
-    "3. Total in words only if exact\n"
-    "4. Fallback compute only if subtotal and all taxes exist and there is no conflicting total\n"
-    "Reject balance due if different and reject paid amount\n"
-    "\n"
-    "GST RULES\n"
-    "Only include GST when explicit\n"
-    "cgstMinor and sgstMinor must be explicit\n"
-    "subtotalMinor must be pre-tax\n"
-    "totalTaxMinor may be explicit or cgst plus sgst only if both exist\n"
-    "\n"
-    "LINE ITEMS\n"
-    "Include line items only if confident\n"
-    "lineItemCount must equal the number of returned lineItems when lineItems are present\n"
-    "If no confident line items are returned, set lineItemCount to 0\n"
-    "Each item must have amountMinor and provenance\n"
-    "Use the final row amount column\n"
-    "Exclude unit price, tax columns, totals, subtotals, and duplicates\n"
-    "One row equals one item\n"
-    "\n"
-    "TABLE PRIORITY\n"
-    "Use Amount, Line Total, or Net columns\n"
-    "Never use CGST or SGST columns or summary rows for line items\n"
-    "\n"
-    "OCR POLICY\n"
-    "Minor formatting noise is allowed\n"
-    "Digit guessing and conflict resolution are not allowed\n"
-    "\n"
-    "OUTPUT RULES\n"
-    "No empty arrays or empty objects\n"
-    "Omit missing sections entirely\n"
-    "Prefer omission over wrong extraction\n"
-    "\n"
-    "EXTRACTION ORDER\n"
-    "Header\n"
-    "Totals\n"
-    "GST\n"
-    "Line items\n"
-    "\n"
-    "FINAL RULE\n"
-    "If unsure, omit.\n"
-    + ("Final check: output must be valid JSON and match the schema exactly.\n" if strict else "")
-    + "\n"
-    + (prior_corrections_text if prior_corrections_text else "")
-    + "INPUT_JSON:\n"
-  )
-
-  prompt_payload = sanitize_payload_for_prompt(payload)
-  return (
-    f"{instruction}\nINPUT_JSON:{json.dumps(prompt_payload, ensure_ascii=True, separators=(',', ':'))}\nOUTPUT_JSON:"
-  )
+build_codex_prompt = build_extraction_prompt

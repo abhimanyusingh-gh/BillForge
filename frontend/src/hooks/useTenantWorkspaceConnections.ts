@@ -16,7 +16,7 @@ import {
   refreshBankBalance,
   revokeBankAccount,
   setUserEnabled,
-  uploadBankStatementCsv
+  uploadBankStatement
 } from "../api";
 import type { BankAccount, BankStatementSummary, GmailConnectionStatus, TenantMailbox, TenantRole } from "../types";
 import type { WorkspaceGuard, WorkspaceSessionContext } from "./useTenantWorkspaceSession";
@@ -77,7 +77,8 @@ export function useTenantWorkspaceConnections({ session, guarded, setError, addT
 
   const loadBankStatements = useCallback(async () => {
     try {
-      setBankStatements(await fetchBankStatements());
+      const result = await fetchBankStatements();
+      setBankStatements(result.items);
     } catch {
       setBankStatements([]);
     }
@@ -218,9 +219,9 @@ export function useTenantWorkspaceConnections({ session, guarded, setError, addT
     }, "Failed to disconnect bank account.");
   }, [guarded]);
 
-  const handleUploadBankStatement = useCallback(async (file: File) => {
+  const handleUploadBankStatement = useCallback(async (file: File, gstin?: string, gstinLabel?: string) => {
     await guarded(async () => {
-      await uploadBankStatementCsv(file);
+      await uploadBankStatement(file, undefined, gstin, gstinLabel);
       await loadBankStatements();
       addToast("success", `Uploaded bank statement: ${file.name}`);
     }, "Failed to upload bank statement.");

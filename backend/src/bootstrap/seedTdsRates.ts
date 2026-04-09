@@ -58,6 +58,15 @@ const TDS_RATES = [
     rateNoPanBps: 500,
     thresholdSingleMinor: 0,
     thresholdAnnualMinor: 5000000000
+  },
+  {
+    section: "194A",
+    description: "Interest other than on Securities",
+    rateCompanyBps: 1000,
+    rateIndividualBps: 1000,
+    rateNoPanBps: 2000,
+    thresholdSingleMinor: 0,
+    thresholdAnnualMinor: 5000000
   }
 ];
 
@@ -68,7 +77,13 @@ const SECTION_MAPPINGS = [
   { glCategory: "Contractor Services", panCategory: "*", tdsSection: "194C", priority: 5 },
   { glCategory: "Rent - Building", panCategory: "*", tdsSection: "194I(b)", priority: 10 },
   { glCategory: "Rent - Machinery", panCategory: "*", tdsSection: "194I(a)", priority: 10 },
-  { glCategory: "Commission", panCategory: "*", tdsSection: "194H", priority: 10 }
+  { glCategory: "Commission", panCategory: "*", tdsSection: "194H", priority: 10 },
+  { glCategory: "Interest", panCategory: "*", tdsSection: "194A", priority: 10 },
+  { glCategory: "Raw Materials", panCategory: "*", tdsSection: "194Q", priority: 10 },
+  { glCategory: "Rent", panCategory: "*", tdsSection: "194I(b)", priority: 5 },
+  { glCategory: "Software Subscription", panCategory: "*", tdsSection: "194J", priority: 10 },
+  { glCategory: "Repairs & Maintenance", panCategory: "*", tdsSection: "194C", priority: 5 },
+  { glCategory: "Marketing", panCategory: "*", tdsSection: "194C", priority: 5 }
 ];
 
 export async function seedTdsRates(): Promise<void> {

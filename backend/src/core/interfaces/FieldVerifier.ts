@@ -30,6 +30,9 @@ export interface FieldVerifierInput {
     pageImages?: Array<{ page: number; mimeType: string; dataUrl: string; width?: number; height?: number; dpi?: number }>;
     llmAssist?: boolean;
     priorCorrections?: Array<{ field: string; hint: string; count: number }>;
+    extractionMode?: string;
+    bankStatementPrompt?: string;
+    glCategories?: string[];
   };
 }
 

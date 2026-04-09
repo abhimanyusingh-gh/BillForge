@@ -61,7 +61,7 @@ export interface RuntimeManifest {
   };
   ocr: {
     provider: OcrProviderType;
-    deepseek: {
+    configuration: {
       baseUrl: string;
       apiKey: string;
       model: string;
@@ -82,7 +82,7 @@ export interface RuntimeManifest {
   };
   fileStore: {
     provider: FileStoreProviderType;
-    s3: {
+    configuration: {
       bucket: string;
       region: string;
       prefix: string;
@@ -125,7 +125,7 @@ export function loadRuntimeManifest(): RuntimeManifest {
     database: { uri: parsed.database?.uri },
     ocr: {
       provider: parsed.ocr?.provider,
-      deepseek: parsed.ocr?.deepseek,
+      configuration: parsed.ocr?.deepseek,
       mock: parsed.ocr?.mock
     },
     verifier: {
@@ -133,7 +133,7 @@ export function loadRuntimeManifest(): RuntimeManifest {
       http: parsed.verifier?.http
     },
     fileStore: {
-      s3: parsed.fileStore?.s3
+      configuration: parsed.fileStore?.s3
     },
     extraction: {
       ocrHighConfidenceThreshold: parsed.extraction?.ocrHighConfidenceThreshold,

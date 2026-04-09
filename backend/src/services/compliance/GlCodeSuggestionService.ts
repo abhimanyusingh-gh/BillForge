@@ -12,10 +12,16 @@ export class GlCodeSuggestionService {
     tenantId: string,
     vendorFingerprint: string,
     parsed: ParsedInvoiceData,
-    ocrText?: string
+    ocrText?: string,
+    slmGlCategory?: string
   ): Promise<GlSuggestion> {
     const vendorResult = await this.suggestFromVendorHistory(tenantId, vendorFingerprint);
     if (vendorResult) return vendorResult;
+
+    if (slmGlCategory) {
+      const slmResult = await this.suggestFromSlmClassification(tenantId, slmGlCategory);
+      if (slmResult) return slmResult;
+    }
 
     const descriptionResult = await this.suggestFromDescription(tenantId, parsed, ocrText);
     if (descriptionResult) return descriptionResult;
@@ -26,6 +32,56 @@ export class GlCodeSuggestionService {
         name: null,
         source: "vendor-default",
         confidence: null,
+        suggestedAlternatives: []
+      }
+    };
+  }
+
+  async suggestFromSlmClassification(
+    tenantId: string,
+    slmGlCategory: string
+  ): Promise<GlSuggestion | null> {
+    const normalizedCategory = slmGlCategory.trim().toLowerCase();
+    if (!normalizedCategory) return null;
+
+    const glCodes = await GlCodeMasterModel.find({ tenantId, isActive: true }).lean();
+    if (glCodes.length === 0) return null;
+
+    const exactMatch = glCodes.find(
+      gl => gl.category.toLowerCase() === normalizedCategory || gl.name.toLowerCase() === normalizedCategory
+    );
+
+    if (exactMatch) {
+      return {
+        glCode: {
+          code: exactMatch.code,
+          name: exactMatch.name,
+          source: "slm-classification",
+          confidence: 80,
+          suggestedAlternatives: []
+        }
+      };
+    }
+
+    const categoryTokens = normalizedCategory.split(/\s+/).filter(t => t.length > 2);
+    let bestMatch: { code: string; name: string; matchCount: number } | null = null;
+
+    for (const gl of glCodes) {
+      const glTokens = `${gl.name} ${gl.category}`.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+      const matchCount = categoryTokens.filter(ct => glTokens.some(gt => gt.includes(ct) || ct.includes(gt))).length;
+      if (matchCount > 0 && (!bestMatch || matchCount > bestMatch.matchCount)) {
+        bestMatch = { code: gl.code, name: gl.name, matchCount };
+      }
+    }
+
+    if (!bestMatch) return null;
+
+    return {
+      glCode: {
+        code: bestMatch.code,
+        name: bestMatch.name,
+        source: "slm-classification",
+        confidence: Math.min(70, bestMatch.matchCount * 25),
         suggestedAlternatives: []
       }
     };

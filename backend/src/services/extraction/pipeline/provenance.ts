@@ -111,6 +111,12 @@ export function normalizeClassification(value: unknown): InvoiceExtractionData["
       : typeof raw.classification === "string"
         ? raw.classification.trim()
         : "";
+  const glCategory =
+    typeof raw.glCategory === "string"
+      ? raw.glCategory.trim()
+      : typeof raw.gl_category === "string"
+        ? raw.gl_category.trim()
+        : "";
   const tdsSection =
     typeof raw.tdsSection === "string"
       ? raw.tdsSection.trim()
@@ -119,12 +125,13 @@ export function normalizeClassification(value: unknown): InvoiceExtractionData["
         : typeof raw.tds === "string"
           ? raw.tds.trim()
           : "";
-  if (!invoiceType && !category && !tdsSection) {
+  if (!invoiceType && !category && !glCategory && !tdsSection) {
     return undefined;
   }
   return {
     ...(invoiceType ? { invoiceType } : {}),
     ...(category ? { category } : {}),
+    ...(glCategory ? { glCategory } : {}),
     ...(tdsSection ? { tdsSection } : {})
   };
 }

@@ -18,6 +18,7 @@ export interface ComplianceResult {
 export interface ComplianceEnrichContext {
   emailFrom?: string;
   contentHash?: string;
+  slmGlCategory?: string;
 }
 
 export interface ComplianceEnricher {

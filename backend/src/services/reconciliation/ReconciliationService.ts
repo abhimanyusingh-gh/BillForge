@@ -11,6 +11,8 @@ interface MatchCandidate {
   score: number;
 }
 
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
 export class ReconciliationService {
   async reconcileStatement(tenantId: string, statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
     const transactions = await BankTransactionModel.find({
@@ -20,6 +22,10 @@ export class ReconciliationService {
       debitMinor: { $gt: 0 }
     }).lean();
 
+    const { BankStatementModel } = await import("../../models/BankStatement.js");
+    const statement = await BankStatementModel.findOne({ _id: statementId, tenantId }).lean();
+    const statementGstin = statement?.gstin ?? undefined;
+
     const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
     const tcsRatePercent = tcsConfig?.enabled ? (tcsConfig.ratePercent ?? 0) : 0;
 
@@ -28,7 +34,7 @@ export class ReconciliationService {
     let unmatched = 0;
 
     for (const txn of transactions) {
-      const candidates = await this.findMatchCandidates(tenantId, txn, tcsRatePercent);
+      const candidates = await this.findMatchCandidates(tenantId, txn, tcsRatePercent, statementGstin);
 
       if (candidates.length === 0) {
         unmatched++;
@@ -50,7 +56,6 @@ export class ReconciliationService {
       }
     }
 
-    const { BankStatementModel } = await import("../../models/BankStatement.js");
     await BankStatementModel.updateOne(
       { _id: statementId },
       { $set: { matchedCount: matched, unmatchedCount: unmatched } }
@@ -63,19 +68,22 @@ export class ReconciliationService {
   async findMatchCandidates(
     tenantId: string,
     txn: { debitMinor?: number | null; description: string; date: string },
-    tcsRatePercent: number = 0
+    tcsRatePercent: number = 0,
+    gstin?: string
   ): Promise<MatchCandidate[]> {
     if (!txn.debitMinor || txn.debitMinor <= 0) return [];
 
-    const tolerance = Math.max(Math.round(txn.debitMinor * 0.1), 1000);
-    const invoices = await InvoiceModel.find({
+    const tolerance = 100;
+    const invoiceQuery: Record<string, unknown> = {
       tenantId,
-      status: { $in: ["APPROVED", "EXPORTED"] },
-      "parsed.totalAmountMinor": {
-        $gte: txn.debitMinor - tolerance,
-        $lte: txn.debitMinor + tolerance
-      }
-    }).limit(100).lean();
+      status: { $nin: ["EXPORTED"] }
+    };
+
+    if (gstin) {
+      invoiceQuery["parsed.gst.gstin"] = gstin;
+    }
+
+    const invoices = await InvoiceModel.find(invoiceQuery).lean();
 
     const candidates: MatchCandidate[] = [];
     const descLower = txn.description.toLowerCase();
@@ -107,12 +115,21 @@ export class ReconciliationService {
         score += 20;
       }
 
+      const invoiceDate = inv.parsed?.invoiceDate ? new Date(inv.parsed.invoiceDate) : null;
+      const dueDate = inv.parsed?.dueDate ? new Date(inv.parsed.dueDate) : null;
       const approval = (inv as unknown as Record<string, unknown>).approval as Record<string, unknown> | undefined;
       const approvedAt = approval?.approvedAt ? new Date(approval.approvedAt as string) : null;
-      if (approvedAt && !isNaN(txnDate.getTime())) {
-        const daysDiff = Math.abs((txnDate.getTime() - approvedAt.getTime()) / 86400000);
-        if (daysDiff <= 3) score += 10;
-        else if (daysDiff <= 7) score += 5;
+
+      if (!isNaN(txnDate.getTime())) {
+        let bestDateScore = 0;
+        for (const refDate of [approvedAt, invoiceDate, dueDate]) {
+          if (!refDate || isNaN(refDate.getTime())) continue;
+          const daysDiff = Math.abs((txnDate.getTime() - refDate.getTime()) / 86400000);
+          if (daysDiff <= 3) bestDateScore = Math.max(bestDateScore, 10);
+          else if (daysDiff <= 7) bestDateScore = Math.max(bestDateScore, 5);
+          else if (daysDiff <= 30) bestDateScore = Math.max(bestDateScore, 2);
+        }
+        score += bestDateScore;
       }
 
       candidates.push({

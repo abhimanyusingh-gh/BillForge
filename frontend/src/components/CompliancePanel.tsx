@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { type Invoice, type GlCode, type TdsRate } from "../types";
 import { minorUnitsToMajorString } from "../currency";
+import { GlCodeDropdown } from "./GlCodeDropdown";
 
 interface CompliancePanelProps {
   invoice: Invoice;
@@ -7,7 +9,7 @@ interface CompliancePanelProps {
   tdsRates: TdsRate[];
   canOverrideGlCode?: boolean;
   canOverrideTds?: boolean;
-  onOverrideGlCode: (glCode: string) => void;
+  onOverrideGlCode: (glCode: string, glName?: string) => void;
   onOverrideTdsSection: (section: string) => void;
   isReadOnly: boolean;
 }
@@ -22,6 +24,7 @@ export function CompliancePanel({
   onOverrideTdsSection,
   isReadOnly
 }: CompliancePanelProps) {
+  const [glDropdownOpen, setGlDropdownOpen] = useState(false);
   const compliance = invoice.compliance;
   if (!compliance) return null;
 
@@ -30,7 +33,7 @@ export function CompliancePanel({
   const hasPan = compliance.pan?.value;
   const hasReconciliation = compliance.reconciliation != null;
 
-  if (!hasTds && !hasGl && !hasPan && !hasReconciliation) return null;
+  if (!hasTds && !hasGl && !hasPan && !hasReconciliation && (isReadOnly || !canOverrideGlCode)) return null;
 
   const currency = invoice.parsed?.currency ?? "INR";
   const tdsReadOnly = isReadOnly || !canOverrideTds;
@@ -68,31 +71,59 @@ export function CompliancePanel({
         </div>
       )}
 
-      {compliance.glCode && compliance.glCode.code && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", fontSize: "0.85rem" }}>
-          <span style={{ fontWeight: 500 }}>GL:</span>
-          {glReadOnly ? (
-            <span>{compliance.glCode.name} ({compliance.glCode.code})</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", fontSize: "0.85rem", position: "relative" }}>
+        <span style={{ fontWeight: 500 }}>GL:</span>
+        {glReadOnly ? (
+          hasGl ? (
+            <span>{compliance.glCode!.name} ({compliance.glCode!.code})</span>
           ) : (
-            <select
-              value={compliance.glCode.code}
-              onChange={(e) => onOverrideGlCode(e.target.value)}
-              style={{ fontSize: "0.85rem", padding: "0.15rem 0.25rem" }}
+            <span style={{ color: "var(--ink-soft, #999)" }}>Not assigned</span>
+          )
+        ) : (
+          <>
+            <span
+              role="button"
+              tabIndex={0}
+              style={{ cursor: "pointer", borderBottom: "1px dashed var(--border-color, #ccc)" }}
+              onClick={() => setGlDropdownOpen(true)}
+              onKeyDown={(e) => { if (e.key === "Enter") setGlDropdownOpen(true); }}
             >
-              {glCodes.filter((g) => g.isActive).map((g) => (
-                <option key={g.code} value={g.code}>
-                  {g.name} ({g.code})
-                </option>
-              ))}
-            </select>
-          )}
-          {compliance.glCode.confidence != null && (
-            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary, #999)" }}>
-              {compliance.glCode.confidence}% — {compliance.glCode.source}
+              {hasGl ? `${compliance.glCode!.name} (${compliance.glCode!.code})` : "Select GL code..."}
             </span>
-          )}
-        </div>
-      )}
+            <button
+              type="button"
+              className="row-action-button field-edit-button"
+              style={{ opacity: 1 }}
+              title="Edit GL code"
+              onClick={() => setGlDropdownOpen(true)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>edit</span>
+            </button>
+            {glDropdownOpen ? (
+              <div className="gl-code-inline-dropdown" style={{ position: "absolute", top: "1.5rem", left: "2rem" }}>
+                <GlCodeDropdown
+                  glCodes={glCodes}
+                  currentCode={compliance.glCode?.code ?? null}
+                  onSelect={(code, name) => {
+                    setGlDropdownOpen(false);
+                    onOverrideGlCode(code, name);
+                  }}
+                  onClear={() => {
+                    setGlDropdownOpen(false);
+                    onOverrideGlCode("", "");
+                  }}
+                  onClose={() => setGlDropdownOpen(false)}
+                />
+              </div>
+            ) : null}
+          </>
+        )}
+        {hasGl && compliance.glCode!.confidence != null && (
+          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary, #999)" }}>
+            {compliance.glCode!.confidence}% — {compliance.glCode!.source}
+          </span>
+        )}
+      </div>
 
       {compliance.pan && compliance.pan.value && (
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", fontSize: "0.85rem" }}>

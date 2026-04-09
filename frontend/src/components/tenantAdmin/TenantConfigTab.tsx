@@ -1,9 +1,15 @@
+import type { ReactNode } from "react";
 import type { GmailConnectionStatus } from "../../types";
 import { TENANT_ROLE_OPTIONS, type TenantRole, type UserCapabilities } from "../../types";
 import { ApprovalWorkflowSection } from "./ApprovalWorkflowSection";
 import { GlCodeManager } from "./GlCodeManager";
 import { EmptyState } from "../EmptyState";
 import { TcsConfigPanel } from "./TcsConfigPanel";
+import { ComplianceConfigPanel } from "./ComplianceConfigPanel";
+import { useReorderableSections } from "../../hooks/useReorderableSections";
+
+const CONFIG_SECTION_IDS = ["workflow", "gl-codes", "compliance", "tcs", "users"] as const;
+const STORAGE_KEY = "billforge:config-section-order";
 
 interface TenantConfigTabProps {
   currentUserId: string;
@@ -40,39 +46,36 @@ export function TenantConfigTab({
   const canConfigureGlCodes = capabilities.canConfigureGlCodes === true;
   const canConfigureCompliance = capabilities.canConfigureCompliance === true;
 
-  return (
-    <>
-      {gmailNeedsReauth && canManageConnections ? (
-        <div className="mailbox-banner" role="alert">
-          <strong>We lost access to your mailbox. Please reconnect.</strong>
-          <button type="button" className="app-button app-button-primary" onClick={onConnectGmail}>
-            Reconnect Gmail
-          </button>
-        </div>
-      ) : null}
+  const { order, dragHandlers, dragOverId, draggingId } = useReorderableSections(
+    STORAGE_KEY,
+    [...CONFIG_SECTION_IDS]
+  );
 
-      {canConfigureWorkflow ? <ApprovalWorkflowSection tenantUsers={tenantUsers} /> : null}
-
-      {canConfigureGlCodes ? (
+  const sectionMap: Record<string, { visible: boolean; node: ReactNode }> = {
+    workflow: {
+      visible: canConfigureWorkflow,
+      node: <ApprovalWorkflowSection tenantUsers={tenantUsers} />,
+    },
+    "gl-codes": {
+      visible: canConfigureGlCodes,
+      node: (
         <div className="editor-card" style={{ marginTop: "1.5rem" }}>
           <h3 style={{ marginBottom: "0.75rem" }}>Chart of Accounts (GL Codes)</h3>
           <GlCodeManager />
         </div>
-      ) : null}
-
-      {canConfigureCompliance ? (
-        <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-          <h3 style={{ marginBottom: "0.75rem" }}>Compliance Settings</h3>
-          <p style={{ fontSize: "0.85rem", color: "var(--ink-soft, #666)" }}>
-            Enable compliance features (TDS calculation, PAN validation, risk signals) from the compliance configuration panel.
-            GL codes and cost centers configured above will be used for automated suggestions.
-          </p>
-        </div>
-      ) : null}
-
-      <TcsConfigPanel canConfigureCompliance={canConfigureCompliance} />
-
-      {canManageUsers ? (
+      ),
+    },
+    compliance: {
+      visible: canConfigureCompliance,
+      node: <ComplianceConfigPanel canConfigureCompliance={canConfigureCompliance} />,
+    },
+    tcs: {
+      visible: canConfigureCompliance,
+      node: <TcsConfigPanel canConfigureCompliance={canConfigureCompliance} />,
+    },
+    users: {
+      visible: canManageUsers,
+      node: (
         <div className="editor-card">
           <div className="editor-header">
             <h3>Users</h3>
@@ -143,7 +146,40 @@ export function TenantConfigTab({
             </div>
           )}
         </div>
+      ),
+    },
+  };
+
+  return (
+    <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 7rem)", paddingBottom: "2rem" }}>
+      {gmailNeedsReauth && canManageConnections ? (
+        <div className="mailbox-banner" role="alert">
+          <strong>We lost access to your mailbox. Please reconnect.</strong>
+          <button type="button" className="app-button app-button-primary" onClick={onConnectGmail}>
+            Reconnect Gmail
+          </button>
+        </div>
       ) : null}
-    </>
+
+      {order.map((sectionId) => {
+        const section = sectionMap[sectionId];
+        if (!section || !section.visible) return null;
+        const handlers = dragHandlers(sectionId);
+        return (
+          <div
+            key={sectionId}
+            className={
+              "reorderable-section" +
+              (draggingId === sectionId ? " section-dragging" : "") +
+              (dragOverId === sectionId ? " section-drag-over" : "")
+            }
+            {...handlers}
+          >
+            <span className="section-drag-handle material-symbols-outlined" aria-label="Drag to reorder">drag_indicator</span>
+            {section.node}
+          </div>
+        );
+      })}
+    </div>
   );
 }

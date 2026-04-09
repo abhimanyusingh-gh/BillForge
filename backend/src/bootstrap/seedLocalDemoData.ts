@@ -7,6 +7,7 @@ import { loadLocalDemoUsersConfig } from "../config/localDemoUsers.js";
 import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 import { seedTdsRates } from "./seedTdsRates.js";
 import { getRoleDefaults } from "../auth/personaDefaults.js";
+import { seedDefaultGlCodes } from "../services/seedGlCodes.js";
 
 export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Promise<void> {
   const config = loadLocalDemoUsersConfig();
@@ -78,6 +79,10 @@ export async function seedLocalDemoData(keycloakAdmin: KeycloakAdminClient): Pro
   }
 
   await seedTdsRates();
+
+  for (const tenant of config.tenants) {
+    await seedDefaultGlCodes(tenant.id);
+  }
 
   logger.info("local.demo.seed.complete", {
     tenants: config.tenants.length,

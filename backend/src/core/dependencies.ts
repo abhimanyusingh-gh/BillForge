@@ -61,6 +61,8 @@ interface Dependencies {
   fileStore: FileStore;
   keycloakAdmin: KeycloakAdminClient;
   approvalWorkflowService: ApprovalWorkflowService;
+  ocrProvider: OcrProvider;
+  fieldVerifier: FieldVerifier;
 }
 
 function buildAuthServices(manifest: RuntimeManifest) {
@@ -150,22 +152,24 @@ export async function buildDependencies(): Promise<Dependencies> {
     gmailIntegrationService,
     bankService,
     fileStore: storage.fileStore,
-    approvalWorkflowService
+    approvalWorkflowService,
+    ocrProvider: extraction.ocrProvider,
+    fieldVerifier: extraction.fieldVerifier
   };
 }
 
 function resolveFileStore(runtimeManifest: RuntimeManifest): FileStore {
   logger.info("Using file store provider", {
     provider: "s3",
-    bucket: runtimeManifest.fileStore.s3.bucket,
-    region: runtimeManifest.fileStore.s3.region
+    bucket: runtimeManifest.fileStore.configuration.bucket,
+    region: runtimeManifest.fileStore.configuration.region
   });
   return new S3FileStore({
-    bucket: runtimeManifest.fileStore.s3.bucket,
-    region: runtimeManifest.fileStore.s3.region,
-    prefix: runtimeManifest.fileStore.s3.prefix,
-    endpoint: runtimeManifest.fileStore.s3.endpoint,
-    forcePathStyle: runtimeManifest.fileStore.s3.forcePathStyle
+    bucket: runtimeManifest.fileStore.configuration.bucket,
+    region: runtimeManifest.fileStore.configuration.region,
+    prefix: runtimeManifest.fileStore.configuration.prefix,
+    endpoint: runtimeManifest.fileStore.configuration.endpoint,
+    forcePathStyle: runtimeManifest.fileStore.configuration.forcePathStyle
   });
 }
 
@@ -207,14 +211,14 @@ async function createHttpOcrProvider(runtimeManifest: RuntimeManifest): Promise<
   await assertHttpOcrConfigIsValid(runtimeManifest);
   logger.info("Using OCR provider", {
     provider: "http",
-    model: runtimeManifest.ocr.deepseek.model,
-    baseUrl: runtimeManifest.ocr.deepseek.baseUrl
+    model: runtimeManifest.ocr.configuration.model,
+    baseUrl: runtimeManifest.ocr.configuration.baseUrl
   });
   return new DeepSeekOcrProvider({
-    apiKey: runtimeManifest.ocr.deepseek.apiKey,
-    baseUrl: runtimeManifest.ocr.deepseek.baseUrl,
-    model: runtimeManifest.ocr.deepseek.model,
-    timeoutMs: runtimeManifest.ocr.deepseek.timeoutMs
+    apiKey: runtimeManifest.ocr.configuration.apiKey,
+    baseUrl: runtimeManifest.ocr.configuration.baseUrl,
+    model: runtimeManifest.ocr.configuration.model,
+    timeoutMs: runtimeManifest.ocr.configuration.timeoutMs
   });
 }
 
@@ -228,14 +232,15 @@ function buildExporter(runtimeManifest: RuntimeManifest): AccountingExporter | n
     companyName: runtimeManifest.export.tallyCompany,
     purchaseLedgerName: runtimeManifest.export.tallyPurchaseLedger,
     gstLedgers: runtimeManifest.export.tallyGstLedgers,
-    tdsLedgerPrefix: env.TALLY_TDS_LEDGER
+    tdsLedgerPrefix: env.TALLY_TDS_LEDGER,
+    tcsLedgerName: env.TALLY_TCS_LEDGER
   });
 }
 
 async function assertHttpOcrConfigIsValid(runtimeManifest: RuntimeManifest): Promise<void> {
-  const baseUrl = runtimeManifest.ocr.deepseek.baseUrl.replace(/\/+$/, "");
-  const configuredModel = runtimeManifest.ocr.deepseek.model;
-  const apiKey = runtimeManifest.ocr.deepseek.apiKey.trim();
+  const baseUrl = runtimeManifest.ocr.configuration.baseUrl.replace(/\/+$/, "");
+  const configuredModel = runtimeManifest.ocr.configuration.model;
+  const apiKey = runtimeManifest.ocr.configuration.apiKey.trim();
   try {
     const headers = buildAuthHeaders(apiKey);
     const response = await withTimeout(

@@ -78,7 +78,9 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
     "llmAssist": bool(request.hints.get("llmAssist")),
     "languageHint": request.hints.get("languageHint"),
     "documentLanguage": request.hints.get("documentLanguage"),
-    "priorCorrections": request.hints.get("priorCorrections")
+    "priorCorrections": request.hints.get("priorCorrections"),
+    "extractionMode": request.hints.get("extractionMode"),
+    "bankStatementPrompt": request.hints.get("bankStatementPrompt")
   }
 
   try:

@@ -13,7 +13,7 @@ import {
   normalizeConfidenceValue,
   readMaxTokensFromEnv,
   readTimeoutMsFromEnv
-} from "./deepSeekOcrProviderSupport.js";
+} from "./OcrProviderSupport.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -25,7 +25,7 @@ const SUPPORTED_MIME_TYPES = new Set([
 ]);
 const RETRYABLE_NETWORK_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH"]);
 
-interface DeepSeekHttpClient {
+interface OcrHttpClient {
   post(
     url: string,
     body: unknown,
@@ -33,7 +33,7 @@ interface DeepSeekHttpClient {
   ): Promise<{ data: unknown }>;
 }
 
-interface DeepSeekOcrProviderOptions {
+interface OcrProviderOptions {
   apiKey?: string;
   model?: string;
   baseUrl?: string;
@@ -42,7 +42,7 @@ interface DeepSeekOcrProviderOptions {
   maxTokens?: number;
   // Maintained for backward compatibility; prompt output is now always transcription-only.
   enforceKeyValuePairs?: boolean;
-  httpClient?: DeepSeekHttpClient;
+  httpClient?: OcrHttpClient;
 }
 
 export class DeepSeekOcrProvider implements OcrProvider {
@@ -53,15 +53,15 @@ export class DeepSeekOcrProvider implements OcrProvider {
   private readonly timeoutMs: number;
   private readonly prompt: string;
   private readonly maxTokens: number;
-  private readonly httpClient: DeepSeekHttpClient;
+  private readonly httpClient: OcrHttpClient;
 
-  constructor(options?: DeepSeekOcrProviderOptions) {
-    this.apiKey = options?.apiKey ?? process.env.DEEPSEEK_API_KEY ?? "";
-    this.model = options?.model ?? process.env.DEEPSEEK_OCR_MODEL ?? "mlx-community/DeepSeek-OCR-4bit";
+  constructor(options?: OcrProviderOptions) {
+    this.apiKey = options?.apiKey ?? process.env.OCR_PROVIDER_API_KEY ?? "";
+    this.model = options?.model ?? process.env.OCR_MODEL ?? "mlx-community/DeepSeek-OCR-4bit";
     this.timeoutMs = options?.timeoutMs ?? readTimeoutMsFromEnv();
     this.prompt = normalizePrompt(options?.prompt ?? process.env.DEEPSEEK_OCR_PROMPT ?? DEFAULT_PROMPT);
     this.maxTokens = normalizeMaxTokens(options?.maxTokens ?? readMaxTokensFromEnv());
-    const baseUrl = options?.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? "http://localhost:8200/v1";
+    const baseUrl = options?.baseUrl ?? process.env.OCR_PROVIDER_BASE_URL ?? "http://localhost:8200/v1";
     this.httpClient = options?.httpClient ?? axios.create({ baseURL: baseUrl });
   }
 
@@ -138,7 +138,7 @@ export class DeepSeekOcrProvider implements OcrProvider {
 }
 
 async function postWithRetry(
-  httpClient: DeepSeekHttpClient,
+  httpClient: OcrHttpClient,
   endpoint: string,
   body: unknown,
   headers: Record<string, string>,

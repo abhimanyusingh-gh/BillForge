@@ -13,12 +13,15 @@ const bankStatementSchema = new Schema(
     unmatchedCount: { type: Number, default: 0 },
     source: { type: String, enum: ["pdf-parsed", "csv-import"], required: true },
     uploadedBy: { type: String },
-    s3Key: { type: String, default: null }
+    s3Key: { type: String, default: null },
+    gstin: { type: String, default: null },
+    gstinLabel: { type: String, default: null }
   },
   { timestamps: true }
 );
 
 bankStatementSchema.index({ tenantId: 1, createdAt: -1 });
+bankStatementSchema.index({ tenantId: 1, bankName: 1, accountNumberMasked: 1 });
 
 type BankStatement = InferSchemaType<typeof bankStatementSchema>;
 type BankStatementDocument = HydratedDocument<BankStatement>;
