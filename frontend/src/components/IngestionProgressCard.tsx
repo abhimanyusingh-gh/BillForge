@@ -6,6 +6,7 @@ interface IngestionProgressCardProps {
   progressPercent: number;
   successfulFiles: number;
   fading?: boolean;
+  label?: string;
 }
 
 function formatElapsed(startedAt?: string): string {
@@ -69,7 +70,7 @@ function initOverlay(el: HTMLDivElement) {
   });
 }
 
-export function IngestionProgressCard({ status, progressPercent, successfulFiles, fading }: IngestionProgressCardProps) {
+export function IngestionProgressCard({ status, progressPercent, successfulFiles, fading, label }: IngestionProgressCardProps) {
   if (!status || status.state === "idle" || status.state === "completed") {
     return null;
   }
@@ -113,6 +114,7 @@ export function IngestionProgressCard({ status, progressPercent, successfulFiles
           <span className="ingestion-overlay-headline">{headline}</span>
           {elapsed && isRunning ? <span className="ingestion-overlay-elapsed">{elapsed}</span> : null}
         </div>
+        {label ? <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--ink-soft)", marginLeft: "auto", paddingRight: "0.5rem" }}>{label}</span> : null}
         <div className="ingestion-overlay-actions">
           <button
             type="button"

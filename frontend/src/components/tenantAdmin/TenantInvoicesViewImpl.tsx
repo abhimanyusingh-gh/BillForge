@@ -53,6 +53,7 @@ import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { TenantInvoicesToolbar } from "./TenantInvoicesToolbar";
 import { TenantInvoiceDetailPanel } from "./TenantInvoiceDetailPanel";
 import { TenantInvoicePopup } from "./TenantInvoicePopup";
+import { GlCodeDropdown } from "../GlCodeDropdown";
 
 function formatTaxSummary(invoice: { parsed?: { gst?: { cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number }; currency?: string } }): string {
   const gst = invoice.parsed?.gst;
@@ -136,6 +137,7 @@ export function TenantInvoicesView({
   const [ingestionFading, setIngestionFading] = useState(false);
   const [editingListCell, setEditingListCell] = useState<{ invoiceId: string; field: string } | null>(null);
   const [editListValue, setEditListValue] = useState("");
+  const [glCodeEditingInvoiceId, setGlCodeEditingInvoiceId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortColumn, setSortColumnRaw] = useState<string | null>(() => localStorage.getItem("billforge:sort-col"));
   const [sortDirection, setSortDirectionRaw] = useState<"asc" | "desc">(() => localStorage.getItem("billforge:sort-dir") === "desc" ? "desc" : "asc");
@@ -583,8 +585,11 @@ export function TenantInvoicesView({
     setLoading(true);
     setError(null);
     try {
+      const statusParam = statusFilter === "ALL" ? undefined
+        : statusFilter === "FAILED" ? "FAILED_OCR,FAILED_PARSE"
+        : statusFilter;
       const data = await fetchInvoices(
-        statusFilter === "ALL" ? undefined : statusFilter,
+        statusParam,
         invoiceDateFrom || undefined,
         invoiceDateTo || undefined,
         currentPage,
@@ -607,8 +612,7 @@ export function TenantInvoicesView({
           PARSED: data.parsedAll ?? 0,
           NEEDS_REVIEW: data.needsReviewAll ?? 0,
           AWAITING_APPROVAL: data.awaitingApprovalAll ?? 0,
-          FAILED_OCR: data.failedOcrAll ?? 0,
-          FAILED_PARSE: data.failedParseAll ?? 0,
+          FAILED: (data.failedOcrAll ?? 0) + (data.failedParseAll ?? 0),
           APPROVED: data.approvedAll ?? 0,
           EXPORTED: data.exportedAll ?? 0
         });
@@ -1037,6 +1041,34 @@ export function TenantInvoicesView({
     }
   }
 
+  async function handleTableGlCodeSelect(invoiceId: string, glCode: string, glName: string) {
+    setGlCodeEditingInvoiceId(null);
+    try {
+      await updateInvoiceComplianceOverride(invoiceId, { glCode, glName } as Record<string, unknown>);
+      await loadInvoices();
+      if (activeId === invoiceId) {
+        await refreshActiveInvoiceDetail();
+      }
+      addToast("success", "GL code updated and compliance recalculated.");
+    } catch {
+      addToast("error", "Failed to update GL code.");
+    }
+  }
+
+  async function handleTableGlCodeClear(invoiceId: string) {
+    setGlCodeEditingInvoiceId(null);
+    try {
+      await updateInvoiceComplianceOverride(invoiceId, { glCode: "" } as Record<string, unknown>);
+      await loadInvoices();
+      if (activeId === invoiceId) {
+        await refreshActiveInvoiceDetail();
+      }
+      addToast("success", "GL code cleared.");
+    } catch {
+      addToast("error", "Failed to clear GL code.");
+    }
+  }
+
   function toggleSelection(invoice: Invoice) {
     if (!isInvoiceSelectable(invoice)) {
       return;
@@ -1133,6 +1165,7 @@ export function TenantInvoicesView({
         progressPercent={ingestionProgressPercent}
         successfulFiles={ingestionSuccessfulFiles}
         fading={ingestionFading}
+        label="Invoice Ingestion"
       />
       {error ? <p className="error">{error}</p> : null}
       <main ref={contentRef} className={contentClassName} style={contentStyle}>
@@ -1292,10 +1325,35 @@ export function TenantInvoicesView({
                           )}
                         </td>
                         <td className="muted">{formatTaxSummary(invoice)}</td>
-                        <td style={{ fontSize: "0.82rem" }}>
-                          {invoice.complianceSummary?.glCode ?? invoice.compliance?.glCode?.name
-                            ? <span title={invoice.compliance?.glCode?.code ?? ""}>{invoice.complianceSummary?.glCode ?? invoice.compliance?.glCode?.name ?? ""}</span>
-                            : <span className="muted">—</span>}
+                        <td className="gl-code-cell" style={{ fontSize: "0.82rem" }} onClick={(e) => e.stopPropagation()}>
+                          {glCodeEditingInvoiceId === invoice._id ? (
+                            <div className="gl-code-inline-dropdown">
+                              <GlCodeDropdown
+                                glCodes={tenantGlCodes}
+                                currentCode={invoice.compliance?.glCode?.code ?? null}
+                                onSelect={(code, name) => void handleTableGlCodeSelect(invoice._id, code, name)}
+                                onClear={() => void handleTableGlCodeClear(invoice._id)}
+                                onClose={() => setGlCodeEditingInvoiceId(null)}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <span title={invoice.compliance?.glCode?.code ?? ""}>
+                                {invoice.complianceSummary?.glCode ?? invoice.compliance?.glCode?.name ?? ""}
+                                {!invoice.complianceSummary?.glCode && !invoice.compliance?.glCode?.name ? <span className="muted">—</span> : null}
+                              </span>
+                              {canOverrideGlCode && invoice.status !== "EXPORTED" ? (
+                                <button
+                                  type="button"
+                                  className="row-action-button field-edit-button"
+                                  title="Edit GL code"
+                                  onClick={() => setGlCodeEditingInvoiceId(invoice._id)}
+                                >
+                                  <span className="material-symbols-outlined">edit</span>
+                                </button>
+                              ) : null}
+                            </>
+                          )}
                         </td>
                         <td style={{ fontSize: "0.82rem" }}>
                           {invoice.complianceSummary?.tdsSection ?? invoice.compliance?.tds?.section
@@ -1443,11 +1501,23 @@ export function TenantInvoicesView({
                   refreshActiveInvoiceDetail={refreshActiveInvoiceDetail}
                   onClose={() => setDetailsPanelVisible(false)}
                   extractedRows={getExtractedFieldRows(activeInvoice)}
-                  onOverrideGlCode={async (glCode) => {
+                  onOverrideGlCode={async (glCode, glName) => {
+                    if (!glCode) {
+                      try {
+                        await updateInvoiceComplianceOverride(activeInvoice._id, { glCode: "" } as Record<string, unknown>);
+                        await refreshActiveInvoiceDetail();
+                        await loadInvoices();
+                        addToast("success", "GL code cleared.");
+                      } catch {
+                        addToast("error", "Failed to clear GL code.");
+                      }
+                      return;
+                    }
                     try {
-                      await updateInvoiceComplianceOverride(activeInvoice._id, { glCode } as Record<string, unknown>);
+                      await updateInvoiceComplianceOverride(activeInvoice._id, { glCode, glName } as Record<string, unknown>);
                       await refreshActiveInvoiceDetail();
-                      addToast("success", "GL code updated.");
+                      await loadInvoices();
+                      addToast("success", "GL code updated and compliance recalculated.");
                     } catch {
                       addToast("error", "Failed to update GL code.");
                     }

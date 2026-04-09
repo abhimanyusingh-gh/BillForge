@@ -4,7 +4,7 @@ import type { TcsConfig, TcsRateChange } from "../../types";
 import { TENANT_ROLE_OPTIONS } from "../../types";
 import { getUserFacingErrorMessage } from "../../apiError";
 
-const ALL_MODIFIABLE_ROLES = ["TENANT_ADMIN", ...TENANT_ROLE_OPTIONS.map((o) => o.value)];
+const ALL_MODIFIABLE_ROLES = [...new Set(["TENANT_ADMIN", ...TENANT_ROLE_OPTIONS.map((o) => o.value)])];
 
 function formatDate(isoString: string): string {
   if (!isoString) return "-";
@@ -36,6 +36,10 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
   const [enabled, setEnabled] = useState(false);
   const [reason, setReason] = useState("");
 
+  const [savedEnabled, setSavedEnabled] = useState(false);
+  const [savedRateInput, setSavedRateInput] = useState("");
+  const [savedEffectiveFrom, setSavedEffectiveFrom] = useState("");
+
   const [history, setHistory] = useState<TcsRateChange[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotal, setHistoryTotal] = useState(0);
@@ -43,9 +47,13 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const [selectedModifyRoles, setSelectedModifyRoles] = useState<string[]>([]);
+  const [savedModifyRoles, setSavedModifyRoles] = useState<string[]>([]);
   const [rolesSaving, setRolesSaving] = useState(false);
   const [rolesError, setRolesError] = useState<string | null>(null);
   const [rolesSuccess, setRolesSuccess] = useState(false);
+
+  const dirty = enabled !== savedEnabled || rateInput !== savedRateInput || effectiveFrom !== savedEffectiveFrom;
+  const rolesDirty = selectedModifyRoles.length !== savedModifyRoles.length || [...selectedModifyRoles].sort().join(",") !== [...savedModifyRoles].sort().join(",");
 
   const loadConfig = useCallback(async () => {
     setLoadError(null);
@@ -55,7 +63,12 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
       setRateInput(String(data.ratePercent));
       setEffectiveFrom(data.effectiveFrom ?? "");
       setEnabled(data.enabled);
-      setSelectedModifyRoles(data.tcsModifyRoles ?? ALL_MODIFIABLE_ROLES);
+      const loadedRoles = data.tcsModifyRoles ?? [];
+      setSelectedModifyRoles(loadedRoles);
+      setSavedModifyRoles(loadedRoles);
+      setSavedEnabled(data.enabled);
+      setSavedRateInput(String(data.ratePercent));
+      setSavedEffectiveFrom(data.effectiveFrom ?? "");
     } catch (err) {
       setLoadError(getUserFacingErrorMessage(err, "Failed to load TCS configuration."));
     }
@@ -101,6 +114,9 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
       setEffectiveFrom(updated.effectiveFrom);
       setEnabled(updated.enabled);
       setReason("");
+      setSavedEnabled(updated.enabled);
+      setSavedRateInput(String(updated.ratePercent));
+      setSavedEffectiveFrom(updated.effectiveFrom);
       setSaveSuccess(true);
       await loadHistory(1);
       setHistoryPage(1);
@@ -119,7 +135,9 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
     try {
       const updated = await updateTcsModifyRoles(selectedModifyRoles);
       setConfig(updated);
-      setSelectedModifyRoles(updated.tcsModifyRoles ?? ALL_MODIFIABLE_ROLES);
+      const updatedRoles = updated.tcsModifyRoles ?? [];
+      setSelectedModifyRoles(updatedRoles);
+      setSavedModifyRoles(updatedRoles);
       setRolesSuccess(true);
       setTimeout(() => setRolesSuccess(false), 3000);
     } catch (err) {
@@ -168,47 +186,51 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
           <span style={{ fontSize: "0.875rem" }}>TCS Enabled</span>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem" }}>
-            TCS Rate (%)
-            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={rateInput}
-                onChange={(e) => setRateInput(e.target.value)}
-                disabled={saving}
-                style={{ width: "7rem" }}
-              />
-              <span style={{ color: "var(--ink-soft, #666)" }}>%</span>
+        {enabled ? (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem" }}>
+                TCS Rate (%)
+                <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={rateInput}
+                    onChange={(e) => setRateInput(e.target.value)}
+                    disabled={saving}
+                    style={{ width: "7rem" }}
+                  />
+                  <span style={{ color: "var(--ink-soft, #666)" }}>%</span>
+                </div>
+              </label>
+
+              <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem" }}>
+                Effective From
+                <input
+                  type="date"
+                  value={effectiveFrom}
+                  onChange={(e) => setEffectiveFrom(e.target.value)}
+                  disabled={saving}
+                  style={{ width: "12rem" }}
+                />
+              </label>
             </div>
-          </label>
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem" }}>
-            Effective From
-            <input
-              type="date"
-              value={effectiveFrom}
-              onChange={(e) => setEffectiveFrom(e.target.value)}
-              disabled={saving}
-              style={{ width: "12rem" }}
-            />
-          </label>
-        </div>
-
-        <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem", marginTop: "0.75rem" }}>
-          Reason for change (optional)
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            disabled={saving}
-            rows={2}
-            placeholder="e.g. Finance Act 2025 amendment"
-            style={{ resize: "vertical", fontFamily: "inherit", fontSize: "0.875rem", padding: "0.375rem 0.5rem" }}
-          />
-        </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem", marginTop: "0.75rem" }}>
+              Reason for change (optional)
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                disabled={saving}
+                rows={2}
+                placeholder="e.g. Finance Act 2025 amendment"
+                style={{ resize: "vertical", fontFamily: "inherit", fontSize: "0.875rem", padding: "0.375rem 0.5rem" }}
+              />
+            </label>
+          </>
+        ) : null}
 
         {config?.updatedBy ? (
           <p style={{ fontSize: "0.8rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem" }}>
@@ -223,16 +245,18 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
           <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>TCS configuration saved.</p>
         ) : null}
 
-        <div style={{ marginTop: "1rem" }}>
-          <button
-            type="button"
-            className="app-button app-button-primary"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "Saving…" : "Save TCS Config"}
-          </button>
-        </div>
+        {dirty ? (
+          <div style={{ marginTop: "1rem" }}>
+            <button
+              type="button"
+              className="app-button app-button-primary"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save TCS Config"}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {canConfigureCompliance ? (
@@ -240,8 +264,8 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
           <div className="editor-header">
             <h3>TCS Modify Access</h3>
           </div>
-          <p style={{ fontSize: "0.85rem", color: "var(--ink-soft, #666)", marginTop: "0.25rem" }}>
-            Select which roles are permitted to change the TCS rate.
+          <p style={{ fontSize: "0.85rem", color: "var(--ink-soft, #666)", marginTop: "0.25rem", whiteSpace: "normal", overflowWrap: "break-word" }}>
+            Select which roles are permitted to change the TCS rate and effective date.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" }}>
             {ALL_MODIFIABLE_ROLES.map((role) => {
@@ -269,16 +293,18 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
             <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>Access roles saved.</p>
           ) : null}
 
-          <div style={{ marginTop: "0.75rem" }}>
-            <button
-              type="button"
-              className="app-button app-button-primary"
-              onClick={handleSaveRoles}
-              disabled={rolesSaving}
-            >
-              {rolesSaving ? "Saving…" : "Save Access Roles"}
-            </button>
-          </div>
+          {rolesDirty ? (
+            <div style={{ marginTop: "0.75rem" }}>
+              <button
+                type="button"
+                className="app-button app-button-primary"
+                onClick={handleSaveRoles}
+                disabled={rolesSaving}
+              >
+                {rolesSaving ? "Saving…" : "Save Access Roles"}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
