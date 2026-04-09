@@ -1,12 +1,13 @@
 import type { SourceHighlight } from "./sourceHighlights";
 import type { InvoiceStatus } from "./types";
 
-export const STATUSES: Array<InvoiceStatus | "ALL" | "FAILED"> = [
+export const STATUSES: Array<InvoiceStatus | "ALL"> = [
   "ALL",
   "PARSED",
   "NEEDS_REVIEW",
   "AWAITING_APPROVAL",
-  "FAILED",
+  "FAILED_OCR",
+  "FAILED_PARSE",
   "APPROVED",
   "EXPORTED"
 ];
@@ -17,9 +18,8 @@ export const STATUS_LABELS: Record<string, string> = {
   PARSED: "Processed",
   NEEDS_REVIEW: "Needs Review",
   AWAITING_APPROVAL: "Awaiting Approval",
-  FAILED: "Failed",
-  FAILED_OCR: "Failed",
-  FAILED_PARSE: "Failed",
+  FAILED_OCR: "OCR Failed",
+  FAILED_PARSE: "Parse Failed",
   APPROVED: "Approved",
   EXPORTED: "Exported"
 };

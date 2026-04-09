@@ -7,7 +7,7 @@
   },
   "ocr": {
     "provider": "deepseek",
-    "configuration": {
+    "deepseek": {
       "model": "apple-vision-text-recognition"
     }
   },

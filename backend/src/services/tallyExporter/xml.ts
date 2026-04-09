@@ -13,7 +13,6 @@ export interface TallyExporterConfig {
   purchaseLedgerName: string;
   gstLedgers?: TallyGstLedgerConfig;
   tdsLedgerPrefix?: string;
-  tcsLedgerName?: string;
 }
 
 interface TallyImportSummary {
@@ -39,11 +38,6 @@ export interface TdsExportData {
   ledgerName: string;
 }
 
-export interface TcsExportData {
-  amountMinor: number;
-  ledgerName: string;
-}
-
 export interface VoucherPayloadInput {
   companyName: string;
   purchaseLedgerName: string;
@@ -57,7 +51,6 @@ export interface VoucherPayloadInput {
   gst?: GstAmounts;
   gstLedgers?: TallyGstLedgerConfig;
   tds?: TdsExportData;
-  tcs?: TcsExportData;
 }
 
 export function buildTallyPurchaseVoucherPayload(input: VoucherPayloadInput): string {
@@ -110,9 +103,7 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
   const partyLedgerName = xmlEscape(input.partyLedgerName);
   const purchaseLedgerName = xmlEscape(input.purchaseLedgerName);
   const narration = xmlEscape(input.narration ?? "Invoice import from BillForge");
-  const tcsAmountMinor = (input.tcs && input.tcs.amountMinor > 0) ? input.tcs.amountMinor : 0;
-  const partyTotalMinor = Math.abs(input.amountMinor) + tcsAmountMinor;
-  const totalAmount = formatAmount(partyTotalMinor, input.currency);
+  const totalAmount = formatAmount(Math.abs(input.amountMinor), input.currency);
 
   const lines: string[] = [
     "        <VOUCHER VCHTYPE=\"Purchase\" ACTION=\"Create\" OBJVIEW=\"Accounting Voucher View\">",
@@ -209,17 +200,6 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
       `            <LEDGERNAME>${xmlEscape(input.tds.ledgerName)}</LEDGERNAME>`,
       "            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>",
       `            <AMOUNT>-${tdsAmount}</AMOUNT>`,
-      "          </LEDGERENTRIES.LIST>"
-    );
-  }
-
-  if (input.tcs && input.tcs.amountMinor > 0) {
-    const tcsAmount = formatAmount(Math.abs(input.tcs.amountMinor), input.currency);
-    lines.push(
-      "          <LEDGERENTRIES.LIST>",
-      `            <LEDGERNAME>${xmlEscape(input.tcs.ledgerName)}</LEDGERNAME>`,
-      "            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>",
-      `            <AMOUNT>${tcsAmount}</AMOUNT>`,
       "          </LEDGERENTRIES.LIST>"
     );
   }

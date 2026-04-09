@@ -1,6 +1,5 @@
 import { TdsRateTableModel } from "../../models/TdsRateTable.js";
 import { TdsSectionMappingModel } from "../../models/TdsSectionMapping.js";
-import { TenantComplianceConfigModel } from "../../models/TenantComplianceConfig.js";
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "../../types/invoice.js";
 
 const PAN_FORMAT = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
@@ -62,34 +61,8 @@ export class TdsCalculationService {
 
   async lookupRate(
     section: string,
-    panCategory: string | null,
-    tenantId?: string
+    panCategory: string | null
   ): Promise<TdsRateLookup | null> {
-    if (tenantId) {
-      const tenantConfig = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
-      if (tenantConfig && tenantConfig.tdsRates && tenantConfig.tdsRates.length > 0) {
-        const entry = tenantConfig.tdsRates.find((r) => r.section === section);
-        if (entry) {
-          if (!entry.active) return null;
-
-          let rateBps: number;
-          if (!panCategory) {
-            rateBps = entry.rateNoPan;
-          } else if (panCategory === "C") {
-            rateBps = entry.rateCompany;
-          } else {
-            rateBps = entry.rateIndividual;
-          }
-
-          return {
-            rateBps,
-            thresholdSingleMinor: entry.threshold,
-            thresholdAnnualMinor: 0
-          };
-        }
-      }
-    }
-
     const rate = await TdsRateTableModel.findOne({
       section,
       effectiveTo: null,
@@ -169,7 +142,7 @@ export class TdsCalculationService {
       });
     }
 
-    const rateLookup = await this.lookupRate(detection.section, panCategory, tenantId);
+    const rateLookup = await this.lookupRate(detection.section, panCategory);
     if (!rateLookup) {
       return {
         tds: {

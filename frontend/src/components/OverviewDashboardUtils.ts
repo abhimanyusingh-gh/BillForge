@@ -68,7 +68,7 @@ export const STATUS_COLORS: Record<string, string> = {
   NEEDS_REVIEW: "var(--status-needs-review)",
   PENDING: "var(--status-pending)",
   FAILED_OCR: "var(--status-failed-ocr)",
-  FAILED_PARSE: "var(--status-failed-ocr)"
+  FAILED_PARSE: "var(--status-failed-parse)"
 };
 
 export const VENDOR_COLORS = [

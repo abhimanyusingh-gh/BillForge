@@ -123,7 +123,7 @@ describe("selection helpers", () => {
 
   describe("getAvailableRowActions", () => {
     it.each<[string, string[]]>([
-      ["PENDING", ["reingest", "delete"]],
+      ["PENDING", ["delete"]],
       ["PARSED", ["approve", "reingest", "delete"]],
       ["NEEDS_REVIEW", ["approve", "reingest", "delete"]],
       ["FAILED_PARSE", ["reingest", "delete"]],

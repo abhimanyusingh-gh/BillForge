@@ -107,7 +107,6 @@ export async function updateInvoiceComplianceOverride(invoiceId: string, payload
   return stripNulls((await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, payload)).data) as Invoice;
 }
 
-
 export async function renameInvoiceAttachment(invoiceId: string, attachmentName: string) {
   return stripNulls((await apiClient.patch<Invoice>(`/invoices/${invoiceId}`, { attachmentName })).data) as Invoice;
 }

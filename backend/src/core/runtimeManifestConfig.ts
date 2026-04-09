@@ -29,11 +29,11 @@ export function createDefaultManifest(defaultTenantId: string, defaultWorkloadTi
     ),
     ocr: {
       provider: env.OCR_PROVIDER,
-      configuration: {
-        baseUrl: env.OCR_PROVIDER_BASE_URL,
-        apiKey: env.OCR_PROVIDER_API_KEY?.trim() ?? "",
-        model: env.OCR_MODEL,
-        timeoutMs: env.OCR_TIMEOUT_MS
+      deepseek: {
+        baseUrl: env.DEEPSEEK_BASE_URL,
+        apiKey: env.DEEPSEEK_API_KEY?.trim() ?? "",
+        model: env.DEEPSEEK_OCR_MODEL,
+        timeoutMs: env.DEEPSEEK_TIMEOUT_MS
       },
       mock: { text: env.MOCK_OCR_TEXT ?? "", confidence: env.MOCK_OCR_CONFIDENCE }
     },
@@ -47,7 +47,7 @@ export function createDefaultManifest(defaultTenantId: string, defaultWorkloadTi
     },
     fileStore: {
       provider: "s3",
-      configuration: {
+      s3: {
         bucket: env.S3_FILE_STORE_BUCKET,
         region: env.S3_FILE_STORE_REGION,
         prefix: env.S3_FILE_STORE_PREFIX,

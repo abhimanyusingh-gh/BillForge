@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  cancelProactiveRefresh,
   changePassword,
   clearStoredSessionToken,
   completeTenantOnboarding,
   fetchSessionContext,
   getStoredSessionToken,
   loginWithCredentials,
-  scheduleProactiveRefresh,
   setStoredSessionToken
 } from "../api";
 import { getUserFacingErrorMessage } from "../apiError";
@@ -74,11 +72,9 @@ export function useTenantWorkspaceSession({ guarded, setError }: UseTenantWorksp
       const ctx = await fetchSessionContext();
       setSession(ctx);
       setError(null);
-      scheduleProactiveRefresh(storedToken);
       if (ctx.flags.must_change_password) setShowChangePassword(true);
     } catch {
       clearStoredSessionToken();
-      cancelProactiveRefresh();
       setSession(null);
     } finally {
       setAuthLoading(false);
@@ -132,7 +128,6 @@ export function useTenantWorkspaceSession({ guarded, setError }: UseTenantWorksp
 
   const handleLogout = useCallback(() => {
     clearStoredSessionToken();
-    cancelProactiveRefresh();
     setSession(null);
     setShowChangePassword(false);
   }, []);
