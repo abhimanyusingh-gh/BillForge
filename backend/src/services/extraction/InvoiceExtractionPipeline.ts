@@ -1,5 +1,7 @@
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
 import type { OcrBlock, OcrPageImage, OcrProvider } from "../../core/interfaces/OcrProvider.js";
+import { postProcessOcrResult } from "../../ocr/ocrPostProcessor.js";
+import type { MergedBlock, NormalizedAmount, NormalizedCurrency, NormalizedDate, OcrLine, OcrTable } from "../../ocr/ocrPostProcessor.js";
 import type {
   InvoiceExtractionData,
   ParsedInvoiceData
@@ -146,6 +148,12 @@ export class InvoiceExtractionPipeline {
     let ocrBlocks: OcrBlock[] = [];
     let ocrPageImages: OcrPageImage[] = [];
     let rawTextForNormalization = "";
+    let enhancedMergedBlocks: MergedBlock[] = [];
+    let enhancedLines: OcrLine[] = [];
+    let enhancedTables: OcrTable[] = [];
+    let enhancedNormalizedAmounts: NormalizedAmount[] = [];
+    let enhancedNormalizedDates: NormalizedDate[] = [];
+    let enhancedNormalizedCurrencies: NormalizedCurrency[] = [];
     const nativePdfText = extractNativePdfText(input.fileBuffer, input.mimeType);
     let ocrTokensUsed = 0;
     let slmTokensUsed = 0;
@@ -176,6 +184,13 @@ export class InvoiceExtractionPipeline {
       ocrProvider = ocrResult.provider || this.ocrProvider.name;
       ocrBlocks = ocrResult.blocks ?? [];
       ocrPageImages = ocrResult.pageImages ?? [];
+      const enhanced = postProcessOcrResult(ocrResult);
+      enhancedMergedBlocks = enhanced.mergedBlocks;
+      enhancedLines = enhanced.lines;
+      enhancedTables = enhanced.tables;
+      enhancedNormalizedAmounts = enhanced.normalized.amounts;
+      enhancedNormalizedDates = enhanced.normalized.dates;
+      enhancedNormalizedCurrencies = enhanced.normalized.currencies;
       if (ocrResult.tokenUsage?.totalTokens) ocrTokensUsed += ocrResult.tokenUsage.totalTokens;
       const rawText = ocrResult.text.trim();
       rawTextForNormalization = nativePdfText.length > 0 ? nativePdfText : rawText;
@@ -316,7 +331,13 @@ export class InvoiceExtractionPipeline {
           pageImages: ocrPageImages.slice(0, 3),
           llmAssist: true,
           priorCorrections: this.learningMode === "active" && priorCorrections.length > 0 ? priorCorrections : undefined,
-          glCategories
+          glCategories,
+          mergedBlocks: enhancedMergedBlocks.length > 0 ? enhancedMergedBlocks : undefined,
+          structuredLines: enhancedLines.length > 0 ? enhancedLines : undefined,
+          structuredTables: enhancedTables.length > 0 ? enhancedTables : undefined,
+          normalizedAmounts: enhancedNormalizedAmounts.length > 0 ? enhancedNormalizedAmounts : undefined,
+          normalizedDates: enhancedNormalizedDates.length > 0 ? enhancedNormalizedDates : undefined,
+          normalizedCurrencies: enhancedNormalizedCurrencies.length > 0 ? enhancedNormalizedCurrencies : undefined
         }
       });
 

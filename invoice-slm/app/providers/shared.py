@@ -70,7 +70,13 @@ def sanitize_payload_for_prompt(payload: dict[str, Any]) -> dict[str, Any]:
     "vendorTemplateMatched": pick("vendorTemplateMatched"),
     "fieldCandidates": pick("fieldCandidates", expected_type=dict, default={}),
     "priorCorrections": pick("priorCorrections", expected_type=list, default=[]),
-    "glCategories": pick("glCategories", expected_type=list, default=[])
+    "glCategories": pick("glCategories", expected_type=list, default=[]),
+    "mergedBlocks": pick("mergedBlocks", expected_type=list, default=[]),
+    "structuredLines": pick("structuredLines", expected_type=list, default=[]),
+    "structuredTables": pick("structuredTables", expected_type=list, default=[]),
+    "normalizedAmounts": pick("normalizedAmounts", expected_type=list, default=[]),
+    "normalizedDates": pick("normalizedDates", expected_type=list, default=[]),
+    "normalizedCurrencies": pick("normalizedCurrencies", expected_type=list, default=[])
   }
   return compact
 
