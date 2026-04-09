@@ -1,6 +1,6 @@
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
 import type { OcrBlock, OcrPageImage, OcrProvider } from "../../core/interfaces/OcrProvider.js";
-import { postProcessOcrResult } from "../../ocr/ocrPostProcessor.js";
+import { postProcessOcrResult, buildLayoutText } from "../../ocr/ocrPostProcessor.js";
 import type { MergedBlock, NormalizedAmount, NormalizedCurrency, NormalizedDate, OcrLine, OcrTable } from "../../ocr/ocrPostProcessor.js";
 import type {
   InvoiceExtractionData,
@@ -193,23 +193,25 @@ export class InvoiceExtractionPipeline {
       const rawText = ocrResult.text.trim();
       rawTextForNormalization = rawText;
       const blockText = buildBlocksText(ocrBlocks);
+      const layoutText = buildLayoutText(enhancedLines);
+      const primaryText = layoutText.length > 0 ? layoutText : blockText;
       const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, blockText);
       ocrConfidence = calibrated.score;
       metadata.docOcrConfidence = formatConfidence(calibrated.score);
       metadata.docLowTokenRatio = formatConfidence(calibrated.lowTokenRatio);
       metadata.docPrintableRatio = formatConfidence(calibrated.printableRatio);
 
-      if (blockText.length > 0) {
+      if (primaryText.length > 0) {
         extractionCandidates.push({
-          text: blockText,
+          text: primaryText,
           provider: ocrProvider,
           confidence: ocrConfidence,
-          source: "ocr-blocks"
+          source: "ocr-layout"
         });
       }
 
       const keyValueText = this.enableOcrKeyValueGrounding ? buildKeyValueGroundingText(ocrBlocks) : "";
-      if (keyValueText.length > 0 && !isNearDuplicateText(keyValueText, blockText)) {
+      if (keyValueText.length > 0 && !isNearDuplicateText(keyValueText, primaryText)) {
         extractionCandidates.push({
           text: keyValueText,
           provider: ocrProvider,
@@ -221,7 +223,7 @@ export class InvoiceExtractionPipeline {
         keyValueText.length > 0 ? buildAugmentedGroundingText(keyValueText, blockText, rawText) : "";
       if (
         augmentedKeyValueText.length > 0 &&
-        !isNearDuplicateText(augmentedKeyValueText, blockText) &&
+        !isNearDuplicateText(augmentedKeyValueText, primaryText) &&
         !isNearDuplicateText(augmentedKeyValueText, keyValueText)
       ) {
         extractionCandidates.push({

@@ -1,4 +1,4 @@
-import { mergeBlocks, buildLines, detectTables, normalizeValues } from "./ocrPostProcessor.ts";
+import { mergeBlocks, buildLines, buildLayoutText, detectTables, normalizeValues } from "./ocrPostProcessor.ts";
 import type { OcrBlock } from "../core/interfaces/OcrProvider.ts";
 
 function makeBlock(
@@ -233,5 +233,48 @@ describe("normalizeValues", () => {
     const found = result.amounts.find((a) => a.raw === "1,234.56");
     expect(found).toBeDefined();
     expect(found!.minorUnits).toBe(123456);
+  });
+});
+
+describe("buildLayoutText", () => {
+  it("returns empty string for no lines", () => {
+    expect(buildLayoutText([])).toBe("");
+  });
+
+  it("joins lines within a page with newlines", () => {
+    const lines = [
+      { text: "Invoice #001", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.05, 0.4, 0.08] as [number, number, number, number] },
+      { text: "Date: 2026-01-01", page: 1, blockIndices: [1], bboxNormalized: [0.0, 0.10, 0.4, 0.13] as [number, number, number, number] }
+    ];
+    const result = buildLayoutText(lines);
+    expect(result).toBe("Invoice #001\nDate: 2026-01-01");
+  });
+
+  it("separates pages with a blank line", () => {
+    const lines = [
+      { text: "Page 1 content", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.05, 0.5, 0.08] as [number, number, number, number] },
+      { text: "Page 2 content", page: 2, blockIndices: [1], bboxNormalized: [0.0, 0.05, 0.5, 0.08] as [number, number, number, number] }
+    ];
+    const result = buildLayoutText(lines);
+    expect(result).toBe("Page 1 content\n\nPage 2 content");
+  });
+
+  it("preserves pipe separators from wide-column lines", () => {
+    const lines = [
+      { text: "CGST 9% | 8,505.00 | Total | 1,11,510.00", page: 1, blockIndices: [0, 1, 2, 3], bboxNormalized: [0.0, 0.5, 1.0, 0.54] as [number, number, number, number] }
+    ];
+    const result = buildLayoutText(lines);
+    expect(result).toContain("|");
+    expect(result).toContain("Total");
+    expect(result).toContain("1,11,510.00");
+  });
+
+  it("filters structural-only tokens", () => {
+    const lines = [
+      { text: "table", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.1, 0.2, 0.15] as [number, number, number, number] },
+      { text: "Invoice #123", page: 1, blockIndices: [1], bboxNormalized: [0.0, 0.2, 0.4, 0.25] as [number, number, number, number] }
+    ];
+    const result = buildLayoutText(lines);
+    expect(result).toBe("Invoice #123");
   });
 });

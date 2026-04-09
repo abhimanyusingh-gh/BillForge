@@ -270,6 +270,31 @@ export function buildLines(mergedBlocks: MergedBlock[]): OcrLine[] {
   return lines;
 }
 
+export function buildLayoutText(lines: OcrLine[]): string {
+  if (lines.length === 0) {
+    return "";
+  }
+
+  const byPage = new Map<number, string[]>();
+  for (const line of lines) {
+    const text = line.text.trim();
+    if (!text || /^(text|table|title|line|image)$/i.test(text)) {
+      continue;
+    }
+    let pageLines = byPage.get(line.page);
+    if (!pageLines) {
+      pageLines = [];
+      byPage.set(line.page, pageLines);
+    }
+    pageLines.push(text);
+  }
+
+  return [...byPage.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, pageLines]) => pageLines.join("\n"))
+    .join("\n\n");
+}
+
 const NUMERIC_TOKEN_RE = /^[\d,.\-\/]+$|^\d[\d,.\s]*$/;
 
 function isNumericToken(token: string): boolean {
