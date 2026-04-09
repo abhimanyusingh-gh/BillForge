@@ -61,7 +61,9 @@ class ProdHttpLLMProvider(LLMProvider):
           "llmAssist": bool(payload.get("llmAssist")),
           "languageHint": payload.get("languageHint"),
           "documentLanguage": payload.get("documentLanguage"),
-          "priorCorrections": payload.get("priorCorrections")
+          "priorCorrections": payload.get("priorCorrections"),
+          "extractionMode": payload.get("extractionMode"),
+          "bankStatementPrompt": payload.get("bankStatementPrompt")
         }
       }
     )

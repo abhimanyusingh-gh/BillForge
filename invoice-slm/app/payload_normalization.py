@@ -251,11 +251,14 @@ def normalize_classification(value: Any) -> dict[str, str]:
   output: dict[str, str] = {}
   invoice_type = normalize_text(value.get("invoiceType", value.get("type")))
   category = normalize_text(value.get("category", value.get("classification")))
+  gl_category = normalize_text(value.get("glCategory", value.get("gl_category")))
   tds_section = normalize_text(value.get("tdsSection", value.get("tdsCategory", value.get("tds"))))
   if invoice_type:
     output["invoiceType"] = invoice_type
   if category:
     output["category"] = category
+  if gl_category:
+    output["glCategory"] = gl_category
   if tds_section:
     output["tdsSection"] = tds_section
   return output
