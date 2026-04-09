@@ -18,6 +18,7 @@ interface IngestionJobStatus {
   error?: string;
   correlationId?: string;
   lastUpdatedAt: string;
+  systemAlert?: string;
 }
 
 export class IngestionJobOrchestrator {
@@ -125,6 +126,9 @@ export class IngestionJobOrchestrator {
           };
           this.setCurrentStatus(tenantId, updated);
           this.broadcastToSubscribers(tenantId, updated);
+          if (updated.systemAlert) {
+            this.setCurrentStatus(tenantId, { ...updated, systemAlert: undefined });
+          }
         }
       });
 

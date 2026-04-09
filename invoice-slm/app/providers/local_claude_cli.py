@@ -6,7 +6,6 @@ import signal
 import subprocess
 import time
 from pathlib import Path
-from threading import Lock
 from typing import Any
 
 from ..boundary import LLMProvider
@@ -62,7 +61,6 @@ class LocalClaudeCliLLMProvider(LLMProvider):
   FATAL_PATTERNS = ["credit balance", "billing", "payment required", "subscription"]
 
   def __init__(self) -> None:
-    self.generation_lock = Lock()
     self.last_error = ""
     self.root_dir = Path(__file__).resolve().parents[3]
     self._preflight_passed = False
@@ -119,34 +117,33 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     if payload.get("llmAssist"):
       log_info("slm.llm_assist.local_claude_cli_text_only", note="Claude CLI provider runs text-only verification against OCR payload")
 
-    with self.generation_lock:
-      for strict in (False, True):
-        prompt = build_extraction_prompt(payload, strict=strict)
-        try:
-          output_text = self._run_claude(prompt)
-        except Exception as error:
-          self.last_error = str(error)
-          log_error("slm.claude_cli.exec.failed", error=str(error))
-          if self._is_fatal_error(str(error)):
-            raise
-          break
+    for strict in (False, True):
+      prompt = build_extraction_prompt(payload, strict=strict)
+      try:
+        output_text = self._run_claude(prompt)
+      except Exception as error:
+        self.last_error = str(error)
+        log_error("slm.claude_cli.exec.failed", error=str(error))
+        if self._is_fatal_error(str(error)):
+          raise
+        break
 
-        usage = {"promptTokens": None, "completionTokens": None}
-        log_info(
-          "slm.raw_output",
-          output_length=len(output_text),
-          completion_tokens=0,
-          first_200=output_text[:200],
-          last_200=output_text[-200:] if len(output_text) > 200 else ""
-        )
-        parsed = parse_json_object(output_text)
-        if parsed is not None:
-          parsed["_usage"] = usage
-          return parsed
-        recovered = recover_payload_from_text(output_text, payload)
-        if recovered is not None:
-          recovered["_usage"] = usage
-          return recovered
+      usage = {"promptTokens": None, "completionTokens": None}
+      log_info(
+        "slm.raw_output",
+        output_length=len(output_text),
+        completion_tokens=0,
+        first_200=output_text[:200],
+        last_200=output_text[-200:] if len(output_text) > 200 else ""
+      )
+      parsed = parse_json_object(output_text)
+      if parsed is not None:
+        parsed["_usage"] = usage
+        return parsed
+      recovered = recover_payload_from_text(output_text, payload)
+      if recovered is not None:
+        recovered["_usage"] = usage
+        return recovered
 
     fallback = recover_payload_from_candidates(payload)
     if fallback is not None:
@@ -159,13 +156,12 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     }
 
   def call_prompt(self, prompt_text: str) -> dict[str, Any]:
-    with self.generation_lock:
-      try:
-        output_text = self._run_claude(prompt_text)
-      except Exception as error:
-        self.last_error = str(error)
-        log_error("slm.claude_cli.call_prompt.failed", error=str(error))
-        raise
+    try:
+      output_text = self._run_claude(prompt_text)
+    except Exception as error:
+      self.last_error = str(error)
+      log_error("slm.claude_cli.call_prompt.failed", error=str(error))
+      raise
 
     log_info(
       "slm.call_prompt.raw_output",
@@ -183,15 +179,14 @@ class LocalClaudeCliLLMProvider(LLMProvider):
     if not prompt:
       return {"selected": {}, "issues": ["missing_bank_statement_prompt"]}
 
-    with self.generation_lock:
-      try:
-        output_text = self._run_claude(prompt)
-      except Exception as error:
-        self.last_error = str(error)
-        log_error("slm.claude_cli.bank_statement.failed", error=str(error))
-        if self._is_fatal_error(str(error)):
-          raise
-        return {"selected": {}, "issues": ["slm_bank_statement_error"]}
+    try:
+      output_text = self._run_claude(prompt)
+    except Exception as error:
+      self.last_error = str(error)
+      log_error("slm.claude_cli.bank_statement.failed", error=str(error))
+      if self._is_fatal_error(str(error)):
+        raise
+      return {"selected": {}, "issues": ["slm_bank_statement_error"]}
 
     log_info(
       "slm.bank_statement.raw_output",

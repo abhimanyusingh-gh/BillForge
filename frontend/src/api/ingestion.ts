@@ -16,7 +16,8 @@ function sanitizeIngestionStatus(value: unknown): IngestionJobStatus {
     completedAt: typeof data.completedAt === "string" ? data.completedAt : undefined,
     error: typeof data.error === "string" ? data.error : undefined,
     correlationId: typeof data.correlationId === "string" ? data.correlationId : undefined,
-    lastUpdatedAt: (typeof data.lastUpdatedAt === "string" ? data.lastUpdatedAt : undefined) ?? new Date(0).toISOString()
+    lastUpdatedAt: (typeof data.lastUpdatedAt === "string" ? data.lastUpdatedAt : undefined) ?? new Date(0).toISOString(),
+    systemAlert: typeof data.systemAlert === "string" ? data.systemAlert : undefined
   };
 }
 

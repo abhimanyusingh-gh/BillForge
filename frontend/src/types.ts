@@ -443,6 +443,7 @@ export interface IngestionJobStatus {
   error?: string;
   correlationId?: string;
   lastUpdatedAt: string;
+  systemAlert?: string;
 }
 
 export type GmailConnectionState = "DISCONNECTED" | "CONNECTED" | "NEEDS_REAUTH";

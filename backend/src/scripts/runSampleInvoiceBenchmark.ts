@@ -277,50 +277,54 @@ async function run(): Promise<void> {
     ".webp": "image/webp"
   };
 
-  const results: BenchmarkResult[] = [];
-  for (const file of files) {
+  async function processFile(file: string): Promise<BenchmarkResult> {
     const fullPath = join(samplesDir, file);
-    try {
-      const fileBuffer = readFileSync(fullPath);
-      const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? "application/octet-stream";
-      const extraction = await pipeline.extract({
-        tenantId: "benchmark",
-        sourceKey: file,
-        attachmentName: file,
-        fileBuffer,
-        mimeType,
-        expectedMaxTotal: 1_000_000_000,
-        expectedMaxDueDays: 180,
-        autoSelectMin: 0.5,
-        referenceDate: new Date("2026-03-31T00:00:00Z")
-      });
-      const parsed = extraction.parseResult.parsed;
-      results.push({
-        file,
-        parsed,
-        issues: extraction.parseResult.warnings,
-        source: extraction.source,
-        strategy: extraction.strategy,
-        invoiceType: extraction.extraction?.invoiceType,
-        classification: extraction.extraction?.classification,
-        fieldProvenance: extraction.extraction?.fieldProvenance,
-        lineItemProvenance: extraction.extraction?.lineItemProvenance,
-        ocrBlocks: extraction.ocrBlocks
-      });
-      const total = parsed.totalAmountMinor ?? null;
-      const number = parsed.invoiceNumber ?? null;
-      process.stdout.write(`${file} | invoice=${String(number)} | totalMinor=${String(total)}\n`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      results.push({
-        file,
-        error: message,
-        parsed: {},
-        issues: [message],
-        source: "error",
-        strategy: "error"
-      });
-      process.stdout.write(`${file} | ERROR=${message}\n`);
+    const fileBuffer = readFileSync(fullPath);
+    const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? "application/octet-stream";
+    const extraction = await pipeline.extract({
+      tenantId: "benchmark",
+      sourceKey: file,
+      attachmentName: file,
+      fileBuffer,
+      mimeType,
+      expectedMaxTotal: 1_000_000_000,
+      expectedMaxDueDays: 180,
+      autoSelectMin: 0.5,
+      referenceDate: new Date("2026-03-31T00:00:00Z")
+    });
+    const parsed = extraction.parseResult.parsed;
+    const total = parsed.totalAmountMinor ?? null;
+    const number = parsed.invoiceNumber ?? null;
+    process.stdout.write(`${file} | invoice=${String(number)} | totalMinor=${String(total)}\n`);
+    return {
+      file,
+      parsed,
+      issues: extraction.parseResult.warnings,
+      source: extraction.source,
+      strategy: extraction.strategy,
+      invoiceType: extraction.extraction?.invoiceType,
+      classification: extraction.extraction?.classification,
+      fieldProvenance: extraction.extraction?.fieldProvenance,
+      lineItemProvenance: extraction.extraction?.lineItemProvenance,
+      ocrBlocks: extraction.ocrBlocks
+    };
+  }
+
+  const CONCURRENCY = 5;
+  const results: BenchmarkResult[] = [];
+  for (let i = 0; i < files.length; i += CONCURRENCY) {
+    const batch = files.slice(i, i + CONCURRENCY);
+    const settled = await Promise.allSettled(batch.map((file) => processFile(file)));
+    for (let j = 0; j < settled.length; j++) {
+      const outcome = settled[j];
+      const file = batch[j] as string;
+      if (outcome.status === "fulfilled") {
+        results.push(outcome.value);
+      } else {
+        const message = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+        results.push({ file, error: message, parsed: {}, issues: [message], source: "error", strategy: "error" });
+        process.stdout.write(`${file} | ERROR=${message}\n`);
+      }
     }
   }
 
