@@ -135,10 +135,10 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
 
   OCR_PROVIDER: z.enum(["auto", "deepseek", "mock"]).default("auto"),
-  DEEPSEEK_API_KEY: z.string().optional(),
-  DEEPSEEK_BASE_URL: z.string().optional(),
-  DEEPSEEK_OCR_MODEL: z.string().default("mlx-community/DeepSeek-OCR-4bit"),
-  DEEPSEEK_TIMEOUT_MS: z.coerce.number().default(3600000),
+  OCR_PROVIDER_API_KEY: z.string().optional(),
+  OCR_PROVIDER_BASE_URL: z.string().optional(),
+  OCR_MODEL: z.string().default("mlx-community/DeepSeek-OCR-4bit"),
+  OCR_TIMEOUT_MS: z.coerce.number().default(3600000),
   MOCK_OCR_TEXT: z.string().optional(),
   MOCK_OCR_CONFIDENCE: z.coerce.number().optional(),
   OCR_HIGH_CONFIDENCE_THRESHOLD: z.coerce.number().default(0.88),
@@ -171,6 +171,7 @@ const envSchema = z.object({
   TALLY_IGST_LEDGER: z.string().default("Input IGST"),
   TALLY_CESS_LEDGER: z.string().default("Input Cess"),
   TALLY_TDS_LEDGER: z.string().default("TDS Payable"),
+  TALLY_TCS_LEDGER: z.string().default("TCS Receivable"),
   DEFAULT_APPROVER: z.string().default("system"),
   INVITE_EMAIL_PROVIDER: z.enum(["smtp", "sendgrid"]).default("smtp"),
   INVITE_SMTP_HOST: z.string().default("mailhog"),
@@ -217,7 +218,7 @@ const values = parsed.data;
 const localMlEnv = isLocalMlEnvironment(values.ENV);
 
 const resolvedOcrBaseUrl = normalizeUrl(
-  values.DEEPSEEK_BASE_URL ?? (localMlEnv ? "http://localhost:8200/v1" : "")
+  values.OCR_PROVIDER_BASE_URL ?? (localMlEnv ? "http://localhost:8200/v1" : "")
 );
 const resolvedSlmBaseUrl = normalizeUrl(
   values.FIELD_VERIFIER_BASE_URL ?? (localMlEnv ? "http://localhost:8300/v1" : "")
@@ -226,7 +227,7 @@ const resolvedSlmBaseUrl = normalizeUrl(
 if (!localMlEnv) {
   if (resolvedOcrBaseUrl.length === 0) {
     // eslint-disable-next-line no-console
-    console.error("Invalid env vars: DEEPSEEK_BASE_URL is required when ENV is 'stg' or 'prod'.");
+    console.error("Invalid env vars: OCR_PROVIDER_BASE_URL is required when ENV is 'stg' or 'prod'.");
     process.exit(1);
   }
 
@@ -276,7 +277,7 @@ const apiBaseUrl = normalizeUrl(values.API_BASE_URL);
 export const env = {
   ...values,
   API_BASE_URL: apiBaseUrl,
-  DEEPSEEK_BASE_URL: resolvedOcrBaseUrl,
+  OCR_PROVIDER_BASE_URL: resolvedOcrBaseUrl,
   FIELD_VERIFIER_BASE_URL: resolvedSlmBaseUrl,
   isLocalMlEnv: localMlEnv,
   keycloakInternalBaseUrl: normalizeUrl(values.KEYCLOAK_INTERNAL_BASE_URL),

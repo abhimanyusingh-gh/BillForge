@@ -501,7 +501,7 @@ describe("DeepSeekOcrProvider", () => {
       await jest.runOnlyPendingTimersAsync();
       const result = await resultPromise;
       expect(post).toHaveBeenCalledTimes(2);
-      expect(timeoutSpy).toHaveBeenCalled();
+      expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), expect.any(Number));
       expect(result.text).toBe("ok");
     } finally {
       timeoutSpy.mockRestore();
@@ -616,7 +616,7 @@ describe("DeepSeekOcrProvider", () => {
   });
 
   it("uses default timeout when env timeout is invalid", async () => {
-    process.env.DEEPSEEK_TIMEOUT_MS = "oops";
+    process.env.OCR_TIMEOUT_MS = "oops";
     const post = jest.fn(async (_url: string, _body: unknown, config: { timeout: number }) => {
       expect(config.timeout).toBe(3600000);
       return {
@@ -630,7 +630,7 @@ describe("DeepSeekOcrProvider", () => {
   });
 
   it("uses env timeout when it is valid", async () => {
-    process.env.DEEPSEEK_TIMEOUT_MS = "1234";
+    process.env.OCR_TIMEOUT_MS = "1234";
     const post = jest.fn(async (_url: string, _body: unknown, config: { timeout: number }) => {
       expect(config.timeout).toBe(1234);
       return {
@@ -645,7 +645,7 @@ describe("DeepSeekOcrProvider", () => {
   });
 
   it("uses env max token override when valid", async () => {
-    process.env.DEEPSEEK_OCR_MAX_TOKENS = "777";
+    process.env.OCR_MAX_TOKENS = "777";
     const post = jest.fn(async (_url: string, body: { maxTokens: number }) => {
       expect(body.maxTokens).toBe(777);
       return {
@@ -659,7 +659,7 @@ describe("DeepSeekOcrProvider", () => {
   });
 
   it("falls back to default max tokens when env override is invalid", async () => {
-    process.env.DEEPSEEK_OCR_MAX_TOKENS = "NaN";
+    process.env.OCR_MAX_TOKENS = "NaN";
     const post = jest.fn(async (_url: string, body: { maxTokens: number; prompt: string }) => {
       expect(body.maxTokens).toBe(2048);
       expect(body.prompt).toContain("Transcribe all visible text exactly as written.");
