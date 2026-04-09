@@ -16,6 +16,7 @@ import { GlCodeMasterModel } from "../../models/GlCodeMaster.js";
 import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
 import { parseAmountToken, parseInvoiceText } from "../../parser/invoiceParser.js";
 import type { ComplianceEnricher } from "../compliance/ComplianceEnricher.js";
+import type { ExtractionMappingService } from "./extractionMappingService.js";
 import { RiskSignalEvaluator } from "../compliance/RiskSignalEvaluator.js";
 import {
   addFieldDiagnosticsToMetadata,
@@ -108,7 +109,8 @@ export class InvoiceExtractionPipeline {
     private readonly templateStore: VendorTemplateStore,
     private readonly learningStore: ExtractionLearningStore | undefined,
     options?: ExtractionPipelineOptions,
-    private readonly complianceEnricher?: ComplianceEnricher
+    private readonly complianceEnricher?: ComplianceEnricher,
+    private readonly mappingService?: ExtractionMappingService
   ) {
     this.ocrHighConfidenceThreshold = clampProbability(options?.ocrHighConfidenceThreshold ?? 0.88);
     this.enableOcrKeyValueGrounding = options?.enableOcrKeyValueGrounding ?? true;
@@ -367,6 +369,14 @@ export class InvoiceExtractionPipeline {
           fields: hintedFieldResults
         });
       }
+      if (this.mappingService) {
+        const mappingResult = await this.mappingService.applyMappings(input.tenantId, recoveredParsed);
+        if (mappingResult.mappingApplied) {
+          metadata.extractionMappingApplied = "true";
+          if (mappingResult.mappingId) metadata.extractionMappingId = mappingResult.mappingId;
+        }
+      }
+
       const slmWarnings = uniqueIssues([
         ...processingIssues,
         ...(slmParsedHasFields ? [] : deterministicFallback.warnings),
