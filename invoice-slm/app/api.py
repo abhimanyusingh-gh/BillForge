@@ -58,6 +58,31 @@ def ping() -> dict[str, Any]:
   return {"pong": True}
 
 
+def single_step_inference(provider: Any, inference_payload: dict[str, Any]) -> dict[str, Any]:
+  extractor_prompt = build_extractor_prompt(inference_payload, strict=True)
+  extraction: dict[str, Any] = provider.call_prompt(extractor_prompt)
+
+  final: dict[str, Any] | None = None
+  try:
+    verifier_prompt = build_verifier_prompt(inference_payload, extraction, strict=True)
+    final = provider.call_prompt(verifier_prompt)
+  except Exception as e:
+    log_error("slm.single_step.verifier.failed", error=str(e))
+    final = extraction
+
+  invoice_type = None
+  classification = final.get("classification") if isinstance(final, dict) else None
+  if isinstance(classification, dict):
+    invoice_type = classification.get("invoiceType")
+
+  return {
+    "selected": final,
+    "reasonCodes": {"single_step": "extractor_verifier"},
+    "issues": [],
+    "invoiceType": invoice_type
+  }
+
+
 def multi_step_inference(provider: Any, inference_payload: dict[str, Any]) -> dict[str, Any]:
   extractor_prompt = build_extractor_prompt(inference_payload, strict=True)
 
@@ -148,10 +173,16 @@ def verify_invoice(request: VerifyInvoiceRequest) -> VerifyInvoiceResponse:
     "bankStatementPrompt": request.hints.get("bankStatementPrompt")
   }
 
+  pipeline = "multi_step" if settings.multi_step_extraction else settings.extraction_pipeline
   try:
-    if settings.multi_step_extraction:
+    if pipeline == "multi_step":
       try:
         slm_payload = multi_step_inference(provider, inference_payload)
+      except NotImplementedError:
+        slm_payload = provider.select_fields(inference_payload)
+    elif pipeline == "single_verify":
+      try:
+        slm_payload = single_step_inference(provider, inference_payload)
       except NotImplementedError:
         slm_payload = provider.select_fields(inference_payload)
     else:
