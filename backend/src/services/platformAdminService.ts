@@ -7,6 +7,7 @@ import { TenantUserRoleModel } from "../models/TenantUserRole.js";
 import { HttpError } from "../errors/HttpError.js";
 import type { InviteEmailSenderBoundary } from "../core/boundaries/InviteEmailSenderBoundary.js";
 import type { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
+import { seedDefaultGlCodes } from "./seedGlCodes.js";
 
 interface TenantUsageOverview {
   tenantId: string;
@@ -100,6 +101,8 @@ export class PlatformAdminService {
       await TenantModel.deleteOne({ _id: tenant._id });
       throw new HttpError("Failed to register user in identity provider.", 502, "platform_kc_create_failed");
     }
+
+    await seedDefaultGlCodes(String(tenant._id));
 
     return {
       tenantId: String(tenant._id),

@@ -1,12 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { GlCode } from "../../types";
 import { fetchGlCodes as fetchGlCodesApi, createGlCode, deleteGlCode } from "../../api";
+import { importGlCodesCsv } from "../../api/admin";
+import type { GlCodeImportResult } from "../../api/admin";
 
 const GL_CATEGORIES = [
   "Office Expenses", "Professional Services", "Rent", "Utilities", "Travel",
   "Contractor Services", "Raw Materials", "Commission", "Insurance",
   "Repairs & Maintenance", "Other"
 ];
+
+const CSV_TEMPLATE = "code,name,category,tdsSection,costCenter\n4001,Office Rent,Rent,194I,CC-ADMIN\n4002,Legal & Professional Fees,Professional Services,194J,CC-LEGAL\n";
 
 export function GlCodeManager() {
   const [glCodes, setGlCodes] = useState<GlCode[]>([]);
@@ -18,6 +22,10 @@ export function GlCodeManager() {
   const [newCategory, setNewCategory] = useState("Other");
   const [newLinkedTds, setNewLinkedTds] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<GlCodeImportResult | null>(null);
+  const [showImportErrors, setShowImportErrors] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadGlCodes = useCallback(async () => {
     setLoading(true);
@@ -64,6 +72,48 @@ export function GlCodeManager() {
     }
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setImportResult(null);
+    setShowImportErrors(false);
+    setImporting(true);
+
+    try {
+      const result = await importGlCodesCsv(file);
+      setImportResult(result);
+      if (result.imported > 0) {
+        await loadGlCodes();
+      }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? (err as { message?: string })?.message
+        ?? "CSV import failed.";
+      setError(msg);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "gl-codes-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
@@ -80,9 +130,64 @@ export function GlCodeManager() {
         >
           {showAdd ? "Cancel" : "Add"}
         </button>
+        <button
+          onClick={handleImportClick}
+          disabled={importing}
+          style={{ padding: "0.4rem 0.75rem", fontSize: "0.85rem", cursor: importing ? "wait" : "pointer", opacity: importing ? 0.6 : 1 }}
+        >
+          {importing ? "Importing..." : "Import CSV"}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+        <button
+          onClick={handleDownloadTemplate}
+          style={{ padding: "0.4rem 0.75rem", fontSize: "0.85rem", cursor: "pointer", background: "none", border: "1px solid var(--border-color, #ccc)", borderRadius: "0.25rem", color: "var(--text-secondary, #666)" }}
+        >
+          Download Template
+        </button>
       </div>
 
       {error && <div style={{ color: "var(--color-error, #ef4444)", fontSize: "0.85rem", marginBottom: "0.5rem" }}>{error}</div>}
+
+      {importResult && (
+        <div style={{
+          fontSize: "0.85rem",
+          marginBottom: "0.75rem",
+          padding: "0.5rem 0.75rem",
+          borderRadius: "0.25rem",
+          background: importResult.errors.length > 0 ? "var(--color-warning-bg, #fef3c7)" : "var(--color-success-bg, #d1fae5)",
+          border: `1px solid ${importResult.errors.length > 0 ? "var(--color-warning-border, #f59e0b)" : "var(--color-success-border, #10b981)"}`
+        }}>
+          <div style={{ fontWeight: 500 }}>
+            Import complete: {importResult.imported} imported, {importResult.skipped} skipped
+            {importResult.errors.length > 0 && `, ${importResult.errors.length} error${importResult.errors.length === 1 ? "" : "s"}`}.
+          </div>
+          {importResult.errors.length > 0 && (
+            <div style={{ marginTop: "0.35rem" }}>
+              <button
+                onClick={() => setShowImportErrors(!showImportErrors)}
+                style={{ fontSize: "0.8rem", cursor: "pointer", background: "none", border: "none", padding: 0, textDecoration: "underline", color: "var(--text-primary, #333)" }}
+              >
+                {showImportErrors ? "Hide errors" : "Show errors"}
+              </button>
+              {showImportErrors && (
+                <ul style={{ margin: "0.35rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
+                  {importResult.errors.map((e: { row: number; message: string }, i: number) => (
+                    <li key={i} style={{ fontSize: "0.8rem", color: "var(--color-error, #ef4444)" }}>
+                      Row {e.row}: {e.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {showAdd && (
         <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
@@ -117,7 +222,7 @@ export function GlCodeManager() {
                 <td style={{ padding: "0.35rem 0.25rem", fontFamily: "monospace" }}>{gl.code}</td>
                 <td style={{ padding: "0.35rem 0.25rem" }}>{gl.name}</td>
                 <td style={{ padding: "0.35rem 0.25rem" }}>{gl.category}</td>
-                <td style={{ padding: "0.35rem 0.25rem" }}>{gl.linkedTdsSection ?? "—"}</td>
+                <td style={{ padding: "0.35rem 0.25rem" }}>{gl.linkedTdsSection ?? "\u2014"}</td>
                 <td style={{ padding: "0.35rem 0.25rem", textAlign: "center" }}>
                   {gl.isActive && (
                     <button
