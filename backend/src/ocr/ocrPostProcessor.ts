@@ -254,7 +254,7 @@ export function buildLines(mergedBlocks: MergedBlock[]): OcrLine[] {
       let text = group[0].text;
       for (let i = 1; i < group.length; i++) {
         const gap = group[i].bboxNormalized[0] - group[i - 1].bboxNormalized[2];
-        text += gap > 0.04 ? ` | ${group[i].text}` : ` ${group[i].text}`;
+        text += gap > 0.02 ? ` | ${group[i].text}` : ` ${group[i].text}`;
       }
       const blockIndices = group.flatMap((b) => b.blockIndices).sort((a, b) => a - b);
       const bboxNormalized: [number, number, number, number] = [

@@ -108,6 +108,26 @@ describe("buildLines", () => {
     expect(result[0].text).toContain(" | ");
   });
 
+  it("buildLines: pipe separator for gap > 0.02 (narrow column gap)", () => {
+    const blocks = [
+      { text: "Address text", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.35, 0.14] as [number, number, number, number] },
+      { text: "RS-25-26-1148", page: 1, blockIndices: [1], bboxNormalized: [0.38, 0.10, 0.58, 0.14] as [number, number, number, number] }
+    ];
+    const result = buildLines(blocks);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe("Address text | RS-25-26-1148");
+  });
+
+  it("buildLines: no pipe separator for gap <= 0.02 (same word)", () => {
+    const blocks = [
+      { text: "hello", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.20, 0.14] as [number, number, number, number] },
+      { text: "world", page: 1, blockIndices: [1], bboxNormalized: [0.21, 0.10, 0.40, 0.14] as [number, number, number, number] }
+    ];
+    const result = buildLines(blocks);
+    expect(result).toHaveLength(1);
+    expect(result[0].text).toBe("hello world");
+  });
+
   it("buildLines: adaptive tolerance groups slightly offset rows", () => {
     const blocks = [
       { text: "Left", page: 1, blockIndices: [0], bboxNormalized: [0.0, 0.10, 0.2, 0.14] as [number, number, number, number] },
