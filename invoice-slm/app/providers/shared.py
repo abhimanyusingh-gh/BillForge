@@ -55,9 +55,11 @@ def sanitize_payload_for_prompt(payload: dict[str, Any]) -> dict[str, Any]:
         }
       )
 
+  ocr_text = payload.get("ocrText") if isinstance(payload.get("ocrText"), str) else ""
+
   compact: dict[str, Any] = {
     "parsed": payload.get("parsed") if isinstance(payload.get("parsed"), dict) else {},
-    "ocrText": payload.get("ocrText") if isinstance(payload.get("ocrText"), str) else "",
+    "ocrText": ocr_text,
     "ocrBlocks": compact_blocks,
     "mode": payload.get("mode"),
   }
@@ -71,9 +73,7 @@ def sanitize_payload_for_prompt(payload: dict[str, Any]) -> dict[str, Any]:
     "fieldCandidates": pick("fieldCandidates", expected_type=dict, default={}),
     "priorCorrections": pick("priorCorrections", expected_type=list, default=[]),
     "glCategories": pick("glCategories", expected_type=list, default=[]),
-    "mergedBlocks": pick("mergedBlocks", expected_type=list, default=[]),
-    "structuredLines": pick("structuredLines", expected_type=list, default=[]),
-    "structuredTables": pick("structuredTables", expected_type=list, default=[]),
+    "ocrLayout": ocr_text,
     "normalizedAmounts": pick("normalizedAmounts", expected_type=list, default=[]),
     "normalizedDates": pick("normalizedDates", expected_type=list, default=[]),
     "normalizedCurrencies": pick("normalizedCurrencies", expected_type=list, default=[])
@@ -296,102 +296,39 @@ def build_extractor_prompt(payload: dict[str, Any], strict: bool) -> str:
   gl_categories = _build_gl_categories_str(payload)
 
   instruction = (
-    "You are a deterministic OCR post-processing system for invoice extraction.\n"
+    "Extract structured invoice data from INPUT_JSON. Output JSON only. No reasoning, no markdown.\n"
+    "Include a field ONLY if clearly present in OCR with correct label. Omit uncertain fields.\n"
+    f"glCategory ∈ {{{gl_categories}}} | invoiceType ∈ {{purchase,service,expense,rent}}\n"
     "\n"
-    "## BEHAVIOR\n"
-    "- Think step-by-step internally (DO NOT output reasoning)\n"
-    "- Extract strictly from OCR evidence\n"
-    "- Output JSON only\n"
+    "SCHEMA: {\"file\":\"\",\"lineItemCount\":0,"
+    "\"invoiceNumber\":{\"value\":\"\",\"provenance\":{}},"
+    "\"vendorNameContains\":{\"value\":\"\",\"provenance\":{}},"
+    "\"invoiceDate\":{\"value\":\"YYYY-MM-DD\",\"provenance\":{}},"
+    "\"dueDate\":{\"value\":\"YYYY-MM-DD\",\"provenance\":{}},"
+    "\"currency\":{\"value\":\"\",\"provenance\":{}},"
+    "\"totalAmountMinor\":{\"value\":0,\"provenance\":{}},"
+    "\"lineItems\":[{\"description\":\"\",\"amountMinor\":0,\"provenance\":{}}],"
+    "\"gst\":{\"cgstMinor\":{\"value\":0,\"provenance\":{}},"
+    "\"sgstMinor\":{\"value\":0,\"provenance\":{}},"
+    "\"subtotalMinor\":{\"value\":0,\"provenance\":{}},"
+    "\"totalTaxMinor\":{\"value\":0,\"provenance\":{}}},"
+    "\"classification\":{\"glCategory\":\"\",\"invoiceType\":\"\"}}\n"
     "\n"
-    "## SAMPLING MODE\n"
-    "This is one of multiple independent runs.\n"
-    "- Do NOT try to match other outputs\n"
-    "- Make independent decisions\n"
-    "- If uncertain → omit OR include ONLY if strong evidence exists\n"
+    "LAYOUT: ocrText is layout-aware — each line = one visual row; ' | ' = column separator on same row.\n"
+    "Example: 'Invoice No. | RS-25-26-1148 | Dated | 26-Feb-26' → invoiceNumber=RS-25-26-1148, invoiceDate=26-Feb-26\n"
     "\n"
-    "## TASK\n"
-    "Extract structured invoice data strictly from OCR evidence.\n"
+    "PROVENANCE: use value blocks only (not label blocks).\n"
+    "Single: {\"page\":int,\"blockIndex\":int,\"bboxNormalized\":[...]}\n"
     "\n"
-    "## OUTPUT SCHEMA\n"
-    "{\n"
-    '  "file": "<filename>",\n'
-    '  "lineItemCount": <int>,\n'
-    '  "invoiceNumber": { "value": "<string>", "provenance": {...} },\n'
-    '  "vendorNameContains": { "value": "<string>", "provenance": {...} },\n'
-    '  "invoiceDate": { "value": "YYYY-MM-DD", "provenance": {...} },\n'
-    '  "dueDate": { "value": "YYYY-MM-DD", "provenance": {...} },\n'
-    '  "currency": { "value": "<ISO>", "provenance": {...} },\n'
-    '  "totalAmountMinor": { "value": <int>, "provenance": {...} },\n'
-    '  "lineItems": [{ "description": "<string>", "amountMinor": <int>, "provenance": {...} }],\n'
-    '  "gst": {\n'
-    '    "cgstMinor": { "value": <int>, "provenance": {...} },\n'
-    '    "sgstMinor": { "value": <int>, "provenance": {...} },\n'
-    '    "subtotalMinor": { "value": <int>, "provenance": {...} },\n'
-    '    "totalTaxMinor": { "value": <int>, "provenance": {...} }\n'
-    "  },\n"
-    '  "classification": { "glCategory": "<string>", "invoiceType": "<string>" }\n'
-    "}\n"
-    "\n"
-    "## HARD RULES\n"
-    "- JSON only. No nulls. Omit uncertain fields. Every value must have provenance.\n"
-    "- Never guess or infer. No empty arrays or objects.\n"
-    f"- glCategory ∈ {{{gl_categories}}}\n"
-    "- invoiceType ∈ {purchase, service, expense, rent}\n"
-    "\n"
-    "## DECISION RULE\n"
-    "Include a field ONLY if: clearly present in OCR, correctly labeled OR structurally obvious, no conflicting values. Else omit.\n"
-    "\n"
-    "## NORMALIZATION\n"
-    "- Dates → YYYY-MM-DD. Amounts → integer minor units. Currency → ISO (₹→INR, $→USD). Default currency → INR if missing.\n"
-    "- INR amounts: OCR may render ₹ as $. If currency is INR and an amount has a $ prefix, treat it as ₹.\n"
-    "- INR paise: ALL rupee amounts (including Indian lakh-format like 12,63,318 or 9,55,900) must be multiplied by 100. Never output a rupee value as the minor-unit integer directly.\n"
-    "\n"
-    "## PROVENANCE\n"
-    "Use ONLY value blocks (not labels).\n"
-    '- Single: { "page": int, "blockIndex": int, "bboxNormalized": [...] }\n'
-    '- Multi (only if required): { "blockIndices": [...], "bboxNormalized": merged }\n'
-    "\n"
-    "## FIELD RULES\n"
-    "### invoiceNumber\n"
-    "- Must be issuer-assigned invoice/bill number\n"
-    "- Reject: IRN (64 hex), Ack No (≥15 digits), PO / Ref / Order numbers\n"
-    "- Reject: any date-format string (DD-Mon-YY, DD/MM/YYYY, YYYY-MM-DD, etc.) — invoice numbers are alphanumeric with hyphens/slashes, never pure dates\n"
-    "- Reject: values from Ack Date, Printed Date, Dated, or similar timestamp fields\n"
-    "- For proforma: extract proforma invoice number\n"
-    "\n"
-    "### vendorNameContains\n"
-    "- Must be seller (top/header)\n"
-    "- Never extract from buyer sections (Bill To / Ship To / Billed To / To:)\n"
-    "\n"
-    "### invoiceDate\n"
-    "- Accept: Invoice Date / Bill Date / Date\n"
-    "- Reject: Ack Date / IRN Date\n"
-    "\n"
-    "### dueDate — must be explicitly labeled (no derivation)\n"
-    "\n"
-    "### totalAmountMinor (priority order)\n"
-    "1. Total / Grand Total / Amount Payable\n"
-    "2. Final payable / Balance Due\n"
-    "3. Verify against 'Total in Words' or 'Amount in Words' text — convert words to number to confirm\n"
-    "4. Compute ONLY if subtotal + all taxes exist AND no conflict\n"
-    "Reject: Paid amount, individual CGST/SGST/IGST amounts, subtotal\n"
-    "SANITY CHECK: totalAmountMinor must be GREATER than cgstMinor + sgstMinor (or igstMinor). If the candidate is less than or equal to any single tax component, reject it — it is a tax line, not the total.\n"
-    "\n"
-    "## GST RULES\n"
-    "Include ONLY if explicit. cgstMinor and sgstMinor must be explicit. subtotalMinor must be pre-tax. totalTaxMinor: explicit OR cgst+sgst (ONLY if both exist).\n"
-    "If IGST is shown as 'NA', blank, or '0', do NOT extract igstMinor.\n"
-    "\n"
-    "## LINE ITEMS\n"
-    "Include ONLY if confident. One row = one item. Use final amount column only (Amount/Line Total/Net). Each item must have amountMinor + provenance. lineItemCount = number of items. If none → lineItemCount = 0.\n"
-    "\n"
-    "## OCR POLICY\n"
-    "Minor formatting noise allowed. No digit guessing. No conflict resolution.\n"
-    "\n"
-    "## EXTRACTION ORDER\n"
-    "1. Header  2. Totals  3. GST  4. Line items\n"
-    "\n"
-    "## FINAL CHECK\n"
-    "Ensure valid JSON. Ensure schema compliance. If unsure → omit.\n"
+    "FIELD RULES:\n"
+    "invoiceNumber: DATES ARE NEVER INVOICE NUMBERS. Reject DD-Mon-YY (e.g. 26-Feb-26), DD/MM/YYYY, YYYY-MM-DD even near 'Invoice No.'. Reject IRN/Ack No/PO/Ref. Invoice numbers contain letters+digits: RS-25-26-1148, INV-001.\n"
+    "vendorName: seller at top/header only — never Bill To / Ship To / buyer sections.\n"
+    "invoiceDate: labeled Invoice Date / Bill Date / Date only. Reject Ack Date / IRN Date.\n"
+    "dueDate: explicitly labeled only.\n"
+    "totalAmountMinor: prefer Total/Grand Total/Amount Payable > Balance Due. Reject subtotal, individual tax lines. MUST be > cgst+sgst (or igst) — if ≤ any single tax it is a tax line, not the total. Verify against Amount in Words.\n"
+    "GST: include only if explicit. IGST=NA/0/blank → omit igstMinor.\n"
+    "lineItems: one row per item, final amount column only. Each needs amountMinor + provenance.\n"
+    "INR: multiply all rupee amounts × 100 for paise. Lakh format 12,63,318 = 1263318 rupees = 126331800 paise. OCR may render ₹ as $.\n"
     "\n"
     + (prior_corrections_text if prior_corrections_text else "")
   )
@@ -409,43 +346,11 @@ def build_comparator_prompt(
   strict: bool
 ) -> str:
   instruction = (
-    "You are a strict consensus engine for invoice extraction.\n"
-    "\n"
-    "## INPUT\n"
-    "- OCR data (rawText, blocks)\n"
-    "- Extraction A (JSON)\n"
-    "- Extraction B (JSON)\n"
-    "\n"
-    "## TASK\n"
-    "Produce a merged JSON using strict agreement rules.\n"
-    "\n"
-    "## CORE RULE\n"
-    "Keep a field ONLY if both extractions agree. If disagreement → omit field.\n"
-    "\n"
-    "## RULES\n"
-    "- No guessing. No inference. Prefer omission over incorrect data. JSON only. No nulls. No empty objects/arrays.\n"
-    "\n"
-    "## FIELD RULES\n"
-    "### invoiceNumber — must match OR strong substring match. Else omit.\n"
-    "### vendorNameContains — must refer to same seller. Else omit.\n"
-    "### Dates — must match exactly. Else omit.\n"
-    "### currency — must match. Else omit.\n"
-    "### totalAmountMinor (STRICT) — must match exactly. Else omit.\n"
-    "\n"
-    "## LINE ITEMS\n"
-    "Match rows by description similarity. Keep item ONLY if present in both outputs AND amount matches. If uncertain → omit entire lineItems.\n"
-    "\n"
-    "## GST\n"
-    "Keep ONLY if both outputs agree fully. Else omit entire gst block.\n"
-    "\n"
-    "## PROVENANCE\n"
-    "Use provenance from either matching field. Merge bbox if needed.\n"
-    "\n"
-    "## OUTPUT RULES\n"
-    "lineItemCount must match items. Omit missing sections entirely.\n"
-    "\n"
-    "## OUTPUT\n"
-    "Return merged JSON only.\n"
+    "Merge two invoice extractions using strict agreement. Keep a field ONLY if both agree. Output JSON only.\n"
+    "No guessing. No nulls. No empty arrays. Prefer omission over conflict.\n"
+    "invoiceNumber: match or strong substring. vendorName: same seller. Dates/currency: exact match. totalAmountMinor: exact match.\n"
+    "lineItems: match by description+amount — omit entire section if uncertain. GST: both must agree fully — else omit block.\n"
+    "lineItemCount must match items. Use provenance from either matching field.\n"
   )
 
   prompt_payload = sanitize_payload_for_prompt(payload)
@@ -464,38 +369,19 @@ def build_verifier_prompt(
   strict: bool
 ) -> str:
   instruction = (
-    "You are a strict invoice extraction verifier.\n"
+    "Validate and clean this invoice extraction against OCR evidence. Output final JSON only. Remove any invalid field.\n"
+    "For each field: confirm OCR presence, correct label, no conflicts, valid provenance (value block only). Fail any check → remove field.\n"
     "\n"
-    "## BEHAVIOR\n"
-    "- Think internally (hidden). Do NOT trust input blindly. Remove any invalid or weak data. Output FINAL JSON only.\n"
+    "LAYOUT: ocrText is layout-aware — each line = one visual row; ' | ' = column separator.\n"
     "\n"
-    "## INPUT\n"
-    "- OCR data (rawText, blocks)\n"
-    "- Merged JSON\n"
-    "\n"
-    "## TASK\n"
-    "Validate and CLEAN the JSON.\n"
-    "\n"
-    "## HARD RULES\n"
-    "No guessing. No inference. No nulls. Omit invalid fields. Prefer omission over incorrect data. No empty objects/arrays.\n"
-    "\n"
-    "## VALIDATION PROCESS\n"
-    "For EACH field: 1. Confirm presence in OCR. 2. Confirm correct label or structure. 3. Check for conflicts. 4. Validate normalization. 5. Validate provenance (value block only). If ANY fails → REMOVE field.\n"
-    "\n"
-    "## FIELD VALIDATION\n"
-    "### invoiceNumber — Reject if: IRN / Ack / PO / Ref, weak labeling, multiple conflicts\n"
-    "### vendorNameContains — Reject if from buyer section\n"
-    "### invoiceDate / dueDate — Reject if not explicitly labeled\n"
-    "### totalAmountMinor — Accept ONLY if clearly labeled total OR fully consistent. Reject: paid / balance / conflicts.\n"
-    "### GST — Must be explicit and consistent. Else remove entire block.\n"
-    "### LINE ITEMS — Must be clear table structure. Each item must have: description, amountMinor, valid provenance. Else remove entire section.\n"
-    "### PROVENANCE — Must reference value blocks. bbox must align with value.\n"
-    "\n"
-    "## FINAL RULES\n"
-    "lineItemCount must match items. Ensure valid JSON. Ensure schema compliance.\n"
-    "\n"
-    "## OUTPUT\n"
-    "Return final JSON only.\n"
+    "VALIDATION RULES:\n"
+    "invoiceNumber: DATES ARE NEVER INVOICE NUMBERS. Reject if matches DD-Mon-YY/DD/MM/YYYY/YYYY-MM-DD, or is IRN/Ack/PO/Ref.\n"
+    "vendorName: reject if from Bill To / Ship To / buyer section.\n"
+    "invoiceDate/dueDate: reject if not explicitly labeled.\n"
+    "totalAmountMinor: must be clearly labeled total, > cgst+sgst. Reject if paid/subtotal/tax line.\n"
+    "GST: must be explicit and consistent — else remove entire gst block.\n"
+    "lineItems: clear table rows only, each needs description+amountMinor+provenance — else remove entire section.\n"
+    "lineItemCount must match items. No nulls, no empty arrays.\n"
   )
 
   prompt_payload = sanitize_payload_for_prompt(payload)

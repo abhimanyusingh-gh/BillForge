@@ -178,44 +178,22 @@ def build_prompt(tokenizer: Any, payload: dict[str, Any], strict: bool) -> str:
     if parts:
       prior_corrections_text = " PRIOR_CORRECTIONS: " + "; ".join(parts) + "."
 
+  gl_list = ", ".join(
+    [c for c in hints.get("glCategories", []) if isinstance(c, str) and c.strip()] or _DEFAULT_GL_CATEGORIES_MLX
+  )
   instruction = (
-    "Extract invoice data from INPUT_JSON.\n"
-    "Return one JSON object only.\n"
-    "No preamble. No markdown. No explanation. No <think>.\n"
-    "Use only values present in INPUT_JSON. Use null or [] when missing.\n"
-    "Rules:\n"
-    "- Dates: YYYY-MM-DD; invoiceDate must be labeled Invoice Date, Bill Date, or Date; never use Ack Date, Acknowledgment Date, or IRN Date\n"
-    "- Currency: ISO code from explicit symbols/codes in value blocks\n"
-    "- Do not switch USD invoices to INR only because GST identifiers appear in addresses or tax ids\n"
-    "- Amounts like 300/- or 300/= mean 30000 minor units\n"
-    "- All *Minor fields must be integers in minor units (paise for INR): multiply rupee amount by 100\n"
-    "- blockIndex must point to INPUT_JSON.ocrBlocks[index] that contains the value\n"
-    "- vendorName is the issuing seller whose name appears at the top of the invoice; never use the Bill To, Ship To, Billed To, or To: section which contains the buyer\n"
-    "- invoiceNumber is the human-readable invoice or bill number assigned by the issuer; reject IRN (64-character hex), Ack No (15+ digit number), PO numbers, Ref numbers, and Order numbers; reject any date-format string (DD-Mon-YY, DD/MM/YYYY, YYYY-MM-DD) — invoice numbers are alphanumeric with hyphens/slashes, never pure dates; for proforma invoices extract the proforma invoice number\n"
-    "- Prefer grand total / total / amount payable rows for totalAmountMinor; reject subtotal, taxable value, and individual tax amounts; totalAmountMinor MUST be greater than cgstMinor + sgstMinor — if the candidate is ≤ any single tax component it is a tax line, not the total\n"
-    "- OCR may render ₹ as $; treat $ as ₹ when currency is INR\n"
-    "- Indian lakh-format amounts like 12,63,318 or 9,55,900 are rupees — multiply by 100 to get paise; never output the rupee value directly as a minor-unit integer\n"
-    "- If IGST is shown as NA, blank, or 0, do not extract igstMinor\n"
-    "- Prefer tax summary rows for gst totals, not per-line tax sums\n"
-    "Extract:\n"
-    "- invoiceNumber, vendorName, currency, totalAmountMinor, invoiceDate, dueDate\n"
-    "- gst.gstin, gst.subtotalMinor, gst.cgstMinor, gst.sgstMinor, gst.igstMinor, gst.cessMinor, gst.totalTaxMinor\n"
-    "- lineItems with description, hsnSac, quantity, rate, amountMinor, taxRate, cgstMinor, sgstMinor, igstMinor\n"
-    "- _fieldConfidence, _fieldProvenance, _lineItemProvenance, _classification\n"
-    "- _classification.glCategory must be one of: " + ", ".join(
-      [c for c in hints.get("glCategories", []) if isinstance(c, str) and c.strip()] or _DEFAULT_GL_CATEGORIES_MLX
-    ) + "\n"
-    "Schema:\n"
-    '{"selected":{"invoiceNumber":{"value":"","blockIndex":null},"vendorName":{"value":"","blockIndex":null},'
-    '"currency":{"value":"","blockIndex":null},"totalAmountMinor":{"value":null,"blockIndex":null},'
-    '"invoiceDate":{"value":null,"blockIndex":null},"dueDate":{"value":null,"blockIndex":null},'
-    '"pan":null,"bankAccountNumber":null,"bankIfsc":null,"udyamNumber":null,'
-    '"gst":{"gstin":null,"subtotalMinor":null,"cgstMinor":null,"sgstMinor":null,"igstMinor":null,"cessMinor":null,"totalTaxMinor":null},'
-    '"lineItems":[],"_fieldConfidence":{},"_fieldProvenance":{},"_lineItemProvenance":[],"_classification":{}},'
-    '"reasonCodes":{},"issues":[],"invoiceType":null}\n'
-    + ("Final check: output must be valid JSON and match schema.\n" if strict else "")
-    + "INPUT_JSON:\n"
-    + prior_corrections_text
+    "Extract invoice data from INPUT_JSON. Return one JSON object only. No preamble, no markdown, no <think>.\n"
+    "ocrText is layout-aware: each line = one visual row; ' | ' = column separator. Use to map labels to values.\n"
+    "RULES:\n"
+    "- invoiceNumber: DATES ARE NEVER INVOICE NUMBERS. Reject DD-Mon-YY (26-Feb-26), DD/MM/YYYY, YYYY-MM-DD even near 'Invoice No.'. Reject IRN/Ack/PO/Ref. Numbers contain letters+digits. Layout 'Invoice No. | X | Dated | Y' → X is invoiceNumber.\n"
+    "- vendorName: top/header seller only. Never Bill To / Ship To / buyer.\n"
+    "- invoiceDate: Invoice Date / Bill Date / Date label only. Reject Ack Date.\n"
+    "- totalAmountMinor: Total/Grand Total/Amount Payable > Balance Due. Reject subtotal/tax lines. MUST be > cgst+sgst.\n"
+    "- INR: all amounts × 100 for paise. Lakh 12,63,318 = 126331800 paise. OCR may render ₹ as $.\n"
+    "- IGST=NA/0/blank → omit igstMinor.\n"
+    f"- glCategory ∈ {{{gl_list}}}\n"
+    + (prior_corrections_text if prior_corrections_text else "")
+    + ("Verify output is valid JSON.\n" if strict else "")
   )
 
   prompt_payload = sanitize_payload_for_prompt(payload)
