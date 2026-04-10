@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 
 ENV_MODES = {"local", "dev", "stg", "prod"}
-SLM_ENGINES = {"local_mlx", "local_codex_cli", "local_claude_cli", "prod_http"}
+SLM_ENGINES = {"local_mlx", "local_codex_cli", "local_claude_cli", "prod_http", "anthropic_api"}
 EXTRACTION_PIPELINES = {"multi_step", "single_verify", "direct"}
 
 

@@ -25,4 +25,9 @@ def create_llm_provider() -> LLMProvider:
 
     return ProdHttpLLMProvider()
 
+  if settings.provider == "anthropic_api":
+    from .anthropic_api import AnthropicApiLLMProvider
+
+    return AnthropicApiLLMProvider()
+
   raise RuntimeError(f"Unsupported SLM_ENGINE='{settings.provider}'.")
