@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { InvoiceModel } from "../models/Invoice.js";
 import { env } from "../config/env.js";
-import type { GstBreakdown, ParsedInvoiceData, ComplianceRiskSignal } from "../types/invoice.js";
+import type { GstBreakdown, InvoiceLineItem, ParsedInvoiceData, ComplianceRiskSignal } from "../types/invoice.js";
 import { assessInvoiceConfidence } from "./confidenceAssessment.js";
 import { toMinorUnits } from "../utils/currency.js";
 import type { AuthenticatedRequestContext } from "../types/auth.js";
@@ -46,6 +46,7 @@ export type UpdateParsedFieldInput = Partial<{
   totalAmountMinor: number | null;
   totalAmountMajor: number | string | null;
   notes: string[] | null;
+  gst: Partial<GstBreakdown> | null;
 }>;
 
 export class InvoiceUpdateError extends Error {
@@ -60,7 +61,7 @@ export class InvoiceUpdateError extends Error {
 
 const EDITABLE_PARSED_FIELDS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
-  "currency", "totalAmountMinor", "totalAmountMajor", "notes"
+  "currency", "totalAmountMinor", "totalAmountMajor", "notes", "gst"
 ] as const;
 
 const STRING_FIELDS = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate"] as const;
@@ -330,6 +331,15 @@ export class InvoiceService {
       if (notesVal === null || notesVal.length === 0) delete nextParsed.notes; else nextParsed.notes = notesVal;
     }
 
+    if (Object.prototype.hasOwnProperty.call(input, "gst")) {
+      const gstInput = input.gst;
+      if (gstInput === null) {
+        delete nextParsed.gst;
+      } else if (isPlainObject(gstInput)) {
+        nextParsed.gst = { ...(nextParsed.gst ?? {}), ...gstInput } as GstBreakdown;
+      }
+    }
+
     invoice.set("parsed", nextParsed);
 
     if (this.learningStore) {
@@ -405,6 +415,7 @@ export class InvoiceService {
       `Manual parsed field update: ${new Date().toISOString()} by ${updatedBy}.`
     ]);
 
+    invoice.markModified("parsed");
     await invoice.save();
     return sanitizeForApi(invoice.toObject());
   }
@@ -554,7 +565,11 @@ function sanitizeParsedData(parsed: unknown): ParsedInvoiceData {
     totalAmountMinor: typeof s.totalAmountMinor === "number" && Number.isInteger(s.totalAmountMinor) ? s.totalAmountMinor : undefined,
     currency: typeof s.currency === "string" && s.currency.trim().toUpperCase().length > 0 ? s.currency.trim().toUpperCase() : undefined,
     notes: notes && notes.length > 0 ? notes : undefined,
-    gst: isPlainObject(s.gst) ? (s.gst as GstBreakdown) : undefined
+    gst: isPlainObject(s.gst) ? (s.gst as GstBreakdown) : undefined,
+    pan: str(s.pan),
+    bankAccountNumber: str(s.bankAccountNumber),
+    bankIfsc: str(s.bankIfsc),
+    lineItems: Array.isArray(s.lineItems) ? (s.lineItems as InvoiceLineItem[]) : undefined
   };
 }
 
