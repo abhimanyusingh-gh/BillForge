@@ -1,6 +1,6 @@
 import type { BBox, ParsingGetResponse } from "@llamaindex/llama-cloud/resources/parsing";
 import LlamaCloud from "@llamaindex/llama-cloud";
-import type { OcrBlock, OcrExtractionOptions, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
 import { logger } from "../utils/logger.js";
 import { buildOcrRequestError } from "./OcrProviderSupport.js";
 
@@ -47,12 +47,14 @@ export class LlamaParseOcrProvider implements OcrProvider {
         file_id: fileObj.id,
         tier: this.tier,
         version: "latest",
-        expand: ["markdown_full", "items"],
+        expand: ["markdown_full", "items", "images_content_metadata"],
+        output_options: { images_to_save: ["screenshot"] },
       });
       const text = result.markdown_full ?? "";
       const blocks = buildBlocks(result.items);
-      logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length });
-      return { text, provider: this.name, blocks };
+      const pageImages = await downloadScreenshots(result.images_content_metadata);
+      logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
+      return { text, provider: this.name, blocks, pageImages };
     } catch (error) {
       logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
       throw new Error(buildOcrRequestError(this.name, error));
@@ -109,4 +111,36 @@ function pickText(item: AnyItem): string {
   }
   const v = (item as { value?: string }).value;
   return v ?? "";
+}
+
+async function downloadScreenshots(
+  meta: ParsingGetResponse["images_content_metadata"] | null | undefined
+): Promise<OcrPageImage[]> {
+  const screenshots = (meta?.images ?? []).filter(
+    (img) => img.category === "screenshot" && img.presigned_url
+  );
+  if (screenshots.length === 0) {
+    return [];
+  }
+
+  const results: OcrPageImage[] = [];
+  await Promise.all(
+    screenshots.map(async (img) => {
+      try {
+        const response = await fetch(img.presigned_url!);
+        if (!response.ok) return;
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const mimeType = img.content_type ?? "image/png";
+        results.push({
+          page: img.index + 1,
+          mimeType,
+          dataUrl: `data:${mimeType};base64,${buffer.toString("base64")}`,
+        });
+      } catch {
+        // best-effort: skip failed screenshots
+      }
+    })
+  );
+  results.sort((a, b) => a.page - b.page);
+  return results;
 }
