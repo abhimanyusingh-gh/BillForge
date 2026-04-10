@@ -11,6 +11,7 @@ interface UpdateInvoiceParsedPayload {
     totalAmountMajor: string | number | null;
     totalAmountMinor: number | null;
     notes: string[] | null;
+    gst: Record<string, number | string | null>;
   }>;
   updatedBy?: string;
 }

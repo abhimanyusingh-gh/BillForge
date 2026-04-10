@@ -19,7 +19,7 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
   function startEditing(row: ExtractedFieldRow) {
     if (!editable || row.fieldKey === "notes") return;
     setEditingField(row.fieldKey);
-    setEditValue(row.rawValue ?? row.value === "-" ? "" : row.rawValue ?? row.value);
+    setEditValue(row.rawValue != null ? row.rawValue : row.value === "-" ? "" : row.value);
   }
 
   async function confirmEdit() {
@@ -66,6 +66,7 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
                     <div className="extracted-value-cell">
                       <input
                         className="extracted-value-input"
+                        type={row.fieldKey === "invoiceDate" || row.fieldKey === "dueDate" ? "date" : "text"}
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -89,16 +90,14 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
                     </div>
                   ) : (
                     <div className="table-cell-scroll">
-                      <span
-                        className="extracted-value-display"
-                        data-editable={canEdit || undefined}
-                        onClick={canEdit ? () => startEditing(row) : undefined}
-                        role={canEdit ? "button" : undefined}
-                        tabIndex={canEdit ? 0 : undefined}
-                        onKeyDown={canEdit ? (e) => { if (e.key === "Enter") startEditing(row); } : undefined}
-                      >
+                      <span className="extracted-value-display">
                         {row.value}
                       </span>
+                      {canEdit && (
+                        <button type="button" className="row-action-button field-edit-button" title={`Edit ${row.label}`} onClick={() => startEditing(row)}>
+                          <span className="material-symbols-outlined">edit</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </td>

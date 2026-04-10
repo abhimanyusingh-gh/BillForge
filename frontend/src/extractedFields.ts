@@ -49,25 +49,25 @@ function getGstRows(invoice: Invoice): ExtractedFieldRow[] {
   const cur = invoice.parsed?.currency;
   const rows: ExtractedFieldRow[] = [];
   if (gst.gstin) {
-    rows.push({ fieldKey: "gst.gstin", label: "GSTIN", value: gst.gstin });
+    rows.push({ fieldKey: "gst.gstin", label: "GSTIN", value: gst.gstin, rawValue: gst.gstin });
   }
   if (gst.subtotalMinor) {
-    rows.push({ fieldKey: "gst.subtotalMinor", label: "Subtotal", value: formatMinorAmountWithCurrency(gst.subtotalMinor, cur) });
+    rows.push({ fieldKey: "gst.subtotalMinor", label: "Subtotal", value: formatMinorAmountWithCurrency(gst.subtotalMinor, cur), rawValue: minorUnitsToMajorString(gst.subtotalMinor, cur) });
   }
   if (gst.cgstMinor) {
-    rows.push({ fieldKey: "gst.cgstMinor", label: "CGST", value: formatMinorAmountWithCurrency(gst.cgstMinor, cur) });
+    rows.push({ fieldKey: "gst.cgstMinor", label: "CGST", value: formatMinorAmountWithCurrency(gst.cgstMinor, cur), rawValue: minorUnitsToMajorString(gst.cgstMinor, cur) });
   }
   if (gst.sgstMinor) {
-    rows.push({ fieldKey: "gst.sgstMinor", label: "SGST", value: formatMinorAmountWithCurrency(gst.sgstMinor, cur) });
+    rows.push({ fieldKey: "gst.sgstMinor", label: "SGST", value: formatMinorAmountWithCurrency(gst.sgstMinor, cur), rawValue: minorUnitsToMajorString(gst.sgstMinor, cur) });
   }
   if (gst.igstMinor) {
-    rows.push({ fieldKey: "gst.igstMinor", label: "IGST", value: formatMinorAmountWithCurrency(gst.igstMinor, cur) });
+    rows.push({ fieldKey: "gst.igstMinor", label: "IGST", value: formatMinorAmountWithCurrency(gst.igstMinor, cur), rawValue: minorUnitsToMajorString(gst.igstMinor, cur) });
   }
   if (gst.cessMinor) {
-    rows.push({ fieldKey: "gst.cessMinor", label: "Cess", value: formatMinorAmountWithCurrency(gst.cessMinor, cur) });
+    rows.push({ fieldKey: "gst.cessMinor", label: "Cess", value: formatMinorAmountWithCurrency(gst.cessMinor, cur), rawValue: minorUnitsToMajorString(gst.cessMinor, cur) });
   }
   if (gst.totalTaxMinor) {
-    rows.push({ fieldKey: "gst.totalTaxMinor", label: "Total Tax", value: formatMinorAmountWithCurrency(gst.totalTaxMinor, cur) });
+    rows.push({ fieldKey: "gst.totalTaxMinor", label: "Total Tax", value: formatMinorAmountWithCurrency(gst.totalTaxMinor, cur), rawValue: minorUnitsToMajorString(gst.totalTaxMinor, cur) });
   }
   return rows;
 }

@@ -997,16 +997,27 @@ export function TenantInvoicesView({
     }
     if (!invoice) return;
     const trimmed = value.trim();
-    const parsed: Record<string, string | null> = {};
+    const parsed: Record<string, unknown> = {};
     if (fieldKey === "totalAmountMinor") {
       parsed.totalAmountMajor = trimmed || null;
     } else if (fieldKey === "currency") {
       parsed.currency = trimmed ? trimmed.toUpperCase() : null;
+    } else if (fieldKey.startsWith("gst.")) {
+      const gstKey = fieldKey.slice(4);
+      const gstAmountFields = ["subtotalMinor", "cgstMinor", "sgstMinor", "igstMinor", "cessMinor", "totalTaxMinor"];
+      const existingGst = invoice.parsed?.gst ?? {};
+      if (gstAmountFields.includes(gstKey)) {
+        const major = parseFloat((trimmed || "0").replace(/,/g, ""));
+        const minor = Number.isFinite(major) && major > 0 ? Math.round(major * 100) : null;
+        parsed.gst = { ...existingGst, [gstKey]: minor };
+      } else {
+        parsed.gst = { ...existingGst, [gstKey]: trimmed || null };
+      }
     } else {
       parsed[fieldKey] = trimmed || null;
     }
     try {
-      await updateInvoiceParsedFields(invoice._id, { parsed, updatedBy: "ui-user" });
+      await updateInvoiceParsedFields(invoice._id, { parsed: parsed as Parameters<typeof updateInvoiceParsedFields>[1]["parsed"], updatedBy: "ui-user" });
       await loadInvoices();
       await refreshDetail();
     } catch (saveError) {
