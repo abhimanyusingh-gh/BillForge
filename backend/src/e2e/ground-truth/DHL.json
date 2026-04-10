@@ -1,0 +1,32 @@
+{
+  "file": "DHL.pdf",
+  "description": "DHL Express (India) courier invoice for international shipment from Hyderabad to Taiwan",
+  "fields": {
+    "vendor": "DHL Express (India) Pvt. Ltd.",
+    "invoiceNumber": "BOMCR00610223",
+    "invoiceDate": "2025-04-03",
+    "currency": "INR",
+    "total": 608367,
+    "igst": 92801,
+    "igstRate": 18,
+    "taxableAmount": 515566,
+    "vendorGstin": "27AABCD3611Q1ZI",
+    "vendorPan": "AABCD3611Q",
+    "placeOfSupply": "36",
+    "bankAccountNumber": "0606251001",
+    "bankIfsc": "DEUT0784BBY"
+  },
+  "notes": [
+    "Freight charge: INR 5028.00",
+    "Fuel surcharge: INR 1420.41",
+    "Gross subtotal: INR 6448.41",
+    "Discount: INR -1292.75",
+    "Net taxable: INR 5155.66",
+    "IGST 18%: INR 928.01",
+    "Total payable: INR 6083.67",
+    "Buyer: DREAMVU INDIA PVT. LTD, Hyderabad 500032",
+    "Shipment HAWB: 6989854163, destination Taiwan",
+    "Payment due: 0 days (immediate)",
+    "Bank: Deutsche Bank, A/C 0606251001, IFSC DEUT0784BBY"
+  ]
+}
