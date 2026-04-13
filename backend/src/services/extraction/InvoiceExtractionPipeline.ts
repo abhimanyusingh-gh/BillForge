@@ -1,5 +1,5 @@
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
-import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../../core/interfaces/OcrProvider.js";
+import type { ExtractedField, OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../../core/interfaces/OcrProvider.js";
 import { postProcessOcrResult, type EnhancedOcrResult } from "../../ocr/ocrPostProcessor.js";
 import { parseInvoiceText } from "../../parser/invoiceParser.js";
 import type {
@@ -78,6 +78,7 @@ interface OcrStageResult {
   ocrConfidence: number;
   ocrTokens: number;
   preOcrLanguage: DetectedInvoiceLanguage;
+  extractFields?: ExtractedField[];
 }
 
 interface LanguageResolution {
@@ -159,6 +160,11 @@ export class InvoiceExtractionPipeline {
 
     const ocr = await this.runOcrStage(input, metadata);
     const language = this.resolveLanguage(ocr, metadata);
+
+    if ((ocr.extractFields?.length ?? 0) > 0) {
+      return this.runExtractFieldsPath(input, ocr, processingIssues, metadata, fingerprint);
+    }
+
     const baseline = parseInvoiceText(ocr.primaryCandidate.text, { languageHint: language.resolved.code });
     const fieldCandidates = buildFieldCandidates(ocr.primaryCandidate.text, baseline.parsed, template);
     const fieldRegions = buildFieldRegions(ocr.ocrBlocks, fieldCandidates);
@@ -267,6 +273,133 @@ export class InvoiceExtractionPipeline {
   }
 
 
+  private async runExtractFieldsPath(
+    input: ExtractionPipelineInput,
+    ocr: OcrStageResult,
+    processingIssues: string[],
+    metadata: Record<string, string>,
+    fingerprint: ReturnType<typeof computeVendorFingerprint>
+  ): Promise<PipelineExtractionResult> {
+    const fields = ocr.extractFields!;
+    const fieldMap = new Map<string, ExtractedField>(fields.map((f) => [f.key, f]));
+
+    const parsed: ParsedInvoiceData = {};
+
+    const getString = (key: string): string | undefined => {
+      const f = fieldMap.get(key);
+      if (!f) return undefined;
+      if (typeof f.value !== "string" || f.value.trim() === "") return undefined;
+      return f.value.trim();
+    };
+
+    const getNumber = (key: string): number | undefined => {
+      const f = fieldMap.get(key);
+      if (!f) return undefined;
+      if (typeof f.value !== "number" || f.value === null) return undefined;
+      return f.value;
+    };
+
+    const invoiceNumber = getString("invoice_number");
+    if (invoiceNumber) parsed.invoiceNumber = invoiceNumber;
+
+    const vendorName = getString("vendor_name");
+    if (vendorName) parsed.vendorName = vendorName;
+
+    const invoiceDate = getString("invoice_date");
+    if (invoiceDate) parsed.invoiceDate = invoiceDate;
+
+    const dueDate = getString("due_date");
+    if (dueDate) parsed.dueDate = dueDate;
+
+    const currency = getString("currency");
+    if (currency) parsed.currency = currency;
+
+    const totalAmountRaw = getNumber("total_amount");
+    if (totalAmountRaw !== undefined) parsed.totalAmountMinor = Math.round(totalAmountRaw * 100);
+
+    const pan = getString("pan");
+    if (pan) parsed.pan = pan;
+
+    const subtotalRaw = getNumber("subtotal");
+    const taxAmountRaw = getNumber("tax_amount");
+    const gstin = getString("gstin");
+
+    if (subtotalRaw !== undefined || taxAmountRaw !== undefined || gstin !== undefined) {
+      const gst: NonNullable<ParsedInvoiceData["gst"]> = {};
+      if (subtotalRaw !== undefined) gst.subtotalMinor = Math.round(subtotalRaw * 100);
+      if (taxAmountRaw !== undefined) gst.totalTaxMinor = Math.round(taxAmountRaw * 100);
+      if (gstin !== undefined) gst.gstin = gstin;
+      parsed.gst = gst;
+    }
+
+    const provenanceKeyMap: Record<string, string> = {
+      invoice_number: "invoiceNumber",
+      vendor_name: "vendorName",
+      invoice_date: "invoiceDate",
+      due_date: "dueDate",
+      currency: "currency",
+      total_amount: "totalAmountMinor",
+      gstin: "gst.gstin",
+      pan: "pan"
+    };
+
+    const fieldProvenance: Record<string, InvoiceFieldProvenance> = {};
+    for (const field of fields) {
+      const mappedKey = provenanceKeyMap[field.key];
+      if (!mappedKey) continue;
+      if (field.page === undefined && field.bbox === undefined) continue;
+      const entry: InvoiceFieldProvenance = { source: "llamaextract" };
+      if (field.page !== undefined) entry.page = field.page;
+      if (field.bbox !== undefined) entry.bbox = field.bbox;
+      if (field.confidence !== undefined) entry.confidence = field.confidence;
+      fieldProvenance[mappedKey] = entry;
+    }
+
+    const validation = validateInvoiceFields({
+      parsed,
+      ocrText: ocr.primaryCandidate.text,
+      expectedMaxTotal: input.expectedMaxTotal,
+      expectedMaxDueDays: input.expectedMaxDueDays,
+      referenceDate: input.referenceDate
+    });
+    if (!validation.valid) {
+      processingIssues.push(...validation.issues);
+    }
+
+    const compliance = await this.runCompliance(parsed, input, fingerprint);
+
+    let confidence = this.assessConfidence(input, parsed, processingIssues, ocr.ocrConfidence);
+    if (compliance?.riskSignals?.length) {
+      const penalty = RiskSignalEvaluator.sumPenalties(compliance.riskSignals);
+      confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocr.ocrConfidence, penalty);
+    }
+
+    const extraction: InvoiceExtractionData = {
+      source: "llamaextract",
+      strategy: "llamaextract",
+      ...(Object.keys(fieldProvenance).length > 0 ? { fieldProvenance } : {})
+    };
+
+    return {
+      provider: this.ocrProvider.name,
+      text: ocr.primaryCandidate.text,
+      confidence: ocr.ocrConfidence,
+      source: "llamaextract",
+      strategy: "llamaextract",
+      parseResult: { parsed, warnings: processingIssues },
+      confidenceAssessment: confidence,
+      attempts: [],
+      ocrBlocks: ocr.ocrBlocks,
+      ocrPageImages: ocr.ocrPageImages,
+      processingIssues: uniqueIssues(processingIssues),
+      metadata,
+      ocrTokens: ocr.ocrTokens,
+      slmTokens: 0,
+      compliance,
+      extraction
+    };
+  }
+
   private async runOcrStage(input: ExtractionPipelineInput, metadata: Record<string, string>): Promise<OcrStageResult> {
     const preOcrLanguage = detectInvoiceLanguageBeforeOcr(input);
     const preOcrLanguageHint = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
@@ -316,7 +449,8 @@ export class InvoiceExtractionPipeline {
       ocrPageImages: result.pageImages ?? [],
       ocrConfidence: calibrated.score,
       ocrTokens: result.tokenUsage?.totalTokens ?? 0,
-      preOcrLanguage
+      preOcrLanguage,
+      extractFields: result.fields
     };
   }
 
