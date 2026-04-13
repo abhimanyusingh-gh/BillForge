@@ -45,6 +45,7 @@
     "benchmark:llamaparse": "yarn workspace billforge-backend run benchmark:llamaparse",
     "benchmark:llamaparse:dump": "yarn workspace billforge-backend run benchmark:llamaparse:dump",
     "benchmark:llamaparse:generate-spec": "yarn workspace billforge-backend run benchmark:llamaparse:generate-spec",
+    "benchmark:llamaparse:generate-spec:new": "yarn workspace billforge-backend run benchmark:llamaparse:generate-spec:new",
     "test": "yarn workspace billforge-backend run test && yarn workspace billforge-frontend run test",
     "coverage:check": "yarn workspace billforge-backend run coverage && yarn workspace billforge-frontend run coverage",
     "knip": "knip --workspace backend --workspace frontend",

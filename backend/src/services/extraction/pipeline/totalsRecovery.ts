@@ -479,7 +479,15 @@ function extractTotalMinorCandidates(text: string): number[] {
     .map((value) => parseAmountTokenWithOcrRepair(value))
     .filter((value): value is number => value !== null && value > 0)
     .map((value) => Math.round(value * 100));
-  return uniqueIntegers(values);
+  const tableMatches = sanitizedText.matchAll(
+    /^\|?\s*(?:grand\s*total|invoice\s*total|invoice\s*amount|invoice\s*value|total\s*amount|net\s*payable|amount\s*due|balance\s*(?:due|as\s*of)?|total\s*due|amount\s*payable|total)\s*(?:\([^)]*\))?\s*\|\s*([-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)(?:[.,]\d{1,2})?)\s*\|?$/gim
+  );
+  const tableValues = [...tableMatches]
+    .map((match) => match[1])
+    .map((value) => parseAmountTokenWithOcrRepair(value))
+    .filter((value): value is number => value !== null && value > 0)
+    .map((value) => Math.round(value * 100));
+  return uniqueIntegers([...values, ...tableValues]);
 }
 
 function chooseBestTotalMinorCandidate(current: number, candidates: number[]): number {
