@@ -23,7 +23,7 @@ export const runtimeManifestSchema = z.object({
       llamaparse: z
         .object({
           apiKey: z.string().optional(),
-          tier: z.enum(["fast", "cost_effective", "agentic", "agentic_plus"]).optional()
+          tier: z.enum(["fast", "cost_effective", "agentic"]).optional()
         })
         .optional()
     })
