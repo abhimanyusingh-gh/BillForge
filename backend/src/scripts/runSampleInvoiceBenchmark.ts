@@ -340,9 +340,11 @@ async function run(): Promise<void> {
   );
 
   const fileFilters = new Set(argValues("--file"));
+  const filePrefixes = argValues("--file-prefix");
   const files = readdirSync(samplesDir)
     .filter((name) => [".pdf", ".png", ".jpg", ".jpeg", ".webp"].includes(extname(name).toLowerCase()))
     .filter((name) => fileFilters.size === 0 || fileFilters.has(name))
+    .filter((name) => filePrefixes.length === 0 || filePrefixes.some((p) => name.startsWith(p)))
     .sort((left, right) => left.localeCompare(right));
 
   const mimeTypeMap: Record<string, string> = {

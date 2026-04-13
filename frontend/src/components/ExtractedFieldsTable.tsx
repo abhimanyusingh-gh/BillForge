@@ -3,6 +3,16 @@ import type { ExtractedFieldRow } from "../extractedFields";
 import { formatOcrConfidenceLabel } from "../extractedFields";
 import { getConfidenceTone } from "../confidence";
 
+function toIsoDateString(value: string): string {
+  if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dy = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dy}`;
+}
+
 interface ExtractedFieldsTableProps {
   rows: ExtractedFieldRow[];
   cropUrlByField?: Partial<Record<ExtractedFieldRow["fieldKey"], string>>;
@@ -19,7 +29,9 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
   function startEditing(row: ExtractedFieldRow) {
     if (!editable || row.fieldKey === "notes") return;
     setEditingField(row.fieldKey);
-    setEditValue(row.rawValue != null ? row.rawValue : row.value === "-" ? "" : row.value);
+    const raw = row.rawValue != null ? row.rawValue : row.value === "-" ? "" : row.value;
+    const isDateField = row.fieldKey === "invoiceDate" || row.fieldKey === "dueDate";
+    setEditValue(isDateField ? toIsoDateString(raw) : raw);
   }
 
   async function confirmEdit() {

@@ -197,12 +197,12 @@ export function selectInvoiceNumberProvenanceBlock(
   }
   const normalizedValue = normalizeInvoiceNumberForMatch(value);
   const labelAligned = findBlockByLabelProximity("invoiceNumber", blocks);
-  if (labelAligned && normalizeInvoiceNumberForMatch(labelAligned.block.text) === normalizedValue) {
+  if (labelAligned && normalizeInvoiceNumberForMatch(labelAligned.block.text).includes(normalizedValue)) {
     return labelAligned;
   }
   return blocks
     .map((block, index) => ({ block, index }))
-    .find((entry) => normalizeInvoiceNumberForMatch(entry.block.text) === normalizedValue);
+    .find((entry) => normalizeInvoiceNumberForMatch(entry.block.text).includes(normalizedValue));
 }
 
 export function uniqueIssues(issues: string[]): string[] {

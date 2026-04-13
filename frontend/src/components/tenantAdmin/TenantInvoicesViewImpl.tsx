@@ -1310,7 +1310,7 @@ export function TenantInvoicesView({
                             <>
                               <span className="extracted-value-display">{invoice.parsed?.invoiceDate ?? "-"}</span>
                               {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit date" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); setEditListValue(invoice.parsed?.invoiceDate ?? ""); }}>
+                                <button type="button" className="row-action-button field-edit-button" title="Edit date" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); const raw = invoice.parsed?.invoiceDate ?? ""; const d = raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw) : null; setEditListValue(d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : raw); }}>
                                   <span className="material-symbols-outlined">edit</span>
                                 </button>
                               )}
