@@ -340,7 +340,14 @@ export class InvoiceService {
       }
     }
 
-    invoice.set("parsed", nextParsed);
+    const parsedFields: Array<keyof ParsedInvoiceData> = [
+      "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
+      "totalAmountMinor", "currency", "notes", "gst", "pan",
+      "bankAccountNumber", "bankIfsc", "lineItems"
+    ];
+    for (const field of parsedFields) {
+      invoice.set(`parsed.${field}`, (nextParsed as Record<string, unknown>)[field]);
+    }
 
     if (this.learningStore) {
       const correctionFields = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor"] as const;
@@ -415,7 +422,6 @@ export class InvoiceService {
       `Manual parsed field update: ${new Date().toISOString()} by ${updatedBy}.`
     ]);
 
-    invoice.markModified("parsed");
     await invoice.save();
     return sanitizeForApi(invoice.toObject());
   }
