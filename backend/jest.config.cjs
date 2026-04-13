@@ -11,6 +11,7 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts'],
   testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.test\\.ts$', '\\.e2e\\.test\\.ts$'],
+  setupFiles: ['<rootDir>/src/testSetup.ts'],
   collectCoverageFrom: [
     'src/parser/invoiceParser.ts',
     'src/services/confidenceAssessment.ts',

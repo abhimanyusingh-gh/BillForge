@@ -2,6 +2,7 @@ import type { Response, Request } from "express";
 import type { IngestionService } from "./ingestionService.js";
 import { getCorrelationId, logger, runWithLogContext } from "../utils/logger.js";
 import { SSE_HEARTBEAT_INTERVAL_MS, RERUN_MAX_COUNT } from "../constants.js";
+import { getRedisClient } from "../db/redis.js";
 
 type IngestionJobState = "idle" | "running" | "completed" | "failed" | "paused";
 
@@ -21,21 +22,33 @@ interface IngestionJobStatus {
   systemAlert?: string;
 }
 
+const STATUS_TTL_SECONDS = 86400;
+const PENDING_RERUN_TTL_SECONDS = 3600;
+
 export class IngestionJobOrchestrator {
-  private readonly statusByTenant = new Map<string, IngestionJobStatus>();
+  private readonly localStatus = new Map<string, IngestionJobStatus>();
+  private readonly localPendingRerun = new Map<string, boolean>();
   private readonly subscribers = new Map<string, Set<Response>>();
-  private readonly pendingRerun = new Map<string, boolean>();
 
   getCurrentStatus(tenantId: string): IngestionJobStatus {
-    return this.statusByTenant.get(tenantId) ?? buildIdleStatus();
+    return this.localStatus.get(tenantId) ?? buildIdleStatus();
   }
 
   setCurrentStatus(tenantId: string, status: IngestionJobStatus): void {
-    this.statusByTenant.set(tenantId, status);
+    this.localStatus.set(tenantId, status);
+    void getRedisClient().setex(`ingestion:status:${tenantId}`, STATUS_TTL_SECONDS, JSON.stringify(status)).catch(() => {});
   }
 
   setPendingRerun(tenantId: string): void {
-    this.pendingRerun.set(tenantId, true);
+    this.localPendingRerun.set(tenantId, true);
+    void getRedisClient().setex(`ingestion:pendingRerun:${tenantId}`, PENDING_RERUN_TTL_SECONDS, "1").catch(() => {});
+  }
+
+  private consumePendingRerun(tenantId: string): boolean {
+    const had = this.localPendingRerun.get(tenantId) === true;
+    this.localPendingRerun.delete(tenantId);
+    void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
+    return had;
   }
 
   broadcastToSubscribers(tenantId: string, status: IngestionJobStatus): void {
@@ -56,7 +69,7 @@ export class IngestionJobOrchestrator {
     });
     res.write(":\n\n");
 
-    const current = this.statusByTenant.get(tenantId);
+    const current = this.localStatus.get(tenantId);
     if (current) {
       res.write(`data: ${JSON.stringify(current)}\n\n`);
     }
@@ -92,7 +105,7 @@ export class IngestionJobOrchestrator {
   startJob(ingestionService: IngestionService, tenantId: string, rerunCount = 0): IngestionJobStatus {
     const existing = this.getCurrentStatus(tenantId);
     if (existing.running) {
-      this.pendingRerun.set(tenantId, true);
+      this.setPendingRerun(tenantId);
       return existing;
     }
 
@@ -156,12 +169,12 @@ export class IngestionJobOrchestrator {
         });
 
         if (summary.paused) {
-          this.pendingRerun.delete(tenantId);
+          this.localPendingRerun.delete(tenantId);
+          void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
           return;
         }
 
-        if (this.pendingRerun.get(tenantId) && rerunCount < RERUN_MAX_COUNT) {
-          this.pendingRerun.delete(tenantId);
+        if (this.consumePendingRerun(tenantId) && rerunCount < RERUN_MAX_COUNT) {
           this.startJob(ingestionService, tenantId, rerunCount + 1);
         }
       })
@@ -178,7 +191,8 @@ export class IngestionJobOrchestrator {
         };
         this.setCurrentStatus(tenantId, nextStatus);
         this.broadcastToSubscribers(tenantId, nextStatus);
-        this.pendingRerun.delete(tenantId);
+        this.localPendingRerun.delete(tenantId);
+        void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
         logger.error("ingestion.job.failed", {
           error: error instanceof Error ? error.message : String(error),
           correlationId: correlationId ?? null,
@@ -195,7 +209,8 @@ export class IngestionJobOrchestrator {
       return current;
     }
     ingestionService.requestPause();
-    this.pendingRerun.delete(tenantId);
+    this.localPendingRerun.delete(tenantId);
+    void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch(() => {});
     const paused: IngestionJobStatus = { ...current, state: "paused" };
     this.setCurrentStatus(tenantId, paused);
     this.broadcastToSubscribers(tenantId, paused);

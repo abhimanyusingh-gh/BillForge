@@ -10,59 +10,7 @@
       "totalAmountMinor": 2000,
       "lineItemAmountsMinor": [
         2000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.043233,
-            0.088663,
-            0.293233,
-            0.101757
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.04691,
-            0.158081,
-            0.157978,
-            0.174768
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.16343,
-            0.102738,
-            0.300856,
-            0.122552
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.167293,
-            0.119186,
-            0.300752,
-            0.138098
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 42,
-          "bboxNormalized": [
-            0.898456,
-            0.633637,
-            0.949288,
-            0.64834
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "10-Claud-04-03-Abhi.pdf",
@@ -75,59 +23,7 @@
       "lineItemAmountsMinor": [
         -1513,
         20000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.043233,
-            0.088663,
-            0.295113,
-            0.101757
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.046945,
-            0.158231,
-            0.157943,
-            0.174618
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.167268,
-            0.104553,
-            0.272581,
-            0.120737
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.166958,
-            0.121429,
-            0.272779,
-            0.138275
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 46,
-          "bboxNormalized": [
-            0.892827,
-            0.710669,
-            0.949278,
-            0.72247
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "11-Claud-Sai-05-03.pdf",
@@ -144,59 +40,7 @@
       "lineItemAmountsMinor": [
         -1018,
         10000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.043233,
-            0.085706,
-            0.293233,
-            0.101757
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.044992,
-            0.157905,
-            0.158016,
-            0.174943
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.167201,
-            0.102854,
-            0.274528,
-            0.120983
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.167191,
-            0.120228,
-            0.272659,
-            0.137039
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 52,
-          "bboxNormalized": [
-            0.890977,
-            0.729651,
-            0.949248,
-            0.741279
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "13-mailchimp-receipt-MC23316509.pdf",
@@ -207,49 +51,7 @@
       "totalAmountMinor": 114954,
       "lineItemAmountsMinor": [
         114954
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.090349,
-            0.088655,
-            0.815195,
-            0.119186
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 7,
-          "bboxNormalized": [
-            0.37577,
-            0.165698,
-            0.439425,
-            0.178779
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 14,
-          "bboxNormalized": [
-            0.663244,
-            0.178734,
-            0.893224,
-            0.193314
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 25,
-          "bboxNormalized": [
-            0.501027,
-            0.411337,
-            0.574949,
-            0.422965
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "15-Fillout.pdf",
@@ -261,59 +63,7 @@
       "totalAmountMinor": 4900,
       "lineItemAmountsMinor": [
         4900
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.043233,
-            0.085706,
-            0.295113,
-            0.103271
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.045113,
-            0.155523,
-            0.097744,
-            0.171512
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.167293,
-            0.103198,
-            0.280075,
-            0.119322
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.167293,
-            0.119186,
-            0.280075,
-            0.136628
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 36,
-          "bboxNormalized": [
-            0.87782,
-            0.502907,
-            0.951128,
-            0.518895
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "18-Calendly.pdf",
@@ -324,49 +74,7 @@
       "totalAmountMinor": 1200,
       "lineItemAmountsMinor": [
         1200
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 9,
-          "bboxNormalized": [
-            0.609053,
-            0.084302,
-            0.759259,
-            0.09886
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.057613,
-            0.119088,
-            0.148148,
-            0.12936
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 10,
-          "bboxNormalized": [
-            0.609054,
-            0.101709,
-            0.806584,
-            0.117733
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 44,
-          "bboxNormalized": [
-            0.878601,
-            0.498547,
-            0.942387,
-            0.515988
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "26-Invoice-LP6XQHGY-0011.pdf",
@@ -382,59 +90,7 @@
       },
       "lineItemAmountsMinor": [
         4001
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.043233,
-            0.085706,
-            0.293233,
-            0.101757
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.046876,
-            0.158145,
-            0.099741,
-            0.171796
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.167293,
-            0.103198,
-            0.283835,
-            0.119322
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.167255,
-            0.119047,
-            0.283872,
-            0.138221
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 44,
-          "bboxNormalized": [
-            0.900376,
-            0.584302,
-            0.951128,
-            0.598837
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "28-Invoice-BGPWKKCA-0005.pdf",
@@ -450,59 +106,7 @@
       },
       "lineItemAmountsMinor": [
         2000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.045113,
-            0.085706,
-            0.302632,
-            0.101757
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.046889,
-            0.159599,
-            0.099727,
-            0.171796
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.167293,
-            0.101744,
-            0.283835,
-            0.12064
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.167238,
-            0.120425,
-            0.28013,
-            0.138296
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 43,
-          "bboxNormalized": [
-            0.898496,
-            0.539244,
-            0.951128,
-            0.555233
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "3-Cloudflare.pdf",
@@ -514,59 +118,7 @@
       "totalAmountMinor": 1000,
       "lineItemAmountsMinor": [
         1000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 2,
-          "bboxNormalized": [
-            0.171053,
-            0.088663,
-            0.276316,
-            0.101744
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 12,
-          "bboxNormalized": [
-            0.046992,
-            0.209267,
-            0.157895,
-            0.223837
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 4,
-          "bboxNormalized": [
-            0.178571,
-            0.104651,
-            0.31203,
-            0.12064
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.178571,
-            0.122047,
-            0.31203,
-            0.138098
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 40,
-          "bboxNormalized": [
-            0.898475,
-            0.537747,
-            0.953029,
-            0.553823
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "31-Invoice-NWSEPPTE-0002.pdf",
@@ -582,59 +134,7 @@
       },
       "lineItemAmountsMinor": [
         2000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.043233,
-            0.088663,
-            0.296992,
-            0.101757
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.046879,
-            0.157946,
-            0.158009,
-            0.174903
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.167293,
-            0.105996,
-            0.280075,
-            0.12064
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.167207,
-            0.121723,
-            0.280161,
-            0.138452
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 46,
-          "bboxNormalized": [
-            0.896617,
-            0.651163,
-            0.951128,
-            0.667151
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "33-Invoice-MULJRLNR-0006.pdf",
@@ -650,59 +150,7 @@
       },
       "lineItemAmountsMinor": [
         2000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.043233,
-            0.088663,
-            0.302632,
-            0.101757
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 8,
-          "bboxNormalized": [
-            0.046992,
-            0.19186,
-            0.159774,
-            0.207849
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.174728,
-            0.102864,
-            0.289557,
-            0.120973
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.174757,
-            0.118985,
-            0.289529,
-            0.138283
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 49,
-          "bboxNormalized": [
-            0.898496,
-            0.6875,
-            0.949248,
-            0.700581
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "38-Cloudflare.pdf",
@@ -714,59 +162,7 @@
       "totalAmountMinor": 1000,
       "lineItemAmountsMinor": [
         1000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 2,
-          "bboxNormalized": [
-            0.174812,
-            0.090116,
-            0.280075,
-            0.101744
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 12,
-          "bboxNormalized": [
-            0.046992,
-            0.209267,
-            0.157895,
-            0.223837
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 4,
-          "bboxNormalized": [
-            0.178571,
-            0.105996,
-            0.293233,
-            0.12064
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.178543,
-            0.121971,
-            0.293261,
-            0.138203
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 40,
-          "bboxNormalized": [
-            0.898365,
-            0.522996,
-            0.951259,
-            0.539504
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "41-BOOKING_INVOICE_M06AI26I23851611.pdf",
@@ -778,48 +174,6 @@
       "gst": {
         "igstMinor": 3051,
         "totalTaxMinor": 3051
-      },
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.100616,
-            0.151163,
-            0.232033,
-            0.165698
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 0,
-          "bboxNormalized": [
-            0.638604,
-            0.050741,
-            0.887064,
-            0.063953
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 8,
-          "bboxNormalized": [
-            0.098494,
-            0.180053,
-            0.18898,
-            0.197854
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 69,
-          "bboxNormalized": [
-            0.825425,
-            0.623461,
-            0.885048,
-            0.636713
-          ]
-        }
       }
     },
     {
@@ -828,49 +182,7 @@
       "vendorNameContains": "MAKEMYTRIP",
       "invoiceDate": "2026-03-27",
       "currency": "INR",
-      "totalAmountMinor": 624862,
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 4,
-          "bboxNormalized": [
-            0.071869,
-            0.152616,
-            0.207392,
-            0.165698
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 32,
-          "bboxNormalized": [
-            0.650924,
-            0.052326,
-            0.897331,
-            0.065407
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.069815,
-            0.181585,
-            0.160164,
-            0.197674
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 58,
-          "bboxNormalized": [
-            0.854209,
-            0.604651,
-            0.915811,
-            0.619186
-          ]
-        }
-      }
+      "totalAmountMinor": 624862
     },
     {
       "file": "7-Chat GPT.pdf",
@@ -882,59 +194,7 @@
       "totalAmountMinor": 169407,
       "lineItemAmountsMinor": [
         169407
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 1,
-          "bboxNormalized": [
-            0.045113,
-            0.085706,
-            0.289474,
-            0.103271
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 6,
-          "bboxNormalized": [
-            0.046992,
-            0.155523,
-            0.184211,
-            0.172965
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 3,
-          "bboxNormalized": [
-            0.167223,
-            0.102938,
-            0.274506,
-            0.1209
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 5,
-          "bboxNormalized": [
-            0.167203,
-            0.120309,
-            0.272647,
-            0.138411
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 39,
-          "bboxNormalized": [
-            0.879699,
-            0.50436,
-            0.951128,
-            0.520349
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "INV-FY2526-939.pdf",
@@ -953,59 +213,7 @@
       "lineItemAmountsMinor": [
         1575000,
         7875000
-      ],
-      "fieldProvenance": {
-        "invoiceNumber": {
-          "page": 1,
-          "blockIndex": 10,
-          "bboxNormalized": [
-            0.283368,
-            0.202035,
-            0.398357,
-            0.216648
-          ]
-        },
-        "vendorName": {
-          "page": 1,
-          "blockIndex": 0,
-          "bboxNormalized": [
-            0.291581,
-            0.071221,
-            0.61807,
-            0.087229
-          ]
-        },
-        "invoiceDate": {
-          "page": 1,
-          "blockIndex": 11,
-          "bboxNormalized": [
-            0.283315,
-            0.216387,
-            0.373769,
-            0.229834
-          ]
-        },
-        "dueDate": {
-          "page": 1,
-          "blockIndex": 13,
-          "bboxNormalized": [
-            0.283368,
-            0.244186,
-            0.371663,
-            0.255814
-          ]
-        },
-        "totalAmountMinor": {
-          "page": 1,
-          "blockIndex": 89,
-          "bboxNormalized": [
-            0.86028,
-            0.522968,
-            0.942595,
-            0.536625
-          ]
-        }
-      }
+      ]
     },
     {
       "file": "invoiceNumber.png",
@@ -1040,6 +248,958 @@
         "cgstMinor": 5400000,
         "sgstMinor": 5400000,
         "totalTaxMinor": 10800000
+      }
+    },
+    {
+      "file": "DV-01042025 Ceiling mounts - Acrylic.jpeg",
+      "invoiceNumber": "5133",
+      "vendorNameContains": "Kalpana Digitals",
+      "invoiceDate": "2025-04-01",
+      "currency": "INR"
+    },
+    {
+      "file": "DV-01042025 Rapi4B ceiling mount screws.jpeg",
+      "vendorNameContains": "Kothari Fasteners",
+      "currency": "INR",
+      "totalAmountMinor": 32000
+    },
+    {
+      "file": "DV-02042025 PVC clips for Wire hanging.jpeg",
+      "vendorNameContains": "kelater",
+      "currency": "INR",
+      "totalAmountMinor": 6000
+    },
+    {
+      "file": "DV-02042025 Uber for Ceiling Mounts.pdf",
+      "vendorNameContains": "Uber",
+      "invoiceDate": "2025-04-02",
+      "currency": "INR",
+      "totalAmountMinor": 14729
+    },
+    {
+      "file": "DV-26032025 ThinkRobotics CSI Connector.pdf",
+      "invoiceNumber": "TR/2024-25/10438",
+      "vendorNameContains": "ThinkRobotics",
+      "invoiceDate": "2025-03-26",
+      "currency": "INR",
+      "totalAmountMinor": 18499,
+      "lineItemAmountsMinor": [
+        10999,
+        7500
+      ],
+      "gst": {
+        "subtotalMinor": 15671,
+        "igstMinor": 2822,
+        "totalTaxMinor": 2822
+      }
+    },
+    {
+      "file": "DV-CIE25040033.pdf",
+      "invoiceNumber": "CIE25040033",
+      "vendorNameContains": "IIITH Foundation",
+      "invoiceDate": "2025-04-01",
+      "dueDate": "2025-04-07",
+      "currency": "INR",
+      "totalAmountMinor": 6000000,
+      "lineItemAmountsMinor": [
+        6000000
+      ]
+    },
+    {
+      "file": "DV-CIE25040046.pdf",
+      "invoiceNumber": "CIE25040046",
+      "vendorNameContains": "IIITH Foundation",
+      "invoiceDate": "2025-04-01",
+      "dueDate": "2025-04-07",
+      "currency": "INR",
+      "totalAmountMinor": 7450000,
+      "lineItemAmountsMinor": [
+        7450000
+      ]
+    },
+    {
+      "file": "DV-DHL.pdf",
+      "invoiceNumber": "BOMCR00610223",
+      "vendorNameContains": "DHL Express",
+      "invoiceDate": "2025-04-03",
+      "currency": "INR",
+      "totalAmountMinor": 608367,
+      "gst": {
+        "subtotalMinor": 515566,
+        "igstMinor": 92801,
+        "totalTaxMinor": 92801
+      }
+    },
+    {
+      "file": "DV-Icon Infotech.pdf",
+      "invoiceNumber": "IIS/072/25-26",
+      "vendorNameContains": "ICON INFOTECH",
+      "invoiceDate": "2025-11-07",
+      "currency": "INR",
+      "totalAmountMinor": 12500000,
+      "lineItemAmountsMinor": [
+        10593220
+      ],
+      "gst": {
+        "subtotalMinor": 10593220,
+        "cgstMinor": 953390,
+        "sgstMinor": 953390,
+        "totalTaxMinor": 1906780
+      }
+    },
+    {
+      "file": "DV-INV270231613.pdf",
+      "invoiceNumber": "INV270231613",
+      "vendorNameContains": "Zoom",
+      "invoiceDate": "2024-08-24",
+      "dueDate": "2024-08-24",
+      "currency": "USD",
+      "totalAmountMinor": 3454,
+      "lineItemAmountsMinor": [
+        3198
+      ]
+    },
+    {
+      "file": "DV-INV274339782.pdf",
+      "invoiceNumber": "INV274339782",
+      "vendorNameContains": "Zoom",
+      "invoiceDate": "2024-09-24",
+      "dueDate": "2024-09-24",
+      "currency": "USD",
+      "totalAmountMinor": 3454,
+      "lineItemAmountsMinor": [
+        3198
+      ]
+    },
+    {
+      "file": "DV-INV64030142.pdf",
+      "invoiceNumber": "INV64030142",
+      "vendorNameContains": "GitHub",
+      "invoiceDate": "2024-10-04",
+      "dueDate": "2024-10-04",
+      "currency": "USD",
+      "totalAmountMinor": 3780,
+      "lineItemAmountsMinor": [
+        2000,
+        1500
+      ]
+    },
+    {
+      "file": "DV-INV66634981.pdf",
+      "invoiceNumber": "INV66634981",
+      "vendorNameContains": "GitHub",
+      "invoiceDate": "2024-11-04",
+      "dueDate": "2024-11-04",
+      "currency": "USD",
+      "totalAmountMinor": 3780,
+      "lineItemAmountsMinor": [
+        2000,
+        1500
+      ]
+    },
+    {
+      "file": "DV-INV69313348.pdf",
+      "invoiceNumber": "INV69313348",
+      "vendorNameContains": "GitHub",
+      "invoiceDate": "2024-12-04",
+      "dueDate": "2024-12-04",
+      "currency": "USD",
+      "totalAmountMinor": 3780,
+      "lineItemAmountsMinor": [
+        2000,
+        1500
+      ]
+    },
+    {
+      "file": "DV-INV72091489.pdf",
+      "invoiceNumber": "INV72091489",
+      "vendorNameContains": "GitHub",
+      "invoiceDate": "2025-01-04",
+      "dueDate": "2025-01-04",
+      "currency": "USD",
+      "totalAmountMinor": 3780,
+      "lineItemAmountsMinor": [
+        2000,
+        1500
+      ]
+    },
+    {
+      "file": "DV-Murthy_Law_reimbursement_19-0441HHHH-0001.pdf",
+      "invoiceNumber": "19-0441HHHH-0001",
+      "vendorNameContains": "Murthy Law Firm",
+      "invoiceDate": "2023-10-03",
+      "currency": "USD",
+      "totalAmountMinor": 400000,
+      "lineItemAmountsMinor": [
+        400000
+      ]
+    },
+    {
+      "file": "DV-Payment invoice - Dropbox- mar.pdf",
+      "invoiceNumber": "JDDTJJZWTNSK",
+      "vendorNameContains": "Dropbox",
+      "invoiceDate": "2025-05-23",
+      "currency": "USD",
+      "totalAmountMinor": 13515
+    },
+    {
+      "file": "DV-Payment invoice - Dropbox-dec.pdf",
+      "invoiceNumber": "K8RQX6G79G1F",
+      "vendorNameContains": "Dropbox",
+      "invoiceDate": "2024-12-23",
+      "currency": "USD",
+      "totalAmountMinor": 13515
+    },
+    {
+      "file": "DV-Payment invoice - Dropbox-jan.pdf",
+      "invoiceNumber": "LYJXLT28ZZ4B",
+      "vendorNameContains": "Dropbox",
+      "invoiceDate": "2025-01-23",
+      "currency": "USD",
+      "totalAmountMinor": 13515
+    },
+    {
+      "file": "DV-Robu IN.pdf",
+      "invoiceNumber": "INV2526/1995",
+      "vendorNameContains": "Robu",
+      "invoiceDate": "2025-04-02",
+      "currency": "INR",
+      "totalAmountMinor": 717500,
+      "gst": {
+        "subtotalMinor": 608052,
+        "igstMinor": 109448,
+        "totalTaxMinor": 109448
+      }
+    },
+    {
+      "file": "DV-Sambasiva Rao.pdf",
+      "invoiceNumber": "ISR(2025-26)-1087",
+      "vendorNameContains": "Sambasivarao Inaganti",
+      "invoiceDate": "2025-10-01",
+      "currency": "INR",
+      "totalAmountMinor": 944000,
+      "lineItemAmountsMinor": [
+        800000
+      ],
+      "gst": {
+        "subtotalMinor": 800000,
+        "cgstMinor": 72000,
+        "sgstMinor": 72000,
+        "totalTaxMinor": 144000
+      }
+    },
+    {
+      "file": "DV-Scan04072025102138.pdf",
+      "invoiceNumber": "GRO202500001",
+      "vendorNameContains": "Tanna TechBiz",
+      "invoiceDate": "2025-04-03",
+      "currency": "INR",
+      "totalAmountMinor": 359800,
+      "lineItemAmountsMinor": [
+        294900,
+        10000
+      ],
+      "gst": {
+        "subtotalMinor": 304900,
+        "igstMinor": 54882,
+        "totalTaxMinor": 54882
+      }
+    },
+    {
+      "file": "DV-Your trip confirmation (PHL - SFO).pdf",
+      "vendorNameContains": "American Airlines",
+      "invoiceDate": "2022-08-31",
+      "currency": "USD",
+      "totalAmountMinor": 124440
+    },
+    {
+      "file": "FC-2217-19.01.2026- FICOSA INT. SWIFT DZIRE.pdf",
+      "invoiceNumber": "2217",
+      "vendorNameContains": "Sayali Translink",
+      "invoiceDate": "2026-01-19",
+      "dueDate": "2026-01-26",
+      "currency": "INR",
+      "totalAmountMinor": 9050600,
+      "lineItemAmountsMinor": [
+        6500000,
+        1170000
+      ],
+      "gst": {
+        "subtotalMinor": 7670000,
+        "igstMinor": 1380600,
+        "totalTaxMinor": 1380600
+      }
+    },
+    {
+      "file": "FC-2218-19.01.2026- FICOSA INT. SWIFT DZIRE.pdf",
+      "invoiceNumber": "2218",
+      "vendorNameContains": "Sayali Translink",
+      "invoiceDate": "2026-01-19",
+      "dueDate": "2026-01-26",
+      "currency": "INR",
+      "totalAmountMinor": 9032900,
+      "lineItemAmountsMinor": [
+        6500000,
+        1155000
+      ],
+      "gst": {
+        "subtotalMinor": 7655000,
+        "igstMinor": 1377900,
+        "totalTaxMinor": 1377900
+      }
+    },
+    {
+      "file": "FC-ACT -TG-B1-160313561-101765317304-MARCH-2026.PDF",
+      "invoiceNumber": "TG-B1-160313561",
+      "vendorNameContains": "ACT Enterprise",
+      "invoiceDate": "2026-03-01",
+      "dueDate": "2026-03-22",
+      "currency": "INR",
+      "totalAmountMinor": 9734900,
+      "gst": {
+        "subtotalMinor": 8250000,
+        "cgstMinor": 742500,
+        "sgstMinor": 742500,
+        "totalTaxMinor": 1485000
+      }
+    },
+    {
+      "file": "FC-Airtel.pdf",
+      "invoiceNumber": "MF2636I010129045",
+      "vendorNameContains": "Bharti Airtel",
+      "invoiceDate": "2026-03-18",
+      "dueDate": "2026-04-05",
+      "currency": "INR",
+      "totalAmountMinor": 924058
+    },
+    {
+      "file": "FC-AIT Solutions_524.pdf",
+      "invoiceNumber": "AIT/G/524/25-26",
+      "vendorNameContains": "Ait Solutions",
+      "invoiceDate": "2026-02-18",
+      "currency": "INR",
+      "totalAmountMinor": 1615400,
+      "lineItemAmountsMinor": [
+        1369000
+      ],
+      "gst": {
+        "subtotalMinor": 1369000,
+        "cgstMinor": 123210,
+        "sgstMinor": 123210,
+        "totalTaxMinor": 246420
+      }
+    },
+    {
+      "file": "FC-AIT_563.pdf",
+      "invoiceNumber": "AIT/G/563/25-26",
+      "vendorNameContains": "Ait Solutions",
+      "invoiceDate": "2026-03-23",
+      "currency": "INR",
+      "totalAmountMinor": 4035600,
+      "lineItemAmountsMinor": [
+        870000,
+        850000,
+        850000,
+        850000
+      ],
+      "gst": {
+        "subtotalMinor": 3420000,
+        "cgstMinor": 307800,
+        "sgstMinor": 307800,
+        "totalTaxMinor": 615600
+      }
+    },
+    {
+      "file": "FC-BSR_2010211-101.PDF",
+      "invoiceNumber": "BSCO-TL/900333",
+      "vendorNameContains": "B S R and Co",
+      "invoiceDate": "2026-01-31",
+      "currency": "INR",
+      "totalAmountMinor": 64428000,
+      "lineItemAmountsMinor": [
+        52000000,
+        2600000
+      ],
+      "gst": {
+        "subtotalMinor": 54600000,
+        "cgstMinor": 4914000,
+        "sgstMinor": 4914000,
+        "totalTaxMinor": 9828000
+      }
+    },
+    {
+      "file": "FC-Cal labs_.pdf",
+      "invoiceNumber": "2025-26/801",
+      "vendorNameContains": "Cal Labs",
+      "invoiceDate": "2026-01-06",
+      "currency": "INR",
+      "totalAmountMinor": 3740600,
+      "gst": {
+        "subtotalMinor": 3170000,
+        "cgstMinor": 285300,
+        "sgstMinor": 285300,
+        "totalTaxMinor": 570600
+      }
+    },
+    {
+      "file": "FC-Care Health_GHI.pdf",
+      "invoiceNumber": "A2906808",
+      "vendorNameContains": "Care Health Insurance",
+      "invoiceDate": "2026-03-31",
+      "currency": "INR",
+      "totalAmountMinor": 312699900,
+      "gst": {
+        "subtotalMinor": 264999906,
+        "igstMinor": 47699939,
+        "totalTaxMinor": 47699939
+      }
+    },
+    {
+      "file": "FC-Care Health_GPA.pdf",
+      "invoiceNumber": "A3081731",
+      "vendorNameContains": "Care Health Insurance",
+      "invoiceDate": "2026-03-26",
+      "currency": "INR",
+      "totalAmountMinor": 6827800,
+      "gst": {
+        "subtotalMinor": 5786242,
+        "igstMinor": 1041523,
+        "totalTaxMinor": 1041523
+      }
+    },
+    {
+      "file": "FC-DSV - IN1PNQ261005189 - 6409833372 (28-Feb-26).pdf",
+      "invoiceNumber": "IN1PNQ261005189",
+      "vendorNameContains": "DSV Air & Sea",
+      "invoiceDate": "2026-02-28",
+      "dueDate": "2026-04-14",
+      "currency": "INR",
+      "totalAmountMinor": 472000,
+      "lineItemAmountsMinor": [
+        400000
+      ],
+      "gst": {
+        "subtotalMinor": 400000,
+        "igstMinor": 72000,
+        "totalTaxMinor": 72000
+      }
+    },
+    {
+      "file": "FC-DSV_BILL OF SUPPLY - IN1PNQ261005188 - 6409833372 (28-Feb-26).pdf",
+      "invoiceNumber": "IN1PNQ261005188",
+      "vendorNameContains": "DSV Air & Sea",
+      "invoiceDate": "2026-02-28",
+      "dueDate": "2026-04-14",
+      "currency": "INR",
+      "totalAmountMinor": 6153799
+    },
+    {
+      "file": "FC-DSV_BILL OF SUPPLY - IN1PNQ261007177 - 6409833372 (23-Mar-26).pdf",
+      "invoiceNumber": "IN1PNQ261007177",
+      "vendorNameContains": "DSV Air & Sea",
+      "invoiceDate": "2026-03-23",
+      "dueDate": "2026-05-07",
+      "currency": "INR",
+      "totalAmountMinor": 14716528
+    },
+    {
+      "file": "FC-DSV_TAX INVOICE - IN1PNQ261007097 - 6409833372 (23-Mar-26).pdf",
+      "invoiceNumber": "IN1PNQ261007097",
+      "vendorNameContains": "DSV Air & Sea",
+      "invoiceDate": "2026-03-23",
+      "dueDate": "2026-05-07",
+      "currency": "INR",
+      "totalAmountMinor": 472000,
+      "lineItemAmountsMinor": [
+        400000
+      ],
+      "gst": {
+        "subtotalMinor": 400000,
+        "igstMinor": 72000,
+        "totalTaxMinor": 72000
+      }
+    },
+    {
+      "file": "FC-Electricity Bill - 01-02-2026 to 01-03-2026 - FICOSA - 1.pdf",
+      "invoiceNumber": "GST/JVP/FI/2338",
+      "vendorNameContains": "JVP Soft",
+      "invoiceDate": "2026-03-10",
+      "currency": "INR",
+      "totalAmountMinor": 22127062,
+      "lineItemAmountsMinor": [
+        18751748
+      ],
+      "gst": {
+        "subtotalMinor": 18751748,
+        "cgstMinor": 1687657,
+        "sgstMinor": 1687657,
+        "totalTaxMinor": 3375314
+      }
+    },
+    {
+      "file": "FC-Emphatic Vans.pdf",
+      "invoiceNumber": "25-26/EVTL/1136",
+      "vendorNameContains": "Emphatic Vans",
+      "invoiceDate": "2025-11-12",
+      "currency": "INR",
+      "totalAmountMinor": 2274700,
+      "lineItemAmountsMinor": [
+        1180000,
+        590000,
+        504700
+      ]
+    },
+    {
+      "file": "FC-Featuretek - 0091.pdf",
+      "invoiceNumber": "FT/25-26/0091",
+      "vendorNameContains": "Featuretek IT Solutions",
+      "invoiceDate": "2025-11-10",
+      "currency": "INR",
+      "totalAmountMinor": 42149600,
+      "lineItemAmountsMinor": [
+        35720000
+      ],
+      "gst": {
+        "subtotalMinor": 35720000,
+        "igstMinor": 6429600,
+        "totalTaxMinor": 6429600
+      }
+    },
+    {
+      "file": "FC-Focus BILLS FICOSA.pdf",
+      "invoiceNumber": "DW25/18496",
+      "vendorNameContains": "Focus Tours and Travels",
+      "invoiceDate": "2026-03-03",
+      "currency": "INR",
+      "totalAmountMinor": 1219700
+    },
+    {
+      "file": "FC-Focus_Bills.pdf",
+      "invoiceNumber": "DW25/19342",
+      "vendorNameContains": "Focus Tours and Travels",
+      "invoiceDate": "2026-03-17",
+      "currency": "INR",
+      "totalAmountMinor": 2458400
+    },
+    {
+      "file": "FC-G4S Facility_.pdf",
+      "invoiceNumber": "DI01/000046HYR26",
+      "vendorNameContains": "G4S Facility Services",
+      "invoiceDate": "2026-01-31",
+      "currency": "INR",
+      "totalAmountMinor": 5374500,
+      "gst": {
+        "subtotalMinor": 4554669,
+        "cgstMinor": 409920,
+        "sgstMinor": 409920,
+        "totalTaxMinor": 819840
+      }
+    },
+    {
+      "file": "FC-G4S Ficosa Invoice (1).pdf",
+      "invoiceNumber": "DI02/000100HYR26",
+      "vendorNameContains": "G4S Facility Services",
+      "invoiceDate": "2026-02-28",
+      "currency": "INR",
+      "totalAmountMinor": 5579900,
+      "gst": {
+        "subtotalMinor": 4728700,
+        "cgstMinor": 425583,
+        "sgstMinor": 425583,
+        "totalTaxMinor": 851166
+      }
+    },
+    {
+      "file": "FC-HDFC ERGO_3117202831268307000.pdf",
+      "invoiceNumber": "202831268307000",
+      "vendorNameContains": "HDFC ERGO",
+      "invoiceDate": "2026-01-22",
+      "currency": "INR",
+      "totalAmountMinor": 27609600,
+      "gst": {
+        "subtotalMinor": 23398000,
+        "cgstMinor": 2105800,
+        "sgstMinor": 2105800,
+        "totalTaxMinor": 4211600
+      }
+    },
+    {
+      "file": "FC-High Grade_Stock.pdf",
+      "invoiceNumber": "HGS/0126/559",
+      "vendorNameContains": "High Grade Solutions",
+      "invoiceDate": "2026-01-19",
+      "currency": "INR",
+      "totalAmountMinor": 1118250,
+      "gst": {
+        "subtotalMinor": 1065000,
+        "cgstMinor": 26625,
+        "sgstMinor": 26625,
+        "totalTaxMinor": 53250
+      }
+    },
+    {
+      "file": "FC-Highgarde_754.pdf",
+      "invoiceNumber": "HGS/0326/754",
+      "vendorNameContains": "High Grade Solutions",
+      "invoiceDate": "2026-03-18",
+      "currency": "INR",
+      "totalAmountMinor": 1401750,
+      "gst": {
+        "subtotalMinor": 1335000,
+        "cgstMinor": 33375,
+        "sgstMinor": 33375,
+        "totalTaxMinor": 66750
+      }
+    },
+    {
+      "file": "FC-Highgrade_.pdf",
+      "invoiceNumber": "HGS/0326/761",
+      "vendorNameContains": "High Grade Solutions",
+      "invoiceDate": "2026-03-27",
+      "currency": "INR",
+      "totalAmountMinor": 283200,
+      "lineItemAmountsMinor": [
+        240000
+      ],
+      "gst": {
+        "subtotalMinor": 240000,
+        "cgstMinor": 21600,
+        "sgstMinor": 21600,
+        "totalTaxMinor": 43200
+      }
+    },
+    {
+      "file": "FC-Indus law D-25-26-01530 - Ficosa India Engineering Center Private Limited.pdf",
+      "invoiceNumber": "D/25-26/01530",
+      "vendorNameContains": "IndusLaw",
+      "invoiceDate": "2026-03-27",
+      "dueDate": "2026-04-11",
+      "currency": "INR",
+      "totalAmountMinor": 5000000,
+      "lineItemAmountsMinor": [
+        5000000
+      ]
+    },
+    {
+      "file": "FC-Jeevan_012.pdf",
+      "invoiceNumber": "2025-26/012",
+      "vendorNameContains": "Jeevan Mahaldar",
+      "invoiceDate": "2026-03-31",
+      "currency": "INR",
+      "totalAmountMinor": 20862500,
+      "lineItemAmountsMinor": [
+        20862500
+      ]
+    },
+    {
+      "file": "FC-JSS_103.pdf",
+      "invoiceNumber": "25260103/H00008",
+      "vendorNameContains": "Jagdamba Service Solutions",
+      "invoiceDate": "2026-03-03",
+      "currency": "INR",
+      "totalAmountMinor": 7312200,
+      "lineItemAmountsMinor": [
+        6196800
+      ],
+      "gst": {
+        "subtotalMinor": 6196800,
+        "cgstMinor": 557712,
+        "sgstMinor": 557712,
+        "totalTaxMinor": 1115424
+      }
+    },
+    {
+      "file": "FC-Just Go Zing_11.pdf",
+      "invoiceNumber": "JGZ/05/25-26/11",
+      "vendorNameContains": "Just Go Zing",
+      "invoiceDate": "2025-05-13",
+      "currency": "INR",
+      "totalAmountMinor": 2073700
+    },
+    {
+      "file": "FC-JVP - GST - MARCH 2026.pdf",
+      "invoiceNumber": "GST/JVP/FI/2319",
+      "vendorNameContains": "JVP Soft",
+      "invoiceDate": "2026-03-01",
+      "currency": "INR",
+      "totalAmountMinor": 153818900,
+      "gst": {
+        "subtotalMinor": 130355000,
+        "cgstMinor": 11731950,
+        "sgstMinor": 11731950,
+        "totalTaxMinor": 23463900
+      }
+    },
+    {
+      "file": "FC-KSR Milk_.jpeg",
+      "vendorNameContains": "KSR Milk",
+      "invoiceDate": "2026-03-31",
+      "currency": "INR",
+      "totalAmountMinor": 537600
+    },
+    {
+      "file": "FC-Mangirish_AI-3085-25-26.pdf",
+      "invoiceNumber": "IMP/A/25-26/3843",
+      "vendorNameContains": "Mangirish Logistix",
+      "invoiceDate": "2026-03-18",
+      "currency": "INR",
+      "totalAmountMinor": 1775900,
+      "lineItemAmountsMinor": [
+        880000,
+        75000,
+        550000
+      ],
+      "gst": {
+        "subtotalMinor": 1505000,
+        "igstMinor": 270900,
+        "totalTaxMinor": 270900
+      }
+    },
+    {
+      "file": "FC-Mangrish_AI-2504-25-26.pdf",
+      "invoiceNumber": "IMP/A/25-26/3066",
+      "vendorNameContains": "Mangirish Logistix",
+      "invoiceDate": "2026-01-08",
+      "currency": "INR",
+      "totalAmountMinor": 1775900,
+      "lineItemAmountsMinor": [
+        880000,
+        75000,
+        550000
+      ],
+      "gst": {
+        "subtotalMinor": 1505000,
+        "igstMinor": 270900,
+        "totalTaxMinor": 270900
+      }
+    },
+    {
+      "file": "FC-Ms Solutions_.pdf",
+      "invoiceNumber": "2452",
+      "vendorNameContains": "M.S. Solutions",
+      "invoiceDate": "2026-03-31",
+      "currency": "INR",
+      "totalAmountMinor": 1213900,
+      "gst": {
+        "subtotalMinor": 1028760,
+        "cgstMinor": 92588,
+        "sgstMinor": 92588,
+        "totalTaxMinor": 185176
+      }
+    },
+    {
+      "file": "FC-Nium Forex_LALIT VERMA.pdf",
+      "invoiceNumber": "PSHYDJBL5200812",
+      "vendorNameContains": "Nium Forex",
+      "invoiceDate": "2025-05-24",
+      "currency": "INR",
+      "totalAmountMinor": 8665600
+    },
+    {
+      "file": "FC-Nium Forex_Subash.pdf",
+      "invoiceNumber": "PSHYDJBL5200813",
+      "vendorNameContains": "Nium Forex",
+      "invoiceDate": "2025-05-24",
+      "currency": "INR",
+      "totalAmountMinor": 5632600
+    },
+    {
+      "file": "FC-Rudra_1858.pdf",
+      "invoiceNumber": "1858/2025-26",
+      "vendorNameContains": "Rudra Office Supplies",
+      "invoiceDate": "2026-03-27",
+      "currency": "INR",
+      "totalAmountMinor": 1742000,
+      "gst": {
+        "subtotalMinor": 1493800,
+        "cgstMinor": 123993,
+        "sgstMinor": 123993,
+        "totalTaxMinor": 247986
+      }
+    },
+    {
+      "file": "FC-Shiva Hvac_.pdf",
+      "invoiceNumber": "SHS-2025/14",
+      "vendorNameContains": "Siva HVAC Services",
+      "invoiceDate": "2026-03-17",
+      "currency": "INR",
+      "totalAmountMinor": 4059200,
+      "lineItemAmountsMinor": [
+        2750000,
+        405000,
+        285000
+      ],
+      "gst": {
+        "subtotalMinor": 3440000,
+        "cgstMinor": 309600,
+        "sgstMinor": 309600,
+        "totalTaxMinor": 619200
+      }
+    },
+    {
+      "file": "FC-Skyline_.pdf",
+      "invoiceNumber": "4722/25-26",
+      "vendorNameContains": "Skyline Financial Services",
+      "invoiceDate": "2026-01-19",
+      "currency": "INR",
+      "totalAmountMinor": 354000,
+      "lineItemAmountsMinor": [
+        300000
+      ],
+      "gst": {
+        "subtotalMinor": 300000,
+        "igstMinor": 54000,
+        "totalTaxMinor": 54000
+      }
+    },
+    {
+      "file": "FC-SLN_2025-26_684.pdf",
+      "invoiceNumber": "SLN/2025-26/684",
+      "vendorNameContains": "SLN Enterprises",
+      "invoiceDate": "2026-03-27",
+      "dueDate": "2026-04-11",
+      "currency": "INR",
+      "totalAmountMinor": 488300,
+      "lineItemAmountsMinor": [
+        488250
+      ],
+      "gst": {
+        "subtotalMinor": 465000,
+        "cgstMinor": 11625,
+        "sgstMinor": 11625,
+        "totalTaxMinor": 23250
+      }
+    },
+    {
+      "file": "FC-SLN_617.pdf",
+      "invoiceNumber": "SLN/2025-26/617",
+      "vendorNameContains": "SLN Enterprises",
+      "invoiceDate": "2026-02-28",
+      "dueDate": "2026-03-15",
+      "currency": "INR",
+      "totalAmountMinor": 622100,
+      "lineItemAmountsMinor": [
+        622125
+      ],
+      "gst": {
+        "subtotalMinor": 592500,
+        "cgstMinor": 14813,
+        "sgstMinor": 14813,
+        "totalTaxMinor": 29626
+      }
+    },
+    {
+      "file": "FC-Sodexo_12561559.pdf",
+      "invoiceNumber": "2526CI0000280610",
+      "vendorNameContains": "Pluxee",
+      "invoiceDate": "2026-03-06",
+      "currency": "INR",
+      "totalAmountMinor": 5372700
+    },
+    {
+      "file": "FC-Sriram_284.jpeg",
+      "invoiceNumber": "284",
+      "vendorNameContains": "Sri Ram Pest Control",
+      "invoiceDate": "2026-03-27",
+      "currency": "INR",
+      "totalAmountMinor": 800000
+    },
+    {
+      "file": "FC-SVC_171.pdf",
+      "invoiceNumber": "SVC171",
+      "vendorNameContains": "Sri Venkateswara Caterers",
+      "invoiceDate": "2026-03-31",
+      "currency": "INR",
+      "totalAmountMinor": 8856000,
+      "lineItemAmountsMinor": [
+        8856000
+      ]
+    },
+    {
+      "file": "FC-SVC170.pdf",
+      "invoiceNumber": "SVC170",
+      "vendorNameContains": "Sri Venkateswara Caterers",
+      "invoiceDate": "2026-02-27",
+      "currency": "INR",
+      "totalAmountMinor": 9768000,
+      "lineItemAmountsMinor": [
+        9768000
+      ]
+    },
+    {
+      "file": "FC-Tata Comm_IAS033648_362603G10006084.pdf",
+      "invoiceNumber": "362603G10006084",
+      "vendorNameContains": "Tata Communications",
+      "invoiceDate": "2026-03-02",
+      "dueDate": "2026-04-01",
+      "currency": "INR",
+      "totalAmountMinor": 15797250,
+      "gst": {
+        "subtotalMinor": 13387500,
+        "cgstMinor": 1204875,
+        "sgstMinor": 1204875,
+        "totalTaxMinor": 2409750
+      }
+    },
+    {
+      "file": "FC-Team Lease FICOSA INDIA ENGINEERING CENTER PRIVATE LIMITED-FHVRG- 25-26-SER-011774.pdf",
+      "invoiceNumber": "25-26-SER-011774",
+      "vendorNameContains": "Teamlease Regtech",
+      "invoiceDate": "2026-03-26",
+      "currency": "INR",
+      "totalAmountMinor": 1911600,
+      "lineItemAmountsMinor": [
+        1620000
+      ],
+      "gst": {
+        "subtotalMinor": 1620000,
+        "igstMinor": 291600,
+        "totalTaxMinor": 291600
+      }
+    },
+    {
+      "file": "FC-Vaishlaw_2424.pdf",
+      "invoiceNumber": "DEL2526-02424",
+      "vendorNameContains": "Vaish Associates Advocates",
+      "invoiceDate": "2026-03-23",
+      "currency": "INR",
+      "totalAmountMinor": 34500000,
+      "lineItemAmountsMinor": [
+        34500000
+      ]
+    },
+    {
+      "file": "FC-Vector_.pdf",
+      "invoiceNumber": "930054455",
+      "vendorNameContains": "Vector Informatik",
+      "invoiceDate": "2026-01-07",
+      "currency": "INR",
+      "totalAmountMinor": 32571304,
+      "gst": {
+        "subtotalMinor": 27602800,
+        "igstMinor": 4968504,
+        "totalTaxMinor": 4968504
+      }
+    },
+    {
+      "file": "FC-Verifacts_VFG25260663.pdf",
+      "invoiceNumber": "VFG/2526/0663",
+      "vendorNameContains": "Verifacts Services",
+      "invoiceDate": "2025-05-30",
+      "dueDate": "2025-06-29",
+      "currency": "INR",
+      "totalAmountMinor": 361100,
+      "lineItemAmountsMinor": [
+        45000,
+        30000,
+        135000,
+        27000,
+        69000
+      ],
+      "gst": {
+        "subtotalMinor": 306000,
+        "igstMinor": 55080,
+        "totalTaxMinor": 55080
       }
     }
   ]

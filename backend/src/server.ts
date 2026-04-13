@@ -1,6 +1,7 @@
 import type { Server } from "node:http";
 import { createApp } from "./app.js";
 import { connectToDatabase, disconnectFromDatabase } from "./db/connect.js";
+import { closeRedisClient } from "./db/redis.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { seedLocalDemoData } from "./bootstrap/seedLocalDemoData.js";
@@ -89,6 +90,9 @@ async function shutdown(signal: string) {
 
   await disconnectFromDatabase();
   logger.info("shutdown.db.disconnected");
+
+  await closeRedisClient();
+  logger.info("shutdown.redis.disconnected");
 
   process.exit(0);
 }

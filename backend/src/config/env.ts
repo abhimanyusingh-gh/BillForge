@@ -207,7 +207,9 @@ const envSchema = z.object({
   ANUMATI_AES_KEY: z.string().default(""),
   ANUMATI_AA_BASE_URL: z.string().default(""),
   ANUMATI_WEBVIEW_URL: z.string().default(""),
-  ANUMATI_CALLBACK_BASE_URL: z.string().default("")
+  ANUMATI_CALLBACK_BASE_URL: z.string().default(""),
+
+  REDIS_URL: z.string().default("redis://localhost:6379")
 });
 
 const parsed = envSchema.safeParse(process.env);
