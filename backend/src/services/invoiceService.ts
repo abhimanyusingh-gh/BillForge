@@ -19,6 +19,7 @@ import {
   sanitizeForApi,
   isCompleteParsedData,
   isPlainObject,
+  getParsedField,
   applyNullableField,
   normalizeNullable,
   normalizeNullableCurrency,
@@ -350,19 +351,19 @@ export class InvoiceService {
       "bankAccountNumber", "bankIfsc", "lineItems"
     ];
     for (const field of parsedFields) {
-      invoice.set(`parsed.${field}`, (nextParsed as Record<string, unknown>)[field]);
+      invoice.set(`parsed.${field}`, getParsedField(nextParsed, field));
     }
 
     if (this.learningStore) {
       const correctionFields = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor"] as const;
       const corrections = correctionFields
         .filter((f) => {
-          const newVal = (nextParsed as Record<string, unknown>)[f];
-          return newVal !== undefined && String(newVal) !== String((currentParsed as Record<string, unknown>)[f] ?? "");
+          const newVal = getParsedField(nextParsed, f);
+          return newVal !== undefined && String(newVal) !== String(getParsedField(currentParsed, f) ?? "");
         })
         .map((f) => ({
           field: f,
-          hint: buildCorrectionHint(f, (currentParsed as Record<string, unknown>)[f], (nextParsed as Record<string, unknown>)[f]),
+          hint: buildCorrectionHint(f, getParsedField(currentParsed, f), getParsedField(nextParsed, f)),
           count: 1,
           lastSeen: new Date()
         }))
@@ -392,7 +393,7 @@ export class InvoiceService {
 
     if (this.mappingService) {
       const gstin = (nextParsed as any)?.gst?.gstin as string | undefined;
-      const vendorNameChanged = String((nextParsed as Record<string, unknown>).vendorName ?? "") !== String((currentParsed as Record<string, unknown>).vendorName ?? "");
+      const vendorNameChanged = String(nextParsed.vendorName ?? "") !== String(currentParsed.vendorName ?? "");
       if (gstin && vendorNameChanged && nextParsed.vendorName) {
         this.mappingService.maybeSeedMappingFromCorrection(tenantId, id, currentParsed, nextParsed, updatedBy)
           .catch(err => logger.warn("extraction.mapping.seed.failed", { tenantId, invoiceId: id, err }));

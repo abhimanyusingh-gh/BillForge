@@ -115,3 +115,7 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
+
+export function getParsedField(parsed: ParsedInvoiceData, field: keyof ParsedInvoiceData): ParsedInvoiceData[keyof ParsedInvoiceData] {
+  return parsed[field];
+}
