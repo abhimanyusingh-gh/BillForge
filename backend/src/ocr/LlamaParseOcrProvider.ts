@@ -93,37 +93,39 @@ function buildBlocks(items: ParsingGetResponse["items"] | null | undefined): Ocr
       continue;
     }
     const { page_number, page_width, page_height, items: pageItems } = page;
-    for (const item of pageItems) {
-      const bboxEntry = pickBbox(item);
-      if (!bboxEntry) {
+    const sorted = [...pageItems].sort((a, b) => {
+      const ay = (a as { bbox?: Array<BBox> }).bbox?.[0]?.y ?? 0;
+      const by = (b as { bbox?: Array<BBox> }).bbox?.[0]?.y ?? 0;
+      return ay - by;
+    });
+    for (const item of sorted) {
+      const bboxList = (item as { bbox?: Array<BBox> | null }).bbox;
+      if (!bboxList || bboxList.length === 0) {
         continue;
       }
       const text = pickText(item);
       if (!text || !text.trim()) {
         continue;
       }
-      const x1 = bboxEntry.x;
-      const y1 = bboxEntry.y;
-      const x2 = bboxEntry.x + bboxEntry.w;
-      const y2 = bboxEntry.y + bboxEntry.h;
-      const block: OcrBlock = {
-        text,
-        page: page_number,
-        bbox: [x1, y1, x2, y2],
-        blockType: item.type ?? "text",
-      };
-      if (page_width > 0 && page_height > 0) {
-        block.bboxNormalized = [x1 / page_width, y1 / page_height, x2 / page_width, y2 / page_height];
+      for (const bboxEntry of bboxList) {
+        const x1 = bboxEntry.x;
+        const y1 = bboxEntry.y;
+        const x2 = bboxEntry.x + bboxEntry.w;
+        const y2 = bboxEntry.y + bboxEntry.h;
+        const block: OcrBlock = {
+          text,
+          page: page_number,
+          bbox: [x1, y1, x2, y2],
+          blockType: item.type ?? "text",
+        };
+        if (page_width > 0 && page_height > 0) {
+          block.bboxNormalized = [x1 / page_width, y1 / page_height, x2 / page_width, y2 / page_height];
+        }
+        blocks.push(block);
       }
-      blocks.push(block);
     }
   }
   return blocks;
-}
-
-function pickBbox(item: AnyItem): BBox | null {
-  const bboxList = (item as { bbox?: Array<BBox> | null }).bbox;
-  return bboxList?.[0] ?? null;
 }
 
 function pickText(item: AnyItem): string {
