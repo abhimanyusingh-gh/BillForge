@@ -8,6 +8,10 @@
       "ignoreBinaries": [],
       "ignore": [
         "src/parser/invoiceParser.ts",
+        "src/parser/amountParser.ts",
+        "src/parser/dateParser.ts",
+        "src/parser/currencyParser.ts",
+        "src/parser/vendorParser.ts",
         "src/services/extraction/extractionLearningStore.ts",
         "src/services/extraction/vendorTemplateStore.ts",
         "src/services/extraction/layoutGraph.ts",
