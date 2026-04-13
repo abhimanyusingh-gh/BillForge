@@ -143,7 +143,9 @@ const envSchema = z.object({
   MOCK_OCR_TEXT: z.string().optional(),
   MOCK_OCR_CONFIDENCE: z.coerce.number().optional(),
   LLAMA_CLOUD_API_KEY: z.string().optional(),
-  LLAMA_PARSE_TIER: z.enum(["fast", "cost_effective", "agentic", "agentic_plus"]).default("cost_effective"),
+  LLAMA_PARSE_TIER: z.enum(["fast", "cost_effective", "agentic"]).default("cost_effective"),
+  LLAMA_PARSE_OPTIMIZE_MODE: z.enum(["fast", "cost_effective", "agentic"]).optional(),
+  LLAMA_PARSE_CUSTOM_PROMPT: z.string().optional(),
   OCR_HIGH_CONFIDENCE_THRESHOLD: z.coerce.number().default(0.88),
 
   FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),

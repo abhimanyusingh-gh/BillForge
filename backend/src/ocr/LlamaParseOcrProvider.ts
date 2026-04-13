@@ -13,7 +13,7 @@ const SUPPORTED_MIME_TYPES = new Set([
   "image/x-png"
 ]);
 
-type LlamaParseOcrTier = "fast" | "cost_effective" | "agentic" | "agentic_plus";
+type LlamaParseOcrTier = "fast" | "cost_effective" | "agentic" ;
 
 type AnyItem =
   | ParsingGetResponse.Items.StructuredResultPage["items"][number];
@@ -21,16 +21,22 @@ type AnyItem =
 interface LlamaParseOcrProviderOptions {
   apiKey?: string;
   tier?: LlamaParseOcrTier;
+  optimizeMode?: LlamaParseOcrTier;
+  customPrompt?: string;
 }
 
 export class LlamaParseOcrProvider implements OcrProvider {
   readonly name = "llamaparse";
   private readonly client: LlamaCloud;
   private readonly tier: LlamaParseOcrTier;
+  private readonly customPrompt: string | undefined;
 
   constructor(options?: LlamaParseOcrProviderOptions) {
     const apiKey = options?.apiKey ?? process.env.LLAMA_CLOUD_API_KEY ?? "";
-    this.tier = options?.tier ?? (process.env.LLAMA_PARSE_TIER as LlamaParseOcrTier) ?? "cost_effective";
+    const optimizeModeEnv = process.env.LLAMA_PARSE_OPTIMIZE_MODE as LlamaParseOcrTier | undefined;
+    const tierEnv = process.env.LLAMA_PARSE_TIER as LlamaParseOcrTier | undefined;
+    this.tier = options?.optimizeMode ?? options?.tier ?? optimizeModeEnv ?? tierEnv ?? "cost_effective";
+    this.customPrompt = options?.customPrompt ?? process.env.LLAMA_PARSE_CUSTOM_PROMPT;
     this.client = new LlamaCloud({ apiKey });
   }
 
@@ -43,12 +49,27 @@ export class LlamaParseOcrProvider implements OcrProvider {
     try {
       const file = new File([new Uint8Array(buffer)], "invoice.pdf", { type: mimeType });
       const fileObj = await this.client.files.create({ file, purpose: "parse" });
+      const supportsAgenticOptions = this.tier === "cost_effective" || this.tier === "agentic" ;
       const result = await this.client.parsing.parse({
         file_id: fileObj.id,
         tier: this.tier,
         version: "latest",
         expand: ["markdown_full", "items", "images_content_metadata"],
-        output_options: { images_to_save: ["screenshot"] },
+        output_options: {
+          images_to_save: ["screenshot"],
+          markdown: {
+            tables: {
+              merge_continued_tables: true,
+              output_tables_as_markdown: true,
+            },
+          },
+        },
+        processing_options: {
+          aggressive_table_extraction: true,
+        },
+        ...(supportsAgenticOptions && this.customPrompt !== undefined
+          ? { agentic_options: { custom_prompt: this.customPrompt } }
+          : {}),
       });
       const text = result.markdown_full ?? "";
       const blocks = buildBlocks(result.items);
@@ -78,7 +99,7 @@ function buildBlocks(items: ParsingGetResponse["items"] | null | undefined): Ocr
         continue;
       }
       const text = pickText(item);
-      if (!text) {
+      if (!text || !text.trim()) {
         continue;
       }
       const x1 = bboxEntry.x;
@@ -106,11 +127,30 @@ function pickBbox(item: AnyItem): BBox | null {
 }
 
 function pickText(item: AnyItem): string {
-  if (item.type === "table") {
-    return (item as { md: string }).md;
+  const typed = item as {
+    type?: string;
+    md?: string;
+    value?: string;
+    text?: string;
+    caption?: string;
+  };
+  switch (typed.type) {
+    case "table":
+      return typed.md ?? "";
+    case "image":
+      return typed.caption ?? typed.md ?? "";
+    case "link":
+      return typed.text ?? typed.md ?? "";
+    case "list":
+    case "header":
+    case "footer":
+      return typed.md ?? "";
+    case "heading":
+    case "text":
+    case "code":
+    default:
+      return typed.value ?? typed.text ?? typed.md ?? "";
   }
-  const v = (item as { value?: string }).value;
-  return v ?? "";
 }
 
 async function downloadScreenshots(
@@ -137,7 +177,6 @@ async function downloadScreenshots(
           dataUrl: `data:${mimeType};base64,${buffer.toString("base64")}`,
         });
       } catch {
-        // best-effort: skip failed screenshots
       }
     })
   );
