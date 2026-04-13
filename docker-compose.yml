@@ -20,6 +20,8 @@ services:
         condition: service_healthy
       invoice-slm:
         condition: service_healthy
+      redis:
+        condition: service_started
     env_file:
       - path: ./backend/.env.example
         required: true
@@ -130,9 +132,21 @@ services:
       INVITE_SENDGRID_TIMEOUT_MS: ${INVITE_SENDGRID_TIMEOUT_MS:-15000}
       INVITE_FROM: ${INVITE_FROM:-no-reply@invoice.local}
       INVITE_BASE_URL: ${INVITE_BASE_URL:-http://localhost:5177}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     volumes:
       - ${INVOICE_INBOX_PATH:-./sample-invoices/inbox}:/app/sample-invoices/inbox:ro
       - ./.local-run/artifacts:/app/.local-run/artifacts
+
+  redis:
+    image: redis:7-alpine
+    container_name: billforge-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   minio:
     image: minio/minio:latest

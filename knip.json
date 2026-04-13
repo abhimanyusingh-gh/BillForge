@@ -9,7 +9,14 @@
       "ignore": [
         "src/parser/invoiceParser.ts",
         "src/services/extraction/extractionLearningStore.ts",
-        "src/services/extraction/vendorTemplateStore.ts"
+        "src/services/extraction/vendorTemplateStore.ts",
+        "src/services/extraction/layoutGraph.ts",
+        "src/services/extraction/invoiceExtractionPipelineHelpers.ts",
+        "src/services/extraction/pipeline/ocrRecovery.ts",
+        "src/services/extraction/pipeline/provenance.ts",
+        "src/services/extraction/pipeline/ocrTextCandidates.ts",
+        "src/db/__mocks__/redis.ts",
+        "src/testSetup.ts"
       ]
     },
     "frontend": {

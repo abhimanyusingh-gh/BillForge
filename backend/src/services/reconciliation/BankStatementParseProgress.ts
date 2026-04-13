@@ -1,6 +1,7 @@
 import type { Response, Request } from "express";
 import { SSE_HEARTBEAT_INTERVAL_MS } from "../../constants.js";
 import { logger } from "../../utils/logger.js";
+import { getRedisClient } from "../../db/redis.js";
 
 export type BankParseStage = "ocr" | "text-extraction" | "slm-chunk" | "validation";
 
@@ -17,12 +18,15 @@ export interface BankParseProgressEvent {
   message?: string;
 }
 
+const LAST_EVENT_TTL_SECONDS = 3600;
+
 export class BankStatementParseProgress {
   private readonly subscribers = new Map<string, Set<Response>>();
-  private readonly lastEvent = new Map<string, BankParseProgressEvent>();
+  private readonly localLastEvent = new Map<string, BankParseProgressEvent>();
 
   broadcast(tenantId: string, event: BankParseProgressEvent): void {
-    this.lastEvent.set(tenantId, event);
+    this.localLastEvent.set(tenantId, event);
+    void getRedisClient().setex(`bankparse:lastEvent:${tenantId}`, LAST_EVENT_TTL_SECONDS, JSON.stringify(event)).catch(() => {});
     const subs = this.subscribers.get(tenantId);
     if (!subs || subs.size === 0) return;
     const payload = `data: ${JSON.stringify(event)}\n\n`;
@@ -40,7 +44,7 @@ export class BankStatementParseProgress {
     });
     res.write(":\n\n");
 
-    const current = this.lastEvent.get(tenantId);
+    const current = this.localLastEvent.get(tenantId);
     if (current) {
       res.write(`data: ${JSON.stringify(current)}\n\n`);
     }
@@ -74,6 +78,7 @@ export class BankStatementParseProgress {
   }
 
   clearEvent(tenantId: string): void {
-    this.lastEvent.delete(tenantId);
+    this.localLastEvent.delete(tenantId);
+    void getRedisClient().del(`bankparse:lastEvent:${tenantId}`).catch(() => {});
   }
 }
