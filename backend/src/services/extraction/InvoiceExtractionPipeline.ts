@@ -66,6 +66,7 @@ interface ExtractionPipelineOptions {
   llmAssistConfidenceThreshold?: number;
   learningMode?: "active" | "assistive";
   ocrDumpEnabled?: boolean;
+  llamaExtractEnabled?: boolean;
 }
 
 interface OcrStageResult {
@@ -126,6 +127,7 @@ export class InvoiceExtractionPipeline {
   private readonly llmAssistConfidenceThreshold: number;
   private readonly learningMode: "active" | "assistive";
   private readonly ocrDumpEnabled: boolean;
+  private readonly llamaExtractEnabled: boolean;
 
   constructor(deps: ExtractionPipelineDeps, options?: ExtractionPipelineOptions) {
     this.ocrProvider = deps.ocrProvider;
@@ -139,6 +141,7 @@ export class InvoiceExtractionPipeline {
     this.llmAssistConfidenceThreshold = options?.llmAssistConfidenceThreshold ?? 85;
     this.learningMode = options?.learningMode ?? "assistive";
     this.ocrDumpEnabled = options?.ocrDumpEnabled ?? process.env.OCR_DUMP_ENABLED === "true";
+    this.llamaExtractEnabled = options?.llamaExtractEnabled ?? false;
   }
 
   async extract(input: ExtractionPipelineInput): Promise<PipelineExtractionResult> {
@@ -162,6 +165,11 @@ export class InvoiceExtractionPipeline {
     const language = this.resolveLanguage(ocr, metadata);
 
     if ((ocr.extractFields?.length ?? 0) > 0) {
+      return this.runExtractFieldsPath(input, ocr, processingIssues, metadata, fingerprint);
+    }
+
+    if (this.llamaExtractEnabled) {
+      processingIssues.push("LlamaExtract returned no structured fields.");
       return this.runExtractFieldsPath(input, ocr, processingIssues, metadata, fingerprint);
     }
 

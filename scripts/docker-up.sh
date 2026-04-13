@@ -266,6 +266,16 @@ start_local_service_if_needed() {
   wait_for_model_ready "$health_url" "$name" 1800 "$pid_file" "$log_file"
 }
 
+is_local_ocr_engine() {
+  local engine="${OCR_ENGINE:-}"
+  [[ "$engine" == local_* ]]
+}
+
+is_local_slm_engine() {
+  local engine="${SLM_ENGINE:-}"
+  [[ "$engine" == local_* ]]
+}
+
 if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
   export SLM_MODEL_ID="$PINNED_SLM_MODEL_ID"
   local_demo_mode="false"
@@ -293,38 +303,44 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
     prepare_local_demo_inbox "$ROOT_DIR/sample-invoices/inbox" "$INVOICE_INBOX_PATH"
   fi
 
-  PYTHON_BIN="$(ensure_venv_ml)"
-
-  if [[ "${RESTART_LOCAL_ML:-false}" == "true" ]]; then
-    kill_local_service "OCR" "$OCR_PID_FILE"
+  if is_local_ocr_engine || is_local_slm_engine; then
+    PYTHON_BIN="$(ensure_venv_ml)"
   fi
 
-  start_local_service_if_needed \
-    "OCR" \
-    "$OCR_HEALTH_URL" \
-    "$OCR_PID_FILE" \
-    "$OCR_LOG_FILE" \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
+  if is_local_ocr_engine; then
+    if [[ "${RESTART_LOCAL_ML:-false}" == "true" ]]; then
+      kill_local_service "OCR" "$OCR_PID_FILE"
+    fi
 
-  detected_ocr_model="$(curl -fsS http://localhost:8200/v1/models 2>/dev/null \
-    | "$PYTHON_BIN" -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || true)"
-  if [[ -n "$detected_ocr_model" ]]; then
-    export OCR_MODEL="$detected_ocr_model"
-    echo "OCR model detected: $OCR_MODEL"
+    start_local_service_if_needed \
+      "OCR" \
+      "$OCR_HEALTH_URL" \
+      "$OCR_PID_FILE" \
+      "$OCR_LOG_FILE" \
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-ocr --host 0.0.0.0 --port 8200
+
+    detected_ocr_model="$(curl -fsS http://localhost:8200/v1/models 2>/dev/null \
+      | "$PYTHON_BIN" -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['id'] if d.get('data') else '')" 2>/dev/null || true)"
+    if [[ -n "$detected_ocr_model" ]]; then
+      export OCR_MODEL="$detected_ocr_model"
+      echo "OCR model detected: $OCR_MODEL"
+    fi
   fi
 
-  if [[ -n "${SLM_ENGINE:-}" && "${SLM_ENGINE:-}" != "prod_http" ]]; then
-    kill_local_service "SLM" "$SLM_PID_FILE"
-  else
-    kill_stale_slm_if_engine_mismatch "$SLM_HEALTH_URL" "$SLM_PID_FILE"
-  fi
+  if is_local_slm_engine; then
+    if [[ "${RESTART_LOCAL_ML:-false}" == "true" ]]; then
+      kill_local_service "SLM" "$SLM_PID_FILE"
+    else
+      kill_stale_slm_if_engine_mismatch "$SLM_HEALTH_URL" "$SLM_PID_FILE"
+    fi
 
-  start_local_service_if_needed \
-    "SLM" \
-    "$SLM_HEALTH_URL" \
-    "$SLM_PID_FILE" \
-    "$SLM_LOG_FILE" \
-    "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
+    start_local_service_if_needed \
+      "SLM" \
+      "$SLM_HEALTH_URL" \
+      "$SLM_PID_FILE" \
+      "$SLM_LOG_FILE" \
+      "$PYTHON_BIN" -m uvicorn app.api:app --app-dir invoice-slm --host 0.0.0.0 --port 8300
+  fi
 fi
 
 INVOICE_INBOX_PATH="$INVOICE_INBOX_PATH" \
