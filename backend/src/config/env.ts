@@ -146,6 +146,8 @@ const envSchema = z.object({
   LLAMA_PARSE_TIER: z.enum(["fast", "cost_effective", "agentic"]).default("cost_effective"),
   LLAMA_PARSE_OPTIMIZE_MODE: z.enum(["fast", "cost_effective", "agentic"]).optional(),
   LLAMA_PARSE_CUSTOM_PROMPT: z.string().optional(),
+  LLAMA_PARSE_EXTRACT_ENABLED: z.coerce.boolean().default(false),
+  LLAMA_PARSE_EXTRACT_TIER: z.enum(["cost_effective", "agentic"]).default("cost_effective"),
   OCR_HIGH_CONFIDENCE_THRESHOLD: z.coerce.number().default(0.88),
 
   FIELD_VERIFIER_PROVIDER: z.enum(["none", "http"]).default("http"),

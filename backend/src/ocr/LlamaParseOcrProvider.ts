@@ -1,8 +1,9 @@
 import type { BBox, ParsingGetResponse } from "@llamaindex/llama-cloud/resources/parsing";
 import LlamaCloud from "@llamaindex/llama-cloud";
-import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult } from "../core/interfaces/OcrProvider.js";
+import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult, ExtractedField } from "../core/interfaces/OcrProvider.js";
 import { logger } from "../utils/logger.js";
 import { buildOcrRequestError } from "./OcrProviderSupport.js";
+import { INVOICE_EXTRACT_SCHEMA } from "./llamaExtractSchema.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf",
@@ -14,6 +15,7 @@ const SUPPORTED_MIME_TYPES = new Set([
 ]);
 
 type LlamaParseOcrTier = "fast" | "cost_effective" | "agentic" ;
+type LlamaExtractTier = "cost_effective" | "agentic";
 
 type AnyItem =
   | ParsingGetResponse.Items.StructuredResultPage["items"][number];
@@ -23,6 +25,8 @@ interface LlamaParseOcrProviderOptions {
   tier?: LlamaParseOcrTier;
   optimizeMode?: LlamaParseOcrTier;
   customPrompt?: string;
+  extractEnabled?: boolean;
+  extractTier?: LlamaExtractTier;
 }
 
 export class LlamaParseOcrProvider implements OcrProvider {
@@ -30,6 +34,8 @@ export class LlamaParseOcrProvider implements OcrProvider {
   private readonly client: LlamaCloud;
   private readonly tier: LlamaParseOcrTier;
   private readonly customPrompt: string | undefined;
+  private readonly extractEnabled: boolean;
+  private readonly extractTier: LlamaExtractTier;
 
   constructor(options?: LlamaParseOcrProviderOptions) {
     const apiKey = options?.apiKey ?? process.env.LLAMA_CLOUD_API_KEY ?? "";
@@ -38,6 +44,8 @@ export class LlamaParseOcrProvider implements OcrProvider {
     this.tier = options?.optimizeMode ?? options?.tier ?? optimizeModeEnv ?? tierEnv ?? "cost_effective";
     this.customPrompt = options?.customPrompt ?? process.env.LLAMA_PARSE_CUSTOM_PROMPT;
     this.client = new LlamaCloud({ apiKey });
+    this.extractEnabled = options?.extractEnabled ?? (process.env.LLAMA_PARSE_EXTRACT_ENABLED === "true");
+    this.extractTier = options?.extractTier ?? (process.env.LLAMA_PARSE_EXTRACT_TIER as LlamaExtractTier | undefined) ?? "cost_effective";
   }
 
   async extractText(buffer: Buffer, mimeType: string, _options?: OcrExtractionOptions): Promise<OcrResult> {
@@ -74,13 +82,91 @@ export class LlamaParseOcrProvider implements OcrProvider {
       const text = result.markdown_full ?? "";
       const blocks = buildBlocks(result.items);
       const pageImages = await downloadScreenshots(result.images_content_metadata);
+
+      let fields: ExtractedField[] | undefined;
+      if (this.extractEnabled) {
+        const parseJobId = result.job?.id ?? fileObj.id;
+        const extracted = await this.runExtract(parseJobId);
+        if (extracted.length > 0) {
+          fields = extracted;
+        }
+      }
+
       logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
-      return { text, provider: this.name, blocks, pageImages };
+      return { text, provider: this.name, blocks, pageImages, fields };
     } catch (error) {
       logger.error("ocr.request.failed", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, error: buildOcrRequestError(this.name, error) });
       throw new Error(buildOcrRequestError(this.name, error));
     }
   }
+
+  private async runExtract(fileInput: string): Promise<ExtractedField[]> {
+    try {
+      const job = await this.client.extract.create({
+        file_input: fileInput,
+        configuration: {
+          data_schema: INVOICE_EXTRACT_SCHEMA,
+          cite_sources: true,
+          confidence_scores: true,
+          tier: this.extractTier,
+          extraction_target: "per_doc",
+        },
+      });
+      const completed = await this.client.extract.waitForCompletion(job.id, { expand: ["extract_metadata"] });
+      return mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
+    } catch (err) {
+      logger.warn("ocr.extract.failed", { provider: this.name, fileInput, error: String(err) });
+      return [];
+    }
+  }
+}
+
+function mapExtractResult(
+  extractResult: unknown,
+  documentMetadata: unknown
+): ExtractedField[] {
+  if (!extractResult || typeof extractResult !== "object" || Array.isArray(extractResult)) {
+    return [];
+  }
+  const result = extractResult as Record<string, unknown>;
+  const meta = (documentMetadata && typeof documentMetadata === "object" && !Array.isArray(documentMetadata))
+    ? (documentMetadata as Record<string, unknown>)
+    : {};
+
+  const fields: ExtractedField[] = [];
+  for (const key of Object.keys(result)) {
+    const raw = result[key];
+    if (raw === null || raw === undefined) {
+      continue;
+    }
+    if (typeof raw !== "string" && typeof raw !== "number" && typeof raw !== "boolean") {
+      continue;
+    }
+    const field: ExtractedField = { key, value: raw };
+    const fieldMeta = meta[key];
+    if (fieldMeta && typeof fieldMeta === "object" && !Array.isArray(fieldMeta)) {
+      const fm = fieldMeta as Record<string, unknown>;
+      const citations = Array.isArray(fm["citations"]) ? fm["citations"] : [];
+      if (citations.length > 0) {
+        const first = citations[0] as Record<string, unknown>;
+        if (typeof first["page"] === "number") {
+          field.page = first["page"];
+        }
+        const bboxObj = first["bbox"];
+        if (bboxObj && typeof bboxObj === "object" && !Array.isArray(bboxObj)) {
+          const b = bboxObj as Record<string, unknown>;
+          if (typeof b["x"] === "number" && typeof b["y"] === "number" && typeof b["w"] === "number" && typeof b["h"] === "number") {
+            field.bbox = [b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]];
+          }
+        }
+      }
+      if (typeof fm["confidence"] === "number") {
+        field.confidence = fm["confidence"];
+      }
+    }
+    fields.push(field);
+  }
+  return fields;
 }
 
 function buildBlocks(items: ParsingGetResponse["items"] | null | undefined): OcrBlock[] {
@@ -93,37 +179,39 @@ function buildBlocks(items: ParsingGetResponse["items"] | null | undefined): Ocr
       continue;
     }
     const { page_number, page_width, page_height, items: pageItems } = page;
-    for (const item of pageItems) {
-      const bboxEntry = pickBbox(item);
-      if (!bboxEntry) {
+    const sorted = [...pageItems].sort((a, b) => {
+      const ay = (a as { bbox?: Array<BBox> }).bbox?.[0]?.y ?? 0;
+      const by = (b as { bbox?: Array<BBox> }).bbox?.[0]?.y ?? 0;
+      return ay - by;
+    });
+    for (const item of sorted) {
+      const bboxList = (item as { bbox?: Array<BBox> | null }).bbox;
+      if (!bboxList || bboxList.length === 0) {
         continue;
       }
       const text = pickText(item);
       if (!text || !text.trim()) {
         continue;
       }
-      const x1 = bboxEntry.x;
-      const y1 = bboxEntry.y;
-      const x2 = bboxEntry.x + bboxEntry.w;
-      const y2 = bboxEntry.y + bboxEntry.h;
-      const block: OcrBlock = {
-        text,
-        page: page_number,
-        bbox: [x1, y1, x2, y2],
-        blockType: item.type ?? "text",
-      };
-      if (page_width > 0 && page_height > 0) {
-        block.bboxNormalized = [x1 / page_width, y1 / page_height, x2 / page_width, y2 / page_height];
+      for (const bboxEntry of bboxList) {
+        const x1 = bboxEntry.x;
+        const y1 = bboxEntry.y;
+        const x2 = bboxEntry.x + bboxEntry.w;
+        const y2 = bboxEntry.y + bboxEntry.h;
+        const block: OcrBlock = {
+          text,
+          page: page_number,
+          bbox: [x1, y1, x2, y2],
+          blockType: item.type ?? "text",
+        };
+        if (page_width > 0 && page_height > 0) {
+          block.bboxNormalized = [x1 / page_width, y1 / page_height, x2 / page_width, y2 / page_height];
+        }
+        blocks.push(block);
       }
-      blocks.push(block);
     }
   }
   return blocks;
-}
-
-function pickBbox(item: AnyItem): BBox | null {
-  const bboxList = (item as { bbox?: Array<BBox> | null }).bbox;
-  return bboxList?.[0] ?? null;
 }
 
 function pickText(item: AnyItem): string {

@@ -23,6 +23,15 @@ export interface TokenUsage {
   totalTokens?: number;
 }
 
+export interface ExtractedField {
+  key: string;
+  value: string | number | boolean | null;
+  page?: number;
+  bbox?: [number, number, number, number];
+  bboxNormalized?: [number, number, number, number];
+  confidence?: number;
+}
+
 export interface OcrResult {
   text: string;
   confidence?: number;
@@ -30,6 +39,7 @@ export interface OcrResult {
   blocks?: OcrBlock[];
   pageImages?: OcrPageImage[];
   tokenUsage?: TokenUsage;
+  fields?: ExtractedField[];
 }
 
 export interface OcrExtractionOptions {
