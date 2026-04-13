@@ -351,6 +351,7 @@ export class InvoiceExtractionPipeline {
       const entry: InvoiceFieldProvenance = { source: "llamaextract" };
       if (field.page !== undefined) entry.page = field.page;
       if (field.bbox !== undefined) entry.bbox = field.bbox;
+      if (field.bboxNormalized !== undefined) entry.bboxNormalized = field.bboxNormalized;
       if (field.confidence !== undefined) entry.confidence = field.confidence;
       fieldProvenance[mappedKey] = entry;
     }
