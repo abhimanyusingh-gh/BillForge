@@ -23,6 +23,29 @@ export {
 } from "./tallyExporter/xml.js";
 export { resolveInvoiceTotalAmountMinor } from "./tallyExporter/amountResolution.js";
 
+async function postWithRetry(
+  url: string,
+  data: string,
+  config: Parameters<typeof axios.post>[2],
+  maxRetries = 1
+): Promise<import("axios").AxiosResponse> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await axios.post(url, data, config);
+    } catch (error) {
+      const isNetworkError = isAxiosErrorLike(error) &&
+        !("response" in error && (error as Record<string, unknown>).response);
+      if (attempt < maxRetries && isNetworkError) {
+        logger.warn("tally.export.retry", { attempt: attempt + 1, maxRetries, error: (error as Error).message });
+        continue;
+      }
+      throw error;
+    }
+  }
+  // Unreachable, but satisfies TypeScript
+  throw new Error("postWithRetry: exhausted retries");
+}
+
 export class TallyExporter implements AccountingExporter {
   readonly system = "tally";
 
@@ -84,11 +107,11 @@ export class TallyExporter implements AccountingExporter {
 
         const voucherPayload = buildTallyPurchaseVoucherPayload(buildVoucherInput(this.config, invoice, invoiceId, resolvedTotalAmountMinor));
 
-        const response = await axios.post(this.config.endpoint, voucherPayload, {
+        const response = await postWithRetry(this.config.endpoint, voucherPayload, {
           headers: {
             "Content-Type": "text/xml; charset=utf-8"
           },
-          timeout: 20_000,
+          timeout: 30_000,
           responseType: "text"
         });
 
