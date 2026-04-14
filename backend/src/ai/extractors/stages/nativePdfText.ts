@@ -1,7 +1,13 @@
 import { spawnSync } from "node:child_process";
 
+const MAX_PDF_BUFFER_SIZE = 100 * 1024 * 1024; // 100 MB
+
 export function extractNativePdfText(fileBuffer: Buffer, mimeType: string): string {
   if (mimeType !== "application/pdf" || fileBuffer.length === 0) {
+    return "";
+  }
+
+  if (fileBuffer.length > MAX_PDF_BUFFER_SIZE) {
     return "";
   }
 
