@@ -14,7 +14,8 @@ export function createVendorsRouter() {
       const query: Record<string, unknown> = { tenantId };
 
       if (typeof req.query.search === "string" && req.query.search.trim()) {
-        query.name = { $regex: req.query.search.trim(), $options: "i" };
+        const escaped = req.query.search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        query.name = { $regex: escaped, $options: "i" };
       }
       if (req.query.hasPan === "true") query.pan = { $ne: null };
       if (req.query.hasPan === "false") query.pan = null;
