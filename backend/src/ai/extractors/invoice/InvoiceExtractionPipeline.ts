@@ -3,6 +3,7 @@ import type { ExtractedField, OcrBlock, OcrPageImage, OcrProvider, OcrResult } f
 import { postProcessOcrResult, type EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
 import { parseInvoiceText } from "@/ai/parsers/invoiceParser.js";
 import type {
+  InvoiceCompliance,
   InvoiceExtractionData,
   InvoiceFieldProvenance,
   InvoiceLineItemProvenance,
@@ -15,25 +16,69 @@ import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.j
 import type { ExtractionLearningStore } from "./learning/extractionLearningStore.js";
 import type { ExtractionMappingService } from "./learning/extractionMappingService.js";
 import type { DetectedInvoiceLanguage } from "./languageDetection.js";
-import { detectInvoiceLanguage, detectInvoiceLanguageBeforeOcr } from "./languageDetection.js";
-import type { PipelineExtractionResult } from "./types.js";
-import type { VendorTemplateSnapshot, VendorTemplateStore } from "./learning/vendorTemplateStore.js";
-import { validateInvoiceFields } from "./deterministicValidation.js";
 import {
-  clampProbability,
-  formatConfidence,
+  detectInvoiceLanguage,
+  detectInvoiceLanguageBeforeOcr,
   resolveDetectedLanguage,
-  resolvePreOcrLanguageHint,
-  uniqueIssues
-} from "./invoiceExtractionPipelineHelpers.js";
-import { addFieldDiagnosticsToMetadata, calibrateDocumentConfidence } from "./stages/diagnostics.js";
+  resolvePreOcrLanguageHint
+} from "./languageDetection.js";
+import type { VendorTemplateSnapshot, VendorTemplateStore } from "./learning/vendorTemplateStore.js";
+import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
+
+export interface ParseResult {
+  parsed: ParsedInvoiceData;
+  warnings: string[];
+}
+
+export interface ExtractionAttemptSummary {
+  provider: string;
+  source: ExtractionSource;
+  strategy: ExtractionSource;
+  score: number;
+  confidenceScore: number;
+  warningCount: number;
+  hasTotalAmountMinor: boolean;
+  textLength: number;
+}
+
+export interface PipelineExtractionResult {
+  provider: string;
+  text: string;
+  confidence?: number;
+  source: ExtractionSource;
+  strategy: ExtractionSource;
+  parseResult: ParseResult;
+  confidenceAssessment: ConfidenceAssessment;
+  attempts: ExtractionAttemptSummary[];
+  ocrBlocks: OcrBlock[];
+  ocrPageImages: OcrPageImage[];
+  processingIssues: string[];
+  metadata: Record<string, string>;
+  ocrTokens?: number;
+  slmTokens?: number;
+  compliance?: InvoiceCompliance;
+  extraction?: InvoiceExtractionData;
+}
+import { validateInvoiceFields } from "./deterministicValidation.js";
+import { clampProbability, formatConfidence, uniqueIssues } from "./stages/fieldParsingUtils.js";
+import { addFieldDiagnosticsToMetadata, calibrateDocumentConfidence } from "./confidenceScoring/FieldConfidenceScorer.js";
 import { buildFieldCandidates, buildFieldRegions } from "./stages/fieldCandidates.js";
 import {
   buildRankedOcrTextCandidates,
   type RankedOcrTextCandidate
 } from "./stages/ocrTextCandidates.js";
-import { classifyOcrRecoveryStrategy, recoverParsedFromOcr } from "./stages/ocrRecovery.js";
-import type { OcrRecoveryStrategy } from "./stages/lineItemRecovery.js";
+import {
+  classifyOcrRecoveryStrategy,
+  recoverLineItemsFromOcr,
+  type OcrRecoveryStrategy
+} from "./stages/lineItemRecovery.js";
+import { recoverHeaderFieldsFromOcr } from "./stages/documentFieldRecovery.js";
+import {
+  computeSummaryTotalMinor,
+  normalizeParsedAgainstOcrText,
+  recoverGstSummaryFromOcr,
+  recoverPreferredTotalAmountMinor
+} from "./stages/totalsRecovery.js";
 import {
   collectLineItemConfidence,
   mergeClassification,
@@ -339,7 +384,7 @@ export class InvoiceExtractionPipeline {
     const baselineParsed: ParsedInvoiceData = capturedBaselineParsed;
 
     const mergedParsed = mergeParsedInvoiceData(baselineParsed, slm.parsed);
-    const parsed = recoverParsedFromOcr(mergedParsed, ocrBlocks, primaryText);
+    const parsed = recoverOcrFields(mergedParsed, ocrBlocks, primaryText);
     const recoveryStrategy = classifyOcrRecoveryStrategy(ocrBlocks, primaryText);
     metadata.ocrRecoveryStrategy = recoveryStrategy;
 
@@ -510,3 +555,64 @@ function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoice
   return sanitizeInvoiceExtraction(merged);
 }
 
+function recoverOcrFields(parsed: ParsedInvoiceData, ocrBlocks: OcrBlock[], ocrText: string): ParsedInvoiceData {
+  const strategy = classifyOcrRecoveryStrategy(ocrBlocks, ocrText);
+  const next = recoverHeaderFieldsFromOcr(parsed, ocrBlocks, ocrText);
+  const normalized = normalizeParsedAgainstOcrText(next, ocrText, ocrBlocks);
+  const recoveredGst = recoverGstSummaryFromOcr(ocrBlocks);
+  if (recoveredGst) {
+    normalized.gst = {
+      ...(normalized.gst ?? {}),
+      ...(recoveredGst.subtotalMinor !== undefined && (normalized.gst?.subtotalMinor === undefined || normalized.gst?.subtotalMinor === 0)
+        ? { subtotalMinor: recoveredGst.subtotalMinor }
+        : {}),
+      ...(recoveredGst.cgstMinor !== undefined && (normalized.gst?.cgstMinor === undefined || normalized.gst?.cgstMinor === 0)
+        ? { cgstMinor: recoveredGst.cgstMinor }
+        : {}),
+      ...(recoveredGst.sgstMinor !== undefined && (normalized.gst?.sgstMinor === undefined || normalized.gst?.sgstMinor === 0)
+        ? { sgstMinor: recoveredGst.sgstMinor }
+        : {}),
+      ...(recoveredGst.igstMinor !== undefined && (normalized.gst?.igstMinor === undefined || normalized.gst?.igstMinor === 0)
+        ? { igstMinor: recoveredGst.igstMinor }
+        : {}),
+      ...(recoveredGst.totalTaxMinor !== undefined && (normalized.gst?.totalTaxMinor === undefined || normalized.gst?.totalTaxMinor === 0)
+        ? { totalTaxMinor: recoveredGst.totalTaxMinor }
+        : {})
+    };
+  }
+
+  const computedSummaryTotalMinor = computeSummaryTotalMinor(normalized.gst);
+  if (
+    computedSummaryTotalMinor !== undefined &&
+    (
+      normalized.totalAmountMinor === undefined ||
+      normalized.totalAmountMinor <= 0 ||
+      (normalized.gst?.subtotalMinor !== undefined && normalized.totalAmountMinor <= normalized.gst.subtotalMinor)
+    )
+  ) {
+    normalized.totalAmountMinor = computedSummaryTotalMinor;
+  }
+
+  const recoveredTotalMinor = recoverPreferredTotalAmountMinor(ocrBlocks);
+  const hasConsistentSummaryTotal =
+    typeof normalized.totalAmountMinor === "number" &&
+    computedSummaryTotalMinor !== undefined &&
+    normalized.totalAmountMinor === computedSummaryTotalMinor;
+  if (recoveredTotalMinor !== undefined) {
+    if (
+      normalized.totalAmountMinor === undefined ||
+      normalized.totalAmountMinor <= 0 ||
+      normalized.totalAmountMinor === recoveredTotalMinor ||
+      (!hasConsistentSummaryTotal && recoveredTotalMinor !== undefined)
+    ) {
+      normalized.totalAmountMinor = recoveredTotalMinor;
+    }
+  }
+
+  const recoveredLineItems = recoverLineItemsFromOcr(normalized.lineItems, ocrBlocks, strategy, normalized.totalAmountMinor);
+  if (recoveredLineItems && recoveredLineItems.length > 0) {
+    normalized.lineItems = recoveredLineItems;
+  }
+
+  return normalized;
+}

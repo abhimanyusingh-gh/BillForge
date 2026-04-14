@@ -1,8 +1,8 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { currencyBySymbol } from "@/ai/parsers/invoiceParser.js";
-import { isWeakVendorValue } from "./textHeuristics.js";
-import { findBlockByLabelProximity, findVendorBlock } from "./grounding.js";
+import { isWeakVendorValue } from "./fieldCandidates.js";
+import { findBlockByLabelProximity, findVendorBlock } from "./groundingText.js";
+import { normalizeDateToken, detectExplicitCurrency } from "./fieldParsingUtils.js";
 
 type BoxedBlock = { block: OcrBlock; index: number; box: [number, number, number, number] };
 
@@ -127,33 +127,6 @@ export function findPreferredVendorBlockForStrategy(
   return findVendorBlock(ocrBlocks);
 }
 
-function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = []): string | undefined {
-  const hasIndiaTaxContext = /\b(place of supply|gstin|cgst|sgst|igst|gst|tax invoice)\b/i.test(text) ||
-    /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i.test(text) ||
-    ocrBlocks.some((block) => /\b(gstin|cgst|sgst|igst|gst|place of supply)\b/i.test(block.text));
-  const hasUsdContext = /\bUSD\b/i.test(text) || ocrBlocks.some((block) => /\bUSD\b/i.test(block.text));
-  if (hasUsdContext) {
-    return "USD";
-  }
-  if (/\$/.test(text) && !hasIndiaTaxContext) {
-    return "USD";
-  }
-  if (/\bINR\b/i.test(text) || /₹/.test(text)) {
-    return "INR";
-  }
-  if (hasIndiaTaxContext) {
-    return "INR";
-  }
-  if (ocrBlocks.some((block) => /\$/.test(block.text) && !hasIndiaTaxContext)) {
-    return "USD";
-  }
-  const symbolMatch = text.match(/([$€£₹])/);
-  if (symbolMatch) {
-    return currencyBySymbol[symbolMatch[1]];
-  }
-  return undefined;
-}
-
 function extractInvoiceNumber(text: string): string | undefined {
   const normalizedText = text.replace(/[|]/g, "I").replace(/\bO(?=\d)/g, "0");
   const receiptMatch = normalizedText.match(/\b(?:receipt|invoice)\s+([A-Z]{1,4}\d{6,})\b/i);
@@ -176,26 +149,6 @@ function extractInvoiceNumber(text: string): string | undefined {
     return undefined;
   }
   return normalizeInvoiceNumberValue(filtered[filtered.length - 1]?.trim());
-}
-
-function normalizeDateToken(text: string): string | undefined {
-  const normalizedText = text.trim().replace(/[|]/g, "I");
-  const patterns = [
-    /\b([A-Z][a-z]+ \d{1,2}, \d{4})\b/,
-    /\b(\d{1,2} [A-Z][a-z]{2} \d{4})\b/,
-    /\b([A-Z][a-z]{2} \d{1,2}, \d{4})\b/
-  ];
-  for (const pattern of patterns) {
-    const match = normalizedText.match(pattern);
-    if (!match) {
-      continue;
-    }
-    const normalizedDate = normalizeNamedDateValue(match[1]);
-    if (normalizedDate) {
-      return normalizedDate;
-    }
-  }
-  return undefined;
 }
 
 export function normalizeInvoiceNumberValue(value: string | undefined): string | undefined {
@@ -321,53 +274,3 @@ function scoreBrandVendorCandidate(entry: BoxedBlock): number {
   return score;
 }
 
-function normalizeNamedDateValue(value: string): string | undefined {
-  const sanitized = value.replace(/,/g, "").trim();
-  const monthNameFirst = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
-  if (monthNameFirst) {
-    const month = resolveMonthNumber(monthNameFirst[1]);
-    if (month) {
-      return `${monthNameFirst[3]}-${month}-${monthNameFirst[2].padStart(2, "0")}`;
-    }
-  }
-
-  const dayFirst = sanitized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
-  if (dayFirst) {
-    const month = resolveMonthNumber(dayFirst[2]);
-    if (month) {
-      return `${dayFirst[3]}-${month}-${dayFirst[1].padStart(2, "0")}`;
-    }
-  }
-
-  return undefined;
-}
-
-function resolveMonthNumber(value: string): string | undefined {
-  const months: Record<string, string> = {
-    jan: "01",
-    january: "01",
-    feb: "02",
-    february: "02",
-    mar: "03",
-    march: "03",
-    apr: "04",
-    april: "04",
-    may: "05",
-    jun: "06",
-    june: "06",
-    jul: "07",
-    july: "07",
-    aug: "08",
-    august: "08",
-    sep: "09",
-    sept: "09",
-    september: "09",
-    oct: "10",
-    october: "10",
-    nov: "11",
-    november: "11",
-    dec: "12",
-    december: "12"
-  };
-  return months[value.trim().toLowerCase()];
-}

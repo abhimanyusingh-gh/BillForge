@@ -1,7 +1,8 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { currencyBySymbol, parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
+import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
 import { normalizeInvoiceNumberValue, normalizeVendorText } from "./documentFieldRecovery.js";
+import { detectExplicitCurrency } from "./fieldParsingUtils.js";
 
 export function normalizeParsedAgainstOcrText(
   parsed: ParsedInvoiceData,
@@ -55,33 +56,6 @@ export function normalizeParsedAgainstOcrText(
   }
 
   return next;
-}
-
-function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = []): string | undefined {
-  const hasIndiaTaxContext = /\b(place of supply|gstin|cgst|sgst|igst|gst|tax invoice)\b/i.test(text) ||
-    /\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b/i.test(text) ||
-    ocrBlocks.some((block) => /\b(gstin|cgst|sgst|igst|gst|place of supply)\b/i.test(block.text));
-  const hasUsdContext = /\bUSD\b/i.test(text) || ocrBlocks.some((block) => /\bUSD\b/i.test(block.text));
-  if (hasUsdContext) {
-    return "USD";
-  }
-  if (/\$/.test(text) && !hasIndiaTaxContext) {
-    return "USD";
-  }
-  if (/\bINR\b/i.test(text) || /₹/.test(text)) {
-    return "INR";
-  }
-  if (hasIndiaTaxContext) {
-    return "INR";
-  }
-  if (ocrBlocks.some((block) => /\$/.test(block.text) && !hasIndiaTaxContext)) {
-    return "USD";
-  }
-  const symbolMatch = text.match(/([$€£₹])/);
-  if (symbolMatch) {
-    return currencyBySymbol[symbolMatch[1]];
-  }
-  return undefined;
 }
 
 export function recoverGstSummaryFromOcr(

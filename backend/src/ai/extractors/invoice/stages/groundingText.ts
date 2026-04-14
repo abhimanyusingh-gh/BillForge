@@ -1,8 +1,24 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { currencyBySymbol, parseAmountToken } from "@/ai/parsers/invoiceParser.js";
-import { looksLikeAddress } from "./textHeuristics.js";
-import { DEFAULT_FIELD_LABEL_PATTERNS } from "./groundingLabels.js";
+import { parseAmountToken } from "@/ai/parsers/invoiceParser.js";
+import { looksLikeAddress } from "./fieldCandidates.js";
+import { normalizeDateToken, buildDateTerms, detectExplicitCurrency } from "./fieldParsingUtils.js";
+
+export const DEFAULT_FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
+  invoiceNumber: /^((?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?|invoice\s*(?:number|no\.?|#)|bill\s*(?:number|no\.?|#)|inv\s*(?:no\.?|#))$/i,
+  vendorName: /^(vendor|supplier|sold\s*by|company|from)$/i,
+  invoiceDate: /^(invoice\s*date|bill\s*date|date|dated|date\s*of\s*issue|issue\s*date)$/i,
+  dueDate: /^(due\s*date|payment\s*due|date\s*due)$/i,
+  totalAmountMinor: /^(grand\s*total|total|total\s*amount|invoice\s*value|invoice\s*total|amount\s*due|balance\s*due|net\s*payable|net\s*amount\s*payable|amount\s*payable)$/i,
+  currency: /^(currency)$/i,
+  "gst.gstin": /^(gstin|gst\s*(?:no\.?|number|id|in))$/i,
+  "gst.subtotalMinor": /^(sub\s*total|subtotal|taxable\s*(?:value|amount))$/i,
+  "gst.cgstMinor": /\bcgst(?:\d+)?\b/i,
+  "gst.sgstMinor": /\bsgst(?:\d+)?\b/i,
+  "gst.igstMinor": /\bigst(?:\d+)?\b/i,
+  "gst.cessMinor": /\bcess\b/i,
+  "gst.totalTaxMinor": /\b(total\s*tax|tax\s*total|total\s*gst)\b/i
+};
 
 type FieldAlignmentProfile = {
   minLeftGap: number;
@@ -395,33 +411,6 @@ export function findBlockIndexByExactText(blocks: OcrBlock[], pattern: RegExp): 
   return blocks.findIndex((block) => pattern.test(block.text.trim()));
 }
 
-function buildGroundingDateTerms(value: string): string[] {
-  const [year, month, day] = value.split("-");
-  const monthIndex = Number(month) - 1;
-  const dayNumber = Number(day);
-  if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11 || !Number.isInteger(dayNumber)) {
-    return [value];
-  }
-
-  const monthNames = [
-    ["jan", "january"],
-    ["feb", "february"],
-    ["mar", "march"],
-    ["apr", "april"],
-    ["may", "may"],
-    ["jun", "june"],
-    ["jul", "july"],
-    ["aug", "august"],
-    ["sep", "september"],
-    ["oct", "october"],
-    ["nov", "november"],
-    ["dec", "december"]
-  ];
-  const [shortMonth, longMonth] = monthNames[monthIndex] ?? [];
-  const normalizedDay = String(dayNumber);
-  return [value, `${longMonth} ${normalizedDay}, ${year}`, `${shortMonth} ${normalizedDay}, ${year}`].filter(Boolean);
-}
-
 function candidateTerms(field: keyof ParsedInvoiceData, value: string): string[] {
   const base = value.trim().toLowerCase();
   if (!base) {
@@ -429,7 +418,7 @@ function candidateTerms(field: keyof ParsedInvoiceData, value: string): string[]
   }
 
   if ((field === "invoiceDate" || field === "dueDate") && /^\d{4}-\d{2}-\d{2}$/.test(base)) {
-    return buildGroundingDateTerms(base);
+    return buildDateTerms(base);
   }
 
   if (field !== "totalAmountMinor") {
@@ -545,91 +534,6 @@ function blockShapePenalty(field: keyof ParsedInvoiceData, text: string): number
   }
 
   return linePenalty + lengthPenalty;
-}
-
-function detectExplicitCurrency(text: string): string | undefined {
-  if (/\bUSD\b/i.test(text) || /\$\d/.test(text)) {
-    return "USD";
-  }
-  if (/\bINR\b/i.test(text) || /₹/.test(text)) {
-    return "INR";
-  }
-  const symbolMatch = text.match(/([$€£₹])/);
-  if (!symbolMatch) {
-    return undefined;
-  }
-  return currencyBySymbol[symbolMatch[1]];
-}
-
-function normalizeDateToken(text: string): string | undefined {
-  const normalizedText = text.trim().replace(/[|]/g, "I");
-  const patterns = [
-    /\b([A-Z][a-z]+ \d{1,2}, \d{4})\b/,
-    /\b(\d{1,2} [A-Z][a-z]{2} \d{4})\b/,
-    /\b([A-Z][a-z]{2} \d{1,2}, \d{4})\b/
-  ];
-  for (const pattern of patterns) {
-    const match = normalizedText.match(pattern);
-    if (!match) {
-      continue;
-    }
-    const normalizedDate = normalizeNamedDateValue(match[1]);
-    if (normalizedDate) {
-      return normalizedDate;
-    }
-  }
-  return undefined;
-}
-
-function normalizeNamedDateValue(value: string): string | undefined {
-  const sanitized = value.replace(/,/g, "").trim();
-  const monthNameFirst = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
-  if (monthNameFirst) {
-    const month = resolveMonthNumber(monthNameFirst[1]);
-    if (month) {
-      return `${monthNameFirst[3]}-${month}-${monthNameFirst[2].padStart(2, "0")}`;
-    }
-  }
-
-  const dayFirst = sanitized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
-  if (dayFirst) {
-    const month = resolveMonthNumber(dayFirst[2]);
-    if (month) {
-      return `${dayFirst[3]}-${month}-${dayFirst[1].padStart(2, "0")}`;
-    }
-  }
-
-  return undefined;
-}
-
-function resolveMonthNumber(value: string): string | undefined {
-  const months: Record<string, string> = {
-    jan: "01",
-    january: "01",
-    feb: "02",
-    february: "02",
-    mar: "03",
-    march: "03",
-    apr: "04",
-    april: "04",
-    may: "05",
-    jun: "06",
-    june: "06",
-    jul: "07",
-    july: "07",
-    aug: "08",
-    august: "08",
-    sep: "09",
-    sept: "09",
-    september: "09",
-    oct: "10",
-    october: "10",
-    nov: "11",
-    november: "11",
-    dec: "12",
-    december: "12"
-  };
-  return months[value.trim().toLowerCase()];
 }
 
 function containsTerm(haystack: string, term: string): boolean {
