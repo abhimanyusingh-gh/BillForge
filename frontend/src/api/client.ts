@@ -8,10 +8,13 @@ export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
 apiClient.interceptors.request.use((config) => {
   const token = getStoredSessionToken();
+  config.headers = config.headers ?? {};
   if (token) {
-    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // CSRF protection: custom header that proves the request came from our SPA,
+  // not a cross-origin form submission or similar browser-initiated attack.
+  config.headers["X-Requested-With"] = "BillForge";
   return config;
 });
 
