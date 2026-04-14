@@ -3,9 +3,9 @@ import { CreateBucketCommand, S3Client, DeleteObjectsCommand, ListObjectsV2Comma
 import mongoose from "mongoose";
 import { createApp } from "../app.js";
 import { S3FileStore } from "../storage/S3FileStore.js";
-import { MockOcrProvider } from "../ocr/MockOcrProvider.js";
-import { NoopFieldVerifier } from "../verifier/NoopFieldVerifier.js";
-import { InvoiceExtractionPipeline } from "../services/extraction/InvoiceExtractionPipeline.js";
+import { MockOcrProvider } from "../ai/ocr/MockOcrProvider.js";
+import { NoopFieldVerifier } from "../ai/verifiers/NoopFieldVerifier.js";
+import { InvoiceExtractionPipeline } from "../ai/extractors/invoice/InvoiceExtractionPipeline.js";
 import { IngestionService } from "../services/ingestionService.js";
 import { InvoiceService } from "../services/invoiceService.js";
 import { ExportService } from "../services/exportService.js";
@@ -20,8 +20,8 @@ import { TenantInviteService } from "../services/tenantInviteService.js";
 import { PlatformAdminService } from "../services/platformAdminService.js";
 import { KeycloakAdminClient } from "../keycloak/KeycloakAdminClient.js";
 import { createInviteEmailSenderProvider } from "../providers/email/createInviteEmailSenderProvider.js";
-import { MongoVendorTemplateStore } from "../services/extraction/vendorTemplateStore.js";
-import { MongoExtractionLearningStore } from "../services/extraction/extractionLearningStore.js";
+import { MongoVendorTemplateStore } from "../ai/extractors/invoice/learning/vendorTemplateStore.js";
+import { MongoExtractionLearningStore } from "../ai/extractors/invoice/learning/extractionLearningStore.js";
 import { env } from "../config/env.js";
 import { ApprovalWorkflowService } from "../services/approvalWorkflowService.js";
 

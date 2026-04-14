@@ -7,7 +7,7 @@ import type {
 } from "../../types/invoice.js";
 import type { ArtifactResults } from "./artifacts.js";
 import { normalizeExtractionData, encodeExtractionFieldKey } from "./provenance.js";
-import { ExtractionPipelineError } from "../extraction/InvoiceExtractionPipeline.js";
+import { ExtractionPipelineError } from "../../ai/extractors/invoice/InvoiceExtractionPipeline.js";
 
 interface ExtractionResult {
   provider: string;

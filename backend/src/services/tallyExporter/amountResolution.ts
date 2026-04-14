@@ -1,4 +1,4 @@
-import { extractTotalAmount } from "../../parser/invoiceParser.js";
+import { extractTotalAmount } from "../../ai/parsers/invoiceParser.js";
 import { isPositiveMinorUnits, normalizeMinorUnits, toMinorUnits } from "../../utils/currency.js";
 
 export function resolveInvoiceTotalAmountMinor(

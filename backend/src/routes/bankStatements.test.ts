@@ -69,15 +69,15 @@ jest.mock("../services/reconciliation/ReconciliationService.ts", () => ({
   }))
 }));
 
-jest.mock("../services/reconciliation/BankStatementParser.ts", () => ({
+jest.mock("../ai/extractors/bank/BankStatementParser.ts", () => ({
   BankStatementParser: jest.fn().mockImplementation(() => ({
     parseCsv: jest.fn(),
     parsePdf: jest.fn()
   }))
 }));
 
-jest.mock("../services/reconciliation/BankStatementParseProgress.ts", () => {
-  const actual = jest.requireActual("../services/reconciliation/BankStatementParseProgress.ts");
+jest.mock("../ai/extractors/bank/BankStatementParseProgress.ts", () => {
+  const actual = jest.requireActual("../ai/extractors/bank/BankStatementParseProgress.ts");
   return actual;
 });
 
@@ -464,7 +464,7 @@ describe("BankStatementParseProgress broadcast", () => {
   });
 
   it("broadcasts progress events to SSE subscribers", () => {
-    const { BankStatementParseProgress } = jest.requireActual("../services/reconciliation/BankStatementParseProgress.ts");
+    const { BankStatementParseProgress } = jest.requireActual("../ai/extractors/bank/BankStatementParseProgress.ts");
     const progress = new BankStatementParseProgress();
 
     const req = mockRequest({ authContext: defaultAuth });
@@ -483,7 +483,7 @@ describe("BankStatementParseProgress broadcast", () => {
   });
 
   it("sends progress with chunk info", () => {
-    const { BankStatementParseProgress } = jest.requireActual("../services/reconciliation/BankStatementParseProgress.ts");
+    const { BankStatementParseProgress } = jest.requireActual("../ai/extractors/bank/BankStatementParseProgress.ts");
     const progress = new BankStatementParseProgress();
 
     const req = mockRequest({ authContext: defaultAuth });
@@ -509,7 +509,7 @@ describe("BankStatementParseProgress broadcast", () => {
   });
 
   it("sends complete event with transaction count and warnings", () => {
-    const { BankStatementParseProgress } = jest.requireActual("../services/reconciliation/BankStatementParseProgress.ts");
+    const { BankStatementParseProgress } = jest.requireActual("../ai/extractors/bank/BankStatementParseProgress.ts");
     const progress = new BankStatementParseProgress();
 
     const req = mockRequest({ authContext: defaultAuth });
@@ -533,7 +533,7 @@ describe("BankStatementParseProgress broadcast", () => {
   });
 
   it("sends error event", () => {
-    const { BankStatementParseProgress } = jest.requireActual("../services/reconciliation/BankStatementParseProgress.ts");
+    const { BankStatementParseProgress } = jest.requireActual("../ai/extractors/bank/BankStatementParseProgress.ts");
     const progress = new BankStatementParseProgress();
 
     const req = mockRequest({ authContext: defaultAuth });
