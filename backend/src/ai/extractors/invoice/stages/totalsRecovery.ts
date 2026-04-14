@@ -2,7 +2,7 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
 import { normalizeInvoiceNumberValue, normalizeVendorText } from "./documentFieldRecovery.js";
-import { detectExplicitCurrency } from "./fieldParsingUtils.js";
+import { type IndexedBlock, indexBlocks, detectExplicitCurrency } from "./fieldParsingUtils.js";
 
 export function normalizeParsedAgainstOcrText(
   parsed: ParsedInvoiceData,
@@ -157,9 +157,7 @@ function findBestMatchingAmountBlock(
     return undefined;
   }
 
-  const matches = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry) => entry.box)
+  const matches = indexBlocks(ocrBlocks)
     .filter((entry) => {
       const amount = parseAmountTokenWithOcrRepair(entry.block.text);
       return amount !== null && Math.round(amount * 100) === totalAmountMinor;
@@ -175,7 +173,7 @@ function findBestMatchingAmountBlock(
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const match of matches) {
     const labelText = findNearestSameRowLabelText(match, ocrBlocks);
-    const box = match.box!;
+    const box = match.box;
     let score = box[1] * 8;
     if (labelText) {
       if (/\b(grand total|invoice total|total amount|total)\b/i.test(labelText)) {
@@ -210,18 +208,12 @@ function findBottomMostMatchingAmountBlock(
     return undefined;
   }
 
-  const matches = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry) => entry.box)
+  const matches = indexBlocks(ocrBlocks)
     .filter((entry) => {
       const amount = parseAmountTokenWithOcrRepair(entry.block.text);
       return amount !== null && Math.round(amount * 100) === totalAmountMinor;
     })
-    .sort((left, right) => {
-      const leftBox = left.box ?? [0, 0, 0, 0];
-      const rightBox = right.box ?? [0, 0, 0, 0];
-      return rightBox[1] - leftBox[1];
-    });
+    .sort((left, right) => right.box[1] - left.box[1]);
   if (matches.length === 0) {
     return undefined;
   }
@@ -236,19 +228,13 @@ function findLastPlainNumericMatchingAmountBlock(
   if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
     return undefined;
   }
-  const matches = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry) => entry.box)
+  const matches = indexBlocks(ocrBlocks)
     .filter((entry) => {
       const amount = parseAmountTokenWithOcrRepair(entry.block.text);
       return amount !== null && Math.round(amount * 100) === totalAmountMinor;
     })
     .filter((entry) => !/[A-Za-z]{3}/.test(entry.block.text))
-    .sort((left, right) => {
-      const leftBox = left.box ?? [0, 0, 0, 0];
-      const rightBox = right.box ?? [0, 0, 0, 0];
-      return leftBox[1] - rightBox[1];
-    });
+    .sort((left, right) => left.box[1] - right.box[1]);
   if (matches.length < 2) {
     return undefined;
   }
@@ -265,21 +251,16 @@ function findLastPlainNumericMatchingAmountBlock(
 }
 
 function findNearestSameRowLabelText(
-  amountEntry: { block: OcrBlock; index: number; box: [number, number, number, number] | undefined },
+  amountEntry: IndexedBlock,
   ocrBlocks: OcrBlock[]
 ): string | undefined {
   const amountBox = amountEntry.box;
-  if (!amountBox) {
-    return undefined;
-  }
 
-  return ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry) => entry.box)
+  return indexBlocks(ocrBlocks)
     .filter((entry) => entry.index !== amountEntry.index)
-    .filter((entry) => entry.box![2] <= amountBox[0] + 0.01)
-    .filter((entry) => Math.abs(((entry.box![1] + entry.box![3]) / 2) - ((amountBox[1] + amountBox[3]) / 2)) <= 0.016)
-    .sort((left, right) => right.box![2] - left.box![2])[0]
+    .filter((entry) => entry.box[2] <= amountBox[0] + 0.01)
+    .filter((entry) => Math.abs(((entry.box[1] + entry.box[3]) / 2) - ((amountBox[1] + amountBox[3]) / 2)) <= 0.016)
+    .sort((left, right) => right.box[2] - left.box[2])[0]
     ?.block.text.trim();
 }
 
@@ -369,9 +350,7 @@ function findSummaryTotalAmountBlock(
   if (typeof totalAmountMinor !== "number" || totalAmountMinor <= 0) {
     return undefined;
   }
-  const summaryLabels = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is { block: OcrBlock; index: number; box: [number, number, number, number] } => Boolean(entry.box))
+  const summaryLabels = indexBlocks(ocrBlocks)
     .filter((entry) => /^(sub\s*total|subtotal|total excluding tax|tax|igst|cgst|sgst|total|grand total|amount due|balance due)$/i.test(entry.block.text.trim()));
   const matchingEntries: Array<{ block: OcrBlock; index: number; labelText: string }> = [];
   for (const label of summaryLabels) {
