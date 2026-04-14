@@ -115,9 +115,29 @@ export function detectExplicitCurrency(text: string, ocrBlocks: OcrBlock[] = [])
 }
 
 /**
- * Expand a YYYY-MM-DD date into search terms that include month-name variants.
- * Used by grounding and field-candidate stages.
+ * Clamp a numeric value to the [0, 1] probability range.
  */
+export function clampProbability(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(1, value));
+}
+
+/**
+ * Deduplicate and trim an array of issue/signal strings.
+ */
+export function uniqueIssues(issues: string[]): string[] {
+  return [...new Set(issues.map((issue) => issue.trim()).filter((issue) => issue.length > 0))];
+}
+
+/**
+ * Format a confidence value as a 4-decimal string after clamping to [0, 1].
+ */
+export function formatConfidence(value: number): string {
+  return clampProbability(value).toFixed(4);
+}
+
 export function buildDateTerms(value: string): string[] {
   const [year, month, day] = value.split("-");
   const monthIndex = Number(month) - 1;

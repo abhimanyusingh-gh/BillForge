@@ -1,5 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
+import { clampProbability } from "./fieldParsingUtils.js";
 import {
   blockMatchesFieldValue,
   DEFAULT_FIELD_LABEL_PATTERNS,
@@ -228,19 +229,6 @@ export function addFieldDiagnosticsToMetadata(params: {
   return { fieldConfidence, fieldProvenance };
 }
 
-
-function clampProbability(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  if (value <= 0) {
-    return 0;
-  }
-  if (value >= 1) {
-    return 1;
-  }
-  return value;
-}
 
 function isLowQualityToken(token: string): boolean {
   if (token.length <= 1) {

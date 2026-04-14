@@ -1,3 +1,5 @@
+import { clampProbability } from "./stages/fieldParsingUtils.js";
+
 interface ScriptLanguageCandidate {
   code: string;
   pattern: RegExp;
@@ -304,11 +306,4 @@ function detectLanguageFromHintKeywords(text: string): string | undefined {
     }
   }
   return undefined;
-}
-
-function clampProbability(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.min(1, value));
 }

@@ -1,5 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceExtractionData, InvoiceFieldKey, InvoiceFieldProvenance, InvoiceLineItemProvenance, ParsedInvoiceData } from "@/types/invoice.js";
+import { clampProbability } from "./fieldParsingUtils.js";
 import { findBlockByAmountValue } from "./groundingAmounts.js";
 
 type Box4 = [number, number, number, number];
@@ -438,15 +439,3 @@ function normalizeBoxTuple(value: unknown): Box4 | undefined {
   return [x1, y1, x2, y2];
 }
 
-function clampProbability(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  if (value <= 0) {
-    return 0;
-  }
-  if (value >= 1) {
-    return 1;
-  }
-  return value;
-}

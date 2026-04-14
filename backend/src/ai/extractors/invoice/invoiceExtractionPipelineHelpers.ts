@@ -1,7 +1,7 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { DetectedInvoiceLanguage } from "./languageDetection.js";
 import { findBlockByLabelProximity } from "./stages/groundingText.js";
-import { normalizeDateValue } from "./stages/fieldParsingUtils.js";
+import { clampProbability, normalizeDateValue, uniqueIssues, formatConfidence } from "./stages/fieldParsingUtils.js";
 
 export function buildKeyValueGroundingText(blocks: OcrBlock[]): string {
   if (blocks.length < 2) {
@@ -133,10 +133,6 @@ export function resolveDetectedLanguage(
   return preOcrLanguage;
 }
 
-export function formatConfidence(value: number): string {
-  return clampProbability(value).toFixed(4);
-}
-
 function selectDateProvenanceBlock(
   field: "invoiceDate" | "dueDate",
   value: string,
@@ -178,22 +174,7 @@ function selectInvoiceNumberProvenanceBlock(
     .find((entry) => normalizeInvoiceNumberForMatch(entry.block.text).includes(normalizedValue));
 }
 
-export function uniqueIssues(issues: string[]): string[] {
-  return [...new Set(issues.map((issue) => issue.trim()).filter((issue) => issue.length > 0))];
-}
-
-export function clampProbability(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  if (value < 0) {
-    return 0;
-  }
-  if (value > 1) {
-    return 1;
-  }
-  return value;
-}
+export { clampProbability, uniqueIssues, formatConfidence };
 
 export function buildBlocksText(blocks: OcrBlock[]): string {
   if (blocks.length === 0) {

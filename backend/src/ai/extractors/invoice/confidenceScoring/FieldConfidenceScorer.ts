@@ -1,4 +1,5 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
+import { clampProbability } from "../stages/fieldParsingUtils.js";
 
 const ADDRESS_RE = /\b(address|warehouse|village|road|street|taluk|district|postal|zip)\b/i;
 
@@ -45,18 +46,6 @@ function inferValidationBonus(field: keyof ParsedInvoiceData, validationText: st
   return validationText.includes(key) ? 0.7 : 1;
 }
 
-function clampProbability(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  if (value <= 0) {
-    return 0;
-  }
-  if (value >= 1) {
-    return 1;
-  }
-  return value;
-}
 
 export function scoreFieldConfidence(
   field: keyof ParsedInvoiceData,
