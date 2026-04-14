@@ -3,6 +3,7 @@ import type { ExtractedField, OcrBlock, OcrPageImage, OcrProvider, OcrResult } f
 import { postProcessOcrResult, type EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
 import { parseInvoiceText } from "@/ai/parsers/invoiceParser.js";
 import type {
+  InvoiceCompliance,
   InvoiceExtractionData,
   InvoiceFieldProvenance,
   InvoiceLineItemProvenance,
@@ -21,8 +22,43 @@ import {
   resolveDetectedLanguage,
   resolvePreOcrLanguageHint
 } from "./languageDetection.js";
-import type { PipelineExtractionResult } from "./types.js";
 import type { VendorTemplateSnapshot, VendorTemplateStore } from "./learning/vendorTemplateStore.js";
+import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
+
+export interface ParseResult {
+  parsed: ParsedInvoiceData;
+  warnings: string[];
+}
+
+export interface ExtractionAttemptSummary {
+  provider: string;
+  source: ExtractionSource;
+  strategy: ExtractionSource;
+  score: number;
+  confidenceScore: number;
+  warningCount: number;
+  hasTotalAmountMinor: boolean;
+  textLength: number;
+}
+
+export interface PipelineExtractionResult {
+  provider: string;
+  text: string;
+  confidence?: number;
+  source: ExtractionSource;
+  strategy: ExtractionSource;
+  parseResult: ParseResult;
+  confidenceAssessment: ConfidenceAssessment;
+  attempts: ExtractionAttemptSummary[];
+  ocrBlocks: OcrBlock[];
+  ocrPageImages: OcrPageImage[];
+  processingIssues: string[];
+  metadata: Record<string, string>;
+  ocrTokens?: number;
+  slmTokens?: number;
+  compliance?: InvoiceCompliance;
+  extraction?: InvoiceExtractionData;
+}
 import { validateInvoiceFields } from "./deterministicValidation.js";
 import { clampProbability, formatConfidence, uniqueIssues } from "./stages/fieldParsingUtils.js";
 import { addFieldDiagnosticsToMetadata, calibrateDocumentConfidence } from "./stages/diagnostics.js";
