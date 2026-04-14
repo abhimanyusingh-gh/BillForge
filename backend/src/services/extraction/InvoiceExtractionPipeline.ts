@@ -33,6 +33,7 @@ import {
   type RankedOcrTextCandidate
 } from "./pipeline/ocrTextCandidates.js";
 import { classifyOcrRecoveryStrategy, recoverParsedFromOcr } from "./pipeline/ocrRecovery.js";
+import type { OcrRecoveryStrategy } from "./pipeline/lineItemRecovery.js";
 import {
   collectLineItemConfidence,
   mergeClassification,
@@ -52,6 +53,13 @@ import {
   type InvoiceSlmContext,
   type InvoiceValidationContext
 } from "./InvoiceDocumentDefinition.js";
+import { EXTRACTION_SOURCE, type ExtractionSource } from "../../core/engine/extractionSource.js";
+
+const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource> = {
+  generic: EXTRACTION_SOURCE.SLM_GENERIC,
+  invoice_table: EXTRACTION_SOURCE.SLM_INVOICE_TABLE,
+  receipt_statement: EXTRACTION_SOURCE.SLM_RECEIPT_STATEMENT,
+};
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
 
@@ -311,8 +319,8 @@ export class InvoiceExtractionPipeline {
       }
 
       const extraction: InvoiceExtractionData = {
-        source: "llamaextract",
-        strategy: "llamaextract",
+        source: EXTRACTION_SOURCE.LLAMA_EXTRACT,
+        strategy: EXTRACTION_SOURCE.LLAMA_EXTRACT,
         ...(Object.keys(fieldProvenance).length > 0 ? { fieldProvenance } : {})
       };
 
@@ -320,8 +328,8 @@ export class InvoiceExtractionPipeline {
         provider: this.ocrProvider.name,
         text: primaryText,
         confidence: ocrConfidence,
-        source: "llamaextract",
-        strategy: "llamaextract",
+        source: EXTRACTION_SOURCE.LLAMA_EXTRACT,
+        strategy: EXTRACTION_SOURCE.LLAMA_EXTRACT,
         parseResult: { parsed, warnings: processingIssues },
         confidenceAssessment: confidence,
         attempts: [],
@@ -367,7 +375,7 @@ export class InvoiceExtractionPipeline {
       parsed,
       ocrBlocks,
       fieldRegions,
-      source: "slm-direct",
+      source: EXTRACTION_SOURCE.SLM_DIRECT,
       ocrConfidence,
       validationIssues: validation.issues,
       warnings: processingIssues,
@@ -399,8 +407,8 @@ export class InvoiceExtractionPipeline {
     const classification = mergeClassification(slm.classification, compliance?.tds?.section);
 
     const extraction: InvoiceExtractionData = {
-      source: "slm-direct",
-      strategy: `slm-${recoveryStrategy}`,
+      source: EXTRACTION_SOURCE.SLM_DIRECT,
+      strategy: OCR_RECOVERY_STRATEGY_SOURCE[recoveryStrategy],
       ...(classification ? { classification } : {}),
       ...(classification?.invoiceType ? { invoiceType: classification.invoiceType } : {}),
       ...(Object.keys(combinedFieldConfidence).length > 0 ? { fieldConfidence: combinedFieldConfidence } : {}),
@@ -412,8 +420,8 @@ export class InvoiceExtractionPipeline {
       provider: this.ocrProvider.name,
       text: primaryText,
       confidence: ocrConfidence,
-      source: "slm-direct",
-      strategy: extraction.strategy ?? "slm-direct",
+      source: EXTRACTION_SOURCE.SLM_DIRECT,
+      strategy: extraction.strategy ?? EXTRACTION_SOURCE.SLM_DIRECT,
       parseResult: { parsed, warnings: processingIssues },
       confidenceAssessment: confidence,
       attempts: [],

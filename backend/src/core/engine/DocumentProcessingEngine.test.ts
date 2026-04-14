@@ -1,6 +1,6 @@
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "../interfaces/FieldVerifier.ts";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../interfaces/OcrProvider.ts";
-import { DocumentProcessingEngine } from "./DocumentProcessingEngine.ts";
+import { DocumentProcessingEngine, OCR_SENTINEL_KEY, type DocumentProcessingProgressEvent } from "./DocumentProcessingEngine.ts";
 import type { ChunkableDocumentDefinition, DocumentDefinition, SinglePassDocumentDefinition } from "./DocumentDefinition.ts";
 import { DOC_TYPE } from "./DocumentDefinition.ts";
 import type { ProcessingContext, ValidationResult } from "./types.ts";
@@ -337,5 +337,37 @@ describe("DocumentProcessingEngine", () => {
     expect(sentPrompt).toContain("name (string): The name field");
     expect(sentPrompt).toContain("DOCUMENT TEXT");
     expect(sentPrompt).toContain("Respond with ONLY a valid JSON object");
+  });
+
+  it("OCR_SENTINEL_KEY is the bank statement extraction sentinel string", () => {
+    expect(OCR_SENTINEL_KEY).toBe("__bank_statement_extraction__");
+  });
+
+  it("onProgress callback receives DocumentProcessingProgressEvent for chunked SLM", async () => {
+    const longText = "x".repeat(9000);
+    const ocrProvider = makeOcrProvider(longText);
+    const fieldVerifier = makeFieldVerifier("[]");
+    const events: DocumentProcessingProgressEvent[] = [];
+
+    class ChunkableForProgress implements ChunkableDocumentDefinition<string[]> {
+      readonly docType = DOC_TYPE.BANK_STATEMENT;
+      readonly maxChunkChars = 4000;
+
+      parseOutput(raw: string | Record<string, unknown>): string[] {
+        const s = typeof raw === "string" ? raw : JSON.stringify(raw);
+        return [s];
+      }
+
+      mergeChunkOutputs(chunks: string[][]): string[] {
+        return chunks.flat();
+      }
+    }
+
+    const engine = new DocumentProcessingEngine(new ChunkableForProgress(), fieldVerifier, ocrProvider);
+    await engine.process(makeCtx(), (evt) => { events.push(evt); });
+
+    expect(events.length).toBeGreaterThan(0);
+    expect(events[0].stage).toBe("slm-chunk");
+    expect(events[0].chunk).toBe(1);
   });
 });

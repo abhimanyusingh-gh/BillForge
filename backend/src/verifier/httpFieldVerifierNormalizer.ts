@@ -1,4 +1,5 @@
 import type {
+  InvoiceFieldKey,
   InvoiceFieldProvenance,
   InvoiceLineItemProvenance,
   InvoiceVerifierContract,
@@ -129,7 +130,7 @@ export function normalizeVerifierContract(value: unknown): InvoiceVerifierContra
           return undefined;
         }
         const description = typeof entry.description === "string" && entry.description.trim() ? entry.description.trim() : undefined;
-        const provenance = normalizeFieldProvenance({ amountMinor: entry.provenance })?.amountMinor;
+        const provenance = (normalizeFieldProvenance({ amountMinor: entry.provenance }) as Record<string, InvoiceFieldProvenance> | undefined)?.["amountMinor"];
         return {
           ...(description ? { description } : {}),
           amountMinor: amount,
@@ -198,7 +199,7 @@ export function parsedFromVerifierContract(contract: InvoiceVerifierContract): P
 
 export function fieldProvenanceFromVerifierContract(
   contract: InvoiceVerifierContract
-): Record<string, InvoiceFieldProvenance> | undefined {
+): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
   return normalizeFieldProvenance({
     invoiceNumber: contract.invoiceNumber?.provenance,
     vendorName: contract.vendorNameContains?.provenance,
@@ -236,15 +237,15 @@ export function lineItemProvenanceFromVerifierContract(contract: InvoiceVerifier
   return result.length > 0 ? result : undefined;
 }
 
-export function normalizeReasonCodes(value: unknown): Record<string, string> {
+export function normalizeReasonCodes(value: unknown): Partial<Record<InvoiceFieldKey, string>> {
   if (!isRecord(value)) {
     return {};
   }
 
-  const output: Record<string, string> = {};
+  const output: Partial<Record<InvoiceFieldKey, string>> = {};
   for (const [key, entry] of Object.entries(value)) {
     if (typeof entry === "string" && entry.trim().length > 0) {
-      output[key] = entry.trim();
+      output[key as InvoiceFieldKey] = entry.trim();
     }
   }
   return output;

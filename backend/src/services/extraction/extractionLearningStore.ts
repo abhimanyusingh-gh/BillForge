@@ -1,6 +1,13 @@
 import { ExtractionLearningModel } from "../../models/ExtractionLearning.js";
 import { logger } from "../../utils/logger.js";
 
+export const EXTRACTION_GROUP_TYPE = {
+  INVOICE_TYPE: "invoice-type",
+  VENDOR: "vendor",
+} as const;
+
+export type ExtractionGroupType = (typeof EXTRACTION_GROUP_TYPE)[keyof typeof EXTRACTION_GROUP_TYPE];
+
 const MAX_CORRECTIONS_PER_DOCUMENT = 6;
 const MAX_HINT_LENGTH = 80;
 
@@ -16,7 +23,7 @@ export interface ExtractionLearningStore {
   recordCorrections(
     tenantId: string,
     groupKey: string,
-    groupType: "invoice-type" | "vendor",
+    groupType: ExtractionGroupType,
     corrections: CorrectionEntry[]
   ): Promise<void>;
 }
@@ -25,8 +32,8 @@ export class MongoExtractionLearningStore implements ExtractionLearningStore {
   async findCorrections(tenantId: string, invoiceType: string, fingerprintKey: string): Promise<CorrectionEntry[]> {
     try {
       const [typeDoc, vendorDoc] = await Promise.all([
-        ExtractionLearningModel.findOne({ tenantId, groupKey: invoiceType, groupType: "invoice-type" }).lean(),
-        ExtractionLearningModel.findOne({ tenantId, groupKey: fingerprintKey, groupType: "vendor" }).lean()
+        ExtractionLearningModel.findOne({ tenantId, groupKey: invoiceType, groupType: EXTRACTION_GROUP_TYPE.INVOICE_TYPE }).lean(),
+        ExtractionLearningModel.findOne({ tenantId, groupKey: fingerprintKey, groupType: EXTRACTION_GROUP_TYPE.VENDOR }).lean()
       ]);
 
       const typeCorrections = normalizeCorrections(typeDoc?.corrections);
@@ -41,7 +48,7 @@ export class MongoExtractionLearningStore implements ExtractionLearningStore {
   async recordCorrections(
     tenantId: string,
     groupKey: string,
-    groupType: "invoice-type" | "vendor",
+    groupType: ExtractionGroupType,
     corrections: CorrectionEntry[]
   ): Promise<void> {
     try {
@@ -74,7 +81,7 @@ export class InMemoryExtractionLearningStore implements ExtractionLearningStore 
   async recordCorrections(
     tenantId: string,
     groupKey: string,
-    groupType: "invoice-type" | "vendor",
+    groupType: ExtractionGroupType,
     corrections: CorrectionEntry[]
   ): Promise<void> {
     const key = `${tenantId}|${groupType}|${groupKey}`;

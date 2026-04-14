@@ -1,3 +1,12 @@
+export const OCR_PROVIDER_NAME = {
+  AUTO: "auto",
+  DEEPSEEK: "deepseek",
+  MOCK: "mock",
+  LLAMAPARSE: "llamaparse",
+} as const;
+
+export type OcrProviderName = (typeof OCR_PROVIDER_NAME)[keyof typeof OCR_PROVIDER_NAME];
+
 export const MAX_UPLOAD_FILE_COUNT = 50;
 export const MAX_UPLOAD_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 export const SSE_HEARTBEAT_INTERVAL_MS = 30_000;

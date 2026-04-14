@@ -28,6 +28,7 @@ import {
   normalizeNullableNotes
 } from "./invoice/invoiceHelpers.js";
 export { InvoiceUpdateError } from "./invoice/invoiceHelpers.js";
+import { EXTRACTION_GROUP_TYPE } from "./extraction/extractionLearningStore.js";
 
 interface ListInvoicesParams {
   status?: string;
@@ -379,12 +380,12 @@ export class InvoiceService {
           invoiceType: invoiceType ?? null
         });
         if (vendorFingerprint) {
-          this.learningStore.recordCorrections(tenantId, vendorFingerprint, "vendor", corrections).catch((err) =>
+          this.learningStore.recordCorrections(tenantId, vendorFingerprint, EXTRACTION_GROUP_TYPE.VENDOR, corrections).catch((err) =>
             logger.warn("learning.record.vendor.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
           );
         }
         if (invoiceType) {
-          this.learningStore.recordCorrections(tenantId, invoiceType, "invoice-type", corrections).catch((err) =>
+          this.learningStore.recordCorrections(tenantId, invoiceType, EXTRACTION_GROUP_TYPE.INVOICE_TYPE, corrections).catch((err) =>
             logger.warn("learning.record.type.failed", { tenantId, error: err instanceof Error ? err.message : String(err) })
           );
         }
@@ -392,7 +393,7 @@ export class InvoiceService {
     }
 
     if (this.mappingService) {
-      const gstin = (nextParsed as any)?.gst?.gstin as string | undefined;
+      const gstin = nextParsed.gst?.gstin;
       const vendorNameChanged = String(nextParsed.vendorName ?? "") !== String(currentParsed.vendorName ?? "");
       if (gstin && vendorNameChanged && nextParsed.vendorName) {
         this.mappingService.maybeSeedMappingFromCorrection(tenantId, id, currentParsed, nextParsed, updatedBy)

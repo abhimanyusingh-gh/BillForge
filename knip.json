@@ -21,7 +21,8 @@
         "src/services/extraction/pipeline/provenance.ts",
         "src/services/extraction/pipeline/ocrTextCandidates.ts",
         "src/db/__mocks__/redis.ts",
-        "src/testSetup.ts"
+        "src/testSetup.ts",
+        "src/core/engine/extractionSource.ts"
       ]
     },
     "frontend": {

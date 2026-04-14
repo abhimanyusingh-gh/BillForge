@@ -1,6 +1,7 @@
 import type { OcrBlock } from "./OcrProvider.js";
 import type {
   InvoiceExtractionClassification,
+  InvoiceFieldKey,
   InvoiceVerifierContract,
   InvoiceFieldProvenance,
   InvoiceLineItemProvenance,
@@ -52,12 +53,12 @@ export interface FieldVerifierResult {
   parsed: ParsedInvoiceData;
   issues: string[];
   changedFields: string[];
-  reasonCodes?: Record<string, string>;
+  reasonCodes?: Partial<Record<InvoiceFieldKey, string>>;
   invoiceType?: string;
   tokenUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
   contract?: InvoiceVerifierContract;
-  fieldConfidence?: Record<string, number>;
-  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
+  fieldConfidence?: Partial<Record<InvoiceFieldKey, number>>;
+  fieldProvenance?: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>;
   lineItemProvenance?: InvoiceLineItemProvenance[];
   classification?: InvoiceExtractionClassification;
   slmUnavailable?: boolean;

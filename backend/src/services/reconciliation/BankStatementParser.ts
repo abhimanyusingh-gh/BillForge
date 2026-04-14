@@ -4,7 +4,7 @@ import { logger } from "../../utils/logger.js";
 import type { OcrProvider } from "../../core/interfaces/OcrProvider.js";
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
 import type { BankParseProgressEvent } from "./BankStatementParseProgress.js";
-import { DocumentProcessingEngine } from "../../core/engine/DocumentProcessingEngine.js";
+import { DocumentProcessingEngine, type DocumentProcessingProgressEvent } from "../../core/engine/DocumentProcessingEngine.js";
 import {
   BankStatementDocumentDefinition,
   type SlmBankStatementOutput,
@@ -182,14 +182,13 @@ export class BankStatementParser {
 
     const engineResult = await engine.process(
       { tenantId, fileName, mimeType, fileBuffer: buffer },
-      (event) => {
-        const e = event as Record<string, unknown>;
-        if (e.stage === "slm-chunk") {
+      (event: DocumentProcessingProgressEvent) => {
+        if (event.stage === "slm-chunk") {
           onProgress?.({
             type: "progress",
             stage: "slm-chunk",
-            chunk: e.chunk as number,
-            totalChunks: e.totalChunks as number,
+            chunk: event.chunk,
+            totalChunks: event.totalChunks,
             transactionsSoFar: 0
           });
         }

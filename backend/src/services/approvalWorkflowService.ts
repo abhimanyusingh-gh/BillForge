@@ -1,4 +1,4 @@
-import { ApprovalWorkflowModel } from "../models/ApprovalWorkflow.js";
+import { ApprovalWorkflowModel, WORKFLOW_STATUS, WORKFLOW_STEP_ACTION, type WorkflowStatus, type WorkflowStepAction } from "../models/ApprovalWorkflow.js";
 import { InvoiceModel } from "../models/Invoice.js";
 import { TenantAssignableRoles, TenantUserRoleModel, normalizeTenantRole } from "../models/TenantUserRole.js";
 import { HttpError } from "../errors/HttpError.js";
@@ -30,11 +30,11 @@ interface WorkflowConfig {
 interface WorkflowStateData {
   workflowId: string;
   currentStep: number;
-  status: string;
+  status: WorkflowStatus;
   stepResults: Array<{
     step: number;
     name: string;
-    action: string;
+    action: WorkflowStepAction;
     userId?: string;
     email?: string;
     role?: string;
@@ -231,8 +231,8 @@ export class ApprovalWorkflowService {
     invoice.set("workflowState", {
       workflowId: String(workflow._id),
       currentStep: skipFirst ? 2 : 1,
-      status: "in_progress",
-      stepResults: skipFirst ? [{ step: 1, name: firstStep.name, action: "skipped", timestamp: new Date(), note: "Condition not met" }] : []
+      status: WORKFLOW_STATUS.IN_PROGRESS,
+      stepResults: skipFirst ? [{ step: 1, name: firstStep.name, action: WORKFLOW_STEP_ACTION.SKIPPED, timestamp: new Date(), note: "Condition not met" }] : []
     });
     invoice.processingIssues.push("Approval workflow initiated.");
     await invoice.save();
@@ -249,7 +249,7 @@ export class ApprovalWorkflowService {
     }
 
     const workflowState = invoice.get("workflowState") as WorkflowStateData | undefined;
-    if (!workflowState || workflowState.status !== "in_progress") {
+    if (!workflowState || workflowState.status !== WORKFLOW_STATUS.IN_PROGRESS) {
       throw new HttpError("No active workflow for this invoice.", 400, "no_active_workflow");
     }
 
@@ -269,7 +269,7 @@ export class ApprovalWorkflowService {
     }
 
     const alreadyApprovedThisStep = workflowState.stepResults.some(
-      (r) => r.step === workflowState.currentStep && r.action === "approved" && r.userId === authContext.userId
+      (r) => r.step === workflowState.currentStep && r.action === WORKFLOW_STEP_ACTION.APPROVED && r.userId === authContext.userId
     );
     if (alreadyApprovedThisStep) {
       throw new HttpError("You have already approved this step.", 400, "already_approved");
@@ -278,7 +278,7 @@ export class ApprovalWorkflowService {
     workflowState.stepResults.push({
       step: workflowState.currentStep,
       name: currentStep.name,
-      action: "approved",
+      action: WORKFLOW_STEP_ACTION.APPROVED,
       userId: authContext.userId,
       email: authContext.email,
       role: authContext.role,
@@ -305,7 +305,7 @@ export class ApprovalWorkflowService {
           role: { $in: ANY_MEMBER_DB_ROLES }
         });
       }
-      const approvedCount = workflowState.stepResults.filter((r) => r.step === workflowState.currentStep && r.action === "approved").length;
+      const approvedCount = workflowState.stepResults.filter((r) => r.step === workflowState.currentStep && r.action === WORKFLOW_STEP_ACTION.APPROVED).length;
       if (approvedCount < requiredCount) {
         invoice.set("workflowState", workflowState);
         invoice.processingIssues.push(`Workflow step ${workflowState.currentStep} partial approval by ${authContext.email} (${approvedCount}/${requiredCount})`);
@@ -321,7 +321,7 @@ export class ApprovalWorkflowService {
       const step = workflow.steps.find((s) => s.order === nextStep);
       if (!step) { nextStep++; continue; }
       if (!this.evaluateCondition(step as WorkflowStep, invoice)) {
-        workflowState.stepResults.push({ step: nextStep, name: step.name, action: "skipped", timestamp: new Date(), note: "Condition not met" });
+        workflowState.stepResults.push({ step: nextStep, name: step.name, action: WORKFLOW_STEP_ACTION.SKIPPED, timestamp: new Date(), note: "Condition not met" });
         nextStep++;
         continue;
       }
@@ -330,7 +330,7 @@ export class ApprovalWorkflowService {
 
     if (nextStep > maxStep) {
       workflowState.currentStep = 0;
-      workflowState.status = "approved";
+      workflowState.status = WORKFLOW_STATUS.APPROVED;
       invoice.status = "APPROVED";
       invoice.set("approval", {
         approvedBy: authContext.email,
@@ -361,7 +361,7 @@ export class ApprovalWorkflowService {
     }
 
     const workflowState = invoice.get("workflowState") as WorkflowStateData | undefined;
-    if (!workflowState || workflowState.status !== "in_progress") {
+    if (!workflowState || workflowState.status !== WORKFLOW_STATUS.IN_PROGRESS) {
       throw new HttpError("No active workflow for this invoice.", 400, "no_active_workflow");
     }
 
@@ -382,14 +382,14 @@ export class ApprovalWorkflowService {
     workflowState.stepResults.push({
       step: workflowState.currentStep,
       name: currentStep?.name ?? `Step ${workflowState.currentStep}`,
-      action: "rejected",
+      action: WORKFLOW_STEP_ACTION.REJECTED,
       userId: authContext.userId,
       email: authContext.email,
       role: authContext.role,
       timestamp: new Date(),
       note: reason
     });
-    workflowState.status = "rejected";
+    workflowState.status = WORKFLOW_STATUS.REJECTED;
 
     invoice.status = "NEEDS_REVIEW";
     invoice.set("workflowState", workflowState);
@@ -402,7 +402,7 @@ export class ApprovalWorkflowService {
     if (!invoice || invoice.status !== "AWAITING_APPROVAL") return;
 
     const workflowState = invoice.get("workflowState") as WorkflowStateData | undefined;
-    if (!workflowState || workflowState.status !== "in_progress") return;
+    if (!workflowState || workflowState.status !== WORKFLOW_STATUS.IN_PROGRESS) return;
 
     invoice.status = "NEEDS_REVIEW";
     invoice.set("workflowState", undefined);

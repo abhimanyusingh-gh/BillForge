@@ -1,3 +1,27 @@
+import type { ExtractionSource } from "../core/engine/extractionSource.js";
+
+export const INVOICE_FIELD_KEY = {
+  INVOICE_NUMBER: "invoiceNumber",
+  VENDOR_NAME: "vendorName",
+  INVOICE_DATE: "invoiceDate",
+  DUE_DATE: "dueDate",
+  CURRENCY: "currency",
+  TOTAL_AMOUNT_MINOR: "totalAmountMinor",
+  NOTES: "notes",
+  PAN: "pan",
+  BANK_ACCOUNT_NUMBER: "bankAccountNumber",
+  BANK_IFSC: "bankIfsc",
+  GST_GSTIN: "gst.gstin",
+  GST_SUBTOTAL_MINOR: "gst.subtotalMinor",
+  GST_CGST_MINOR: "gst.cgstMinor",
+  GST_SGST_MINOR: "gst.sgstMinor",
+  GST_IGST_MINOR: "gst.igstMinor",
+  GST_CESS_MINOR: "gst.cessMinor",
+  GST_TOTAL_TAX_MINOR: "gst.totalTaxMinor",
+} as const;
+
+export type InvoiceFieldKey = (typeof INVOICE_FIELD_KEY)[keyof typeof INVOICE_FIELD_KEY];
+
 export const InvoiceStatuses = [
   "PENDING",
   "PARSED",
@@ -91,14 +115,14 @@ export interface InvoiceExtractionClassification {
 }
 
 export interface InvoiceExtractionData {
-  source?: string;
-  strategy?: string;
+  source?: ExtractionSource;
+  strategy?: ExtractionSource;
   invoiceType?: string;
   classification?: InvoiceExtractionClassification;
-  fieldConfidence?: Record<string, number>;
-  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
+  fieldConfidence?: Partial<Record<InvoiceFieldKey, number>>;
+  fieldProvenance?: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>;
   lineItemProvenance?: InvoiceLineItemProvenance[];
-  fieldOverlayPaths?: Record<string, string>;
+  fieldOverlayPaths?: Partial<Record<InvoiceFieldKey, string>>;
 }
 
 export interface ParsedInvoiceData {

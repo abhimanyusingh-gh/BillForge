@@ -1,5 +1,5 @@
 import type { OcrBlock } from "../../../core/interfaces/OcrProvider.js";
-import type { InvoiceFieldProvenance, ParsedInvoiceData } from "../../../types/invoice.js";
+import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "../../../types/invoice.js";
 import {
   blockMatchesFieldValue,
   findBlockByAmountValue,
@@ -55,10 +55,10 @@ export function addFieldDiagnosticsToMetadata(params: {
   templateAppliedFields: Set<string>;
   verifierChangedFields: string[];
   slmBlockIndices?: Record<string, number>;
-  verifierFieldConfidence?: Record<string, number>;
-  verifierFieldProvenance?: Record<string, InvoiceFieldProvenance>;
-}): { fieldConfidence: Record<string, number>; fieldProvenance: Record<string, InvoiceFieldProvenance> } {
-  const fieldNames: string[] = [
+  verifierFieldConfidence?: Partial<Record<InvoiceFieldKey, number>>;
+  verifierFieldProvenance?: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>;
+}): { fieldConfidence: Partial<Record<InvoiceFieldKey, number>>; fieldProvenance: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> } {
+  const fieldNames: InvoiceFieldKey[] = [
     "invoiceNumber",
     "vendorName",
     "invoiceDate",
@@ -79,8 +79,8 @@ export function addFieldDiagnosticsToMetadata(params: {
   const warningText = params.warnings.join(" ").toLowerCase();
   const changedByVerifier = new Set(params.verifierChangedFields);
 
-  const fieldConfidence: Record<string, number> = {};
-  const fieldProvenance: Record<string, InvoiceFieldProvenance> = {};
+  const fieldConfidence: Partial<Record<InvoiceFieldKey, number>> = {};
+  const fieldProvenance: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> = {};
 
   for (const field of fieldNames) {
     let value: unknown;

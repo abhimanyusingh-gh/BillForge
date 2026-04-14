@@ -1,5 +1,21 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
+export const WORKFLOW_STATUS = {
+  IN_PROGRESS: "in_progress",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+} as const;
+
+export type WorkflowStatus = (typeof WORKFLOW_STATUS)[keyof typeof WORKFLOW_STATUS];
+
+export const WORKFLOW_STEP_ACTION = {
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  SKIPPED: "skipped",
+} as const;
+
+export type WorkflowStepAction = (typeof WORKFLOW_STEP_ACTION)[keyof typeof WORKFLOW_STEP_ACTION];
+
 const ApprovalWorkflowModes = ["simple", "advanced"] as const;
 const ApproverTypes = ["any_member", "role", "specific_users", "persona", "capability"] as const;
 const ApprovalRules = ["any", "all"] as const;

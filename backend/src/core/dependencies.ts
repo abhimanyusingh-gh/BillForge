@@ -1,4 +1,5 @@
 import axios from "axios";
+import { OCR_PROVIDER_NAME, type OcrProviderName } from "../constants.js";
 import type { AccountingExporter } from "./interfaces/AccountingExporter.js";
 import type { FileStore } from "./interfaces/FileStore.js";
 import type { FieldVerifier } from "./interfaces/FieldVerifier.js";
@@ -199,22 +200,22 @@ async function resolveFieldVerifier(runtimeManifest = loadRuntimeManifest()): Pr
 }
 
 export async function resolveOcrProvider(runtimeManifest = loadRuntimeManifest()): Promise<OcrProvider> {
-  if (runtimeManifest.ocr.provider === "mock") {
-    logger.info("Using OCR provider", { provider: "mock" });
+  if (runtimeManifest.ocr.provider === OCR_PROVIDER_NAME.MOCK) {
+    logger.info("Using OCR provider", { provider: OCR_PROVIDER_NAME.MOCK });
     return new MockOcrProvider({
       text: runtimeManifest.ocr.mock.text,
       confidence: runtimeManifest.ocr.mock.confidence
     });
   }
 
-  if (runtimeManifest.ocr.provider === "llamaparse") {
+  if (runtimeManifest.ocr.provider === OCR_PROVIDER_NAME.LLAMAPARSE) {
     const cfg = runtimeManifest.ocr.llamaparse;
     if (!cfg.apiKey) throw new Error("LLAMA_CLOUD_API_KEY is not configured.");
-    logger.info("Using OCR provider", { provider: "llamaparse", tier: cfg.tier });
+    logger.info("Using OCR provider", { provider: OCR_PROVIDER_NAME.LLAMAPARSE, tier: cfg.tier });
     return new LlamaParseOcrProvider({ apiKey: cfg.apiKey, tier: cfg.tier as "fast" | "cost_effective" | "agentic" });
   }
 
-  if (runtimeManifest.ocr.provider === "deepseek" || runtimeManifest.ocr.provider === "auto") {
+  if (runtimeManifest.ocr.provider === OCR_PROVIDER_NAME.DEEPSEEK || runtimeManifest.ocr.provider === OCR_PROVIDER_NAME.AUTO) {
     return createHttpOcrProvider(runtimeManifest);
   }
 

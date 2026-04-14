@@ -5,6 +5,7 @@ import type { ValidationResult } from "../../core/engine/types.js";
 import { INVOICE_EXTRACT_SCHEMA } from "../../ocr/llamaExtractSchema.js";
 import type {
   InvoiceExtractionData,
+  InvoiceFieldKey,
   InvoiceFieldProvenance,
   InvoiceLineItemProvenance,
   ParsedInvoiceData
@@ -21,8 +22,8 @@ export interface InvoiceSlmOutput {
   tokens: number;
   issues: string[];
   changedFields: string[];
-  fieldConfidence?: Record<string, number>;
-  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
+  fieldConfidence?: Partial<Record<InvoiceFieldKey, number>>;
+  fieldProvenance?: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>;
   lineItemProvenance: InvoiceLineItemProvenance[];
   classification?: InvoiceExtractionData["classification"];
 }
@@ -56,6 +57,25 @@ export interface InvoiceValidationContext {
   referenceDate?: Date;
   ocrText: string;
 }
+
+const LLAMA_EXTRACT_FIELD_KEY = {
+  INVOICE_NUMBER: "invoice_number",
+  VENDOR_NAME: "vendor_name",
+  INVOICE_DATE: "invoice_date",
+  DUE_DATE: "due_date",
+  CURRENCY: "currency",
+  TOTAL_AMOUNT: "total_amount",
+  PAN: "pan",
+  SUBTOTAL: "subtotal",
+  CGST_AMOUNT: "cgst_amount",
+  SGST_AMOUNT: "sgst_amount",
+  IGST_AMOUNT: "igst_amount",
+  CESS_AMOUNT: "cess_amount",
+  GSTIN: "gstin",
+  LINE_ITEMS: "line_items",
+} as const;
+
+type LlamaExtractFieldKey = (typeof LLAMA_EXTRACT_FIELD_KEY)[keyof typeof LLAMA_EXTRACT_FIELD_KEY];
 
 export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<InvoiceSlmOutput> {
   readonly docType = DOC_TYPE.INVOICE;
@@ -124,45 +144,45 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
   private parseFromExtractFields(fields: Record<string, unknown>): InvoiceSlmOutput {
     const parsed: ParsedInvoiceData = {};
 
-    const getString = (key: string): string | undefined => {
+    const getString = (key: LlamaExtractFieldKey): string | undefined => {
       const val = fields[key];
       if (typeof val !== "string" || val.trim() === "") return undefined;
       return val.trim();
     };
 
-    const getNumber = (key: string): number | undefined => {
+    const getNumber = (key: LlamaExtractFieldKey): number | undefined => {
       const val = fields[key];
       if (typeof val !== "number" || val === null) return undefined;
       return val;
     };
 
-    const invoiceNumber = getString("invoice_number");
+    const invoiceNumber = getString(LLAMA_EXTRACT_FIELD_KEY.INVOICE_NUMBER);
     if (invoiceNumber) parsed.invoiceNumber = invoiceNumber;
 
-    const vendorName = getString("vendor_name");
+    const vendorName = getString(LLAMA_EXTRACT_FIELD_KEY.VENDOR_NAME);
     if (vendorName) parsed.vendorName = vendorName;
 
-    const invoiceDate = getString("invoice_date");
+    const invoiceDate = getString(LLAMA_EXTRACT_FIELD_KEY.INVOICE_DATE);
     if (invoiceDate) parsed.invoiceDate = invoiceDate;
 
-    const dueDate = getString("due_date");
+    const dueDate = getString(LLAMA_EXTRACT_FIELD_KEY.DUE_DATE);
     if (dueDate) parsed.dueDate = dueDate;
 
-    const currency = getString("currency");
+    const currency = getString(LLAMA_EXTRACT_FIELD_KEY.CURRENCY);
     if (currency) parsed.currency = currency;
 
-    const totalAmountRaw = getNumber("total_amount");
+    const totalAmountRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.TOTAL_AMOUNT);
     if (totalAmountRaw !== undefined) parsed.totalAmountMinor = Math.round(totalAmountRaw * 100);
 
-    const pan = getString("pan");
+    const pan = getString(LLAMA_EXTRACT_FIELD_KEY.PAN);
     if (pan) parsed.pan = pan;
 
-    const subtotalRaw = getNumber("subtotal");
-    const cgstRaw = getNumber("cgst_amount");
-    const sgstRaw = getNumber("sgst_amount");
-    const igstRaw = getNumber("igst_amount");
-    const cessRaw = getNumber("cess_amount");
-    const gstin = getString("gstin");
+    const subtotalRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.SUBTOTAL);
+    const cgstRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.CGST_AMOUNT);
+    const sgstRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.SGST_AMOUNT);
+    const igstRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.IGST_AMOUNT);
+    const cessRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.CESS_AMOUNT);
+    const gstin = getString(LLAMA_EXTRACT_FIELD_KEY.GSTIN);
 
     const totalTaxRaw = (cgstRaw ?? 0) + (sgstRaw ?? 0) + (igstRaw ?? 0) + (cessRaw ?? 0);
     const hasGst = subtotalRaw !== undefined || cgstRaw !== undefined || sgstRaw !== undefined || igstRaw !== undefined || cessRaw !== undefined || gstin !== undefined;

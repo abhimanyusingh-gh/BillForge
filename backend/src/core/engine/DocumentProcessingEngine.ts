@@ -4,9 +4,15 @@ import type { ChunkableDocumentDefinition, DocType, DocumentDefinition } from ".
 import { DOC_TYPE } from "./DocumentDefinition.js";
 import type { ProcessingContext, ProcessingResult, ValidationResult } from "./types.js";
 import { DocumentProcessingError } from "./types.js";
+
 import { extractNativePdfText } from "../../services/extraction/pipeline/nativePdfText.js";
 import { logger } from "../../utils/logger.js";
 import { buildExtractionPromptFromSchema } from "./promptFromSchema.js";
+
+export const OCR_SENTINEL_KEY = "__bank_statement_extraction__" as const;
+
+export type DocumentProcessingProgressEvent =
+  | { type: "progress"; stage: "slm-chunk"; chunk: number; totalChunks: number };
 
 function isChunkable<T>(def: DocumentDefinition<T>): def is ChunkableDocumentDefinition<T> {
   const chunkableTypes: readonly DocType[] = [DOC_TYPE.BANK_STATEMENT];
@@ -30,7 +36,7 @@ export class DocumentProcessingEngine<TOutput> {
 
   async process(
     ctx: ProcessingContext,
-    onProgress?: (event: unknown) => void,
+    onProgress?: (event: DocumentProcessingProgressEvent) => void,
     afterOcr?: (ocrResult: OcrResult, ocrText: string) => Promise<void> | void
   ): Promise<ProcessingResult<TOutput>> {
     const processingIssues: string[] = [];
@@ -88,7 +94,7 @@ export class DocumentProcessingEngine<TOutput> {
 
   private async runOcrStage(
     ctx: ProcessingContext,
-    _onProgress?: (event: unknown) => void
+    _onProgress?: (event: DocumentProcessingProgressEvent) => void
   ): Promise<{ text: string; ocrResult: OcrResult; ocrTokens: number; ocrConfidence: number | undefined; source: "ocr" | "native-pdf" }> {
     if (this.definition.preferNativePdfText) {
       const minLength = this.definition.nativePdfTextMinLength ?? 100;
@@ -183,7 +189,7 @@ export class DocumentProcessingEngine<TOutput> {
     ocrTokens: number,
     ocrConfidence: number | undefined,
     processingIssues: string[],
-    onProgress?: (event: unknown) => void
+    onProgress?: (event: DocumentProcessingProgressEvent) => void
   ): Promise<ProcessingResult<TOutput>> {
     const chunks = this.splitTextIntoChunks(text);
     const chunkOutputs: TOutput[] = [];
@@ -226,7 +232,7 @@ export class DocumentProcessingEngine<TOutput> {
 
   private async callSlm(prompt: string, mimeType: string, _pageImages: OcrPageImage[]): Promise<string> {
     const input: FieldVerifierInput = {
-      parsed: { invoiceNumber: "__bank_statement_extraction__" } as never,
+      parsed: { invoiceNumber: OCR_SENTINEL_KEY } as never,
       ocrText: prompt,
       ocrBlocks: [],
       mode: "relaxed",
