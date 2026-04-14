@@ -3,6 +3,7 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { VendorTemplateSnapshot } from "../learning/vendorTemplateStore.js";
 import { currencyBySymbol, parseAmountToken } from "@/ai/parsers/invoiceParser.js";
 import { looksLikeAddress } from "./textHeuristics.js";
+import { buildDateTerms } from "./fieldParsingUtils.js";
 
 export function buildFieldCandidates(
   text: string,
@@ -128,33 +129,6 @@ function candidateTerms(field: string, value: string): string[] {
     }
   }
   return terms;
-}
-
-function buildDateTerms(value: string): string[] {
-  const [year, month, day] = value.split("-");
-  const monthIndex = Number(month) - 1;
-  const dayNumber = Number(day);
-  if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11 || !Number.isInteger(dayNumber)) {
-    return [value];
-  }
-
-  const monthNames = [
-    ["jan", "january"],
-    ["feb", "february"],
-    ["mar", "march"],
-    ["apr", "april"],
-    ["may", "may"],
-    ["jun", "june"],
-    ["jul", "july"],
-    ["aug", "august"],
-    ["sep", "september"],
-    ["oct", "october"],
-    ["nov", "november"],
-    ["dec", "december"]
-  ];
-  const [shortMonth, longMonth] = monthNames[monthIndex] ?? [];
-  const normalizedDay = String(dayNumber);
-  return [value, `${longMonth} ${normalizedDay}, ${year}`, `${shortMonth} ${normalizedDay}, ${year}`].filter(Boolean);
 }
 
 function collectMatches(text: string, pattern: RegExp): string[] {
