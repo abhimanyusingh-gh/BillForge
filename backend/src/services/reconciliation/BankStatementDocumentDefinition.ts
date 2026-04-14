@@ -1,7 +1,7 @@
 import type { ChunkableDocumentDefinition } from "../../core/engine/DocumentDefinition.js";
 import { DOC_TYPE } from "../../core/engine/DocumentDefinition.js";
 import type { ValidationResult } from "../../core/engine/types.js";
-import { LLAMA_EXTRACT_BANK_STATEMENT_SCHEMA, LLAMA_EXTRACT_BANK_STATEMENT_CHUNK_SCHEMA } from "./bankStatementExtractSchema.js";
+import { LLAMA_EXTRACT_BANK_STATEMENT_SCHEMA, LLAMA_EXTRACT_BANK_STATEMENT_CHUNK_SCHEMA } from "../../ocr/adapters/llamaExtractBankStatementSchema.js";
 
 export interface BankStatementTransaction {
   date?: string;

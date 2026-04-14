@@ -3,7 +3,7 @@ import LlamaCloud from "@llamaindex/llama-cloud";
 import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult, ExtractedField } from "../core/interfaces/OcrProvider.js";
 import { logger } from "../utils/logger.js";
 import { buildOcrRequestError } from "./OcrProviderSupport.js";
-import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "./llamaExtractSchema.js";
+import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "./adapters/llamaExtractInvoiceSchema.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf",

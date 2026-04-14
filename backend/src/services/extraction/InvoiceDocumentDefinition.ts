@@ -2,7 +2,7 @@ import type { OcrBlock, OcrPageImage } from "../../core/interfaces/OcrProvider.j
 import type { SinglePassDocumentDefinition, ExtractionSchema } from "../../core/engine/DocumentDefinition.js";
 import { DOC_TYPE } from "../../core/engine/DocumentDefinition.js";
 import type { ValidationResult } from "../../core/engine/types.js";
-import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "../../ocr/llamaExtractSchema.js";
+import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "../../ocr/adapters/llamaExtractInvoiceSchema.js";
 import type {
   InvoiceExtractionData,
   InvoiceFieldKey,
