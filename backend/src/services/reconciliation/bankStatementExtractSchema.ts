@@ -1,6 +1,6 @@
 import type { ExtractionSchema } from "../../core/engine/DocumentDefinition.js";
 
-export const BANK_STATEMENT_EXTRACT_SCHEMA: ExtractionSchema = {
+export const LLAMA_EXTRACT_BANK_STATEMENT_SCHEMA: ExtractionSchema = {
   type: "object",
   properties: {
     bank_name: {
@@ -40,9 +40,9 @@ export const BANK_STATEMENT_EXTRACT_SCHEMA: ExtractionSchema = {
   }
 };
 
-export const BANK_STATEMENT_CHUNK_SCHEMA: ExtractionSchema = {
+export const LLAMA_EXTRACT_BANK_STATEMENT_CHUNK_SCHEMA: ExtractionSchema = {
   type: "object",
   properties: {
-    transactions: BANK_STATEMENT_EXTRACT_SCHEMA.properties["transactions"]!
+    transactions: LLAMA_EXTRACT_BANK_STATEMENT_SCHEMA.properties["transactions"]!
   }
 };

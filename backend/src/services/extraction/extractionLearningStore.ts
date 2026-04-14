@@ -1,5 +1,4 @@
 import { ExtractionLearningModel } from "../../models/ExtractionLearning.js";
-import { logger } from "../../utils/logger.js";
 
 export const EXTRACTION_GROUP_TYPE = {
   INVOICE_TYPE: "invoice-type",
@@ -40,8 +39,7 @@ export class MongoExtractionLearningStore implements ExtractionLearningStore {
       const vendorCorrections = normalizeCorrections(vendorDoc?.corrections);
       return mergeCorrections(typeCorrections, vendorCorrections);
     } catch (error) {
-      logger.warn("extraction.learning.lookup.failed", { tenantId, invoiceType, fingerprintKey, error: toErrorMessage(error) });
-      return [];
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -62,7 +60,7 @@ export class MongoExtractionLearningStore implements ExtractionLearningStore {
         { upsert: true }
       );
     } catch (error) {
-      logger.warn("extraction.learning.persist.failed", { tenantId, groupKey, groupType, error: toErrorMessage(error) });
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 }
@@ -172,8 +170,4 @@ function formatValue(value: unknown): string {
   if (typeof value === "number") return String(value);
   if (typeof value === "string") return value.trim();
   return String(value);
-}
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

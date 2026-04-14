@@ -6,7 +6,7 @@ export const DOC_TYPE = {
   BANK_STATEMENT: "bank-statement",
 } as const;
 
-export type DocType = (typeof DOC_TYPE)[keyof typeof DOC_TYPE];
+type DocType = (typeof DOC_TYPE)[keyof typeof DOC_TYPE];
 
 export interface ExtractionSchemaProperty {
   type: "string" | "number" | "boolean" | "array" | "object";
@@ -25,6 +25,7 @@ interface BaseDocumentDefinition<TOutput> {
   readonly extractionSchema?: ExtractionSchema;
   readonly preferNativePdfText?: boolean;
   readonly nativePdfTextMinLength?: number;
+  canChunk(): boolean;
   buildPrompt?(ocrText: string, blocks: OcrBlock[], pageImages: OcrPageImage[]): string;
   parseOutput(raw: string | Record<string, unknown>): TOutput;
   validateOutput?(output: TOutput): ValidationResult;

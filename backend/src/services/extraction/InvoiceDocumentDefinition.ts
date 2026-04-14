@@ -2,7 +2,7 @@ import type { OcrBlock, OcrPageImage } from "../../core/interfaces/OcrProvider.j
 import type { SinglePassDocumentDefinition, ExtractionSchema } from "../../core/engine/DocumentDefinition.js";
 import { DOC_TYPE } from "../../core/engine/DocumentDefinition.js";
 import type { ValidationResult } from "../../core/engine/types.js";
-import { INVOICE_EXTRACT_SCHEMA } from "../../ocr/llamaExtractSchema.js";
+import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "../../ocr/llamaExtractSchema.js";
 import type {
   InvoiceExtractionData,
   InvoiceFieldKey,
@@ -14,8 +14,9 @@ import type { EnhancedOcrResult } from "../../ocr/ocrPostProcessor.js";
 import type { RankedOcrTextCandidate } from "./pipeline/ocrTextCandidates.js";
 import type { DetectedInvoiceLanguage } from "./languageDetection.js";
 import type { VendorTemplateSnapshot } from "./vendorTemplateStore.js";
-import { uniqueIssues } from "./invoiceExtractionPipelineHelpers.js";
 import { validateInvoiceFields } from "./deterministicValidation.js";
+import { parseLlamaExtractFields } from "../../ocr/adapters/LlamaExtractAdapter.js";
+import { sanitizeInvoiceExtraction } from "./InvoiceExtractionSanitizer.js";
 
 export interface InvoiceSlmOutput {
   parsed: ParsedInvoiceData;
@@ -28,7 +29,7 @@ export interface InvoiceSlmOutput {
   classification?: InvoiceExtractionData["classification"];
 }
 
-export interface InvoiceSlmContext {
+interface InvoiceSlmContext {
   mimeType: string;
   attachmentName: string;
   template: VendorTemplateSnapshot | undefined;
@@ -58,49 +59,22 @@ export interface InvoiceValidationContext {
   ocrText: string;
 }
 
-const LLAMA_EXTRACT_FIELD_KEY = {
-  INVOICE_NUMBER: "invoice_number",
-  VENDOR_NAME: "vendor_name",
-  INVOICE_DATE: "invoice_date",
-  DUE_DATE: "due_date",
-  CURRENCY: "currency",
-  TOTAL_AMOUNT: "total_amount",
-  PAN: "pan",
-  SUBTOTAL: "subtotal",
-  CGST_AMOUNT: "cgst_amount",
-  SGST_AMOUNT: "sgst_amount",
-  IGST_AMOUNT: "igst_amount",
-  CESS_AMOUNT: "cess_amount",
-  GSTIN: "gstin",
-  LINE_ITEMS: "line_items",
-} as const;
-
-type LlamaExtractFieldKey = (typeof LLAMA_EXTRACT_FIELD_KEY)[keyof typeof LLAMA_EXTRACT_FIELD_KEY];
-
 export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<InvoiceSlmOutput> {
   readonly docType = DOC_TYPE.INVOICE;
-  readonly extractionSchema: ExtractionSchema = INVOICE_EXTRACT_SCHEMA as ExtractionSchema;
+  readonly extractionSchema: ExtractionSchema = LLAMA_EXTRACT_INVOICE_SCHEMA as ExtractionSchema;
 
-  private _slmContext: InvoiceSlmContext | null = null;
   private _validationContext: InvoiceValidationContext | null = null;
-
-  get slmContext(): InvoiceSlmContext | null {
-    return this._slmContext;
-  }
-
-  setSlmContext(ctx: InvoiceSlmContext): void {
-    this._slmContext = ctx;
-  }
 
   setValidationContext(ctx: InvoiceValidationContext): void {
     this._validationContext = ctx;
   }
 
-  buildPrompt(_ocrText: string, _blocks: OcrBlock[], _pageImages: OcrPageImage[]): string {
-    if (!this._slmContext) {
-      return _ocrText;
-    }
-    return this._slmContext.augmentedText || this._slmContext.primaryCandidate.text;
+  canChunk(): boolean {
+    return false;
+  }
+
+  buildPrompt(text: string, _blocks: OcrBlock[], _pageImages: OcrPageImage[]): string {
+    return text;
   }
 
   parseOutput(raw: string | Record<string, unknown>): InvoiceSlmOutput {
@@ -120,7 +94,7 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
 
     if (!parsedData || Object.keys(parsedData).length === 0) {
       return {
-        parsed: this._slmContext?.baselineParsed ?? {},
+        parsed: {},
         tokens: 0,
         issues: ["SLM verification failed. Falling back to OCR heuristics."],
         changedFields: [],
@@ -128,9 +102,8 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
       };
     }
 
-    const baselineParsed = this._slmContext?.baselineParsed ?? {};
-    const normalizedParsed = sanitizeParsedInvoiceData(parsedData);
-    const parsed = Object.keys(normalizedParsed).length > 0 ? normalizedParsed : baselineParsed;
+    const normalizedParsed = sanitizeInvoiceExtraction(parsedData);
+    const parsed = Object.keys(normalizedParsed).length > 0 ? normalizedParsed : {};
 
     return {
       parsed,
@@ -142,62 +115,7 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
   }
 
   private parseFromExtractFields(fields: Record<string, unknown>): InvoiceSlmOutput {
-    const parsed: ParsedInvoiceData = {};
-
-    const getString = (key: LlamaExtractFieldKey): string | undefined => {
-      const val = fields[key];
-      if (typeof val !== "string" || val.trim() === "") return undefined;
-      return val.trim();
-    };
-
-    const getNumber = (key: LlamaExtractFieldKey): number | undefined => {
-      const val = fields[key];
-      if (typeof val !== "number" || val === null) return undefined;
-      return val;
-    };
-
-    const invoiceNumber = getString(LLAMA_EXTRACT_FIELD_KEY.INVOICE_NUMBER);
-    if (invoiceNumber) parsed.invoiceNumber = invoiceNumber;
-
-    const vendorName = getString(LLAMA_EXTRACT_FIELD_KEY.VENDOR_NAME);
-    if (vendorName) parsed.vendorName = vendorName;
-
-    const invoiceDate = getString(LLAMA_EXTRACT_FIELD_KEY.INVOICE_DATE);
-    if (invoiceDate) parsed.invoiceDate = invoiceDate;
-
-    const dueDate = getString(LLAMA_EXTRACT_FIELD_KEY.DUE_DATE);
-    if (dueDate) parsed.dueDate = dueDate;
-
-    const currency = getString(LLAMA_EXTRACT_FIELD_KEY.CURRENCY);
-    if (currency) parsed.currency = currency;
-
-    const totalAmountRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.TOTAL_AMOUNT);
-    if (totalAmountRaw !== undefined) parsed.totalAmountMinor = Math.round(totalAmountRaw * 100);
-
-    const pan = getString(LLAMA_EXTRACT_FIELD_KEY.PAN);
-    if (pan) parsed.pan = pan;
-
-    const subtotalRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.SUBTOTAL);
-    const cgstRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.CGST_AMOUNT);
-    const sgstRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.SGST_AMOUNT);
-    const igstRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.IGST_AMOUNT);
-    const cessRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.CESS_AMOUNT);
-    const gstin = getString(LLAMA_EXTRACT_FIELD_KEY.GSTIN);
-
-    const totalTaxRaw = (cgstRaw ?? 0) + (sgstRaw ?? 0) + (igstRaw ?? 0) + (cessRaw ?? 0);
-    const hasGst = subtotalRaw !== undefined || cgstRaw !== undefined || sgstRaw !== undefined || igstRaw !== undefined || cessRaw !== undefined || gstin !== undefined;
-
-    if (hasGst) {
-      const gst: NonNullable<ParsedInvoiceData["gst"]> = {};
-      if (subtotalRaw !== undefined) gst.subtotalMinor = Math.round(subtotalRaw * 100);
-      if (cgstRaw !== undefined) gst.cgstMinor = Math.round(cgstRaw * 100);
-      if (sgstRaw !== undefined) gst.sgstMinor = Math.round(sgstRaw * 100);
-      if (igstRaw !== undefined) gst.igstMinor = Math.round(igstRaw * 100);
-      if (cessRaw !== undefined) gst.cessMinor = Math.round(cessRaw * 100);
-      if (totalTaxRaw > 0) gst.totalTaxMinor = Math.round(totalTaxRaw * 100);
-      if (gstin !== undefined) gst.gstin = gstin;
-      parsed.gst = gst;
-    }
+    const parsed = parseLlamaExtractFields(fields);
 
     return {
       parsed,
@@ -221,106 +139,4 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
     });
     return result;
   }
-
-}
-
-function sanitizeParsedInvoiceData(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
-  if (!parsed) {
-    return {};
-  }
-
-  const normalized: ParsedInvoiceData = {};
-  const copyString = (value: unknown): string | undefined => {
-    if (typeof value !== "string") {
-      return undefined;
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  };
-
-  const invoiceNumber = copyString(parsed.invoiceNumber);
-  if (invoiceNumber) {
-    normalized.invoiceNumber = invoiceNumber;
-  }
-  const vendorName = copyString(parsed.vendorName);
-  if (vendorName) {
-    normalized.vendorName = vendorName;
-  }
-  const invoiceDate = copyString(parsed.invoiceDate);
-  if (invoiceDate) {
-    normalized.invoiceDate = invoiceDate;
-  }
-  const dueDate = copyString(parsed.dueDate);
-  if (dueDate) {
-    normalized.dueDate = dueDate;
-  }
-  const currency = copyString(parsed.currency);
-  if (currency) {
-    normalized.currency = currency.toUpperCase();
-  }
-  if (Number.isInteger(parsed.totalAmountMinor) && (parsed.totalAmountMinor ?? 0) > 0) {
-    normalized.totalAmountMinor = parsed.totalAmountMinor;
-  }
-
-  const notes = uniqueIssues(parsed.notes ?? []);
-  if (notes.length > 0) {
-    normalized.notes = notes;
-  }
-
-  const gst = parsed.gst;
-  if (gst) {
-    const normalizedGst: NonNullable<ParsedInvoiceData["gst"]> = {};
-    if (copyString(gst.gstin)) {
-      normalizedGst.gstin = gst.gstin?.trim();
-    }
-    for (const field of [
-      "subtotalMinor",
-      "cgstMinor",
-      "sgstMinor",
-      "igstMinor",
-      "cessMinor",
-      "totalTaxMinor"
-    ] as const) {
-      const value = gst[field];
-      if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
-        normalizedGst[field] = value;
-      }
-    }
-    if (Object.keys(normalizedGst).length > 0) {
-      normalized.gst = normalizedGst;
-    }
-  }
-
-  if (Array.isArray(parsed.lineItems)) {
-    const lineItems = parsed.lineItems
-      .map((item) => {
-        const description = copyString(item.description) ?? "";
-        if (!Number.isInteger(item.amountMinor) || item.amountMinor <= 0) {
-          return undefined;
-        }
-        return {
-          ...item,
-          description
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-    if (lineItems.length > 0) {
-      normalized.lineItems = lineItems;
-    }
-  }
-
-  const pan = copyString(parsed.pan);
-  if (pan) {
-    normalized.pan = pan.toUpperCase();
-  }
-  const bankAccountNumber = copyString(parsed.bankAccountNumber);
-  if (bankAccountNumber) {
-    normalized.bankAccountNumber = bankAccountNumber;
-  }
-  const bankIfsc = copyString(parsed.bankIfsc);
-  if (bankIfsc) {
-    normalized.bankIfsc = bankIfsc.toUpperCase();
-  }
-
-  return normalized;
 }

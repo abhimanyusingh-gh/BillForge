@@ -1,4 +1,4 @@
-export const INVOICE_EXTRACT_SCHEMA = {
+export const LLAMA_EXTRACT_INVOICE_SCHEMA = {
   type: "object",
   properties: {
     invoice_number: {

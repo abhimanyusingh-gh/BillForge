@@ -15,6 +15,7 @@ function makeNativePdfText(text: string) {
 
 class TestDocumentDefinition implements SinglePassDocumentDefinition<string> {
   readonly docType = DOC_TYPE.INVOICE;
+  canChunk(): boolean { return false; }
 
   buildPrompt(ocrText: string, _blocks: OcrBlock[], _pageImages: OcrPageImage[]): string {
     return `PROMPT:${ocrText}`;
@@ -213,6 +214,7 @@ describe("DocumentProcessingEngine", () => {
     class ChunkDefinition implements ChunkableDocumentDefinition<string[]> {
       readonly docType = DOC_TYPE.BANK_STATEMENT;
       readonly maxChunkChars = 1000;
+      canChunk(): boolean { return true; }
 
       buildChunkPrompt(chunkText: string, _idx: number, _isFirst: boolean): string { return chunkText; }
 
@@ -318,6 +320,7 @@ describe("DocumentProcessingEngine", () => {
 
     class SchemaOnlyDefinition implements SinglePassDocumentDefinition<string> {
       readonly docType = DOC_TYPE.INVOICE;
+      canChunk(): boolean { return false; }
       readonly extractionSchema = {
         type: "object" as const,
         properties: {
@@ -352,6 +355,7 @@ describe("DocumentProcessingEngine", () => {
     class ChunkableForProgress implements ChunkableDocumentDefinition<string[]> {
       readonly docType = DOC_TYPE.BANK_STATEMENT;
       readonly maxChunkChars = 4000;
+      canChunk(): boolean { return true; }
 
       parseOutput(raw: string | Record<string, unknown>): string[] {
         const s = typeof raw === "string" ? raw : JSON.stringify(raw);

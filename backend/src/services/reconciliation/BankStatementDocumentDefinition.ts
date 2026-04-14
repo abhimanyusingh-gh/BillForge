@@ -1,7 +1,7 @@
 import type { ChunkableDocumentDefinition } from "../../core/engine/DocumentDefinition.js";
 import { DOC_TYPE } from "../../core/engine/DocumentDefinition.js";
 import type { ValidationResult } from "../../core/engine/types.js";
-import { BANK_STATEMENT_EXTRACT_SCHEMA, BANK_STATEMENT_CHUNK_SCHEMA } from "./bankStatementExtractSchema.js";
+import { LLAMA_EXTRACT_BANK_STATEMENT_SCHEMA, LLAMA_EXTRACT_BANK_STATEMENT_CHUNK_SCHEMA } from "./bankStatementExtractSchema.js";
 
 export interface BankStatementTransaction {
   date?: string;
@@ -27,8 +27,12 @@ export class BankStatementDocumentDefinition implements ChunkableDocumentDefinit
   readonly nativePdfTextMinLength = 100;
   readonly maxChunkChars = 8000;
   readonly chunkingStrategy = "page-based" as const;
-  readonly extractionSchema = BANK_STATEMENT_EXTRACT_SCHEMA;
-  readonly chunkSchema = BANK_STATEMENT_CHUNK_SCHEMA;
+  readonly extractionSchema = LLAMA_EXTRACT_BANK_STATEMENT_SCHEMA;
+  readonly chunkSchema = LLAMA_EXTRACT_BANK_STATEMENT_CHUNK_SCHEMA;
+
+  canChunk(): boolean {
+    return true;
+  }
 
   parseOutput(raw: string | Record<string, unknown>): SlmBankStatementOutput {
     if (typeof raw === "object") {

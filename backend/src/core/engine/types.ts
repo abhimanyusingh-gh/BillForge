@@ -1,5 +1,9 @@
 import type { OcrBlock, OcrPageImage } from "../interfaces/OcrProvider.js";
 
+export interface DocumentDefinitionCanChunk {
+  canChunk(): boolean;
+}
+
 export interface ValidationResult {
   valid: boolean;
   issues: string[];

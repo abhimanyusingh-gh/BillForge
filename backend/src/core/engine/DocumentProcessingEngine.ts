@@ -1,8 +1,8 @@
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "../interfaces/FieldVerifier.js";
+import type { ParsedInvoiceData } from "../../types/invoice.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "../interfaces/OcrProvider.js";
-import type { ChunkableDocumentDefinition, DocType, DocumentDefinition } from "./DocumentDefinition.js";
-import { DOC_TYPE } from "./DocumentDefinition.js";
-import type { ProcessingContext, ProcessingResult, ValidationResult } from "./types.js";
+import type { ChunkableDocumentDefinition, DocumentDefinition } from "./DocumentDefinition.js";
+import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "./types.js";
 import { DocumentProcessingError } from "./types.js";
 
 import { extractNativePdfText } from "../../services/extraction/pipeline/nativePdfText.js";
@@ -14,22 +14,17 @@ export const OCR_SENTINEL_KEY = "__bank_statement_extraction__" as const;
 export type DocumentProcessingProgressEvent =
   | { type: "progress"; stage: "slm-chunk"; chunk: number; totalChunks: number };
 
-function isChunkable<T>(def: DocumentDefinition<T>): def is ChunkableDocumentDefinition<T> {
-  const chunkableTypes: readonly DocType[] = [DOC_TYPE.BANK_STATEMENT];
-  return chunkableTypes.includes(def.docType);
-}
-
 export class DocumentProcessingEngine<TOutput> {
   private readonly ocrProvider: OcrProvider | null;
   private readonly fieldVerifier: FieldVerifier;
-  private readonly definition: DocumentDefinition<TOutput>;
+  private readonly definition: DocumentDefinition<TOutput> & DocumentDefinitionCanChunk;
 
   constructor(
     definition: DocumentDefinition<TOutput>,
     fieldVerifier: FieldVerifier,
     ocrProvider?: OcrProvider | null
   ) {
-    this.definition = definition;
+    this.definition = definition as DocumentDefinition<TOutput> & DocumentDefinitionCanChunk;
     this.fieldVerifier = fieldVerifier;
     this.ocrProvider = ocrProvider ?? null;
   }
@@ -68,8 +63,9 @@ export class DocumentProcessingEngine<TOutput> {
       };
     }
 
-    const maxChunkChars = isChunkable(this.definition) ? (this.definition.maxChunkChars ?? 8000) : 8000;
-    const canChunk = isChunkable(this.definition) && Boolean(this.definition.mergeChunkOutputs);
+    const chunkDef = this.definition.canChunk() ? (this.definition as unknown as ChunkableDocumentDefinition<TOutput>) : null;
+    const maxChunkChars = chunkDef?.maxChunkChars ?? 8000;
+    const canChunk = Boolean(chunkDef?.mergeChunkOutputs);
 
     if (text.length > maxChunkChars && canChunk) {
       return this.runChunkedSlm(text, ctx, ocrResult, ocrTokens, ocrConfidence, processingIssues, onProgress);
@@ -173,8 +169,9 @@ export class DocumentProcessingEngine<TOutput> {
 
   private buildPromptFromSchema(text: string, isChunkContinuation: boolean): string {
     const def = this.definition;
-    const schema = isChunkContinuation && isChunkable(def) && def.chunkSchema
-      ? def.chunkSchema
+    const chunkDef = def.canChunk() ? (def as unknown as ChunkableDocumentDefinition<TOutput>) : null;
+    const schema = isChunkContinuation && chunkDef?.chunkSchema
+      ? chunkDef.chunkSchema
       : def.extractionSchema;
     if (!schema) {
       return text;
@@ -232,7 +229,7 @@ export class DocumentProcessingEngine<TOutput> {
 
   private async callSlm(prompt: string, mimeType: string, _pageImages: OcrPageImage[]): Promise<string> {
     const input: FieldVerifierInput = {
-      parsed: { invoiceNumber: OCR_SENTINEL_KEY } as never,
+      parsed: { invoiceNumber: OCR_SENTINEL_KEY } as ParsedInvoiceData,
       ocrText: prompt,
       ocrBlocks: [],
       mode: "relaxed",
@@ -275,7 +272,8 @@ export class DocumentProcessingEngine<TOutput> {
   }
 
   private splitTextIntoChunks(text: string): string[] {
-    const maxChunkChars = isChunkable(this.definition) ? (this.definition.maxChunkChars ?? 8000) : 8000;
+    const chunkableDef = this.definition.canChunk() ? (this.definition as unknown as ChunkableDocumentDefinition<TOutput>) : null;
+    const maxChunkChars = chunkableDef?.maxChunkChars ?? 8000;
     const chunkTargetSize = Math.floor(maxChunkChars * 0.75);
 
     const pageBreaks = text.split(/\n(?=\f)|(?<=\f)\n|\f/);

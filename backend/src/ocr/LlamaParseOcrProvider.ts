@@ -3,7 +3,7 @@ import LlamaCloud from "@llamaindex/llama-cloud";
 import type { OcrBlock, OcrExtractionOptions, OcrPageImage, OcrProvider, OcrResult, ExtractedField } from "../core/interfaces/OcrProvider.js";
 import { logger } from "../utils/logger.js";
 import { buildOcrRequestError } from "./OcrProviderSupport.js";
-import { INVOICE_EXTRACT_SCHEMA } from "./llamaExtractSchema.js";
+import { LLAMA_EXTRACT_INVOICE_SCHEMA } from "./llamaExtractSchema.js";
 
 const SUPPORTED_MIME_TYPES = new Set([
   "application/pdf",
@@ -97,6 +97,11 @@ export class LlamaParseOcrProvider implements OcrProvider {
         }
       }
 
+      try {
+        await this.client.files.delete(fileObj.id);
+      } catch (deleteErr) {
+        logger.warn("ocr.file.delete.failed", { provider: this.name, fileId: fileObj.id, error: String(deleteErr) });
+      }
       logger.info("ocr.request.end", { provider: this.name, mimeType, latencyMs: Date.now() - startedAt, chars: text.length, blockCount: blocks.length, pageImageCount: pageImages.length });
       return { text, provider: this.name, blocks, pageImages, fields, extractedLineItems };
     } catch (error) {
@@ -110,7 +115,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
       const job = await this.client.extract.create({
         file_input: fileInput,
         configuration: {
-          data_schema: INVOICE_EXTRACT_SCHEMA,
+          data_schema: LLAMA_EXTRACT_INVOICE_SCHEMA,
           cite_sources: true,
           confidence_scores: true,
           tier: this.extractTier,

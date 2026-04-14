@@ -9,7 +9,7 @@ import {
 import {
   fieldProvenanceFromVerifierContract,
   lineItemProvenanceFromVerifierContract,
-  normalizeParsedInvoiceData,
+  parseVerifierParsedResponse,
   normalizeReasonCodes,
   normalizeVerifierContract,
   parsedFromVerifierContract
@@ -182,7 +182,7 @@ export class HttpFieldVerifier implements FieldVerifier {
       return {
         success: true,
         value: {
-          parsed: contractParsed ?? normalizeParsedInvoiceData(response.data?.parsed) ?? input.parsed,
+          parsed: contractParsed ?? parseVerifierParsedResponse(response.data?.parsed) ?? input.parsed,
           issues: normalizeStringList(response.data?.issues),
           changedFields: normalizeStringList(response.data?.changedFields),
           reasonCodes: normalizeReasonCodes(response.data?.reasonCodes),

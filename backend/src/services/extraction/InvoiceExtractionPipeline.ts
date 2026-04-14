@@ -50,10 +50,10 @@ import { DocumentProcessingEngine } from "../../core/engine/DocumentProcessingEn
 import {
   InvoiceDocumentDefinition,
   type InvoiceSlmOutput,
-  type InvoiceSlmContext,
   type InvoiceValidationContext
 } from "./InvoiceDocumentDefinition.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "../../core/engine/extractionSource.js";
+import { sanitizeInvoiceExtraction } from "./InvoiceExtractionSanitizer.js";
 
 const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource> = {
   generic: EXTRACTION_SOURCE.SLM_GENERIC,
@@ -177,6 +177,9 @@ export class InvoiceExtractionPipeline {
     let capturedOcrConfidence = 0;
     let capturedOcrTokens = 0;
     let capturedExtractFields: ExtractedField[] | undefined;
+    let capturedBaselineParsed: ParsedInvoiceData = {};
+    let capturedFieldCandidates: Record<string, string[]> = {};
+    let capturedFieldRegions: Record<string, OcrBlock[]> = {};
 
     const afterOcr = async (ocrResult: OcrResult, _ocrText: string) => {
       capturedOcrBlocks = ocrResult.blocks ?? [];
@@ -246,25 +249,12 @@ export class InvoiceExtractionPipeline {
       metadata.fieldCandidateCount = String(Object.keys(fieldCandidates).length);
       metadata.fieldRegionCount = String(Object.keys(fieldRegions).length);
 
-      const slmCtx: InvoiceSlmContext = {
-        mimeType: input.mimeType,
-        attachmentName: input.attachmentName,
-        template,
-        language,
-        enhanced: capturedEnhanced!,
-        primaryCandidate: capturedPrimaryCandidate!,
-        rankedCandidates: capturedRankedCandidates,
-        augmentedText: capturedAugmentedText,
-        ocrConfidence: capturedOcrConfidence,
-        ocrPageImages: capturedOcrPageImages,
-        baselineParsed: baseline.parsed,
-        fieldCandidates,
-        fieldRegions,
-        ocrHighConfidenceThreshold: this.ocrHighConfidenceThreshold,
-        llmAssistConfidenceThreshold: this.llmAssistConfidenceThreshold,
-        learningMode: this.learningMode
-      };
-      definition.setSlmContext(slmCtx);
+      capturedBaselineParsed = baseline.parsed;
+      capturedFieldCandidates = fieldCandidates;
+      capturedFieldRegions = fieldRegions;
+
+      const chosenText = capturedAugmentedText || capturedPrimaryCandidate!.text;
+      definition.buildPrompt = (_text: string, _blocks: OcrBlock[], _pageImages: OcrPageImage[]) => chosenText;
 
       const validationCtx: InvoiceValidationContext = {
         expectedMaxTotal: input.expectedMaxTotal,
@@ -312,11 +302,10 @@ export class InvoiceExtractionPipeline {
       const fieldProvenance = slmOutput.fieldProvenance ?? {};
 
       const compliance = await this.runCompliance(parsed, input, fingerprint);
-      let confidence = this.assessConfidence(input, parsed, processingIssues, ocrConfidence);
-      if (compliance?.riskSignals?.length) {
-        const penalty = RiskSignalEvaluator.sumPenalties(compliance.riskSignals);
-        confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocrConfidence, penalty);
-      }
+      const llamaPenalty = compliance?.riskSignals?.length
+        ? RiskSignalEvaluator.sumPenalties(compliance.riskSignals)
+        : 0;
+      const confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocrConfidence, llamaPenalty);
 
       const extraction: InvoiceExtractionData = {
         source: EXTRACTION_SOURCE.LLAMA_EXTRACT,
@@ -347,8 +336,7 @@ export class InvoiceExtractionPipeline {
     const slm = engineResult.output;
     processingIssues.push(...slm.issues);
 
-    const capturedSlmContext = definition.slmContext;
-    const baselineParsed: ParsedInvoiceData = capturedSlmContext?.baselineParsed ?? {};
+    const baselineParsed: ParsedInvoiceData = capturedBaselineParsed;
 
     const mergedParsed = mergeParsedInvoiceData(baselineParsed, slm.parsed);
     const parsed = recoverParsedFromOcr(mergedParsed, ocrBlocks, primaryText);
@@ -367,8 +355,8 @@ export class InvoiceExtractionPipeline {
       processingIssues.push(...validation.issues);
     }
 
-    const fieldCandidates = capturedSlmContext?.fieldCandidates ?? {};
-    const fieldRegions = capturedSlmContext?.fieldRegions ?? {};
+    const fieldCandidates = capturedFieldCandidates;
+    const fieldRegions = capturedFieldRegions;
 
     const diagnostics = addFieldDiagnosticsToMetadata({
       metadata,
@@ -387,12 +375,10 @@ export class InvoiceExtractionPipeline {
 
     const compliance = await this.runCompliance(parsed, input, fingerprint);
 
-    let confidence = this.assessConfidence(input, parsed, processingIssues, ocrConfidence);
-
-    if (compliance?.riskSignals?.length) {
-      const penalty = RiskSignalEvaluator.sumPenalties(compliance.riskSignals);
-      confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocrConfidence, penalty);
-    }
+    const slmPenalty = compliance?.riskSignals?.length
+      ? RiskSignalEvaluator.sumPenalties(compliance.riskSignals)
+      : 0;
+    const confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocrConfidence, slmPenalty);
 
     const lineItemProvenance = resolveLineItemProvenance({
       lineItems: parsed.lineItems,
@@ -446,21 +432,10 @@ export class InvoiceExtractionPipeline {
       return await this.complianceEnricher.enrich(parsed, input.tenantId, fingerprint.key, {
         contentHash: fingerprint.hash
       });
-    } catch {
+    } catch (error) {
+      logger.warn("compliance.enrich.failed", { tenantId: input.tenantId, error: error instanceof Error ? error.message : String(error) });
       return;
     }
-  }
-
-  private assessConfidence(input: ExtractionPipelineInput, parsed: ParsedInvoiceData, warnings: string[], ocrConfidence?: number) {
-    return assessInvoiceConfidence({
-      ocrConfidence,
-      parsed,
-      warnings,
-      expectedMaxTotal: input.expectedMaxTotal,
-      expectedMaxDueDays: input.expectedMaxDueDays,
-      autoSelectMin: input.autoSelectMin,
-      referenceDate: input.referenceDate
-    });
   }
 
   private assessConfidenceWithPenalty(
@@ -507,8 +482,8 @@ export class InvoiceExtractionPipeline {
 }
 
 function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoiceData): ParsedInvoiceData {
-  const baseNormalized = sanitizeParsedInvoiceData(base);
-  const overrideNormalized = sanitizeParsedInvoiceData(override);
+  const baseNormalized = sanitizeInvoiceExtraction(base);
+  const overrideNormalized = sanitizeInvoiceExtraction(override);
   const merged: ParsedInvoiceData = {
     ...baseNormalized,
     ...overrideNormalized
@@ -532,113 +507,6 @@ function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoice
     merged.notes = notes;
   }
 
-  return sanitizeParsedInvoiceData(merged);
+  return sanitizeInvoiceExtraction(merged);
 }
 
-function sanitizeParsedInvoiceData(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
-  if (!parsed) {
-    return {};
-  }
-
-  const normalized: ParsedInvoiceData = {};
-  const copyString = (value: unknown): string | undefined => {
-    if (typeof value !== "string") {
-      return undefined;
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  };
-
-  const invoiceNumber = copyString(parsed.invoiceNumber);
-  if (invoiceNumber) {
-    normalized.invoiceNumber = invoiceNumber;
-  }
-  const vendorName = copyString(parsed.vendorName);
-  if (vendorName) {
-    normalized.vendorName = vendorName;
-  }
-  const invoiceDate = copyString(parsed.invoiceDate);
-  if (invoiceDate) {
-    normalized.invoiceDate = invoiceDate;
-  }
-  const dueDate = copyString(parsed.dueDate);
-  if (dueDate) {
-    normalized.dueDate = dueDate;
-  }
-  const currency = copyString(parsed.currency);
-  if (currency) {
-    normalized.currency = currency.toUpperCase();
-  }
-  if (Number.isInteger(parsed.totalAmountMinor) && (parsed.totalAmountMinor ?? 0) > 0) {
-    normalized.totalAmountMinor = parsed.totalAmountMinor;
-  }
-
-  const notes = uniqueIssues(parsed.notes ?? []);
-  if (notes.length > 0) {
-    normalized.notes = notes;
-  }
-
-  const gst = parsed.gst;
-  if (gst) {
-    const normalizedGst: NonNullable<ParsedInvoiceData["gst"]> = {};
-    if (copyString(gst.gstin)) {
-      normalizedGst.gstin = gst.gstin?.trim();
-    }
-    for (const field of [
-      "subtotalMinor",
-      "cgstMinor",
-      "sgstMinor",
-      "igstMinor",
-      "cessMinor",
-      "totalTaxMinor"
-    ] as const) {
-      const value = gst[field];
-      if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
-        normalizedGst[field] = value;
-      }
-    }
-    if (Object.keys(normalizedGst).length > 0) {
-      normalized.gst = normalizedGst;
-    }
-  }
-
-  if (Array.isArray(parsed.lineItems)) {
-    const lineItems = parsed.lineItems
-      .map((item) => {
-        const description = copyString(item.description) ?? "";
-        if (!Number.isInteger(item.amountMinor) || item.amountMinor <= 0) {
-          return undefined;
-        }
-        return {
-          ...item,
-          description
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
-    if (lineItems.length > 0) {
-      normalized.lineItems = lineItems;
-    }
-  }
-
-  const pan = copyString(parsed.pan);
-  if (pan) {
-    normalized.pan = pan.toUpperCase();
-  }
-  const bankAccountNumber = copyString(parsed.bankAccountNumber);
-  if (bankAccountNumber) {
-    normalized.bankAccountNumber = bankAccountNumber;
-  }
-  const bankIfsc = copyString(parsed.bankIfsc);
-  if (bankIfsc) {
-    normalized.bankIfsc = bankIfsc.toUpperCase();
-  }
-
-  return normalized;
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
-}

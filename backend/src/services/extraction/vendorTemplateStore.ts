@@ -1,6 +1,5 @@
 import { VendorTemplateModel } from "../../models/VendorTemplate.js";
 import type { ParsedInvoiceData } from "../../types/invoice.js";
-import { logger } from "../../utils/logger.js";
 
 export interface VendorTemplateSnapshot {
   tenantId: string;
@@ -35,8 +34,7 @@ export class MongoVendorTemplateStore implements VendorTemplateStore {
         confidenceScore: template.confidenceScore
       };
     } catch (error) {
-      logger.warn("vendor.template.lookup.failed", { tenantId, fingerprintKey, error: toErrorMessage(error) });
-      return undefined;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -59,11 +57,7 @@ export class MongoVendorTemplateStore implements VendorTemplateStore {
         { upsert: true }
       );
     } catch (error) {
-      logger.warn("vendor.template.persist.failed", {
-        tenantId: template.tenantId,
-        fingerprintKey: template.fingerprintKey,
-        error: toErrorMessage(error)
-      });
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 }
@@ -120,11 +114,4 @@ function buildInvoicePrefix(invoiceNumber?: string): string | undefined {
     return prefix.toUpperCase();
   }
   return undefined;
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
 }
