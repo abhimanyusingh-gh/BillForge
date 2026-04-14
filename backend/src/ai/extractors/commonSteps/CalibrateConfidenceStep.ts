@@ -1,8 +1,8 @@
 import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrResult } from "@/core/interfaces/OcrProvider.js";
-import { calibrateDocumentConfidence } from "../../confidenceScoring/FieldConfidenceScorer.js";
-import { INVOICE_CTX } from "../contextKeys.js";
+import { calibrateDocumentConfidence } from "../invoice/confidenceScoring/FieldConfidenceScorer.js";
+import { INVOICE_CTX } from "../invoice/pipeline/contextKeys.js";
 
 export class CalibrateConfidenceStep implements PipelineStage {
   readonly name = "calibrate-confidence";

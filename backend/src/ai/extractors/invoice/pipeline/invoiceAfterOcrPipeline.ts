@@ -1,11 +1,11 @@
 import { ComposablePipeline } from "@/core/pipeline/ComposablePipeline.js";
 import type { InvoiceDocumentDefinition } from "../InvoiceDocumentDefinition.js";
 import type { VendorTemplateSnapshot } from "../learning/vendorTemplateStore.js";
-import { CaptureOcrMetadataStep } from "./steps/CaptureOcrMetadataStep.js";
-import { PostProcessOcrStep } from "./steps/PostProcessOcrStep.js";
-import { BuildTextCandidatesStep } from "./steps/BuildTextCandidatesStep.js";
-import { CalibrateConfidenceStep } from "./steps/CalibrateConfidenceStep.js";
-import { DetectLanguageStep } from "./steps/DetectLanguageStep.js";
+import { CaptureOcrMetadataStep } from "../../commonSteps/CaptureOcrMetadataStep.js";
+import { PostProcessOcrStep } from "../../commonSteps/PostProcessOcrStep.js";
+import { BuildTextCandidatesStep } from "../../commonSteps/BuildTextCandidatesStep.js";
+import { CalibrateConfidenceStep } from "../../commonSteps/CalibrateConfidenceStep.js";
+import { DetectLanguageStep } from "../../commonSteps/DetectLanguageStep.js";
 import { CheckExtractFieldsGateStep } from "./steps/CheckExtractFieldsGateStep.js";
 import { BaselineTextParseStep } from "./steps/BaselineTextParseStep.js";
 import { AugmentPromptBuilderStep } from "./steps/AugmentPromptBuilderStep.js";
