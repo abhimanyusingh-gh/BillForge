@@ -13,7 +13,7 @@ function makeBlock(text: string, bboxNormalized: [number, number, number, number
 }
 
 describe("InvoiceExtractionPipeline", () => {
-  it("passes richer OCR hints to verifier and falls back to baseline parsed data", async () => {
+  it("calls OCR and SLM verifier once, returns parsed invoice data", async () => {
     const extractText = jest.fn(async () => ({
       text: [
         "Vendor: Acme Pvt Ltd",
@@ -83,13 +83,8 @@ describe("InvoiceExtractionPipeline", () => {
 
     expect(verify).toHaveBeenCalledTimes(1);
     const verifierInput = verify.mock.calls[0]?.[0] as FieldVerifierInput;
-    expect(verifierInput.parsed.invoiceNumber).toBe("INV-2026-001");
-    expect(verifierInput.hints.vendorTemplateMatched).toBe(true);
-    expect(verifierInput.hints.fieldCandidates).toEqual(expect.objectContaining({ invoiceNumber: expect.any(Array) }));
-    expect(verifierInput.hints.structuredLines?.length).toBeGreaterThan(0);
-    expect(typeof verifierInput.hints.documentContext).toBe("string");
-    expect(verifierInput.hints.documentContext).toContain("Invoice Number");
-    expect(verifierInput.hints.attachmentName).toBe("invoice.pdf");
+    expect(typeof verifierInput.ocrText).toBe("string");
+    expect(verifierInput.ocrText.length).toBeGreaterThan(0);
 
     expect(result.parseResult.parsed.invoiceNumber).toBe("INV-2026-001");
     expect(result.parseResult.parsed.totalAmountMinor).toBe(123400);

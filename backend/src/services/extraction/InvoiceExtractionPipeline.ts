@@ -45,6 +45,13 @@ import {
 import { computeVendorFingerprint } from "./vendorFingerprint.js";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { DocumentProcessingEngine } from "../../core/engine/DocumentProcessingEngine.js";
+import {
+  InvoiceDocumentDefinition,
+  type InvoiceSlmOutput,
+  type InvoiceSlmContext,
+  type InvoiceValidationContext
+} from "./InvoiceDocumentDefinition.js";
 
 type PipelineErrorCode = "FAILED_OCR" | "FAILED_PARSE";
 
@@ -69,35 +76,10 @@ interface ExtractionPipelineOptions {
   llamaExtractEnabled?: boolean;
 }
 
-interface OcrStageResult {
-  enhanced: EnhancedOcrResult;
-  primaryCandidate: RankedOcrTextCandidate;
-  rankedCandidates: RankedOcrTextCandidate[];
-  augmentedText: string;
-  ocrBlocks: OcrBlock[];
-  ocrPageImages: OcrPageImage[];
-  ocrConfidence: number;
-  ocrTokens: number;
-  preOcrLanguage: DetectedInvoiceLanguage;
-  extractFields?: ExtractedField[];
-  extractedLineItems?: Array<Record<string, unknown>>;
-}
-
 interface LanguageResolution {
   preOcr: DetectedInvoiceLanguage;
   postOcr: DetectedInvoiceLanguage;
   resolved: DetectedInvoiceLanguage;
-}
-
-interface SlmStageResult {
-  parsed: ParsedInvoiceData;
-  tokens: number;
-  issues: string[];
-  changedFields: string[];
-  fieldConfidence?: Record<string, number>;
-  fieldProvenance?: Record<string, InvoiceFieldProvenance>;
-  lineItemProvenance: InvoiceLineItemProvenance[];
-  classification?: InvoiceExtractionData["classification"];
 }
 
 export class ExtractionPipelineError extends Error {
@@ -162,50 +144,212 @@ export class InvoiceExtractionPipeline {
     const template = await this.templateStore.findByFingerprint(input.tenantId, fingerprint.key);
     metadata.vendorTemplateMatched = template ? "true" : "false";
 
-    const ocr = await this.runOcrStage(input, metadata);
-    const language = this.resolveLanguage(ocr, metadata);
-
-    if ((ocr.extractFields?.length ?? 0) > 0) {
-      return this.runExtractFieldsPath(input, ocr, processingIssues, metadata, fingerprint);
+    const preOcrLanguage = detectInvoiceLanguageBeforeOcr(input);
+    const preOcrLanguageHint = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
+    metadata.preOcrLanguage = preOcrLanguage.code;
+    metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
+    metadata.preOcrLanguageHintReason = preOcrLanguageHint.reason;
+    if (preOcrLanguageHint.hint) {
+      metadata.preOcrLanguageHint = preOcrLanguageHint.hint;
     }
 
-    if (this.llamaExtractEnabled) {
-      processingIssues.push("LlamaExtract returned no structured fields.");
-      return this.runExtractFieldsPath(input, ocr, processingIssues, metadata, fingerprint);
+    const definition = new InvoiceDocumentDefinition();
+    const engine = new DocumentProcessingEngine<InvoiceSlmOutput>(
+      definition,
+      this.fieldVerifier,
+      this.ocrProvider
+    );
+
+    let capturedEnhanced: EnhancedOcrResult | null = null;
+    let capturedRankedCandidates: RankedOcrTextCandidate[] = [];
+    let capturedPrimaryCandidate: RankedOcrTextCandidate | null = null;
+    let capturedAugmentedText = "";
+    let capturedOcrBlocks: OcrBlock[] = [];
+    let capturedOcrPageImages: OcrPageImage[] = [];
+    let capturedOcrConfidence = 0;
+    let capturedOcrTokens = 0;
+    let capturedExtractFields: ExtractedField[] | undefined;
+
+    const afterOcr = async (ocrResult: OcrResult, _ocrText: string) => {
+      capturedOcrBlocks = ocrResult.blocks ?? [];
+      capturedOcrPageImages = ocrResult.pageImages ?? [];
+      capturedOcrTokens = ocrResult.tokenUsage?.totalTokens ?? 0;
+      capturedExtractFields = ocrResult.fields;
+
+      if (this.ocrDumpEnabled) {
+        const enhanced = postProcessOcrResult(ocrResult);
+        await this.saveOcrResult(ocrResult, enhanced);
+        capturedEnhanced = enhanced;
+      } else {
+        capturedEnhanced = postProcessOcrResult(ocrResult);
+      }
+
+      const rawText = ocrResult.text.trim();
+      const textCandidates = buildRankedOcrTextCandidates({
+        rawText,
+        blocks: ocrResult.blocks ?? [],
+        layoutLines: capturedEnhanced.lines,
+        enableKeyValueGrounding: this.enableOcrKeyValueGrounding
+      });
+
+      capturedRankedCandidates = textCandidates.ranked;
+      capturedPrimaryCandidate = textCandidates.primary;
+      capturedAugmentedText = textCandidates.augmentedText;
+
+      const calibrated = calibrateDocumentConfidence(ocrResult.confidence, rawText, textCandidates.primary.text);
+      capturedOcrConfidence = calibrated.score;
+
+      metadata.ocrPrimaryVariant = textCandidates.primary.id;
+      metadata.ocrPrimaryVariantScore = textCandidates.primary.score.toFixed(3);
+      metadata.ocrPrimaryTokenCount = String(textCandidates.primary.metrics.tokenCount);
+      metadata.ocrCandidateCount = String(textCandidates.ranked.length);
+      metadata.ocrHasKeyValueGrounding = textCandidates.keyValueText.length > 0 ? "true" : "false";
+      metadata.ocrHasAugmentedContext = textCandidates.augmentedText.length > 0 ? "true" : "false";
+      metadata.ocrLowQualityTokenRatio = formatConfidence(textCandidates.primary.metrics.lowQualityTokenRatio);
+      metadata.ocrDuplicateLineRatio = formatConfidence(textCandidates.primary.metrics.duplicateLineRatio);
+
+      const post = detectInvoiceLanguage(textCandidates.ranked.map((candidate) => candidate.text));
+      const resolved = resolveDetectedLanguage(preOcrLanguage, post);
+
+      metadata.postOcrLanguage = post.code;
+      metadata.postOcrLanguageConfidence = formatConfidence(post.confidence);
+      metadata.documentLanguage = resolved.code;
+      metadata.documentLanguageConfidence = formatConfidence(resolved.confidence);
+
+      const language: LanguageResolution = { preOcr: preOcrLanguage, postOcr: post, resolved };
+
+      const primary = capturedPrimaryCandidate!.text;
+
+      if ((capturedExtractFields?.length ?? 0) > 0) {
+        return;
+      }
+
+      if (this.llamaExtractEnabled) {
+        processingIssues.push("LlamaExtract returned no structured fields.");
+        return;
+      }
+
+      const baseline = parseInvoiceText(primary, { languageHint: language.resolved.code });
+      const fieldCandidates = buildFieldCandidates(primary, baseline.parsed, template);
+      const fieldRegions = buildFieldRegions(capturedOcrBlocks, fieldCandidates);
+
+      metadata.baselineFieldCount = String(Object.keys(baseline.parsed).length);
+      metadata.baselineWarningCount = String(baseline.warnings.length);
+      metadata.fieldCandidateCount = String(Object.keys(fieldCandidates).length);
+      metadata.fieldRegionCount = String(Object.keys(fieldRegions).length);
+
+      const slmCtx: InvoiceSlmContext = {
+        mimeType: input.mimeType,
+        attachmentName: input.attachmentName,
+        template,
+        language,
+        enhanced: capturedEnhanced!,
+        primaryCandidate: capturedPrimaryCandidate!,
+        rankedCandidates: capturedRankedCandidates,
+        augmentedText: capturedAugmentedText,
+        ocrConfidence: capturedOcrConfidence,
+        ocrPageImages: capturedOcrPageImages,
+        baselineParsed: baseline.parsed,
+        fieldCandidates,
+        fieldRegions,
+        ocrHighConfidenceThreshold: this.ocrHighConfidenceThreshold,
+        llmAssistConfidenceThreshold: this.llmAssistConfidenceThreshold,
+        learningMode: this.learningMode
+      };
+      definition.setSlmContext(slmCtx);
+
+      const validationCtx: InvoiceValidationContext = {
+        expectedMaxTotal: input.expectedMaxTotal,
+        expectedMaxDueDays: input.expectedMaxDueDays,
+        referenceDate: input.referenceDate,
+        ocrText: primary
+      };
+      definition.setValidationContext(validationCtx);
+    };
+
+    let engineResult: import("../../core/engine/types.js").ProcessingResult<InvoiceSlmOutput> | undefined;
+    try {
+      engineResult = await engine.process(
+        {
+          tenantId: input.tenantId,
+          fileName: input.attachmentName,
+          mimeType: input.mimeType,
+          fileBuffer: input.fileBuffer,
+          ocrLanguageHint: preOcrLanguageHint.hint
+        },
+        undefined,
+        afterOcr
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("Empty OCR")) {
+        throw new ExtractionPipelineError("FAILED_OCR", "Empty OCR");
+      }
+      throw error;
     }
 
-    const baseline = parseInvoiceText(ocr.primaryCandidate.text, { languageHint: language.resolved.code });
-    const fieldCandidates = buildFieldCandidates(ocr.primaryCandidate.text, baseline.parsed, template);
-    const fieldRegions = buildFieldRegions(ocr.ocrBlocks, fieldCandidates);
+    if (!engineResult) {
+      throw new ExtractionPipelineError("FAILED_OCR", "Engine returned no result.");
+    }
 
-    metadata.baselineFieldCount = String(Object.keys(baseline.parsed).length);
-    metadata.baselineWarningCount = String(baseline.warnings.length);
-    metadata.fieldCandidateCount = String(Object.keys(fieldCandidates).length);
-    metadata.fieldRegionCount = String(Object.keys(fieldRegions).length);
+    const primaryCandidate = capturedPrimaryCandidate as RankedOcrTextCandidate | null;
+    const primaryText: string = primaryCandidate !== null ? primaryCandidate.text : engineResult.ocrText;
+    const ocrBlocks = capturedOcrBlocks;
+    const ocrPageImages = capturedOcrPageImages;
+    const ocrConfidence = capturedOcrConfidence;
+    const ocrTokens = capturedOcrTokens;
 
-    const slm = await this.runSlmStage({
-      input,
-      template,
-      language,
-      ocr,
-      baselineParsed: baseline.parsed,
-      fieldCandidates,
-      fieldRegions
-    });
+    if (engineResult.strategy === "llamaextract") {
+      const slmOutput = engineResult.output;
+      const parsed = slmOutput.parsed;
+      const fieldProvenance = slmOutput.fieldProvenance ?? {};
+
+      const compliance = await this.runCompliance(parsed, input, fingerprint);
+      let confidence = this.assessConfidence(input, parsed, processingIssues, ocrConfidence);
+      if (compliance?.riskSignals?.length) {
+        const penalty = RiskSignalEvaluator.sumPenalties(compliance.riskSignals);
+        confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocrConfidence, penalty);
+      }
+
+      const extraction: InvoiceExtractionData = {
+        source: "llamaextract",
+        strategy: "llamaextract",
+        ...(Object.keys(fieldProvenance).length > 0 ? { fieldProvenance } : {})
+      };
+
+      return {
+        provider: this.ocrProvider.name,
+        text: primaryText,
+        confidence: ocrConfidence,
+        source: "llamaextract",
+        strategy: "llamaextract",
+        parseResult: { parsed, warnings: processingIssues },
+        confidenceAssessment: confidence,
+        attempts: [],
+        ocrBlocks,
+        ocrPageImages,
+        processingIssues: uniqueIssues(processingIssues),
+        metadata,
+        ocrTokens,
+        slmTokens: 0,
+        compliance,
+        extraction
+      };
+    }
+
+    const slm = engineResult.output;
     processingIssues.push(...slm.issues);
 
-    if (Object.keys(slm.parsed).length === 0 && baseline.warnings.length > 0) {
-      processingIssues.push(...baseline.warnings);
-    }
+    const capturedSlmContext = definition.slmContext;
+    const baselineParsed: ParsedInvoiceData = capturedSlmContext?.baselineParsed ?? {};
 
-    const mergedParsed = mergeParsedInvoiceData(baseline.parsed, slm.parsed);
-    const parsed = recoverParsedFromOcr(mergedParsed, ocr.ocrBlocks, ocr.primaryCandidate.text);
-    const recoveryStrategy = classifyOcrRecoveryStrategy(ocr.ocrBlocks, ocr.primaryCandidate.text);
+    const mergedParsed = mergeParsedInvoiceData(baselineParsed, slm.parsed);
+    const parsed = recoverParsedFromOcr(mergedParsed, ocrBlocks, primaryText);
+    const recoveryStrategy = classifyOcrRecoveryStrategy(ocrBlocks, primaryText);
     metadata.ocrRecoveryStrategy = recoveryStrategy;
 
     const validation = validateInvoiceFields({
       parsed,
-      ocrText: ocr.primaryCandidate.text,
+      ocrText: primaryText,
       expectedMaxTotal: input.expectedMaxTotal,
       expectedMaxDueDays: input.expectedMaxDueDays,
       referenceDate: input.referenceDate
@@ -215,13 +359,16 @@ export class InvoiceExtractionPipeline {
       processingIssues.push(...validation.issues);
     }
 
+    const fieldCandidates = capturedSlmContext?.fieldCandidates ?? {};
+    const fieldRegions = capturedSlmContext?.fieldRegions ?? {};
+
     const diagnostics = addFieldDiagnosticsToMetadata({
       metadata,
       parsed,
-      ocrBlocks: ocr.ocrBlocks,
+      ocrBlocks,
       fieldRegions,
       source: "slm-direct",
-      ocrConfidence: ocr.ocrConfidence,
+      ocrConfidence,
       validationIssues: validation.issues,
       warnings: processingIssues,
       templateAppliedFields: new Set<string>(),
@@ -232,16 +379,16 @@ export class InvoiceExtractionPipeline {
 
     const compliance = await this.runCompliance(parsed, input, fingerprint);
 
-    let confidence = this.assessConfidence(input, parsed, processingIssues, ocr.ocrConfidence);
+    let confidence = this.assessConfidence(input, parsed, processingIssues, ocrConfidence);
 
     if (compliance?.riskSignals?.length) {
       const penalty = RiskSignalEvaluator.sumPenalties(compliance.riskSignals);
-      confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocr.ocrConfidence, penalty);
+      confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocrConfidence, penalty);
     }
 
     const lineItemProvenance = resolveLineItemProvenance({
       lineItems: parsed.lineItems,
-      ocrBlocks: ocr.ocrBlocks,
+      ocrBlocks,
       verifierLineItemProvenance: slm.lineItemProvenance
     });
     const lineItemConfidence = collectLineItemConfidence(lineItemProvenance);
@@ -263,349 +410,22 @@ export class InvoiceExtractionPipeline {
 
     return {
       provider: this.ocrProvider.name,
-      text: ocr.primaryCandidate.text,
-      confidence: ocr.ocrConfidence,
+      text: primaryText,
+      confidence: ocrConfidence,
       source: "slm-direct",
       strategy: extraction.strategy ?? "slm-direct",
       parseResult: { parsed, warnings: processingIssues },
       confidenceAssessment: confidence,
       attempts: [],
-      ocrBlocks: ocr.ocrBlocks,
-      ocrPageImages: ocr.ocrPageImages,
+      ocrBlocks,
+      ocrPageImages,
       processingIssues: uniqueIssues(processingIssues),
       metadata,
-      ocrTokens: ocr.ocrTokens,
+      ocrTokens,
       slmTokens: slm.tokens,
       compliance,
       extraction
     };
-  }
-
-
-  private async runExtractFieldsPath(
-    input: ExtractionPipelineInput,
-    ocr: OcrStageResult,
-    processingIssues: string[],
-    metadata: Record<string, string>,
-    fingerprint: ReturnType<typeof computeVendorFingerprint>
-  ): Promise<PipelineExtractionResult> {
-    const fields = ocr.extractFields!;
-    const fieldMap = new Map<string, ExtractedField>(fields.map((f) => [f.key, f]));
-
-    const parsed: ParsedInvoiceData = {};
-
-    const getString = (key: string): string | undefined => {
-      const f = fieldMap.get(key);
-      if (!f) return undefined;
-      if (typeof f.value !== "string" || f.value.trim() === "") return undefined;
-      return f.value.trim();
-    };
-
-    const getNumber = (key: string): number | undefined => {
-      const f = fieldMap.get(key);
-      if (!f) return undefined;
-      if (typeof f.value !== "number" || f.value === null) return undefined;
-      return f.value;
-    };
-
-    const invoiceNumber = getString("invoice_number");
-    if (invoiceNumber) parsed.invoiceNumber = invoiceNumber;
-
-    const vendorName = getString("vendor_name");
-    if (vendorName) parsed.vendorName = vendorName;
-
-    const invoiceDate = getString("invoice_date");
-    if (invoiceDate) parsed.invoiceDate = invoiceDate;
-
-    const dueDate = getString("due_date");
-    if (dueDate) parsed.dueDate = dueDate;
-
-    const currency = getString("currency");
-    if (currency) parsed.currency = currency;
-
-    const totalAmountRaw = getNumber("total_amount");
-    if (totalAmountRaw !== undefined) parsed.totalAmountMinor = Math.round(totalAmountRaw * 100);
-
-    const pan = getString("pan");
-    if (pan) parsed.pan = pan;
-
-    const subtotalRaw = getNumber("subtotal");
-    const cgstRaw = getNumber("cgst_amount");
-    const sgstRaw = getNumber("sgst_amount");
-    const igstRaw = getNumber("igst_amount");
-    const cessRaw = getNumber("cess_amount");
-    const gstin = getString("gstin");
-
-    const totalTaxRaw = (cgstRaw ?? 0) + (sgstRaw ?? 0) + (igstRaw ?? 0) + (cessRaw ?? 0);
-    const hasGst = subtotalRaw !== undefined || cgstRaw !== undefined || sgstRaw !== undefined || igstRaw !== undefined || cessRaw !== undefined || gstin !== undefined;
-
-    if (hasGst) {
-      const gst: NonNullable<ParsedInvoiceData["gst"]> = {};
-      if (subtotalRaw !== undefined) gst.subtotalMinor = Math.round(subtotalRaw * 100);
-      if (cgstRaw !== undefined) gst.cgstMinor = Math.round(cgstRaw * 100);
-      if (sgstRaw !== undefined) gst.sgstMinor = Math.round(sgstRaw * 100);
-      if (igstRaw !== undefined) gst.igstMinor = Math.round(igstRaw * 100);
-      if (cessRaw !== undefined) gst.cessMinor = Math.round(cessRaw * 100);
-      if (totalTaxRaw > 0) gst.totalTaxMinor = Math.round(totalTaxRaw * 100);
-      if (gstin !== undefined) gst.gstin = gstin;
-      parsed.gst = gst;
-    }
-
-    const rawLineItems = ocr.extractedLineItems ?? [];
-    if (rawLineItems.length > 0) {
-      const lineItems = rawLineItems
-        .map((item) => ({
-          description: typeof item["description"] === "string" ? item["description"].trim() : "",
-          ...(typeof item["hsn_sac"] === "string" && item["hsn_sac"] ? { hsnSac: item["hsn_sac"] } : {}),
-          ...(typeof item["quantity"] === "number" ? { quantity: item["quantity"] } : {}),
-          ...(typeof item["rate"] === "number" ? { rate: item["rate"] } : {}),
-          amountMinor: typeof item["amount"] === "number" ? Math.round(item["amount"] * 100) : 0,
-          ...(typeof item["tax_rate"] === "number" ? { taxRate: item["tax_rate"] } : {}),
-          ...(typeof item["cgst"] === "number" ? { cgstMinor: Math.round(item["cgst"] * 100) } : {}),
-          ...(typeof item["sgst"] === "number" ? { sgstMinor: Math.round(item["sgst"] * 100) } : {}),
-          ...(typeof item["igst"] === "number" ? { igstMinor: Math.round(item["igst"] * 100) } : {}),
-        }))
-        .filter((item) => item.description || item.amountMinor > 0);
-      if (lineItems.length > 0) {
-        parsed.lineItems = lineItems;
-      }
-    }
-
-    const provenanceKeyMap: Record<string, string> = {
-      invoice_number: "invoiceNumber",
-      vendor_name: "vendorName",
-      invoice_date: "invoiceDate",
-      due_date: "dueDate",
-      currency: "currency",
-      total_amount: "totalAmountMinor",
-      cgst_amount: "gst.cgstMinor",
-      sgst_amount: "gst.sgstMinor",
-      igst_amount: "gst.igstMinor",
-      cess_amount: "gst.cessMinor",
-      gstin: "gst.gstin",
-      pan: "pan"
-    };
-
-    const fieldProvenance: Record<string, InvoiceFieldProvenance> = {};
-    for (const field of fields) {
-      const mappedKey = provenanceKeyMap[field.key];
-      if (!mappedKey) continue;
-      if (field.page === undefined && field.bbox === undefined) continue;
-      const entry: InvoiceFieldProvenance = { source: "llamaextract" };
-      if (field.page !== undefined) entry.page = field.page;
-      if (field.bbox !== undefined) entry.bbox = field.bbox;
-      if (field.bboxNormalized !== undefined) entry.bboxNormalized = field.bboxNormalized;
-      if (field.confidence !== undefined) entry.confidence = field.confidence;
-      fieldProvenance[mappedKey] = entry;
-    }
-
-    const validation = validateInvoiceFields({
-      parsed,
-      ocrText: ocr.primaryCandidate.text,
-      expectedMaxTotal: input.expectedMaxTotal,
-      expectedMaxDueDays: input.expectedMaxDueDays,
-      referenceDate: input.referenceDate
-    });
-    if (!validation.valid) {
-      processingIssues.push(...validation.issues);
-    }
-
-    const compliance = await this.runCompliance(parsed, input, fingerprint);
-
-    let confidence = this.assessConfidence(input, parsed, processingIssues, ocr.ocrConfidence);
-    if (compliance?.riskSignals?.length) {
-      const penalty = RiskSignalEvaluator.sumPenalties(compliance.riskSignals);
-      confidence = this.assessConfidenceWithPenalty(input, parsed, processingIssues, ocr.ocrConfidence, penalty);
-    }
-
-    const extraction: InvoiceExtractionData = {
-      source: "llamaextract",
-      strategy: "llamaextract",
-      ...(Object.keys(fieldProvenance).length > 0 ? { fieldProvenance } : {})
-    };
-
-    return {
-      provider: this.ocrProvider.name,
-      text: ocr.primaryCandidate.text,
-      confidence: ocr.ocrConfidence,
-      source: "llamaextract",
-      strategy: "llamaextract",
-      parseResult: { parsed, warnings: processingIssues },
-      confidenceAssessment: confidence,
-      attempts: [],
-      ocrBlocks: ocr.ocrBlocks,
-      ocrPageImages: ocr.ocrPageImages,
-      processingIssues: uniqueIssues(processingIssues),
-      metadata,
-      ocrTokens: ocr.ocrTokens,
-      slmTokens: 0,
-      compliance,
-      extraction
-    };
-  }
-
-  private async runOcrStage(input: ExtractionPipelineInput, metadata: Record<string, string>): Promise<OcrStageResult> {
-    const preOcrLanguage = detectInvoiceLanguageBeforeOcr(input);
-    const preOcrLanguageHint = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
-    metadata.preOcrLanguage = preOcrLanguage.code;
-    metadata.preOcrLanguageConfidence = formatConfidence(preOcrLanguage.confidence);
-    metadata.preOcrLanguageHintReason = preOcrLanguageHint.reason;
-    if (preOcrLanguageHint.hint) {
-      metadata.preOcrLanguageHint = preOcrLanguageHint.hint;
-    }
-
-    const result = await this.ocrProvider.extractText(input.fileBuffer, input.mimeType, {
-      languageHint: preOcrLanguageHint.hint
-    });
-    const enhanced = postProcessOcrResult(result);
-
-    if (this.ocrDumpEnabled) {
-      await this.saveOcrResult(result, enhanced);
-    }
-
-    const rawText = result.text.trim();
-    const textCandidates = buildRankedOcrTextCandidates({
-      rawText,
-      blocks: result.blocks ?? [],
-      layoutLines: enhanced.lines,
-      enableKeyValueGrounding: this.enableOcrKeyValueGrounding
-    });
-    const primary = textCandidates.primary.text;
-
-    if (!primary) throw new ExtractionPipelineError("FAILED_OCR", "Empty OCR");
-
-    const calibrated = calibrateDocumentConfidence(result.confidence, rawText, primary);
-    metadata.ocrPrimaryVariant = textCandidates.primary.id;
-    metadata.ocrPrimaryVariantScore = textCandidates.primary.score.toFixed(3);
-    metadata.ocrPrimaryTokenCount = String(textCandidates.primary.metrics.tokenCount);
-    metadata.ocrCandidateCount = String(textCandidates.ranked.length);
-    metadata.ocrHasKeyValueGrounding = textCandidates.keyValueText.length > 0 ? "true" : "false";
-    metadata.ocrHasAugmentedContext = textCandidates.augmentedText.length > 0 ? "true" : "false";
-    metadata.ocrLowQualityTokenRatio = formatConfidence(textCandidates.primary.metrics.lowQualityTokenRatio);
-    metadata.ocrDuplicateLineRatio = formatConfidence(textCandidates.primary.metrics.duplicateLineRatio);
-
-    return {
-      enhanced,
-      primaryCandidate: textCandidates.primary,
-      rankedCandidates: textCandidates.ranked,
-      augmentedText: textCandidates.augmentedText,
-      ocrBlocks: result.blocks ?? [],
-      ocrPageImages: result.pageImages ?? [],
-      ocrConfidence: calibrated.score,
-      ocrTokens: result.tokenUsage?.totalTokens ?? 0,
-      preOcrLanguage,
-      extractFields: result.fields,
-      extractedLineItems: result.extractedLineItems,
-    };
-  }
-
-  private resolveLanguage(ocr: OcrStageResult, metadata: Record<string, string>): LanguageResolution {
-    const post = detectInvoiceLanguage(ocr.rankedCandidates.map((candidate) => candidate.text));
-    const resolved = resolveDetectedLanguage(ocr.preOcrLanguage, post);
-
-    metadata.postOcrLanguage = post.code;
-    metadata.postOcrLanguageConfidence = formatConfidence(post.confidence);
-    metadata.documentLanguage = resolved.code;
-    metadata.documentLanguageConfidence = formatConfidence(resolved.confidence);
-
-    return {
-      preOcr: ocr.preOcrLanguage,
-      postOcr: post,
-      resolved
-    };
-  }
-
-  private async runSlmStage(params: {
-    input: ExtractionPipelineInput;
-    template: VendorTemplateSnapshot | undefined;
-    language: LanguageResolution;
-    ocr: OcrStageResult;
-    baselineParsed: ParsedInvoiceData;
-    fieldCandidates: Record<string, string[]>;
-    fieldRegions: Record<string, OcrBlock[]>;
-  }): Promise<SlmStageResult> {
-    const shouldAttachContext = this.shouldAttachDocumentContext(params.ocr.ocrConfidence, params.fieldCandidates);
-    const contextText = shouldAttachContext ? params.ocr.augmentedText || params.ocr.primaryCandidate.text : "";
-    const candidateScores = params.ocr.rankedCandidates.slice(0, 4).map((candidate) => ({
-      id: candidate.id,
-      score: candidate.score
-    }));
-
-    try {
-      const res = await this.fieldVerifier.verify({
-        parsed: params.baselineParsed,
-        ocrText: params.ocr.primaryCandidate.text,
-        ocrBlocks: params.ocr.ocrBlocks,
-        mode: "relaxed",
-        hints: {
-          mimeType: params.input.mimeType,
-          languageHint: params.language.resolved.code !== "und" ? params.language.resolved.code : undefined,
-          documentLanguage: params.language.resolved.code,
-          documentLanguageConfidence: params.language.resolved.confidence,
-          preOcrLanguage: params.language.preOcr.code,
-          preOcrLanguageConfidence: params.language.preOcr.confidence,
-          postOcrLanguage: params.language.postOcr.code,
-          postOcrLanguageConfidence: params.language.postOcr.confidence,
-          vendorNameHint: params.template?.vendorName,
-          vendorTemplateMatched: Boolean(params.template),
-          fieldCandidates: params.fieldCandidates,
-          fieldRegions: params.fieldRegions,
-          pageImages: params.ocr.ocrPageImages.slice(0, 3),
-          llmAssist: params.ocr.ocrConfidence * 100 < this.llmAssistConfidenceThreshold,
-          extractionMode: this.learningMode,
-          mergedBlocks: params.ocr.enhanced.mergedBlocks,
-          structuredLines: params.ocr.enhanced.lines,
-          structuredTables: params.ocr.enhanced.tables,
-          normalizedAmounts: params.ocr.enhanced.normalized.amounts,
-          normalizedDates: params.ocr.enhanced.normalized.dates,
-          normalizedCurrencies: params.ocr.enhanced.normalized.currencies,
-          documentContext: contextText || undefined,
-          fileName: params.input.attachmentName,
-          attachmentName: params.input.attachmentName,
-          ocrTextVariant: params.ocr.primaryCandidate.id,
-          ocrCandidateScores: candidateScores
-        }
-      });
-
-      const normalizedParsed = sanitizeParsedInvoiceData(res.parsed);
-      const parsed = Object.keys(normalizedParsed).length > 0 ? normalizedParsed : params.baselineParsed;
-      const classification = normalizeClassification(
-        res.classification ?? (res.invoiceType ? { invoiceType: res.invoiceType } : undefined)
-      );
-      return {
-        parsed,
-        tokens: res.tokenUsage?.totalTokens ?? 0,
-        issues: uniqueIssues(res.issues ?? []),
-        changedFields: uniqueIssues(res.changedFields ?? []),
-        fieldConfidence: normalizeFieldConfidence(res.fieldConfidence),
-        fieldProvenance: normalizeFieldProvenance(res.fieldProvenance),
-        lineItemProvenance: normalizeLineItemProvenance(res.lineItemProvenance) ?? [],
-        classification
-      };
-    } catch (error) {
-      logger.warn("extraction.pipeline.slm.failed", {
-        provider: this.fieldVerifier.name,
-        error: toErrorMessage(error)
-      });
-      return {
-        parsed: params.baselineParsed,
-        tokens: 0,
-        issues: ["SLM verification failed. Falling back to OCR heuristics."],
-        changedFields: [],
-        lineItemProvenance: []
-      };
-    }
-  }
-
-  private shouldAttachDocumentContext(
-    ocrConfidence: number,
-    fieldCandidates: Record<string, string[]>
-  ): boolean {
-    if (ocrConfidence < this.ocrHighConfidenceThreshold) {
-      return true;
-    }
-
-    return Object.values(fieldCandidates).some((candidates) => candidates.length > 1);
   }
 
   private async runCompliance(
@@ -659,6 +479,22 @@ export class InvoiceExtractionPipeline {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, JSON.stringify({ raw: result, enhanced }, null, 2));
     logger.info("ocr.dump.saved", { filePath });
+  }
+
+  private resolveLanguage(
+    preOcrLanguage: DetectedInvoiceLanguage,
+    rankedCandidates: RankedOcrTextCandidate[],
+    metadata: Record<string, string>
+  ): LanguageResolution {
+    const post = detectInvoiceLanguage(rankedCandidates.map((candidate) => candidate.text));
+    const resolved = resolveDetectedLanguage(preOcrLanguage, post);
+
+    metadata.postOcrLanguage = post.code;
+    metadata.postOcrLanguageConfidence = formatConfidence(post.confidence);
+    metadata.documentLanguage = resolved.code;
+    metadata.documentLanguageConfidence = formatConfidence(resolved.confidence);
+
+    return { preOcr: preOcrLanguage, postOcr: post, resolved };
   }
 }
 

@@ -1,10 +1,14 @@
 import { BankStatementModel } from "../../models/BankStatement.js";
 import { BankTransactionModel } from "../../models/BankTransaction.js";
 import { logger } from "../../utils/logger.js";
-import { extractNativePdfText } from "../extraction/pipeline/nativePdfText.js";
 import type { OcrProvider } from "../../core/interfaces/OcrProvider.js";
 import type { FieldVerifier } from "../../core/interfaces/FieldVerifier.js";
 import type { BankParseProgressEvent } from "./BankStatementParseProgress.js";
+import { DocumentProcessingEngine } from "../../core/engine/DocumentProcessingEngine.js";
+import {
+  BankStatementDocumentDefinition,
+  type SlmBankStatementOutput
+} from "./BankStatementDocumentDefinition.js";
 
 type OnParseProgress = (event: BankParseProgressEvent) => void;
 
@@ -26,15 +30,6 @@ interface SlmBankTransaction {
   balance?: unknown;
 }
 
-interface SlmBankStatementOutput {
-  bankName?: unknown;
-  accountNumber?: unknown;
-  accountHolder?: unknown;
-  periodFrom?: unknown;
-  periodTo?: unknown;
-  transactions?: unknown;
-}
-
 interface PdfParseResult {
   statementId: string;
   transactionCount: number;
@@ -45,10 +40,6 @@ interface PdfParseResult {
   periodFrom?: string;
   periodTo?: string;
 }
-
-const NATIVE_TEXT_MIN_LENGTH = 100;
-const CHUNK_THRESHOLD = 8000;
-const CHUNK_TARGET_SIZE = 6000;
 
 export class BankStatementParser {
   private readonly ocrProvider: OcrProvider | null;
@@ -181,81 +172,33 @@ export class BankStatementParser {
     }
 
     onProgress?.({ type: "start", fileName });
-
-    const warnings: string[] = [];
-    let extractedText = "";
-    let textSource: "native" | "ocr" = "native";
-
-    logger.info("bank.statement.pdf.native.start", { tenantId, fileName, mimeType });
     onProgress?.({ type: "progress", stage: "text-extraction", transactionsSoFar: 0 });
-    const nativeText = extractNativePdfText(buffer, mimeType);
 
-    if (nativeText.length >= NATIVE_TEXT_MIN_LENGTH) {
-      extractedText = nativeText;
-      textSource = "native";
-      logger.info("bank.statement.pdf.native.success", {
-        tenantId,
-        fileName,
-        textLength: nativeText.length
-      });
-    } else {
-      if (!this.ocrProvider) {
-        throw new Error("Native PDF text extraction yielded insufficient text and OCR provider is not available.");
+    const definition = new BankStatementDocumentDefinition();
+    const engine = new DocumentProcessingEngine<SlmBankStatementOutput>(
+      definition,
+      this.fieldVerifier,
+      this.ocrProvider ?? undefined
+    );
+
+    const engineResult = await engine.process(
+      { tenantId, fileName, mimeType, fileBuffer: buffer },
+      (event) => {
+        const e = event as Record<string, unknown>;
+        if (e.stage === "slm-chunk") {
+          onProgress?.({
+            type: "progress",
+            stage: "slm-chunk",
+            chunk: e.chunk as number,
+            totalChunks: e.totalChunks as number,
+            transactionsSoFar: 0
+          });
+        }
       }
+    );
 
-      logger.info("bank.statement.pdf.native.insufficient", {
-        tenantId,
-        fileName,
-        nativeTextLength: nativeText.length,
-        threshold: NATIVE_TEXT_MIN_LENGTH
-      });
-
-      logger.info("bank.statement.pdf.ocr.start", { tenantId, fileName, mimeType });
-      onProgress?.({ type: "progress", stage: "ocr", transactionsSoFar: 0 });
-      let ocrResult;
-      try {
-        ocrResult = await this.ocrProvider.extractText(buffer, mimeType);
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        throw new Error(`OCR extraction failed for bank statement: ${msg}`);
-      }
-
-      if (!ocrResult.text || ocrResult.text.trim().length === 0) {
-        throw new Error("No text could be extracted from the uploaded file. The file may be empty or unreadable.");
-      }
-
-      extractedText = ocrResult.text;
-      textSource = "ocr";
-      logger.info("bank.statement.pdf.ocr.end", {
-        tenantId,
-        fileName,
-        textLength: ocrResult.text.length,
-        blockCount: ocrResult.blocks?.length ?? 0
-      });
-    }
-
-    let slmOutput: SlmBankStatementOutput;
-
-    if (extractedText.length > CHUNK_THRESHOLD) {
-      logger.info("bank.statement.pdf.chunked.start", {
-        tenantId,
-        fileName,
-        textLength: extractedText.length,
-        textSource
-      });
-      slmOutput = await this.processChunked(extractedText, mimeType, warnings, onProgress);
-    } else {
-      onProgress?.({ type: "progress", stage: "slm-chunk", chunk: 1, totalChunks: 1, transactionsSoFar: 0 });
-      const prompt = buildBankStatementExtractionPrompt(extractedText);
-      const slmResponseText = await this.callSlm(prompt, mimeType);
-
-      try {
-        slmOutput = parseSlmJson(slmResponseText);
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to parse SLM response as JSON: ${msg}`);
-      }
-    }
+    const slmOutput = engineResult.output;
+    const warnings: string[] = [...engineResult.processingIssues];
 
     const bankName = typeof slmOutput.bankName === "string" ? slmOutput.bankName.trim() || undefined : undefined;
     const accountNumber = typeof slmOutput.accountNumber === "string" ? slmOutput.accountNumber.trim() || undefined : undefined;
@@ -382,8 +325,7 @@ export class BankStatementParser {
       duplicatesSkipped,
       warningCount: warnings.length,
       bankName,
-      accountNumber,
-      textSource
+      accountNumber
     });
 
     onProgress?.({
@@ -404,210 +346,6 @@ export class BankStatementParser {
       periodTo
     };
   }
-
-  private async processChunked(
-    fullText: string,
-    mimeType: string,
-    warnings: string[],
-    onProgress?: OnParseProgress
-  ): Promise<SlmBankStatementOutput> {
-    const chunks = splitTextIntoChunks(fullText);
-
-    logger.info("bank.statement.pdf.chunked.split", { chunkCount: chunks.length });
-
-    let headerOutput: SlmBankStatementOutput | null = null;
-    const allTransactions: unknown[] = [];
-
-    for (let i = 0; i < chunks.length; i++) {
-      const isFirst = i === 0;
-
-      onProgress?.({
-        type: "progress",
-        stage: "slm-chunk",
-        chunk: i + 1,
-        totalChunks: chunks.length,
-        transactionsSoFar: allTransactions.length
-      });
-
-      const prompt = isFirst
-        ? buildBankStatementExtractionPrompt(chunks[i])
-        : buildChunkExtractionPrompt(chunks[i]);
-
-      let responseText: string;
-      try {
-        responseText = await this.callSlm(prompt, mimeType);
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        warnings.push(`Chunk ${i + 1}/${chunks.length} SLM call failed: ${msg}`);
-        continue;
-      }
-
-      let chunkOutput: SlmBankStatementOutput;
-      try {
-        chunkOutput = parseSlmJson(responseText);
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        warnings.push(`Chunk ${i + 1}/${chunks.length} JSON parse failed: ${msg}`);
-        continue;
-      }
-
-      if (isFirst) {
-        headerOutput = chunkOutput;
-      }
-
-      const chunkTxns = Array.isArray(chunkOutput.transactions) ? chunkOutput.transactions : [];
-      allTransactions.push(...chunkTxns);
-    }
-
-    return {
-      bankName: headerOutput?.bankName,
-      accountNumber: headerOutput?.accountNumber,
-      accountHolder: headerOutput?.accountHolder,
-      periodFrom: headerOutput?.periodFrom,
-      periodTo: headerOutput?.periodTo,
-      transactions: allTransactions
-    };
-  }
-
-  private async callSlm(prompt: string, mimeType: string): Promise<string> {
-    if (!this.fieldVerifier) {
-      throw new Error("SLM field verifier is not available.");
-    }
-
-    const verifierResult = await this.fieldVerifier.verify({
-      parsed: { invoiceNumber: "__bank_statement_extraction__" } as never,
-      ocrText: prompt,
-      ocrBlocks: [],
-      mode: "relaxed",
-      hints: {
-        mimeType,
-        vendorTemplateMatched: false,
-        fieldCandidates: {},
-        llmAssist: true
-      }
-    });
-
-    const contract = verifierResult.contract;
-    const rawParsed = verifierResult.parsed as unknown as Record<string, unknown>;
-    const rawJson =
-      (contract as unknown as Record<string, unknown>)?.rawJson ??
-      rawParsed?.rawJson ??
-      rawParsed?.bankStatementData;
-
-    if (typeof rawJson === "string") {
-      return rawJson;
-    } else if (rawJson && typeof rawJson === "object") {
-      return JSON.stringify(rawJson);
-    }
-    return JSON.stringify(rawParsed);
-  }
-}
-
-function buildBankStatementExtractionPrompt(text: string): string {
-  return [
-    "You are extracting transactions from an Indian bank statement.",
-    "",
-    "INPUT TEXT:",
-    text,
-    "",
-    "Extract ALL transactions into JSON:",
-    "{",
-    '  "bankName": "string",',
-    '  "accountNumber": "string (full or last 4 digits)",',
-    '  "accountHolder": "string",',
-    '  "periodFrom": "YYYY-MM-DD",',
-    '  "periodTo": "YYYY-MM-DD",',
-    '  "transactions": [',
-    "    {",
-    '      "date": "YYYY-MM-DD",',
-    '      "description": "string (full transaction remarks)",',
-    '      "debit": number or null (in rupees, e.g., 1001.00),',
-    '      "credit": number or null (in rupees),',
-    '      "balance": number or null (in rupees)',
-    "    }",
-    "  ]",
-    "}",
-    "",
-    "RULES:",
-    "- Extract EVERY transaction, do not skip any",
-    "- Dates: convert DD.MM.YYYY to YYYY-MM-DD",
-    "- Amounts: decimal numbers in rupees (NOT paise)",
-    "- Include the full transaction description/remarks",
-    "- JSON only, no explanation"
-  ].join("\n");
-}
-
-function buildChunkExtractionPrompt(text: string): string {
-  return [
-    "You are extracting transactions from a portion of an Indian bank statement.",
-    "This is a continuation — extract only the transactions visible in this text.",
-    "",
-    "INPUT TEXT:",
-    text,
-    "",
-    "Extract ALL transactions into JSON:",
-    "{",
-    '  "transactions": [',
-    "    {",
-    '      "date": "YYYY-MM-DD",',
-    '      "description": "string (full transaction remarks)",',
-    '      "debit": number or null (in rupees, e.g., 1001.00),',
-    '      "credit": number or null (in rupees),',
-    '      "balance": number or null (in rupees)',
-    "    }",
-    "  ]",
-    "}",
-    "",
-    "RULES:",
-    "- Extract EVERY transaction, do not skip any",
-    "- Dates: convert DD.MM.YYYY to YYYY-MM-DD",
-    "- Amounts: decimal numbers in rupees (NOT paise)",
-    "- Include the full transaction description/remarks",
-    "- JSON only, no explanation"
-  ].join("\n");
-}
-
-function splitTextIntoChunks(text: string): string[] {
-  const pageBreaks = text.split(/\n(?=\f)|(?<=\f)\n|\f/);
-  const pages = pageBreaks.length > 1
-    ? pageBreaks.filter(p => p.trim().length > 0)
-    : [text];
-
-  if (pages.length > 1) {
-    const chunks: string[] = [];
-    let current = "";
-
-    for (const page of pages) {
-      if (current.length + page.length > CHUNK_TARGET_SIZE && current.length > 0) {
-        chunks.push(current);
-        current = page;
-      } else {
-        current += (current ? "\n" : "") + page;
-      }
-    }
-    if (current.trim()) {
-      chunks.push(current);
-    }
-    return chunks.length > 0 ? chunks : [text];
-  }
-
-  const lines = text.split("\n");
-  const chunks: string[] = [];
-  let current = "";
-
-  for (const line of lines) {
-    if (current.length + line.length + 1 > CHUNK_TARGET_SIZE && current.length > 0) {
-      chunks.push(current);
-      current = line;
-    } else {
-      current += (current ? "\n" : "") + line;
-    }
-  }
-  if (current.trim()) {
-    chunks.push(current);
-  }
-
-  return chunks.length > 0 ? chunks : [text];
 }
 
 function normalizeSlmAmount(value: unknown): number | null {
@@ -623,23 +361,6 @@ function normalizeSlmAmount(value: unknown): number | null {
   }
 
   return null;
-}
-
-function parseSlmJson(text: string): SlmBankStatementOutput {
-  const trimmed = text.trim();
-
-  const jsonBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonBlockMatch) {
-    return JSON.parse(jsonBlockMatch[1].trim());
-  }
-
-  const firstBrace = trimmed.indexOf("{");
-  const lastBrace = trimmed.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    return JSON.parse(trimmed.substring(firstBrace, lastBrace + 1));
-  }
-
-  return JSON.parse(trimmed);
 }
 
 function parseCsvLine(line: string): string[] {
