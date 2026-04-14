@@ -4,7 +4,7 @@ import { currencyBySymbol } from "@/ai/parsers/invoiceParser.js";
 /**
  * Canonical month-name-to-number map, shared across date parsing utilities.
  */
-export function resolveMonthNumber(value: string): string | undefined {
+function resolveMonthNumber(value: string): string | undefined {
   const months: Record<string, string> = {
     jan: "01",
     january: "01",
@@ -50,7 +50,7 @@ export function normalizeDateToken(text: string): string | undefined {
     if (!match) {
       continue;
     }
-    const normalizedDate = normalizeNamedDateValue(match[1]);
+    const normalizedDate = normalizeDateValue(match[1]);
     if (normalizedDate) {
       return normalizedDate;
     }
@@ -62,7 +62,7 @@ export function normalizeDateToken(text: string): string | undefined {
  * Parse a named date string like "January 15 2024" or "15 January 2024"
  * into ISO format "2024-01-15".
  */
-export function normalizeNamedDateValue(value: string): string | undefined {
+export function normalizeDateValue(value: string): string | undefined {
   const sanitized = value.replace(/,/g, "").trim();
   const monthNameFirst = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
   if (monthNameFirst) {
@@ -81,13 +81,6 @@ export function normalizeNamedDateValue(value: string): string | undefined {
   }
 
   return undefined;
-}
-
-/**
- * Variant used by the pipeline helpers — delegates to normalizeNamedDateValue.
- */
-export function normalizeDateValue(text: string): string | undefined {
-  return normalizeNamedDateValue(text);
 }
 
 /**
