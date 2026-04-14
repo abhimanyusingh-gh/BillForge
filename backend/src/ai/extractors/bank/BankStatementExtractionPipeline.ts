@@ -34,7 +34,7 @@ interface PdfParseResult {
   periodTo?: Date;
 }
 
-export class BankStatementParser {
+export class BankStatementExtractionPipeline {
   private readonly ocrProvider: OcrProvider | null;
   private readonly fieldVerifier: FieldVerifier | null;
 
