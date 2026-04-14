@@ -1,5 +1,6 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { parseAmountToken } from "@/ai/parsers/invoiceParser.js";
+import { extractColumnNumeric } from "./fieldParsingUtils.js";
 
 export function findBlockByAmountValue(
   amountMinor: number,
@@ -59,24 +60,12 @@ export function extractNumericValueNearColumn(
   topBoundary: number,
   bottomBoundary: number
 ): number | undefined {
-  const headerBox = blocks[headerIndex]?.bboxNormalized;
-  if (!headerBox) {
-    return undefined;
-  }
-
-  const candidate = blocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry) => entry.box)
-    .filter((entry) => entry.index !== headerIndex)
-    .filter((entry) => entry.box![1] >= topBoundary && entry.box![3] <= bottomBoundary + 0.002)
-    .filter((entry) => Math.abs(entry.box![0] - headerBox[0]) <= 0.05)
-    .find((entry) => /^-?\d+(?:\.\d+)?$/.test(entry.block.text.trim()));
-  if (!candidate) {
-    return undefined;
-  }
-
-  const value = Number(candidate.block.text.trim());
-  return Number.isFinite(value) ? value : undefined;
+  return extractColumnNumeric(blocks, headerIndex, topBoundary, bottomBoundary, (text) => {
+    const trimmed = text.trim();
+    if (!/^-?\d+(?:\.\d+)?$/.test(trimmed)) return null;
+    const value = Number(trimmed);
+    return Number.isFinite(value) ? value : null;
+  });
 }
 
 export function extractAmountValueNearColumn(
@@ -85,23 +74,9 @@ export function extractAmountValueNearColumn(
   topBoundary: number,
   bottomBoundary: number
 ): number | undefined {
-  const headerBox = blocks[headerIndex]?.bboxNormalized;
-  if (!headerBox) {
-    return undefined;
-  }
-
-  const candidate = blocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry) => entry.box)
-    .filter((entry) => entry.index !== headerIndex)
-    .filter((entry) => entry.box![1] >= topBoundary && entry.box![3] <= bottomBoundary + 0.002)
-    .filter((entry) => Math.abs(entry.box![0] - headerBox[0]) <= 0.05)
-    .find((entry) => parseAmountToken(entry.block.text) !== null);
-  if (!candidate) {
-    return undefined;
-  }
-
-  return parseAmountToken(candidate.block.text) ?? undefined;
+  return extractColumnNumeric(blocks, headerIndex, topBoundary, bottomBoundary, (text) =>
+    parseAmountToken(text)
+  );
 }
 
 function formatIndianNumber(value: number): string {
