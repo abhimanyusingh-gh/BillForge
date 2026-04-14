@@ -1,4 +1,5 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
+import { parseAmountToken } from "@/ai/parsers/invoiceParser.js";
 
 const ADDRESS_SIGNAL_PATTERN =
   /\b(address|warehouse|village|road|street|avenue|taluk|district|state|country|postal|pin|zipcode)\b/i;
@@ -132,8 +133,9 @@ function extractTaxAmountMinor(text?: string): number | undefined {
 
   const amounts = taxLines
     .flatMap((line) => Array.from(line.matchAll(/[-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)(?:[.,]\d{1,3})?/g), (match) => match[0]))
-    .map((raw) => parseAmountMinor(raw))
-    .filter((value): value is number => value !== undefined && value > 0);
+    .map((raw) => parseAmountToken(raw))
+    .filter((value): value is number => value !== null && value > 0)
+    .map((value) => Math.round(value * 100));
 
   if (amounts.length === 0) {
     return undefined;
@@ -156,47 +158,6 @@ function detectInvalidTotalPrecision(text?: string): boolean {
     const match = line.match(/[-+]?(?:\d{1,3}(?:[,\s.]\d{2,3})+|\d+)([.,]\d{3,})\b/);
     return Boolean(match);
   });
-}
-
-function parseAmountMinor(raw: string): number | undefined {
-  const sanitized = raw.replace(/\s+/g, "");
-  if (!sanitized) {
-    return undefined;
-  }
-
-  let normalized = sanitized.replace(/[^0-9,.\-+]/g, "");
-  if (!normalized) {
-    return undefined;
-  }
-
-  const negative = normalized.startsWith("-");
-  normalized = normalized.replace(/^[+-]/, "");
-
-  if (normalized.includes(",") && normalized.includes(".")) {
-    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
-      normalized = normalized.replace(/\./g, "").replace(",", ".");
-    } else {
-      normalized = normalized.replace(/,/g, "");
-    }
-  } else if (normalized.includes(",")) {
-    const commaParts = normalized.split(",");
-    const isIndian = commaParts.length >= 3 && commaParts[commaParts.length - 1].length === 3 &&
-      commaParts.slice(1, -1).every((segment) => segment.length === 2);
-    if (isIndian) {
-      normalized = commaParts.join("");
-    } else {
-      const fractionalDigits = commaParts.at(-1)?.length ?? 0;
-      normalized = fractionalDigits <= 2 ? normalized.replace(",", ".") : normalized.replace(/,/g, "");
-    }
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  const minor = Math.round(parsed * 100);
-  return negative ? -minor : minor;
 }
 
 function parseIsoDate(value?: string): Date | undefined {
