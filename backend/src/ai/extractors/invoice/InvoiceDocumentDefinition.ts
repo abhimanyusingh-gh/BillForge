@@ -11,7 +11,7 @@ import type {
   ParsedInvoiceData
 } from "@/types/invoice.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
-import type { RankedOcrTextCandidate } from "./stages/ocrTextCandidates.js";
+import type { RankedOcrTextCandidate } from "../stages/ocrTextCandidates.js";
 import type { DetectedInvoiceLanguage } from "./languageDetection.js";
 import type { VendorTemplateSnapshot } from "./learning/vendorTemplateStore.js";
 import { validateInvoiceFields } from "./deterministicValidation.js";

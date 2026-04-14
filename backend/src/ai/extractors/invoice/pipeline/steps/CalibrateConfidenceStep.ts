@@ -4,7 +4,7 @@ import type { OcrResult } from "@/core/interfaces/OcrProvider.js";
 import { calibrateDocumentConfidence } from "../../confidenceScoring/FieldConfidenceScorer.js";
 import { INVOICE_CTX } from "../contextKeys.js";
 
-export class CalibrateConfidenceStage implements PipelineStage {
+export class CalibrateConfidenceStep implements PipelineStage {
   readonly name = "calibrate-confidence";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

@@ -3,7 +3,7 @@ import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrResult } from "@/core/interfaces/OcrProvider.js";
 import { INVOICE_CTX } from "../contextKeys.js";
 
-export class CaptureOcrMetadataStage implements PipelineStage {
+export class CaptureOcrMetadataStep implements PipelineStage {
   readonly name = "capture-ocr-metadata";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {

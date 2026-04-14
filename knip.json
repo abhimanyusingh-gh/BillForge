@@ -19,7 +19,7 @@
         "src/ai/extractors/invoice/invoiceExtractionPipelineHelpers.ts",
         "src/ai/extractors/invoice/stages/ocrRecovery.ts",
         "src/ai/extractors/invoice/stages/provenance.ts",
-        "src/ai/extractors/invoice/stages/ocrTextCandidates.ts",
+        "src/ai/extractors/stages/ocrTextCandidates.ts",
         "src/ai/extractors/bank/BankStatementDocumentDefinition.ts",
         "src/ai/extractors/invoice/InvoiceDocumentDefinition.ts",
         "src/ai/extractors/invoice/InvoiceExtractionSanitizer.ts",

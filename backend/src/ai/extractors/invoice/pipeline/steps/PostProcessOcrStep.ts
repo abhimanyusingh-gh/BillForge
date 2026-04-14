@@ -4,7 +4,7 @@ import type { OcrResult } from "@/core/interfaces/OcrProvider.js";
 import { postProcessOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
 import { INVOICE_CTX } from "../contextKeys.js";
 
-export class PostProcessOcrStage implements PipelineStage {
+export class PostProcessOcrStep implements PipelineStage {
   readonly name = "post-process-ocr";
 
   async execute(ctx: PipelineContext): Promise<StageResult> {
