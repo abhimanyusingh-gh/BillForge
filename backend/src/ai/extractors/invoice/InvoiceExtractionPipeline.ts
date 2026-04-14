@@ -61,7 +61,7 @@ export interface PipelineExtractionResult {
 }
 import { validateInvoiceFields } from "./deterministicValidation.js";
 import { clampProbability, formatConfidence, uniqueIssues } from "./stages/fieldParsingUtils.js";
-import { addFieldDiagnosticsToMetadata, calibrateDocumentConfidence } from "./stages/diagnostics.js";
+import { addFieldDiagnosticsToMetadata, calibrateDocumentConfidence } from "./confidenceScoring/FieldConfidenceScorer.js";
 import { buildFieldCandidates, buildFieldRegions } from "./stages/fieldCandidates.js";
 import {
   buildRankedOcrTextCandidates,
