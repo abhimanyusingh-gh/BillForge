@@ -1,6 +1,73 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { currencyBySymbol } from "@/ai/parsers/invoiceParser.js";
 
+// ---------------------------------------------------------------------------
+// Block-indexing types and helpers
+// ---------------------------------------------------------------------------
+
+/** A block with its original index and guaranteed non-null normalized bounding box. */
+export interface IndexedBlock {
+  block: OcrBlock;
+  index: number;
+  box: [number, number, number, number];
+}
+
+/** Convert an OcrBlock array into IndexedBlocks, filtering out those without bboxNormalized. */
+export function indexBlocks(blocks: OcrBlock[]): IndexedBlock[] {
+  const result: IndexedBlock[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const box = blocks[i].bboxNormalized;
+    if (box) {
+      result.push({ block: blocks[i], index: i, box });
+    }
+  }
+  return result;
+}
+
+/** Filter blocks whose vertical extent falls within [topY, bottomY + tolerance]. */
+export function filterByRow(
+  indexed: IndexedBlock[],
+  topY: number,
+  bottomY: number,
+  tolerance: number = 0.002
+): IndexedBlock[] {
+  return indexed.filter((entry) => entry.box[1] >= topY && entry.box[3] <= bottomY + tolerance);
+}
+
+/** Filter blocks whose left edge is within `tolerance` of `anchorX`. */
+export function filterByColumn(
+  indexed: IndexedBlock[],
+  anchorX: number,
+  tolerance: number = 0.05
+): IndexedBlock[] {
+  return indexed.filter((entry) => Math.abs(entry.box[0] - anchorX) <= tolerance);
+}
+
+/** Extract the first numeric value from column-aligned blocks in a row region. */
+export function extractColumnNumeric(
+  blocks: OcrBlock[],
+  headerIndex: number,
+  topBoundary: number,
+  bottomBoundary: number,
+  parser: (text: string) => number | null
+): number | undefined {
+  const headerBox = blocks[headerIndex]?.bboxNormalized;
+  if (!headerBox) return undefined;
+  const candidates = filterByColumn(
+    filterByRow(
+      indexBlocks(blocks).filter((e) => e.index !== headerIndex),
+      topBoundary,
+      bottomBoundary
+    ),
+    headerBox[0]
+  );
+  for (const entry of candidates) {
+    const value = parser(entry.block.text);
+    if (value !== null) return value;
+  }
+  return undefined;
+}
+
 /**
  * Canonical month-name-to-number map, shared across date parsing utilities.
  */
