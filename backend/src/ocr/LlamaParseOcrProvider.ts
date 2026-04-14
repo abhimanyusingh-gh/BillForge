@@ -45,7 +45,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
     this.customPrompt = options?.customPrompt ?? process.env.LLAMA_PARSE_CUSTOM_PROMPT;
     this.client = new LlamaCloud({ apiKey });
     this.extractEnabled = options?.extractEnabled ?? (process.env.LLAMA_PARSE_EXTRACT_ENABLED === "true");
-    this.extractTier = options?.extractTier ?? (process.env.LLAMA_PARSE_EXTRACT_TIER as LlamaExtractTier | undefined) ?? "cost_effective";
+    this.extractTier = options?.extractTier ?? (process.env.LLAMA_PARSE_EXTRACT_TIER as LlamaExtractTier | undefined) ?? "agentic";
   }
 
   async extractText(buffer: Buffer, mimeType: string, _options?: OcrExtractionOptions): Promise<OcrResult> {

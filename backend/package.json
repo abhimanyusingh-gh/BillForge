@@ -18,6 +18,7 @@
     "test:e2e:localstack": "LOCALSTACK_ENDPOINT=http://localhost:4566 jest --config jest.config.cjs --runInBand src/e2e/localstackDeploy.e2e.test.ts",
     "benchmark:deepseek": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr deepseek",
     "benchmark:llamaparse": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",
+    "benchmark:llamaextract": "LLAMA_PARSE_EXTRACT_ENABLED=true LLAMA_PARSE_EXTRACT_TIER=agentic tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse",
     "benchmark:llamaparse:dump": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only",
     "benchmark:llamaparse:generate-spec": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only --generate-spec",
     "benchmark:llamaparse:generate-spec:new": "tsx src/scripts/runSampleInvoiceBenchmark.ts --ocr llamaparse --dump-only --generate-spec --file-prefix DV- --file-prefix FC-"

@@ -1,5 +1,7 @@
 export const INVOICE_EXTRACT_SCHEMA = {
-  invoice_number: {
+  type: "object",
+  properties: {
+    invoice_number: {
     type: "string",
     description:
       "The unique identifier assigned by the supplier/seller to this invoice. May be labeled 'Invoice No', 'Invoice Number', 'Document No', 'Bill No', 'Ref No', or 'Tax Invoice No'. Extract only the alphanumeric code (e.g. 'AIT/G/524/25-26', 'A3081731'), never the label text.",
@@ -63,5 +65,6 @@ export const INVOICE_EXTRACT_SCHEMA = {
     type: "string",
     description:
       "The 10-character Permanent Account Number (PAN) of the supplier/vendor. May be labeled 'PAN', 'Company PAN', or \"Company's PAN\". Format: 5 letters + 4 digits + 1 letter (e.g. 'AGIPP2724Q').",
+    },
   },
 };
