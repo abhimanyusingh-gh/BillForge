@@ -29,22 +29,36 @@ describe("requireNotViewer blocks viewer on write routes", () => {
 });
 
 const mockStatementFind = jest.fn();
+const mockStatementFindOne = jest.fn();
 const mockStatementCountDocuments = jest.fn();
+const mockStatementUpdateOne = jest.fn();
 
 jest.mock("../models/BankStatement.ts", () => ({
   BankStatementModel: {
     find: (...args: unknown[]) => mockStatementFind(...args),
-    countDocuments: (...args: unknown[]) => mockStatementCountDocuments(...args)
+    findOne: (...args: unknown[]) => mockStatementFindOne(...args),
+    countDocuments: (...args: unknown[]) => mockStatementCountDocuments(...args),
+    updateOne: (...args: unknown[]) => mockStatementUpdateOne(...args)
   }
 }));
 
 const mockTransactionFind = jest.fn();
 const mockTransactionCountDocuments = jest.fn();
+const mockTransactionUpdateOne = jest.fn();
 
 jest.mock("../models/BankTransaction.ts", () => ({
   BankTransactionModel: {
     find: (...args: unknown[]) => mockTransactionFind(...args),
-    countDocuments: (...args: unknown[]) => mockTransactionCountDocuments(...args)
+    countDocuments: (...args: unknown[]) => mockTransactionCountDocuments(...args),
+    updateOne: (...args: unknown[]) => mockTransactionUpdateOne(...args)
+  }
+}));
+
+const mockInvoiceFind = jest.fn();
+
+jest.mock("../models/Invoice.ts", () => ({
+  InvoiceModel: {
+    find: (...args: unknown[]) => mockInvoiceFind(...args)
   }
 }));
 
@@ -551,5 +565,96 @@ describe("BankStatementParseProgress broadcast", () => {
     expect(parsed.message).toBe("SLM not available");
 
     (req as ReturnType<typeof mockRequest>)._emit("close");
+  });
+});
+
+describe("GET /bank-statements/:id/matches", () => {
+  function txnChain(items: unknown[]) {
+    const chain: Record<string, unknown> = {};
+    chain.sort = jest.fn().mockReturnValue(chain);
+    chain.lean = jest.fn().mockResolvedValue(items);
+    return chain;
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("returns 404 when statement is not found", async () => {
+    mockStatementFindOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+
+    const router = createBankStatementsRouter();
+    const handler = findRouteHandler(router, "get", "/bank-statements/:id/matches");
+    const res = mockResponse();
+
+    await handler(
+      mockRequest({ authContext: defaultAuth, params: { id: "stmt-99" } }),
+      res,
+      jest.fn()
+    );
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns all transactions with summary counts when all unmatched", async () => {
+    mockStatementFindOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ _id: "stmt-1", tenantId: "tenant-a" }) });
+    mockTransactionFind.mockReturnValue(txnChain([
+      { _id: "t1", date: "2024-02-05", description: "Payment", debitMinor: 100000, matchStatus: "unmatched" },
+      { _id: "t2", date: "2024-02-10", description: "Credit", creditMinor: 50000, matchStatus: "unmatched" }
+    ]));
+    mockInvoiceFind.mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
+
+    const router = createBankStatementsRouter();
+    const handler = findRouteHandler(router, "get", "/bank-statements/:id/matches");
+    const res = mockResponse();
+
+    await handler(
+      mockRequest({ authContext: defaultAuth, params: { id: "stmt-1" } }),
+      res,
+      jest.fn()
+    );
+
+    const body = res.jsonBody as { items: unknown[]; summary: { totalTransactions: number; matched: number; suggested: number; unmatched: number } };
+    expect(body.items).toHaveLength(2);
+    expect(body.summary.totalTransactions).toBe(2);
+    expect(body.summary.matched).toBe(0);
+    expect(body.summary.unmatched).toBe(2);
+  });
+
+  it("embeds invoice data for matched transactions and counts correctly", async () => {
+    mockStatementFindOne.mockReturnValue({ lean: jest.fn().mockResolvedValue({ _id: "stmt-1" }) });
+    mockTransactionFind.mockReturnValue(txnChain([
+      { _id: "t1", date: "2024-02-05", description: "Payment A", debitMinor: 100000, matchStatus: "matched", matchedInvoiceId: "inv-1", matchConfidence: 90 },
+      { _id: "t2", date: "2024-02-10", description: "Payment B", debitMinor: 50000, matchStatus: "suggested", matchedInvoiceId: "inv-2", matchConfidence: 40 },
+      { _id: "t3", date: "2024-02-15", description: "Misc", debitMinor: 20000, matchStatus: "unmatched" }
+    ]));
+    mockInvoiceFind.mockReturnValue({ lean: jest.fn().mockResolvedValue([
+      { _id: "inv-1", status: "AWAITING_APPROVAL", parsed: { invoiceNumber: "INV-001", vendorName: "ACME", totalAmountMinor: 100000, invoiceDate: "2024-02-01" } },
+      { _id: "inv-2", status: "PENDING", parsed: { invoiceNumber: "INV-002", vendorName: "Corp B", totalAmountMinor: 50000, invoiceDate: "2024-02-08" } }
+    ]) });
+
+    const router = createBankStatementsRouter();
+    const handler = findRouteHandler(router, "get", "/bank-statements/:id/matches");
+    const res = mockResponse();
+
+    await handler(
+      mockRequest({ authContext: defaultAuth, params: { id: "stmt-1" } }),
+      res,
+      jest.fn()
+    );
+
+    const body = res.jsonBody as {
+      items: Array<{ _id: string; matchStatus: string; invoice: { invoiceNumber: string | null } | null }>;
+      summary: { matched: number; suggested: number; unmatched: number };
+    };
+    expect(body.summary.matched).toBe(1);
+    expect(body.summary.suggested).toBe(1);
+    expect(body.summary.unmatched).toBe(1);
+
+    const t1 = body.items.find((i) => i._id === "t1");
+    expect(t1?.invoice?.invoiceNumber).toBe("INV-001");
+
+    const t3 = body.items.find((i) => i._id === "t3");
+    expect(t3?.invoice).toBeNull();
   });
 });

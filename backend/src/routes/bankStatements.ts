@@ -142,6 +142,80 @@ export function createBankStatementsRouter(
     } catch (error) { next(error); }
   });
 
+  router.get("/bank-statements/:id/matches", async (req, res, next) => {
+    try {
+      const tenantId = req.authContext!.tenantId;
+
+      const { BankStatementModel } = await import("../models/BankStatement.js");
+      const statement = await BankStatementModel.findOne({ _id: req.params.id, tenantId }).lean();
+      if (!statement) { res.status(404).json({ message: "Bank statement not found." }); return; }
+
+      const transactions = await BankTransactionModel.find(
+        { tenantId, statementId: req.params.id }
+      ).sort({ date: 1 }).lean();
+
+      const invoiceIds = [...new Set(
+        transactions.map((t) => t.matchedInvoiceId).filter((id): id is string => !!id)
+      )];
+
+      const invoiceMap = new Map<string, {
+        _id: string;
+        invoiceNumber: string | null;
+        vendorName: string | null;
+        totalAmountMinor: number | null;
+        invoiceDate: string | null;
+        status: string;
+      }>();
+
+      if (invoiceIds.length > 0) {
+        const invoices = await InvoiceModel.find(
+          { _id: { $in: invoiceIds }, tenantId },
+          { "parsed.invoiceNumber": 1, "parsed.vendorName": 1, "parsed.totalAmountMinor": 1, "parsed.invoiceDate": 1, status: 1 }
+        ).lean();
+        for (const inv of invoices) {
+          const parsed = inv.parsed as Record<string, unknown> | undefined;
+          invoiceMap.set(String(inv._id), {
+            _id: String(inv._id),
+            invoiceNumber: (parsed?.invoiceNumber as string | null) ?? null,
+            vendorName: (parsed?.vendorName as string | null) ?? null,
+            totalAmountMinor: (parsed?.totalAmountMinor as number | null) ?? null,
+            invoiceDate: (parsed?.invoiceDate as string | null) ?? null,
+            status: inv.status as string
+          });
+        }
+      }
+
+      let matched = 0;
+      let suggested = 0;
+      let unmatched = 0;
+
+      const items = transactions.map((t) => {
+        const status = (t.matchStatus as string) ?? "unmatched";
+        if (status === "matched" || status === "manual") matched++;
+        else if (status === "suggested") suggested++;
+        else unmatched++;
+        return {
+          _id: String(t._id),
+          date: t.date,
+          description: t.description,
+          reference: t.reference ?? null,
+          debitMinor: t.debitMinor ?? null,
+          creditMinor: t.creditMinor ?? null,
+          balanceMinor: t.balanceMinor ?? null,
+          matchStatus: status,
+          matchConfidence: t.matchConfidence ?? null,
+          matchedInvoiceId: t.matchedInvoiceId ?? null,
+          invoice: t.matchedInvoiceId ? (invoiceMap.get(t.matchedInvoiceId) ?? null) : null
+        };
+      });
+
+      res.json({
+        items,
+        summary: { totalTransactions: transactions.length, matched, suggested, unmatched }
+      });
+    } catch (error) { next(error); }
+  });
+
   router.get("/bank-statements/:id/transactions", async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
