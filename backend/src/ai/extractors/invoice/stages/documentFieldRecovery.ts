@@ -2,9 +2,7 @@ import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { isWeakVendorValue } from "./fieldCandidates.js";
 import { findBlockByLabelProximity, findVendorBlock } from "./groundingText.js";
-import { normalizeDateToken, detectExplicitCurrency } from "./fieldParsingUtils.js";
-
-type BoxedBlock = { block: OcrBlock; index: number; box: [number, number, number, number] };
+import { indexBlocks, type IndexedBlock, normalizeDateToken, detectExplicitCurrency } from "./fieldParsingUtils.js";
 
 export function recoverHeaderFieldsFromOcr(
   parsed: ParsedInvoiceData,
@@ -198,9 +196,7 @@ function findIssuedByVendorBlock(blocks: OcrBlock[]): { block: OcrBlock; index: 
     return undefined;
   }
 
-  const candidate = blocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is BoxedBlock => Boolean(entry.box))
+  const candidate = indexBlocks(blocks)
     .filter((entry) => entry.index !== labelIndex)
     .filter((entry) => entry.box[0] >= labelBox[0] - 0.02)
     .filter((entry) => entry.box[0] <= 0.6)
@@ -211,9 +207,7 @@ function findIssuedByVendorBlock(blocks: OcrBlock[]): { block: OcrBlock; index: 
 }
 
 function findBrandVendorBlock(ocrBlocks: OcrBlock[]): { block: OcrBlock; index: number } | undefined {
-  const candidates = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is BoxedBlock => Boolean(entry.box))
+  const candidates = indexBlocks(ocrBlocks)
     .filter((entry) => entry.box[1] <= 0.2)
     .filter((entry) => /\b(makemytrip|make my trip|openai|openal|anthropic|cursor|sprinto|cloudflare|cloudflare,\s*inc)\b/i.test(entry.block.text));
   candidates.sort((left, right) => scoreBrandVendorCandidate(right) - scoreBrandVendorCandidate(left));
@@ -221,9 +215,7 @@ function findBrandVendorBlock(ocrBlocks: OcrBlock[]): { block: OcrBlock; index: 
 }
 
 function findCorporateBrandVendorBlock(ocrBlocks: OcrBlock[]): { block: OcrBlock; index: number } | undefined {
-  const candidates = ocrBlocks
-    .map((block, index) => ({ block, index, box: block.bboxNormalized }))
-    .filter((entry): entry is BoxedBlock => Boolean(entry.box))
+  const candidates = indexBlocks(ocrBlocks)
     .filter((entry) => /\b(makemytrip|make my trip|openai|openal|anthropic|cursor|sprinto|cloudflare|cloudflare,\s*inc)\b/i.test(entry.block.text))
     .filter((entry) => /\b(llc|inc|limited|private|pbc|ltd)\b/i.test(entry.block.text));
   candidates.sort((left, right) => scoreBrandVendorCandidate(right) - scoreBrandVendorCandidate(left));
@@ -249,7 +241,7 @@ function findExplicitInvoiceDateBlock(ocrBlocks: OcrBlock[]): { block: OcrBlock;
     .find((entry) => /\b(date paid|date of issue|invoice date|paid on)\b/i.test(entry.block.text));
 }
 
-function scoreBrandVendorCandidate(entry: BoxedBlock): number {
+function scoreBrandVendorCandidate(entry: IndexedBlock): number {
   let score = 0;
   const text = entry.block.text.trim();
   const width = entry.box[2] - entry.box[0];
