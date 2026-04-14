@@ -47,6 +47,28 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     exposedHeaders: ["Content-Disposition"]
   }));
   app.use(express.json({ limit: "10mb" }));
+
+  // CSRF protection: require X-Requested-With header on state-changing requests.
+  // Browser-initiated cross-origin requests (form submissions, <img> tags, etc.)
+  // cannot set custom headers, so this blocks CSRF attacks even without a token.
+  // GET/HEAD/OPTIONS are excluded as they should be safe (no side effects).
+  app.use((req, res, next) => {
+    const safeMethods = ["GET", "HEAD", "OPTIONS"];
+    if (safeMethods.includes(req.method)) return next();
+
+    // Skip CSRF check for webhook endpoints that receive external callbacks
+    if (req.path.startsWith("/api/webhooks/") || req.path.startsWith("/api/connect/")) {
+      return next();
+    }
+
+    const xRequestedWith = req.header("x-requested-with");
+    if (xRequestedWith === "BillForge") return next();
+
+    // In local dev, warn but don't block to avoid breaking dev tools / curl
+    if (env.ENV === "local") return next();
+
+    res.status(403).json({ message: "Missing CSRF header. Set X-Requested-With: BillForge on all mutating requests." });
+  });
   app.use((req, res, next) => {
     const incoming = req.header("x-correlation-id");
     const correlationId = typeof incoming === "string" && incoming.trim().length > 0 ? incoming.trim() : randomUUID();
