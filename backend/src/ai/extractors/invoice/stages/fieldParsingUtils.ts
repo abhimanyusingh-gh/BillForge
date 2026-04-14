@@ -84,53 +84,10 @@ export function normalizeNamedDateValue(value: string): string | undefined {
 }
 
 /**
- * Variant used by the pipeline helpers — same logic as normalizeNamedDateValue
- * but accepts the full text block and uses resolveMonthNumber internally.
- * Accepts an optional monthNames override for backward compatibility.
+ * Variant used by the pipeline helpers — delegates to normalizeNamedDateValue.
  */
-export function normalizeDateValue(text: string, monthNamesOverride?: Record<string, string>): string | undefined {
-  const monthNames = monthNamesOverride ?? {
-    jan: "01",
-    january: "01",
-    feb: "02",
-    february: "02",
-    mar: "03",
-    march: "03",
-    apr: "04",
-    april: "04",
-    may: "05",
-    jun: "06",
-    june: "06",
-    jul: "07",
-    july: "07",
-    aug: "08",
-    august: "08",
-    sep: "09",
-    sept: "09",
-    september: "09",
-    oct: "10",
-    october: "10",
-    nov: "11",
-    november: "11",
-    dec: "12",
-    december: "12"
-  };
-  const sanitized = text.replace(/,/g, "").trim();
-  let match = sanitized.match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
-  if (match) {
-    const month = monthNames[match[1].toLowerCase()];
-    if (month) {
-      return `${match[3]}-${month}-${String(Number(match[2])).padStart(2, "0")}`;
-    }
-  }
-  match = sanitized.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
-  if (match) {
-    const month = monthNames[match[2].toLowerCase()];
-    if (month) {
-      return `${match[3]}-${month}-${String(Number(match[1])).padStart(2, "0")}`;
-    }
-  }
-  return undefined;
+export function normalizeDateValue(text: string): string | undefined {
+  return normalizeNamedDateValue(text);
 }
 
 /**
