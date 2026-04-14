@@ -37,6 +37,8 @@ bankTransactionSchema.index({ tenantId: 1, statementId: 1 });
 bankTransactionSchema.index({ tenantId: 1, matchStatus: 1 });
 bankTransactionSchema.index({ tenantId: 1, matchedInvoiceId: 1 }, { sparse: true });
 bankTransactionSchema.index({ tenantId: 1, date: 1, description: 1, debitMinor: 1, creditMinor: 1 });
+// Compound index for reconciliation query: find unmatched debit transactions per statement
+bankTransactionSchema.index({ tenantId: 1, statementId: 1, matchStatus: 1, debitMinor: 1 });
 
 export type BankTransaction = InferSchemaType<typeof bankTransactionSchema>;
 

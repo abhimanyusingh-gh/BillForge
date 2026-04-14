@@ -365,6 +365,10 @@ invoiceSchema.index({ tenantId: 1, createdAt: 1 });
 invoiceSchema.index({ tenantId: 1, "approval.approvedAt": 1 });
 invoiceSchema.index({ tenantId: 1, "export.exportedAt": 1 });
 invoiceSchema.index({ tenantId: 1, "parsed.vendorName": 1, status: 1 });
+// Compound index for reconciliation candidate fetch: filter by tenant, status, and amount range
+invoiceSchema.index({ tenantId: 1, status: 1, "parsed.totalAmountMinor": 1 });
+// Sparse index for reconciliation GSTIN-filtered candidate fetch
+invoiceSchema.index({ tenantId: 1, "parsed.gst.gstin": 1 }, { sparse: true });
 
 type Invoice = InferSchemaType<typeof invoiceSchema>;
 export type InvoiceDocument = HydratedDocument<Invoice>;
