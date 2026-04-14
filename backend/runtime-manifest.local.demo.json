@@ -5,14 +5,8 @@
     "provider": "mongo",
     "uri": "mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge"
   },
-  "ocr": {
-    "provider": "deepseek",
-    "deepseek": {}
-  },
-  "verifier": {
-    "provider": "http",
-    "http": {}
-  },
+  "ocr": {},
+  "verifier": {},
   "extraction": {
     "ocrHighConfidenceThreshold": 0.92
   },

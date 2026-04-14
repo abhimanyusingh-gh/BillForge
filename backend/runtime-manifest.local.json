@@ -6,15 +6,11 @@
     "uri": "mongodb://billforge_app:billforge_local_pass@mongo:27017/billforge?authSource=billforge"
   },
   "ocr": {
-    "provider": "deepseek",
     "configuration": {
       "model": "apple-vision-text-recognition"
     }
   },
-  "verifier": {
-    "provider": "http",
-    "http": {}
-  },
+  "verifier": {},
   "extraction": {
     "ocrHighConfidenceThreshold": 0.92
   },
