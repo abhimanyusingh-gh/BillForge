@@ -1,8 +1,7 @@
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { parseAmountToken } from "@/ai/parsers/invoiceParser.js";
 import { looksLikeAddress } from "@/ai/extractors/invoice/stages/fieldCandidates.js";
-import { normalizeDateToken, buildDateTerms, detectExplicitCurrency } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { normalizeDateToken, buildDateTerms } from "@/ai/extractors/stages/fieldParsingUtils.js";
 
 export const DEFAULT_FIELD_LABEL_PATTERNS: Record<string, RegExp> = {
   invoiceNumber: /^((?:pro(?:forma|perma)?|performa)\s+invoice\s*(?:number|no\.?|#)?|invoice\s*(?:number|no\.?|#)|bill\s*(?:number|no\.?|#)|inv\s*(?:no\.?|#))$/i,
@@ -363,66 +362,18 @@ export function findBlockForField(
   return { block: best.block, index: best.index };
 }
 
-export function blockMatchesFieldValue(field: string, value: unknown, block: OcrBlock | undefined): boolean {
-  if (!block) {
-    return false;
-  }
-
-  const text = block.text.trim();
-  if (!text) {
-    return false;
-  }
-
-  if ((field === "invoiceDate" || field === "dueDate") && value instanceof Date) {
-    const tokenDate = normalizeDateToken(text);
-    return tokenDate !== undefined && tokenDate.getTime() === value.getTime();
-  }
-
-  if (field === "totalAmountMinor" && typeof value === "number") {
-    const amount = parseAmountToken(text);
-    return amount !== null && Math.round(amount * 100) === value;
-  }
-
-  if (field === "currency" && typeof value === "string") {
-    return detectExplicitCurrency(text) === value;
-  }
-
-  if (typeof value === "string") {
-    return text.toLowerCase().includes(value.trim().toLowerCase());
-  }
-
-  return false;
-}
-
-export function findPreferredDateValueBlock(
-  field: "invoiceDate" | "dueDate",
-  value: Date,
-  blocks: OcrBlock[]
-): { block: OcrBlock; index: number } | undefined {
-  const matches = blocks
-    .map((block, index) => ({ block, index }))
-    .filter((entry) => {
-      const tokenDate = normalizeDateToken(entry.block.text);
-      return tokenDate !== undefined && tokenDate.getTime() === value.getTime();
-    });
-  if (matches.length === 0) {
-    return undefined;
-  }
-  return field === "dueDate" ? matches[matches.length - 1] : matches[0];
-}
-
 export function findBlockIndexByExactText(blocks: OcrBlock[], pattern: RegExp): number {
   return blocks.findIndex((block) => pattern.test(block.text.trim()));
 }
 
-function candidateTerms(field: keyof ParsedInvoiceData, value: string | Date): string[] {
-  if ((field === "invoiceDate" || field === "dueDate") && value instanceof Date) {
-    return buildDateTerms(value);
-  }
-
-  const base = String(value).trim().toLowerCase();
+function candidateTerms(field: keyof ParsedInvoiceData, value: string): string[] {
+  const base = value.trim().toLowerCase();
   if (!base) {
     return [];
+  }
+
+  if ((field === "invoiceDate" || field === "dueDate") && /^\d{4}-\d{2}-\d{2}$/.test(base)) {
+    return buildDateTerms(new Date(base));
   }
 
   if (field !== "totalAmountMinor") {
@@ -457,10 +408,6 @@ function normalizeFieldValue(field: keyof ParsedInvoiceData, value: unknown): st
     }
     const major = value / 100;
     return Number.isInteger(major) ? String(major) : major.toFixed(2);
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
   }
 
   if (typeof value !== "string") {
