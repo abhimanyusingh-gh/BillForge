@@ -2,11 +2,13 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import type { UUID } from "@/types/uuid.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
+import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
 import { emptyComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
+import { resolveTenantComplianceConfig, resolveFreemailConfig } from "@/services/compliance/tenantConfigResolver.js";
+import type { UUID } from "@/types/uuid.js";
 import { PanValidationService } from "@/services/compliance/PanValidationService.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
@@ -55,7 +57,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     vendorFingerprint: string,
     context?: ComplianceEnrichContext
   ): Promise<ComplianceResult> {
-    const config = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
+    const config = await resolveTenantComplianceConfig(tenantId as UUID);
     const anyEnabled = config?.complianceEnabled ||
       config?.tdsEnabled ||
       config?.riskSignalsEnabled ||
@@ -98,7 +100,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private enrichPan(
     invoice: ParsedInvoiceData,
-    config: Record<string, unknown>,
+    config: TenantComplianceConfigFields,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[],
@@ -106,7 +108,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     vendorFingerprint: string
   ): void {
     try {
-      if ((config as Record<string, unknown>).panValidationEnabled !== false) {
+      if (config.panValidationEnabled !== false) {
         const panResult = this.panValidation.validate(invoice.pan, invoice.gst?.gstin);
         result.pan = panResult.pan;
         riskSignals.push(...panResult.riskSignals);
@@ -173,7 +175,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichGlCode(
     invoice: ParsedInvoiceData,
-    config: Record<string, unknown>,
+    config: TenantComplianceConfigFields,
     tenantId: string,
     vendorFingerprint: string,
     context: ComplianceEnrichContext | undefined,
@@ -181,7 +183,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     processingIssues: string[]
   ): Promise<void> {
     try {
-      if ((config as Record<string, unknown>).autoSuggestGlCodes !== false) {
+      if (config.autoSuggestGlCodes !== false) {
         const slmGlCategory = context?.slmGlCategory;
         const glSuggestion = await this.glCodeSuggestion.suggest(tenantId, vendorFingerprint, invoice, undefined, slmGlCategory);
         result.glCode = glSuggestion.glCode;
@@ -227,7 +229,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichTds(
     invoice: ParsedInvoiceData,
-    config: Record<string, unknown>,
+    config: TenantComplianceConfigFields,
     tenantId: string,
     vendorFingerprint: string,
     result: ComplianceResult,
@@ -235,7 +237,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     processingIssues: string[]
   ): Promise<void> {
     try {
-      if ((config as Record<string, unknown>).tdsEnabled !== false && (config as Record<string, unknown>).autoDetectTds !== false) {
+      if (config.tdsEnabled !== false && config.autoDetectTds !== false) {
         const glCode = result.glCode?.code ?? null;
         let glCategory: string | null = null;
         if (glCode) {
@@ -257,7 +259,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private enrichIrn(
     invoice: ParsedInvoiceData,
-    config: Record<string, unknown>,
+    config: TenantComplianceConfigFields,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[]
@@ -278,7 +280,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichMsme(
     invoice: ParsedInvoiceData,
-    config: Record<string, unknown>,
+    config: TenantComplianceConfigFields,
     tenantId: string,
     vendorFingerprint: string,
     result: ComplianceResult,
@@ -356,10 +358,8 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async resolveFreemailDomains(tenantId: string): Promise<Set<string>> {
     const systemDefaults = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com"];
-    const config = await TenantComplianceConfigModel.findOne({ tenantId })
-      .select({ additionalFreemailDomains: 1 })
-      .lean();
-    const additional = (config as Record<string, unknown> | null)?.additionalFreemailDomains as string[] | undefined;
+    const config = await resolveFreemailConfig(tenantId);
+    const additional = config?.additionalFreemailDomains;
     if (additional && additional.length > 0) {
       return new Set([...systemDefaults, ...additional.map(d => d.toLowerCase())]);
     }
