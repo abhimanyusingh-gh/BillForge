@@ -3,13 +3,41 @@ import { PROVENANCE_SOURCE } from "@/types/invoice.js";
 import type { InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData, ProvenanceSource } from "@/types/invoice.js";
 import { clampProbability } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import {
-  blockMatchesFieldValue,
   DEFAULT_FIELD_LABEL_PATTERNS,
   findBlockByLabelProximity,
   findBlockForField,
-  findPreferredDateValueBlock
 } from "@/ai/extractors/invoice/stages/groundingText.js";
 import { findBlockByAmountValue } from "@/ai/extractors/invoice/stages/groundingAmounts.js";
+
+const TOP_LEVEL_FIELD_KEYS = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor", "notes", "pan", "bankAccountNumber", "bankIfsc"] as const;
+
+function extractFieldEntries(parsed: ParsedInvoiceData): Array<{ key: InvoiceFieldKey; value: unknown }> {
+  const entries: Array<{ key: InvoiceFieldKey; value: unknown }> = [];
+
+  for (const key of TOP_LEVEL_FIELD_KEYS) {
+    if (parsed[key] !== undefined) {
+      entries.push({ key, value: parsed[key] });
+    }
+  }
+
+  if (parsed.gst) {
+    for (const [gstKey, gstValue] of Object.entries(parsed.gst)) {
+      if (gstValue !== undefined) {
+        entries.push({ key: `gst.${gstKey}` as InvoiceFieldKey, value: gstValue });
+      }
+    }
+  }
+
+  return entries;
+}
+
+function getFieldValue(parsed: ParsedInvoiceData, key: InvoiceFieldKey): unknown {
+  if (!key.includes(".")) {
+    return parsed[key as keyof ParsedInvoiceData];
+  }
+  const [parent, child] = key.split(".");
+  return (parsed[parent as keyof ParsedInvoiceData] as Record<string, unknown> | undefined)?.[child];
+}
 
 function resolveFieldConfidence(
   field: InvoiceFieldKey,
@@ -29,6 +57,54 @@ function resolveFieldConfidence(
   }
 
   return Number(clampProbability(ocrConfidence).toFixed(4));
+}
+
+function resolveFieldProvenance(
+  field: InvoiceFieldKey,
+  value: unknown,
+  providerProvenance: InvoiceFieldProvenance | undefined,
+  ocrBlocks: OcrBlock[],
+  fieldRegions: OcrBlock[],
+  source: ProvenanceSource,
+  confidence: number | undefined
+): InvoiceFieldProvenance {
+  if (providerProvenance) {
+    return {
+      source: providerProvenance.source ?? source,
+      page: providerProvenance.page ?? 1,
+      ...(providerProvenance.bbox ? { bbox: providerProvenance.bbox } : {}),
+      ...(providerProvenance.bboxNormalized ? { bboxNormalized: providerProvenance.bboxNormalized } : {}),
+      ...(providerProvenance.bboxModel ? { bboxModel: providerProvenance.bboxModel } : {}),
+      ...(typeof providerProvenance.blockIndex === "number" ? { blockIndex: providerProvenance.blockIndex } : {}),
+      confidence: providerProvenance.confidence ?? confidence
+    };
+  }
+
+  let matched: { block: OcrBlock; index: number } | undefined;
+
+  if (field.startsWith("gst.") && typeof value === "number") {
+    matched = findBlockByAmountValue(value, ocrBlocks, DEFAULT_FIELD_LABEL_PATTERNS[field]);
+  }
+
+  if (!matched) {
+    matched =
+      findBlockForField(field as keyof ParsedInvoiceData, value, ocrBlocks, fieldRegions)
+      ?? findBlockByLabelProximity(field as keyof ParsedInvoiceData, ocrBlocks);
+  }
+
+  if (matched) {
+    return {
+      source,
+      page: matched.block.page,
+      bbox: matched.block.bbox,
+      ...(matched.block.bboxNormalized ? { bboxNormalized: matched.block.bboxNormalized } : {}),
+      ...(matched.block.bboxModel ? { bboxModel: matched.block.bboxModel } : {}),
+      blockIndex: matched.index,
+      confidence
+    };
+  }
+
+  return { source, page: 1, confidence };
 }
 
 export function calibrateDocumentConfidence(
@@ -63,184 +139,46 @@ export function calibrateDocumentConfidence(
   };
 }
 
-export function addFieldDiagnosticsToMetadata(params: {
-  metadata: Record<string, string>;
+export function buildFieldDiagnostics(params: {
   parsed: ParsedInvoiceData;
   ocrBlocks: OcrBlock[];
   fieldRegions: Record<string, OcrBlock[]>;
   source: string;
   ocrConfidence?: number;
-  validationIssues: string[];
-  warnings: string[];
   templateAppliedFields: Set<string>;
   verifierChangedFields: string[];
-  slmBlockIndices?: Record<string, number>;
   verifierFieldConfidence?: Partial<Record<InvoiceFieldKey, number>>;
   verifierFieldProvenance?: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>;
 }): { fieldConfidence: Partial<Record<InvoiceFieldKey, number>>; fieldProvenance: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> } {
-  const fieldNames: InvoiceFieldKey[] = [
-    "invoiceNumber",
-    "vendorName",
-    "invoiceDate",
-    "dueDate",
-    "currency",
-    "totalAmountMinor",
-    "gst.gstin",
-    "gst.subtotalMinor",
-    "gst.cgstMinor",
-    "gst.sgstMinor",
-    "gst.igstMinor",
-    "gst.cessMinor",
-    "gst.totalTaxMinor"
-  ];
-
   const ocrConfidence = clampProbability(params.ocrConfidence ?? 0);
   const changedByVerifier = new Set(params.verifierChangedFields);
+  const fieldEntries = extractFieldEntries(params.parsed);
 
   const fieldConfidence: Partial<Record<InvoiceFieldKey, number>> = {};
   const fieldProvenance: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> = {};
 
-  for (const field of fieldNames) {
-    let value: unknown;
-    if (field.includes(".")) {
-      const [parent, child] = field.split(".");
-      value = (params.parsed[parent as keyof ParsedInvoiceData] as Record<string, unknown> | undefined)?.[child];
-    } else {
-      value = params.parsed[field as keyof ParsedInvoiceData];
-    }
-    if (value === undefined) {
-      continue;
-    }
+  for (const { key, value } of fieldEntries) {
+    fieldConfidence[key] = resolveFieldConfidence(key, params.verifierFieldConfidence, params.verifierFieldProvenance, ocrConfidence);
 
-    fieldConfidence[field] = resolveFieldConfidence(
-      field,
-      params.verifierFieldConfidence,
-      params.verifierFieldProvenance,
-      ocrConfidence
-    );
-
-    const provenanceSource: ProvenanceSource = changedByVerifier.has(field)
+    const source: ProvenanceSource = changedByVerifier.has(key)
       ? PROVENANCE_SOURCE.SLM
-      : params.templateAppliedFields.has(field)
+      : params.templateAppliedFields.has(key)
         ? PROVENANCE_SOURCE.TEMPLATE
         : params.source.includes("template")
           ? PROVENANCE_SOURCE.TEMPLATE
           : PROVENANCE_SOURCE.HEURISTIC;
-    const slmProvenance = params.verifierFieldProvenance?.[field];
-    if (slmProvenance) {
-      const provenanceBlock =
-        typeof slmProvenance.blockIndex === "number" &&
-        slmProvenance.blockIndex >= 0 &&
-        slmProvenance.blockIndex < params.ocrBlocks.length
-          ? params.ocrBlocks[slmProvenance.blockIndex]
-          : undefined;
-      const dateValueMatch =
-        (field === "invoiceDate" || field === "dueDate") && value instanceof Date
-          ? findPreferredDateValueBlock(field as "invoiceDate" | "dueDate", value, params.ocrBlocks)
-          : undefined;
-      const labelAlignedMatch =
-        (field === "invoiceDate" || field === "dueDate")
-          ? findBlockByLabelProximity(field as keyof ParsedInvoiceData, params.ocrBlocks)
-          : undefined;
-      let correctedMatch: { block: OcrBlock; index: number } | undefined;
-      if (dateValueMatch && dateValueMatch.index !== slmProvenance.blockIndex) {
-        correctedMatch = dateValueMatch;
-      } else if (
-        labelAlignedMatch &&
-        blockMatchesFieldValue(field, value, labelAlignedMatch.block) &&
-        labelAlignedMatch.index !== slmProvenance.blockIndex
-      ) {
-        correctedMatch = labelAlignedMatch;
-      } else if (!blockMatchesFieldValue(field, value, provenanceBlock)) {
-        correctedMatch =
-          labelAlignedMatch && blockMatchesFieldValue(field, value, labelAlignedMatch.block)
-            ? labelAlignedMatch
-            : findBlockForField(
-                field as keyof ParsedInvoiceData,
-                value,
-                params.ocrBlocks,
-                params.fieldRegions[field as keyof ParsedInvoiceData] ?? []
-              );
-      }
-      const shouldUseCorrectedMatch =
-        !!correctedMatch &&
-        (
-          !provenanceBlock ||
-          field === "invoiceDate" ||
-          field === "dueDate" ||
-          !blockMatchesFieldValue(field, value, provenanceBlock)
-        );
-      const selectedMatch = shouldUseCorrectedMatch ? correctedMatch : undefined;
-      fieldProvenance[field] = {
-        source: slmProvenance.source ?? provenanceSource,
-        page: selectedMatch ? selectedMatch.block.page : slmProvenance.page ?? 1,
-        ...(selectedMatch?.block.bbox
-          ? { bbox: selectedMatch.block.bbox }
-          : slmProvenance.bbox
-            ? { bbox: slmProvenance.bbox }
-            : {}),
-        ...(selectedMatch?.block.bboxNormalized
-          ? { bboxNormalized: selectedMatch.block.bboxNormalized }
-          : slmProvenance.bboxNormalized
-            ? { bboxNormalized: slmProvenance.bboxNormalized }
-            : {}),
-        ...(selectedMatch?.block.bboxModel
-          ? { bboxModel: selectedMatch.block.bboxModel }
-          : slmProvenance.bboxModel
-            ? { bboxModel: slmProvenance.bboxModel }
-            : {}),
-        ...(typeof selectedMatch?.index === "number"
-          ? { blockIndex: selectedMatch.index }
-          : typeof slmProvenance.blockIndex === "number"
-            ? { blockIndex: slmProvenance.blockIndex }
-            : {}),
-        ...(typeof slmProvenance.confidence === "number"
-          ? { confidence: slmProvenance.confidence }
-          : { confidence: fieldConfidence[field] })
-      };
-      continue;
-    }
 
-    const slmBlockIndex = params.slmBlockIndices?.[field];
-    let matched: { block: OcrBlock; index: number } | undefined;
-    if (typeof slmBlockIndex === "number" && slmBlockIndex >= 0 && slmBlockIndex < params.ocrBlocks.length) {
-      matched = { block: params.ocrBlocks[slmBlockIndex], index: slmBlockIndex };
-    } else {
-      if (field.startsWith("gst.") && typeof value === "number") {
-        matched = findBlockByAmountValue(value, params.ocrBlocks, DEFAULT_FIELD_LABEL_PATTERNS[field]);
-      }
-      if (!matched) {
-        matched =
-          findBlockForField(
-            field as keyof ParsedInvoiceData,
-            value,
-            params.ocrBlocks,
-            params.fieldRegions[field as keyof ParsedInvoiceData] ?? []
-          ) ?? findBlockByLabelProximity(field as keyof ParsedInvoiceData, params.ocrBlocks);
-      }
-    }
-    const block = matched?.block;
-    if (block) {
-      fieldProvenance[field] = {
-        source: provenanceSource,
-        page: block.page,
-        bbox: block.bbox,
-        ...(block.bboxNormalized ? { bboxNormalized: block.bboxNormalized } : {}),
-        ...(block.bboxModel ? { bboxModel: block.bboxModel } : {}),
-        ...(typeof matched?.index === "number" ? { blockIndex: matched.index } : {}),
-        confidence: fieldConfidence[field]
-      };
-    } else {
-      fieldProvenance[field] = {
-        source: provenanceSource,
-        page: 1,
-        confidence: fieldConfidence[field]
-      };
-    }
+    fieldProvenance[key] = resolveFieldProvenance(
+      key,
+      value,
+      params.verifierFieldProvenance?.[key],
+      params.ocrBlocks,
+      params.fieldRegions[key as keyof ParsedInvoiceData] ?? [],
+      source,
+      fieldConfidence[key]
+    );
   }
 
-  params.metadata.fieldConfidence = JSON.stringify(fieldConfidence);
-  params.metadata.fieldProvenance = JSON.stringify(fieldProvenance);
   return { fieldConfidence, fieldProvenance };
 }
 
@@ -261,3 +199,5 @@ function isLowQualityToken(token: string): boolean {
 
   return /[^\w.,:/\-₹$€£]/.test(token);
 }
+
+export { extractFieldEntries, getFieldValue, resolveFieldConfidence, resolveFieldProvenance };

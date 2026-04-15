@@ -2,14 +2,10 @@ import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
-import { addFieldDiagnosticsToMetadata } from "@/ai/extractors/invoice/confidenceScoring/FieldConfidenceScorer.js";
+import { buildFieldDiagnostics } from "@/ai/extractors/invoice/confidenceScoring/FieldConfidenceScorer.js";
 import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
-/**
- * Stage 12: Computes per-field confidence scores and provenance via OCR block grounding.
- * Wraps `addFieldDiagnosticsToMetadata()` from FieldConfidenceScorer.
- */
 export class ComputeFieldDiagnosticsStep implements PipelineStep {
   readonly name = "compute-field-diagnostics";
 
@@ -18,23 +14,22 @@ export class ComputeFieldDiagnosticsStep implements PipelineStep {
     const ocrBlocks = ctx.store.require<OcrBlock[]>("invoice.ocrBlocks");
     const fieldRegions = ctx.store.get<Record<string, OcrBlock[]>>("invoice.fieldRegions") ?? {};
     const ocrConfidence = ctx.store.get<number>("invoice.ocrConfidence");
-    const validationIssues = ctx.store.require<string[]>(POST_ENGINE_CTX.VALIDATION_ISSUES);
     const slm = ctx.store.require<InvoiceSlmOutput>(POST_ENGINE_CTX.SLM_OUTPUT);
 
-    const diagnostics = addFieldDiagnosticsToMetadata({
-      metadata: ctx.metadata,
+    const diagnostics = buildFieldDiagnostics({
       parsed,
       ocrBlocks,
       fieldRegions,
       source: EXTRACTION_SOURCE.SLM_DIRECT,
       ocrConfidence,
-      validationIssues,
-      warnings: ctx.issues,
       templateAppliedFields: new Set<string>(),
       verifierChangedFields: slm.changedFields,
       verifierFieldConfidence: slm.fieldConfidence,
       verifierFieldProvenance: slm.fieldProvenance,
     });
+
+    ctx.metadata.fieldConfidence = JSON.stringify(diagnostics.fieldConfidence);
+    ctx.metadata.fieldProvenance = JSON.stringify(diagnostics.fieldProvenance);
 
     ctx.store.set(POST_ENGINE_CTX.FIELD_CONFIDENCE, diagnostics.fieldConfidence);
     ctx.store.set(POST_ENGINE_CTX.FIELD_PROVENANCE, diagnostics.fieldProvenance);
