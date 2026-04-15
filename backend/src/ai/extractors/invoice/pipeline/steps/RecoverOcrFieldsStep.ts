@@ -1,18 +1,18 @@
 import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { recoverHeaderFieldsFromOcr } from "../../stages/documentFieldRecovery.js";
+import { recoverHeaderFieldsFromOcr } from "@/ai/extractors/invoice/stages/documentFieldRecovery.js";
 import {
   computeSummaryTotalMinor,
   normalizeParsedAgainstOcrText,
   recoverGstSummaryFromOcr,
   recoverPreferredTotalAmountMinor,
-} from "../../stages/totalsRecovery.js";
+} from "@/ai/extractors/invoice/stages/totalsRecovery.js";
 import {
   classifyOcrRecoveryStrategy,
   recoverLineItemsFromOcr,
-} from "../../stages/lineItemRecovery.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+} from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 10: Recovers header fields, GST summary, totals, and line items from OCR blocks.

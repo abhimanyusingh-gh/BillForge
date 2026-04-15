@@ -1,7 +1,7 @@
 import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { validateInvoiceFields } from "../../deterministicValidation.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+import { validateInvoiceFields } from "@/ai/extractors/invoice/deterministicValidation.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 11: Runs deterministic field validation on the recovered parsed data.

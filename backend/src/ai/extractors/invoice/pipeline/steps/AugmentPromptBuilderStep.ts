@@ -1,8 +1,8 @@
 import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
-import type { InvoiceDocumentDefinition } from "../../InvoiceDocumentDefinition.js";
-import { INVOICE_CTX } from "../contextKeys.js";
+import type { InvoiceDocumentDefinition } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 
 export class AugmentPromptBuilderStep implements PipelineStep {
   readonly name = "augment-prompt-builder";

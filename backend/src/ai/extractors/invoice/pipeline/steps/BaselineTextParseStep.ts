@@ -1,10 +1,10 @@
 import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
-import type { VendorTemplateSnapshot } from "../../learning/vendorTemplateStore.js";
+import type { VendorTemplateSnapshot } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { parseInvoiceText } from "@/ai/parsers/invoiceParser.js";
-import { buildFieldCandidates, buildFieldRegions } from "../../stages/fieldCandidates.js";
-import { INVOICE_CTX } from "../contextKeys.js";
+import { buildFieldCandidates, buildFieldRegions } from "@/ai/extractors/invoice/stages/fieldCandidates.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 
 interface LanguageResolution {
   resolved: { code: string };

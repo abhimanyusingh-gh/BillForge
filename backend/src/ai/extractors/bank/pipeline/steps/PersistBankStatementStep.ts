@@ -3,8 +3,8 @@ import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import { BankStatementModel, BANK_STATEMENT_SOURCE, BANK_STATEMENT_PROCESSING_STATUS } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE } from "@/models/bank/BankTransaction.js";
 import { logger } from "@/utils/logger.js";
-import type { ParsedTransaction } from "./NormalizeTransactionsStep.js";
-import { BANK_CTX } from "../contextKeys.js";
+import type { ParsedTransaction } from "@/ai/extractors/bank/pipeline/steps/NormalizeTransactionsStep.js";
+import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
 /**
  * Persists the bank statement and its transactions to MongoDB.

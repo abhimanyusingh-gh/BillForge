@@ -1,7 +1,7 @@
 import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { ExtractedField } from "@/core/interfaces/OcrProvider.js";
-import { INVOICE_CTX } from "../contextKeys.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 
 /**
  * Gate stage inserted between stage 5 (detect-language) and stage 6 (baseline-text-parse).

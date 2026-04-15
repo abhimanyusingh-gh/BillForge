@@ -9,12 +9,12 @@ import type {
   ParsedInvoiceData,
 } from "@/types/invoice.js";
 import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
-import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
-import type { OcrRecoveryStrategy } from "../../stages/lineItemRecovery.js";
+import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
+import type { OcrRecoveryStrategy } from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
-import { uniqueIssues } from "../../../stages/fieldParsingUtils.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
-import type { PipelineExtractionResult } from "../../InvoiceExtractionPipeline.js";
+import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
+import type { PipelineExtractionResult } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 
 const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource> = {
   generic: EXTRACTION_SOURCE.SLM_GENERIC,

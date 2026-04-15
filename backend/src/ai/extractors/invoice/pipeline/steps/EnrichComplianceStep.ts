@@ -2,7 +2,7 @@ import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceEnricher } from "@/services/compliance/ComplianceEnricher.js";
 import { logger } from "@/utils/logger.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 13: Enriches the parsed data with compliance information (TDS, PAN, risk signals).

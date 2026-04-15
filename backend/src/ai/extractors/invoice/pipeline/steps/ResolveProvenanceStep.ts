@@ -1,13 +1,13 @@
 import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { InvoiceCompliance, InvoiceFieldKey, InvoiceFieldProvenance, ParsedInvoiceData } from "@/types/invoice.js";
-import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
+import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import {
   collectLineItemConfidence,
   mergeClassification,
   resolveLineItemProvenance,
-} from "../../stages/provenance.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+} from "@/ai/extractors/invoice/stages/provenance.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 15: Resolves line-item provenance via OCR block matching, collects

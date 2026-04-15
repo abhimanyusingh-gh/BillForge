@@ -2,7 +2,7 @@ import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/
 import type { ParsedInvoiceData, InvoiceCompliance } from "@/types/invoice.js";
 import { assessInvoiceConfidence } from "@/services/invoice/confidenceAssessment.js";
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 14: Assesses overall extraction confidence, applying risk signal penalties

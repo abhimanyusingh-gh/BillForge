@@ -3,8 +3,8 @@ import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type {
   SlmBankStatementOutput,
   BankStatementTransaction,
-} from "../../BankStatementDocumentDefinition.js";
-import { BANK_CTX } from "../contextKeys.js";
+} from "@/ai/extractors/bank/BankStatementDocumentDefinition.js";
+import { BANK_CTX } from "@/ai/extractors/bank/pipeline/contextKeys.js";
 
 export interface ParsedTransaction {
   date: string;

@@ -2,8 +2,8 @@ import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { OcrResult, OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import type { EnhancedOcrResult } from "@/ai/ocr/ocrPostProcessor.js";
-import { buildRankedOcrTextCandidates } from "../stages/ocrTextCandidates.js";
-import { INVOICE_CTX } from "../invoice/pipeline/contextKeys.js";
+import { buildRankedOcrTextCandidates } from "@/ai/extractors/stages/ocrTextCandidates.js";
+import { INVOICE_CTX } from "@/ai/extractors/invoice/pipeline/contextKeys.js";
 
 export class BuildTextCandidatesStep implements PipelineStep {
   readonly name = "build-text-candidates";

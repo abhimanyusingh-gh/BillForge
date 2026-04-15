@@ -1,9 +1,9 @@
 import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
-import type { InvoiceSlmOutput } from "../../InvoiceDocumentDefinition.js";
+import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { sanitizeInvoiceExtraction } from "../../InvoiceExtractionSanitizer.js";
-import { uniqueIssues } from "../../../stages/fieldParsingUtils.js";
-import { POST_ENGINE_CTX } from "../postEngineContextKeys.js";
+import { sanitizeInvoiceExtraction } from "@/ai/extractors/invoice/InvoiceExtractionSanitizer.js";
+import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
+import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
 /**
  * Stage 9: Merges the baseline (heuristic) parsed data with SLM output.
