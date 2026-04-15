@@ -4,9 +4,6 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 interface DeterministicValidationInput {
   parsed: ParsedInvoiceData;
   ocrText?: string;
-  expectedMaxTotal: number;
-  expectedMaxDueDays: number;
-  referenceDate?: Date;
 }
 
 interface DeterministicValidationResult {
@@ -36,11 +33,6 @@ export function validateInvoiceFields(input: DeterministicValidationInput): Dete
   if (typeof totalAmountMinor !== "number" || !Number.isInteger(totalAmountMinor) || totalAmountMinor <= 0) {
     issues.push("Total amount is missing or invalid.");
   } else {
-    const hardMax = Math.round(Math.max(1, input.expectedMaxTotal) * 100);
-    if (totalAmountMinor > hardMax) {
-      issues.push("Total amount exceeds configured expected maximum.");
-    }
-
     const vatAmountMinor = extractTaxAmountMinor(input.ocrText);
     if (vatAmountMinor !== undefined && vatAmountMinor > totalAmountMinor) {
       issues.push("Detected VAT/tax value exceeds invoice total.");
@@ -56,19 +48,6 @@ export function validateInvoiceFields(input: DeterministicValidationInput): Dete
   if (invoiceDate && dueDate) {
     if (dueDate.getTime() < invoiceDate.getTime()) {
       issues.push("Due date is earlier than invoice date.");
-    } else {
-      const diffDays = Math.ceil((dueDate.getTime() - invoiceDate.getTime()) / 86_400_000);
-      if (diffDays > input.expectedMaxDueDays) {
-        issues.push("Due date range exceeds configured expected maximum.");
-      }
-    }
-  }
-
-  const referenceDate = input.referenceDate;
-  if (referenceDate && invoiceDate) {
-    const driftDays = Math.abs(Math.ceil((referenceDate.getTime() - invoiceDate.getTime()) / 86_400_000));
-    if (driftDays > 365 * 4) {
-      issues.push("Invoice date is far outside expected operating window.");
     }
   }
 
@@ -193,4 +172,3 @@ function parseAmountMinor(raw: string): number | undefined {
   const minor = Math.round(parsed * 100);
   return negative ? -minor : minor;
 }
-
