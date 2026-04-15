@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "@/services/bank/anumati/IBankConnectionService.js";
 import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
+import type { UUID } from "@/types/uuid.js";
 
 const MOCK_BALANCE_MINOR = 12345600;
 const MOCK_BANK_NAME = "Demo Bank";
@@ -9,8 +10,8 @@ const MOCK_MASKED_ACC = "XXXX1234";
 
 export class MockBankConnectionService implements IBankConnectionService {
   async initiateConsent(params: {
-    tenantId: string;
-    userId: string;
+    tenantId: UUID;
+    userId: UUID;
     aaAddress: string;
     displayName: string;
     bankAccountId: string;

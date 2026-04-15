@@ -1,11 +1,12 @@
 import type { Request } from "express";
 import type { TenantRole } from "@/models/core/TenantUserRole.js";
 import type { OnboardingStatus } from "@/types/onboarding.js";
+import type { UUID } from "@/types/uuid.js";
 
 export interface AuthenticatedRequestContext {
-  userId: string;
+  userId: UUID;
   email: string;
-  tenantId: string;
+  tenantId: UUID;
   tenantName: string;
   onboardingStatus: OnboardingStatus;
   role: TenantRole;

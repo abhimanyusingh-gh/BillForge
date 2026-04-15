@@ -1,14 +1,10 @@
 import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
-import { sanitizeInvoiceExtraction } from "@/ai/extractors/invoice/InvoiceExtractionSanitizer.js";
+import { normalizeInvoiceFields } from "@/ai/extractors/invoice/normalizeInvoiceFields.js";
 import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
 
-/**
- * Stage 9: Merges the baseline (heuristic) parsed data with SLM output.
- * Equivalent to the private `mergeParsedInvoiceData()` in InvoiceExtractionPipeline.
- */
 export class MergeBaselineWithSlmStep implements PipelineStep {
   readonly name = "merge-baseline-with-slm";
 
@@ -25,8 +21,8 @@ export class MergeBaselineWithSlmStep implements PipelineStep {
 }
 
 function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoiceData): ParsedInvoiceData {
-  const baseNormalized = sanitizeInvoiceExtraction(base);
-  const overrideNormalized = sanitizeInvoiceExtraction(override);
+  const baseNormalized = normalizeInvoiceFields(base);
+  const overrideNormalized = normalizeInvoiceFields(override);
   const merged: ParsedInvoiceData = { ...baseNormalized, ...overrideNormalized };
 
   if (baseNormalized.gst || overrideNormalized.gst) {
@@ -44,5 +40,5 @@ function mergeParsedInvoiceData(base: ParsedInvoiceData, override: ParsedInvoice
     merged.notes = notes;
   }
 
-  return sanitizeInvoiceExtraction(merged);
+  return normalizeInvoiceFields(merged);
 }

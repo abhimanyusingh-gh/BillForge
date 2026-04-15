@@ -3,10 +3,11 @@ import path from "node:path";
 import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionSource.js";
 import type { WorkloadTier } from "@/types/tenant.js";
 import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 
 interface FolderSourceConfig {
   key: string;
-  tenantId?: string;
+  tenantId?: UUID;
   workloadTier?: WorkloadTier;
   folderPath: string;
   recursive?: boolean;
@@ -31,7 +32,7 @@ export class FolderIngestionSource implements IngestionSource {
   readonly type = "folder";
 
   readonly key: string;
-  readonly tenantId: string;
+  readonly tenantId: UUID;
   readonly workloadTier: WorkloadTier;
 
   private readonly folderPath: string;
@@ -40,7 +41,7 @@ export class FolderIngestionSource implements IngestionSource {
 
   constructor(config: FolderSourceConfig) {
     this.key = config.key;
-    this.tenantId = config.tenantId ?? "default";
+    this.tenantId = config.tenantId ?? toUUID("default");
     this.workloadTier = config.workloadTier ?? "standard";
     this.folderPath = path.resolve(config.folderPath);
     this.recursive = config.recursive ?? false;

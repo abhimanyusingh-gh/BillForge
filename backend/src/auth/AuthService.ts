@@ -8,6 +8,7 @@ import type { OidcProvider } from "@/sts/OidcProvider.js";
 import { createSessionToken, verifySessionToken } from "@/auth/sessionToken.js";
 import { encryptSecret, decryptSecret } from "@/utils/secretCrypto.js";
 import type { AuthenticatedRequestContext, SessionFlagsPayload } from "@/types/auth.js";
+import { toUUID } from "@/types/uuid.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
 import { HttpError } from "@/errors/HttpError.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
@@ -222,7 +223,7 @@ export class AuthService {
     }
 
     return {
-      userId: String(user._id),
+      userId: toUUID(String(user._id)),
       email: user.email,
       tenantId: verified.tenantId,
       tenantName: tenant.name,
@@ -339,9 +340,9 @@ function buildContext(
   tenant: { _id?: unknown; name: string; onboardingStatus: OnboardingStatus },
   role: string
 ): AuthenticatedRequestContext {
-  const tenantId = user.tenantId || String(tenant._id);
+  const tenantId = toUUID(user.tenantId || String(tenant._id));
   return {
-    userId: String(user._id), email: user.email, tenantId,
+    userId: toUUID(String(user._id)), email: user.email, tenantId,
     tenantName: tenant.name, onboardingStatus: tenant.onboardingStatus,
     role: normalizeTenantRole(role), isPlatformAdmin: isPlatformAdminEmail(user.email)
   };

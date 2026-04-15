@@ -7,6 +7,7 @@ import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "@/utils/mi
 import { assertDocumentMimeType } from "@/types/mime.js";
 import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
 import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "@/sources/email/types.js";
+import { toUUID } from "@/types/uuid.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 
 interface WrapperMessage {
@@ -75,7 +76,7 @@ export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
         }
 
         files.push({
-          tenantId: this.config.tenantId ?? "default",
+          tenantId: this.config.tenantId ?? toUUID("default"),
           workloadTier: this.config.workloadTier ?? "standard",
           sourceKey: this.config.key,
           sourceType: "email",

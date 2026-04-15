@@ -4,6 +4,7 @@ import { ExportBatchModel } from "@/models/invoice/ExportBatch.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import type { AccountingExporter } from "@/core/interfaces/AccountingExporter.ts";
 import type { FileStore } from "@/core/interfaces/FileStore.ts";
+import { toUUID } from "@/types/uuid.js";
 
 function createMockExporter(overrides?: Partial<AccountingExporter>): AccountingExporter {
   return {
@@ -45,7 +46,7 @@ describe("ExportService", () => {
       jest.spyOn(ExportBatchModel, "countDocuments").mockResolvedValue(0 as never);
 
       const service = new ExportService(createMockExporter());
-      const result = await service.listExportHistory({ tenantId: "tenant-a", page: 1, limit: 20 });
+      const result = await service.listExportHistory({ tenantId: toUUID("tenant-a"), page: 1, limit: 20 });
 
       expect(result.items).toEqual([]);
       expect(result.total).toBe(0);
@@ -57,7 +58,7 @@ describe("ExportService", () => {
       const batchId = new Types.ObjectId();
       const mockBatch = {
         _id: batchId,
-        tenantId: "tenant-a",
+        tenantId: toUUID("tenant-a"),
         system: "tally",
         total: 5,
         successCount: 4,
@@ -77,7 +78,7 @@ describe("ExportService", () => {
       jest.spyOn(ExportBatchModel, "countDocuments").mockResolvedValue(1 as never);
 
       const service = new ExportService(createMockExporter());
-      const result = await service.listExportHistory({ tenantId: "tenant-a", page: 1, limit: 20 });
+      const result = await service.listExportHistory({ tenantId: toUUID("tenant-a"), page: 1, limit: 20 });
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0]).toEqual(
@@ -98,7 +99,7 @@ describe("ExportService", () => {
       const batchId = new Types.ObjectId();
       const mockBatch = {
         _id: batchId,
-        tenantId: "tenant-a",
+        tenantId: toUUID("tenant-a"),
         system: "tally",
         total: 3,
         successCount: 0,
@@ -117,7 +118,7 @@ describe("ExportService", () => {
       jest.spyOn(ExportBatchModel, "countDocuments").mockResolvedValue(1 as never);
 
       const service = new ExportService(createMockExporter());
-      const result = await service.listExportHistory({ tenantId: "tenant-a", page: 1, limit: 20 });
+      const result = await service.listExportHistory({ tenantId: toUUID("tenant-a"), page: 1, limit: 20 });
 
       expect(result.items[0].hasFile).toBe(false);
     });
@@ -132,7 +133,7 @@ describe("ExportService", () => {
       jest.spyOn(ExportBatchModel, "countDocuments").mockResolvedValue(25 as never);
 
       const service = new ExportService(createMockExporter());
-      await service.listExportHistory({ tenantId: "tenant-a", page: 2, limit: 10 });
+      await service.listExportHistory({ tenantId: toUUID("tenant-a"), page: 2, limit: 10 });
 
       const chain = findSpy.mock.results[0].value;
       expect(chain.skip).toHaveBeenCalledWith(10);
@@ -149,10 +150,10 @@ describe("ExportService", () => {
       const countSpy = jest.spyOn(ExportBatchModel, "countDocuments").mockResolvedValue(0 as never);
 
       const service = new ExportService(createMockExporter());
-      await service.listExportHistory({ tenantId: "tenant-x", page: 1, limit: 20 });
+      await service.listExportHistory({ tenantId: toUUID("tenant-x"), page: 1, limit: 20 });
 
-      expect(findSpy).toHaveBeenCalledWith({ tenantId: "tenant-x" });
-      expect(countSpy).toHaveBeenCalledWith({ tenantId: "tenant-x" });
+      expect(findSpy).toHaveBeenCalledWith({ tenantId: toUUID("tenant-x") });
+      expect(countSpy).toHaveBeenCalledWith({ tenantId: toUUID("tenant-x") });
     });
   });
 
@@ -185,7 +186,7 @@ describe("ExportService", () => {
       const service = new ExportService(createMockExporter(), createMockFileStore());
       await service.downloadExportFile("batch-123", "tenant-a");
 
-      expect(findOneSpy).toHaveBeenCalledWith({ _id: "batch-123", tenantId: "tenant-a" });
+      expect(findOneSpy).toHaveBeenCalledWith({ _id: "batch-123", tenantId: toUUID("tenant-a") });
     });
 
     it("throws when file store is not configured", async () => {
@@ -212,11 +213,11 @@ describe("ExportService", () => {
       const service = new ExportService(createMockExporter(), createMockFileStore());
       await service.generateExportFile({
         requestedBy: "admin@test.com",
-        tenantId: "tenant-b"
+        tenantId: toUUID("tenant-b")
       });
 
       expect(createSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: "tenant-b" })
+        expect.objectContaining({ tenantId: toUUID("tenant-b") })
       );
     });
 
@@ -226,7 +227,7 @@ describe("ExportService", () => {
       const service = new ExportService(createMockExporter(), createMockFileStore());
       const result = await service.generateExportFile({
         requestedBy: "admin@test.com",
-        tenantId: "tenant-a"
+        tenantId: toUUID("tenant-a")
       });
 
       expect(result.total).toBe(0);
@@ -248,7 +249,7 @@ describe("ExportService", () => {
       const service = new ExportService(createMockExporter(), fileStore);
       await service.generateExportFile({
         requestedBy: "admin@test.com",
-        tenantId: "tenant-c"
+        tenantId: toUUID("tenant-c")
       });
 
       expect(fileStore.putObject).toHaveBeenCalledWith(
@@ -273,7 +274,7 @@ describe("ExportService", () => {
 
       const exporter = createMockExporter({
         exportInvoices: jest.fn(async () => [
-          { invoiceId: String(mockInvoice._id), success: true, externalReference: "ref-1" }
+          { invoiceId: toUUID(String(mockInvoice._id)), success: true, externalReference: "ref-1" }
         ])
       });
       const createSpy = jest.spyOn(ExportBatchModel, "create").mockResolvedValue({
@@ -283,11 +284,11 @@ describe("ExportService", () => {
       const service = new ExportService(exporter);
       await service.exportApprovedInvoices({
         requestedBy: "admin@test.com",
-        tenantId: "tenant-d"
+        tenantId: toUUID("tenant-d")
       });
 
       expect(createSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: "tenant-d" })
+        expect.objectContaining({ tenantId: toUUID("tenant-d") })
       );
     });
 
@@ -297,7 +298,7 @@ describe("ExportService", () => {
       const service = new ExportService(createMockExporter());
       const result = await service.exportApprovedInvoices({
         requestedBy: "admin@test.com",
-        tenantId: "tenant-a"
+        tenantId: toUUID("tenant-a")
       });
 
       expect(result.total).toBe(0);

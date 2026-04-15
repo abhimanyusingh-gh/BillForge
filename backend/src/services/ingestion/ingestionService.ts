@@ -9,6 +9,7 @@ import { normalizeInvoiceMimeType } from "@/utils/mime.js";
 import { assertDocumentMimeType } from "@/types/mime.js";
 import type { WorkloadTier } from "@/types/tenant.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { S3UploadIngestionSource } from "@/sources/S3UploadIngestionSource.js";
@@ -36,7 +37,7 @@ interface IngestionRunProgress extends IngestionRunSummary {
 
 interface IngestionServiceOptions {
   afterFileProcessed?: (params: {
-    tenantId: string;
+    tenantId: UUID;
     workloadTier: WorkloadTier;
     sourceKey: string;
     checkpointValue: string;
@@ -48,7 +49,7 @@ interface IngestionServiceOptions {
 
 interface RunOnceRuntimeOptions {
   onProgress?: (progress: IngestionRunProgress) => Promise<void> | void;
-  tenantId?: string;
+  tenantId?: UUID;
 }
 
 export class IngestionService {
@@ -102,29 +103,29 @@ export class IngestionService {
 
     await emitProgress(true);
 
-    const runtimeTenantId =
-      runtimeOptions?.tenantId && runtimeOptions.tenantId.trim().length > 0 ? runtimeOptions.tenantId.trim() : "";
+    const runtimeTenantId: UUID | null =
+      runtimeOptions?.tenantId && runtimeOptions.tenantId.trim().length > 0 ? toUUID(runtimeOptions.tenantId.trim()) : null;
     const prioritizedSources = [...this.sources].sort(compareSourcePriority);
     const tenantMatchedSources =
-      runtimeTenantId.length > 0
+      runtimeTenantId !== null
         ? prioritizedSources.filter((source) => source.tenantId === runtimeTenantId)
         : prioritizedSources;
     let tenantScopedSources =
-      runtimeTenantId.length > 0 && tenantMatchedSources.length > 0 ? tenantMatchedSources : prioritizedSources;
+      runtimeTenantId !== null && tenantMatchedSources.length > 0 ? tenantMatchedSources : prioritizedSources;
 
-    if (runtimeTenantId.length > 0) {
+    if (runtimeTenantId !== null) {
       const tenantDoc = await TenantModel.findById(runtimeTenantId).select({ mode: 1 }).lean();
       if (tenantDoc?.mode === "live") {
         tenantScopedSources = tenantScopedSources.filter((s) => s.type !== INGESTION_SOURCE_TYPE.FOLDER);
       }
     }
 
-    if (runtimeTenantId.length > 0 && this.fileStore?.listObjects) {
+    if (runtimeTenantId !== null && this.fileStore?.listObjects) {
       const uploadSource = new S3UploadIngestionSource(runtimeTenantId, this.fileStore);
       tenantScopedSources = [...tenantScopedSources, uploadSource];
     }
 
-    if (runtimeTenantId.length > 0 && tenantMatchedSources.length === 0) {
+    if (runtimeTenantId !== null && tenantMatchedSources.length === 0) {
       logger.warn("ingestion.run.tenant_source_fallback", {
         tenantId: runtimeTenantId,
         sourceCount: prioritizedSources.length
@@ -132,7 +133,7 @@ export class IngestionService {
     }
 
     for (const source of tenantScopedSources) {
-      const effectiveTenantId = runtimeTenantId || source.tenantId;
+      const effectiveTenantId = runtimeTenantId ?? source.tenantId;
       const checkpoint = await CheckpointModel.findOne({ sourceKey: source.key, tenantId: effectiveTenantId }).lean();
       const sourceFiles = await source.fetchNewFiles(checkpoint?.marker ?? null);
       const files = await this.filterAlreadyProcessedFiles(source, sourceFiles, effectiveTenantId);
@@ -223,7 +224,7 @@ export class IngestionService {
   private async filterAlreadyProcessedFiles(
     source: IngestionSource,
     files: IngestedFile[],
-    effectiveTenantId: string
+    effectiveTenantId: UUID
   ): Promise<IngestedFile[]> {
     if (files.length === 0 || (source.type !== INGESTION_SOURCE_TYPE.FOLDER && source.type !== INGESTION_SOURCE_TYPE.S3_UPLOAD)) {
       return files;

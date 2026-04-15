@@ -6,11 +6,12 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
 import { EXPORT_SAVE_CONCURRENCY } from "@/constants.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 
 interface ExportRequest {
   ids?: string[];
   requestedBy: string;
-  tenantId: string;
+  tenantId: UUID;
 }
 
 export class ExportService {
@@ -75,7 +76,7 @@ export class ExportService {
     const batchId = String(batch._id);
 
     const saveResults = await saveBatch(invoices, EXPORT_SAVE_CONCURRENCY, async (invoice) => {
-      const result = resultMap.get(String(invoice._id));
+      const result = resultMap.get(toUUID(String(invoice._id)));
       if (!result) {
         return;
       }
@@ -206,7 +207,7 @@ export class ExportService {
     const batchId = String(batch._id);
     const now = new Date();
     const bulkOps = invoices
-      .filter((invoice) => !skippedIds.has(String(invoice._id)))
+      .filter((invoice) => !skippedIds.has(toUUID(String(invoice._id))))
       .map((invoice) => ({
         updateOne: {
           filter: { _id: invoice._id },
@@ -251,7 +252,7 @@ export class ExportService {
     };
   }
 
-  async listExportHistory(params: { tenantId: string; page: number; limit: number }) {
+  async listExportHistory(params: { tenantId: UUID; page: number; limit: number }) {
     const query = { tenantId: params.tenantId };
     const skip = (params.page - 1) * params.limit;
 

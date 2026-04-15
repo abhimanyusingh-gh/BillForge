@@ -3,6 +3,7 @@ import type { FileStore } from "@/core/interfaces/FileStore.js";
 import type { IngestedFile, IngestionSource } from "@/core/interfaces/IngestionSource.js";
 import type { WorkloadTier } from "@/types/tenant.js";
 import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
+import type { UUID } from "@/types/uuid.js";
 
 const MIME_BY_EXTENSION: Record<string, DocumentMimeType> = {
   ".pdf": DOCUMENT_MIME_TYPE.PDF,
@@ -14,13 +15,13 @@ const MIME_BY_EXTENSION: Record<string, DocumentMimeType> = {
 export class S3UploadIngestionSource implements IngestionSource {
   readonly type = "s3-upload";
   readonly key: string;
-  readonly tenantId: string;
+  readonly tenantId: UUID;
   readonly workloadTier: WorkloadTier = "standard";
 
   private readonly fileStore: FileStore;
   private readonly prefix: string;
 
-  constructor(tenantId: string, fileStore: FileStore) {
+  constructor(tenantId: UUID, fileStore: FileStore) {
     this.tenantId = tenantId;
     this.key = `s3-upload-${tenantId}`;
     this.fileStore = fileStore;

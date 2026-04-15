@@ -6,6 +6,7 @@ import { DOC_TYPE } from "@/core/engine/DocumentDefinition.ts";
 import type { ProcessingContext, ValidationResult } from "@/core/engine/types.ts";
 import { DocumentProcessingError } from "@/core/engine/types.ts";
 import * as nativePdfText from "@/ai/extractors/stages/nativePdfText.ts";
+import { toUUID } from "@/types/uuid.js";
 
 jest.mock("../../ai/extractors/stages/nativePdfText.ts");
 
@@ -50,7 +51,7 @@ function makeFieldVerifier(rawJson: string): FieldVerifier {
 
 function makeCtx(overrides?: Partial<ProcessingContext>): ProcessingContext {
   return {
-    tenantId: "t1",
+    tenantId: toUUID("t1"),
     fileName: "test.pdf",
     mimeType: "application/pdf",
     fileBuffer: Buffer.from("test-pdf"),

@@ -4,6 +4,7 @@ import { logger } from "@/utils/logger.js";
 import type { WorkloadTier } from "@/types/tenant.js";
 import { createDefaultManifest, deepMerge, resolveRuntimeManifestPath, resolveSource } from "@/core/runtimeManifestConfig.js";
 import { runtimeManifestSchema, type RuntimeManifestInput, type RuntimeSourceInput } from "@/core/runtimeManifestSchema.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 
 import type { IngestionSourceType } from "@/core/interfaces/IngestionSource.js";
 import type { EmailTransportType, EmailAuthMode } from "@/types/email.js";
@@ -25,7 +26,7 @@ export type LlamaParseTier = (typeof LLAMA_PARSE_TIER)[keyof typeof LLAMA_PARSE_
 interface SourceBaseManifest {
   type: SourceType;
   key: string;
-  tenantId: string;
+  tenantId: UUID;
   workloadTier: WorkloadTier;
 }
 
@@ -64,7 +65,7 @@ export interface FolderSourceManifest extends SourceBaseManifest {
 export type IngestionSourceManifest = EmailSourceManifest | FolderSourceManifest;
 
 export interface RuntimeManifest {
-  defaultTenantId: string;
+  defaultTenantId: UUID;
   defaultWorkloadTier: WorkloadTier;
   sources: IngestionSourceManifest[];
   database: {
@@ -124,7 +125,7 @@ export interface RuntimeManifest {
 }
 
 export function loadRuntimeManifest(): RuntimeManifest {
-  const defaultTenantId = env.DEFAULT_TENANT_ID;
+  const defaultTenantId = toUUID(env.DEFAULT_TENANT_ID);
   const defaultWorkloadTier = env.DEFAULT_WORKLOAD_TIER;
   const defaults = createDefaultManifest(defaultTenantId, defaultWorkloadTier);
   const manifestPath = resolveRuntimeManifestPath();
@@ -132,7 +133,7 @@ export function loadRuntimeManifest(): RuntimeManifest {
   if (!manifestPath) return defaults;
 
   const parsed: RuntimeManifestInput = runtimeManifestSchema.parse(JSON.parse(readFileSync(manifestPath, "utf-8")));
-  const resolvedDefaultTenantId = parsed.defaultTenantId ?? defaults.defaultTenantId;
+  const resolvedDefaultTenantId = parsed.defaultTenantId ? toUUID(parsed.defaultTenantId) : defaults.defaultTenantId;
   const resolvedDefaultWorkloadTier = parsed.defaultWorkloadTier ?? defaults.defaultWorkloadTier;
 
   const merged = deepMerge(defaults as unknown as Record<string, unknown>, {

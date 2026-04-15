@@ -1,9 +1,10 @@
 import type { FileStore } from "@/core/interfaces/FileStore.js";
+import { toUUID } from "@/types/uuid.js";
 
 export const defaultAuth = {
-  userId: "user-1",
+  userId: toUUID("user-1"),
   email: "admin@test.com",
-  tenantId: "tenant-a",
+  tenantId: toUUID("tenant-a"),
   tenantName: "Test Tenant",
   role: "TENANT_ADMIN",
   isPlatformAdmin: false

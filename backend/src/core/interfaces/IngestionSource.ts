@@ -1,5 +1,6 @@
 import type { WorkloadTier } from "@/types/tenant.js";
 import type { DocumentMimeType } from "@/types/mime.js";
+import type { UUID } from "@/types/uuid.js";
 
 export const INGESTION_SOURCE_TYPE = {
   EMAIL: "email",
@@ -10,7 +11,7 @@ export const INGESTION_SOURCE_TYPE = {
 export type IngestionSourceType = (typeof INGESTION_SOURCE_TYPE)[keyof typeof INGESTION_SOURCE_TYPE];
 
 export interface IngestedFile {
-  tenantId: string;
+  tenantId: UUID;
   workloadTier: WorkloadTier;
   sourceKey: string;
   sourceType: IngestionSourceType;
@@ -26,7 +27,7 @@ export interface IngestedFile {
 export interface IngestionSource {
   readonly key: string;
   readonly type: IngestionSourceType;
-  readonly tenantId: string;
+  readonly tenantId: UUID;
   readonly workloadTier: WorkloadTier;
   fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]>;
 }

@@ -5,13 +5,14 @@ import { MailhogOAuthIngestionProvider } from "@/sources/email/MailhogOAuthInges
 import type { EmailSourceConfig } from "@/sources/email/types.js";
 import { EMAIL_TRANSPORT_TYPE } from "@/types/email.js";
 import type { WorkloadTier } from "@/types/tenant.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 
 export type { EmailSourceConfig } from "@/sources/email/types.js";
 
 export class EmailIngestionSource implements IngestionSource {
   readonly type = "email";
   readonly key: string;
-  readonly tenantId: string;
+  readonly tenantId: UUID;
   readonly workloadTier: WorkloadTier;
 
   private readonly boundary: EmailIngestionBoundary;
@@ -19,7 +20,7 @@ export class EmailIngestionSource implements IngestionSource {
   constructor(private readonly config: EmailSourceConfig) {
     assertSecureGmailConfig(config);
     this.key = config.key;
-    this.tenantId = config.tenantId ?? "default";
+    this.tenantId = config.tenantId ?? toUUID("default");
     this.workloadTier = config.workloadTier ?? "standard";
     this.boundary =
       config.transport === EMAIL_TRANSPORT_TYPE.MAILHOG_OAUTH ? new MailhogOAuthIngestionProvider(config) : new GmailImapIngestionProvider(config);

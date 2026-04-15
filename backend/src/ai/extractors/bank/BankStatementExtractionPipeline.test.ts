@@ -2,6 +2,7 @@ import { BankStatementExtractionPipeline } from "@/ai/extractors/bank/BankStatem
 import { BankStatementModel, BANK_STATEMENT_SOURCE } from "@/models/bank/BankStatement.ts";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE } from "@/models/bank/BankTransaction.ts";
 import * as nativePdfText from "@/ai/extractors/stages/nativePdfText.ts";
+import { toUUID } from "@/types/uuid.js";
 
 jest.mock("@/models/bank/BankStatement.ts");
 jest.mock("@/models/bank/BankTransaction.ts");
@@ -59,7 +60,7 @@ describe("BankStatementExtractionPipeline", () => {
     makeTransactionFind();
 
     const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,\n2026-01-11,Customer Refund,,10000`;
-    const result = await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     expect(result.transactionCount).toBe(2);
     expect(result.duplicatesSkipped).toBe(0);
@@ -92,7 +93,7 @@ describe("BankStatementExtractionPipeline", () => {
     makeTransactionFind();
 
     const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor,"1,08,000.00",`;
-    const result = await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     expect(result.transactionCount).toBe(1);
     expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
@@ -108,7 +109,7 @@ describe("BankStatementExtractionPipeline", () => {
     makeTransactionFind();
 
     const csv = `Date,Description,Debit,Credit\n10/01/2026,Vendor Payment,50000,`;
-    await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -123,7 +124,7 @@ describe("BankStatementExtractionPipeline", () => {
     makeTransactionFind();
 
     const csv = `Date,Description,Debit,Credit\n2026-01-10,Opening Balance,,\n2026-01-11,Real Txn,50000,`;
-    const result = await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     expect(result.transactionCount).toBe(1);
   });
@@ -134,7 +135,7 @@ describe("BankStatementExtractionPipeline", () => {
     makeTransactionFind();
 
     const csv = `Date,Description,Debit,Credit\n2026-01-10,"Payment for invoice, Jan",50000,`;
-    const result = await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     expect(result.transactionCount).toBe(1);
     expect(BankTransactionModel.insertMany).toHaveBeenCalledWith(
@@ -159,7 +160,7 @@ describe("BankStatementExtractionPipeline", () => {
     makeTransactionInsert();
 
     const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,\n2026-01-11,New Payment,20000,`;
-    const result = await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    const result = await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     expect(result.duplicatesSkipped).toBe(1);
     expect(result.transactionCount).toBe(1);
@@ -168,7 +169,7 @@ describe("BankStatementExtractionPipeline", () => {
   it("rejects CSV with only headers", async () => {
     const csv = `Date,Description,Debit,Credit`;
     await expect(
-      parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com")
+      parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com")
     ).rejects.toThrow("CSV must have at least a header row and one data row.");
   });
 
@@ -178,7 +179,7 @@ describe("BankStatementExtractionPipeline", () => {
     makeTransactionFind();
 
     const csv = `Date,Description,Debit,Credit\n2026-01-10,Vendor Payment,50000,`;
-    await parser.parseCsv("t1", "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
+    await parser.parseCsv(toUUID("t1"), "bank.csv", csv, { date: 0, description: 1, debit: 2, credit: 3 }, "user@test.com");
 
     const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
     expect(insertCall[0].source).toBe(BANK_TRANSACTION_SOURCE.CSV);
@@ -212,7 +213,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    const result = await parser.parsePdf("t1", "statement.pdf", Buffer.from("pdf-content"), "application/pdf", "user@test.com");
+    const result = await parser.parsePdf(toUUID("t1"), "statement.pdf", Buffer.from("pdf-content"), "application/pdf", "user@test.com");
 
     expect(result.transactionCount).toBe(1);
     expect(result.bankName).toBe("ICICI Bank");
@@ -246,7 +247,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    const result = await parser.parsePdf("t1", "hdfc.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
+    const result = await parser.parsePdf(toUUID("t1"), "hdfc.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
 
     expect(result.transactionCount).toBe(1);
     expect(result.bankName).toBe("HDFC Bank");
@@ -260,7 +261,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     const parser = new BankStatementExtractionPipeline({ fieldVerifier: fieldVerifier as never });
 
     await expect(
-      parser.parsePdf("t1", "scan.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com")
+      parser.parsePdf(toUUID("t1"), "scan.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com")
     ).rejects.toThrow("Native PDF text extraction yielded insufficient text and OCR provider is not available.");
   });
 
@@ -268,7 +269,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     const parser = new BankStatementExtractionPipeline();
 
     await expect(
-      parser.parsePdf("t1", "test.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com")
+      parser.parsePdf(toUUID("t1"), "test.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com")
     ).rejects.toThrow("SLM field verifier is not available.");
   });
 
@@ -314,7 +315,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    const result = await parser.parsePdf("t1", "large.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
+    const result = await parser.parsePdf(toUUID("t1"), "large.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
 
     expect(result.transactionCount).toBe(3);
     expect(result.bankName).toBe("ICICI Bank");
@@ -338,7 +339,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    await parser.parsePdf("t1", "sbi.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
+    await parser.parsePdf(toUUID("t1"), "sbi.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
 
     const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
     expect(insertCall[0]).toMatchObject({
@@ -362,7 +363,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    await parser.parsePdf("t1", "test.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
+    await parser.parsePdf(toUUID("t1"), "test.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
 
     const insertCall = (BankTransactionModel.insertMany as jest.Mock).mock.calls[0][0];
     expect(insertCall[0]).toMatchObject({
@@ -388,7 +389,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    const result = await parser.parsePdf("t1", "test.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
+    const result = await parser.parsePdf(toUUID("t1"), "test.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
 
     expect(result.transactionCount).toBe(1);
     expect(result.warnings.length).toBeGreaterThan(0);
@@ -412,7 +413,7 @@ describe("BankStatementExtractionPipeline.parsePdf", () => {
     makeTransactionInsert();
     makeTransactionFind();
 
-    await parser.parsePdf("t1", "statement.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
+    await parser.parsePdf(toUUID("t1"), "statement.pdf", Buffer.from("pdf"), "application/pdf", "user@test.com");
 
     const createCall = (BankStatementModel.create as jest.Mock).mock.calls[0][0] as Record<string, unknown>;
     expect(createCall["source"]).toBe(BANK_STATEMENT_SOURCE.PDF);

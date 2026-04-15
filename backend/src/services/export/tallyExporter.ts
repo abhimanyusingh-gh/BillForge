@@ -4,6 +4,7 @@ import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
 import { EXPORT_CONTENT_TYPE } from "@/types/mime.js";
+import { toUUID } from "@/types/uuid.js";
 import {
   buildTallyBatchImportXml,
   buildTallyPurchaseVoucherPayload,
@@ -62,7 +63,7 @@ export class TallyExporter implements AccountingExporter {
     logger.info("tally.export.batch.start", { totalInvoices: invoices.length });
 
     for (const invoice of invoices) {
-      const invoiceId = String(invoice._id);
+      const invoiceId = toUUID(String(invoice._id));
 
       try {
         const resolvedTotalAmountMinor = resolveInvoiceTotalAmountMinor(
@@ -158,7 +159,7 @@ export class TallyExporter implements AccountingExporter {
     const skippedItems: ExportResultItem[] = [];
 
     for (const invoice of invoices) {
-      const invoiceId = String(invoice._id);
+      const invoiceId = toUUID(String(invoice._id));
       const resolvedAmount = resolveInvoiceTotalAmountMinor(
         invoice.parsed?.totalAmountMinor,
         invoice.parsed?.currency,

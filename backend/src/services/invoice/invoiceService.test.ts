@@ -19,12 +19,13 @@ import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { InvoiceService } from "@/services/invoice/invoiceService.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
+import { toUUID } from "@/types/uuid.js";
 
-const TENANT_ID = "65f0000000000000000000b1";
+const TENANT_ID = toUUID("65f0000000000000000000b1");
 
 function makeAuth(overrides: Partial<AuthenticatedRequestContext> = {}): AuthenticatedRequestContext {
   return {
-    userId: "user-1",
+    userId: toUUID("user-1"),
     email: "user@test.com",
     tenantId: TENANT_ID,
     tenantName: "Test Tenant",

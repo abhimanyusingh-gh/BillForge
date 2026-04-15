@@ -4,6 +4,7 @@ import { env } from "@/config/env.js";
 import type { WorkloadTier } from "@/types/tenant.js";
 import type { IngestionSourceManifest, RuntimeManifest } from "@/core/runtimeManifest.js";
 import type { RuntimeSourceInput } from "@/core/runtimeManifestSchema.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 
 export function deepMerge(base: Record<string, unknown>, overrides: Record<string, unknown>): Record<string, unknown> {
   const result = { ...base };
@@ -19,7 +20,7 @@ export function deepMerge(base: Record<string, unknown>, overrides: Record<strin
   return result;
 }
 
-export function createDefaultManifest(defaultTenantId: string, defaultWorkloadTier: WorkloadTier): RuntimeManifest {
+export function createDefaultManifest(defaultTenantId: UUID, defaultWorkloadTier: WorkloadTier): RuntimeManifest {
   return {
     defaultTenantId,
     defaultWorkloadTier,
@@ -79,14 +80,15 @@ export function createDefaultManifest(defaultTenantId: string, defaultWorkloadTi
 
 export function resolveSource(
   source: RuntimeSourceInput,
-  defaultTenantId: string,
+  defaultTenantId: UUID,
   defaultWorkloadTier: WorkloadTier
 ): IngestionSourceManifest {
   if (source.type === "email") {
+    const resolvedTenantId = source.tenantId ? toUUID(source.tenantId) : defaultTenantId;
     return {
       type: "email",
       key: source.key ?? env.EMAIL_SOURCE_KEY,
-      tenantId: source.tenantId ?? defaultTenantId,
+      tenantId: resolvedTenantId,
       workloadTier: source.workloadTier ?? defaultWorkloadTier,
       oauthUserId: source.oauthUserId ?? source.tenantId ?? defaultTenantId,
       transport: source.transport ?? env.EMAIL_TRANSPORT,
@@ -117,7 +119,7 @@ export function resolveSource(
     return {
       type: "folder",
       key: source.key ?? env.FOLDER_SOURCE_KEY,
-      tenantId: source.tenantId ?? defaultTenantId,
+      tenantId: source.tenantId ? toUUID(source.tenantId) : defaultTenantId,
       workloadTier: source.workloadTier ?? defaultWorkloadTier,
       folderPath: source.folderPath ?? env.FOLDER_SOURCE_PATH ?? "",
       recursive: source.recursive ?? env.FOLDER_RECURSIVE

@@ -1,3 +1,4 @@
+import type { UUID } from "@/types/uuid.js";
 import type { DocumentMimeType } from "@/types/mime.js";
 import { BankStatementModel, BANK_STATEMENT_SOURCE, type BankStatementSource } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE, type BankTransactionSource } from "@/models/bank/BankTransaction.js";
@@ -35,7 +36,7 @@ export class BankStatementExtractionPipeline {
   }
 
   async parseCsv(
-    tenantId: string,
+    tenantId: UUID,
     fileName: string,
     csvContent: string,
     columnMapping: { date: number; description: number; debit: number; credit: number; reference?: number; balance?: number },
@@ -149,7 +150,7 @@ export class BankStatementExtractionPipeline {
   }
 
   async parsePdf(
-    tenantId: string,
+    tenantId: UUID,
     fileName: string,
     buffer: Buffer,
     mimeType: DocumentMimeType,

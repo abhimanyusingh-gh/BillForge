@@ -1,6 +1,7 @@
 import type { WorkloadTier } from "@/types/tenant.js";
 import type { GmailMailboxBoundary } from "@/core/boundaries/GmailMailboxBoundary.js";
 import type { EmailTransportType, EmailAuthMode } from "@/types/email.js";
+import type { UUID } from "@/types/uuid.js";
 
 interface PasswordEmailAuthConfig {
   type: Extract<EmailAuthMode, "password">;
@@ -21,7 +22,7 @@ export type EmailAuthConfig = PasswordEmailAuthConfig | OAuth2EmailAuthConfig;
 
 export interface EmailSourceConfig {
   key: string;
-  tenantId?: string;
+  tenantId?: UUID;
   workloadTier?: WorkloadTier;
   oauthUserId: string;
   transport: EmailTransportType;

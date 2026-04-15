@@ -20,7 +20,7 @@
         "src/ai/extractors/stages/ocrTextCandidates.ts",
         "src/ai/extractors/bank/BankStatementDocumentDefinition.ts",
         "src/ai/extractors/invoice/InvoiceDocumentDefinition.ts",
-        "src/ai/extractors/invoice/InvoiceExtractionSanitizer.ts",
+        "src/ai/extractors/invoice/normalizeInvoiceFields.ts",
         "src/ai/extractors/invoice/confidenceScoring/FieldConfidenceScorer.ts",
         "src/ai/schemas/bank/llamaExtractBankStatementSchema.ts",
         "src/ai/schemas/invoice/llamaExtractInvoiceSchema.ts",
