@@ -7,6 +7,7 @@ import { isSupportedInvoiceMimeType, normalizeInvoiceMimeType } from "@/utils/mi
 import { assertDocumentMimeType } from "@/types/mime.js";
 import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
 import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "@/sources/email/types.js";
+import { toUUID } from "@/types/uuid.js";
 import { verifySmtpXoauth2 } from "@/sources/email/smtpXoauth2Probe.js";
 import { GmailMailboxNeedsReauthError } from "@/sources/email/errors.js";
 
@@ -101,7 +102,7 @@ export class GmailImapIngestionProvider implements EmailIngestionBoundary {
           }
 
           files.push({
-            tenantId: this.config.tenantId ?? "default",
+            tenantId: this.config.tenantId ?? toUUID("default"),
             workloadTier: this.config.workloadTier ?? "standard",
             sourceKey: this.config.key,
             sourceType: "email",

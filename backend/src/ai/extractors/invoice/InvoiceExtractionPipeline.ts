@@ -68,10 +68,11 @@ import {
 import { type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
 import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
+import type { UUID } from "@/types/uuid.js";
 import { logger } from "@/utils/logger.js";
 
 interface ExtractionPipelineInput {
-  tenantId: string;
+  tenantId: UUID;
   sourceKey: string;
   attachmentName: string;
   fileBuffer: Buffer;

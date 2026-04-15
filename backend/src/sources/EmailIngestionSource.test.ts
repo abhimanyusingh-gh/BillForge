@@ -44,11 +44,12 @@ jest.mock("imapflow", () => ({
 }));
 
 import { EmailIngestionSource, type EmailSourceConfig } from "@/sources/EmailIngestionSource.js";
+import { toUUID } from "@/types/uuid.js";
 
 function baseConfig(overrides?: Partial<EmailSourceConfig>): EmailSourceConfig {
   return {
     key: "gmail-imap",
-    tenantId: "tenant-default",
+    tenantId: toUUID("tenant-default"),
     workloadTier: "standard",
     oauthUserId: "local-user",
     transport: "imap",

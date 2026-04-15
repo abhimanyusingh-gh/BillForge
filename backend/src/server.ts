@@ -7,6 +7,7 @@ import { logger } from "@/utils/logger.js";
 import { seedLocalDemoData } from "@/bootstrap/seedLocalDemoData.js";
 import { buildDependencies } from "@/core/dependencies.js";
 import { TenantModel } from "@/models/core/Tenant.js";
+import { toUUID } from "@/types/uuid.js";
 
 let server: Server | undefined;
 let shuttingDown = false;
@@ -57,7 +58,7 @@ async function runPollingTick(dependencies: Awaited<ReturnType<typeof buildDepen
         logger.info("polling.skipped.test-tenant", { tenantId });
         continue;
       }
-      await dependencies.ingestionService.runOnce({ tenantId });
+      await dependencies.ingestionService.runOnce({ tenantId: toUUID(tenantId) });
       await dependencies.gmailIntegrationService.markPollingCompleted(integrationId);
       logger.info("polling.completed", { tenantId, integrationId });
     } catch (error) {

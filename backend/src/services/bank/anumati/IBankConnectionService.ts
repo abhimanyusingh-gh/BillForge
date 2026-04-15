@@ -1,3 +1,5 @@
+import type { UUID } from "@/types/uuid.js";
+
 export interface InitiateConsentResult {
   redirectUrl: string;
   sessionId: string;
@@ -13,8 +15,8 @@ export interface FetchFiResult {
 
 export interface IBankConnectionService {
   initiateConsent(params: {
-    tenantId: string;
-    userId: string;
+    tenantId: UUID;
+    userId: UUID;
     aaAddress: string;
     displayName: string;
     bankAccountId: string;

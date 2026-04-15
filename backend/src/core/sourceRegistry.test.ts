@@ -1,11 +1,12 @@
 import { buildIngestionSources } from "@/core/sourceRegistry.js";
 import type { IngestionSourceManifest } from "@/core/runtimeManifest.js";
+import { toUUID } from "@/types/uuid.js";
 
 function buildEmailSource(overrides?: Partial<Extract<IngestionSourceManifest, { type: "email" }>>): IngestionSourceManifest {
   return {
     type: "email",
     key: "gmail-inbox",
-    tenantId: "tenant-1",
+    tenantId: toUUID("tenant-1"),
     workloadTier: "standard",
     oauthUserId: "local-user",
     transport: "imap",

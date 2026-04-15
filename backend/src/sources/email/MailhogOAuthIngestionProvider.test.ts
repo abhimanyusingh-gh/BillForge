@@ -19,11 +19,12 @@ jest.mock("mailparser", () => ({
 import { MailhogOAuthIngestionProvider } from "@/sources/email/MailhogOAuthIngestionProvider.js";
 import type { EmailSourceConfig } from "@/sources/email/types.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
+import { toUUID } from "@/types/uuid.js";
 
 function baseConfig(overrides?: Partial<EmailSourceConfig>): EmailSourceConfig {
   return {
     key: "mailhog-oauth",
-    tenantId: "tenant-default",
+    tenantId: toUUID("tenant-default"),
     workloadTier: "standard",
     oauthUserId: "local-user",
     transport: "mailhog_oauth",

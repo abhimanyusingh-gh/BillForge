@@ -1,11 +1,12 @@
 import type { IngestedFile, IngestionSource, IngestionSourceType } from "@/core/interfaces/IngestionSource.js";
 import { EmailIngestionSource, type EmailSourceConfig } from "@/sources/EmailIngestionSource.js";
 import type { WorkloadTier } from "@/types/tenant.js";
+import type { UUID } from "@/types/uuid.js";
 
 export class EmailIngestionFacade implements IngestionSource {
   readonly type: IngestionSourceType;
   readonly key: string;
-  readonly tenantId: string;
+  readonly tenantId: UUID;
   readonly workloadTier: WorkloadTier;
 
   private readonly adapter: EmailIngestionSource;

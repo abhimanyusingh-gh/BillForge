@@ -1,12 +1,13 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { uniqueIssues } from "@/ai/extractors/stages/fieldParsingUtils.js";
 
-export function sanitizeInvoiceExtraction(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
+export function normalizeInvoiceFields(parsed: ParsedInvoiceData | undefined): ParsedInvoiceData {
   if (!parsed) {
     return {};
   }
 
   const normalized: ParsedInvoiceData = {};
+
   const copyString = (value: unknown): string | undefined => {
     if (typeof value !== "string") {
       return undefined;

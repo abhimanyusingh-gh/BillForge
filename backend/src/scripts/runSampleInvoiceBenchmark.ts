@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DOCUMENT_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
+import { toUUID } from "@/types/uuid.js";
 import { DeepSeekOcrProvider } from "@/ai/ocr/DeepSeekOcrProvider.js";
 import { LlamaParseOcrProvider } from "@/ai/ocr/LlamaParseOcrProvider.js";
 import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.js";
@@ -370,7 +371,7 @@ async function run(): Promise<void> {
     const fileBuffer = readFileSync(fullPath);
     const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? DOCUMENT_MIME_TYPE.PDF;
     const extraction = await pipeline.extract({
-      tenantId: "benchmark",
+      tenantId: toUUID("benchmark"),
       sourceKey: file,
       attachmentName: file,
       fileBuffer,

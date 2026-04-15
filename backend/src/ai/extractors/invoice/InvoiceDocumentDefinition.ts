@@ -17,7 +17,7 @@ import type { DetectedInvoiceLanguage } from "@/ai/extractors/invoice/languageDe
 import type { VendorTemplateSnapshot } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { validateInvoiceFields } from "@/ai/extractors/invoice/deterministicValidation.js";
 import { parseLlamaExtractFields } from "@/ai/extractors/invoice/adapters/LlamaExtractAdapter.js";
-import { sanitizeInvoiceExtraction } from "@/ai/extractors/invoice/InvoiceExtractionSanitizer.js";
+import { normalizeInvoiceFields } from "@/ai/extractors/invoice/normalizeInvoiceFields.js";
 
 export interface InvoiceSlmOutput {
   parsed: ParsedInvoiceData;
@@ -103,7 +103,7 @@ export class InvoiceDocumentDefinition implements SinglePassDocumentDefinition<I
       };
     }
 
-    const normalizedParsed = sanitizeInvoiceExtraction(parsedData);
+    const normalizedParsed = normalizeInvoiceFields(parsedData);
     const parsed = Object.keys(normalizedParsed).length > 0 ? normalizedParsed : {};
 
     return {

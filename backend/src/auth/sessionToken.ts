@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { TenantRoles, type TenantRole } from "@/models/core/TenantUserRole.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 
 interface SessionTokenPayload {
   sub: string;
@@ -12,9 +13,9 @@ interface SessionTokenPayload {
 }
 
 interface CreateSessionTokenInput {
-  userId: string;
+  userId: UUID;
   email: string;
-  tenantId: string;
+  tenantId: UUID;
   role: TenantRole;
   isPlatformAdmin: boolean;
   ttlSeconds: number;
@@ -22,9 +23,9 @@ interface CreateSessionTokenInput {
 }
 
 interface VerifiedSessionToken {
-  userId: string;
+  userId: UUID;
   email: string;
-  tenantId: string;
+  tenantId: UUID;
   role: TenantRole;
   isPlatformAdmin: boolean;
 }
@@ -101,9 +102,9 @@ export function verifySessionToken(token: string, secret: string): VerifiedSessi
   const isPlatformAdmin = payload.isPlatformAdmin === true;
 
   return {
-    userId,
+    userId: toUUID(userId),
     email,
-    tenantId,
+    tenantId: toUUID(tenantId),
     role,
     isPlatformAdmin
   };

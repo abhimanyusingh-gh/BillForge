@@ -4,9 +4,10 @@ import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransacti
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
+import { type UUID, toUUID } from "@/types/uuid.js";
 
 interface MatchCandidate {
-  invoiceId: string;
+  invoiceId: UUID;
   invoiceNumber: string;
   vendorName: string;
   netPayableMinor: number;
@@ -26,7 +27,7 @@ function wordOverlap(a: string, b: string): number {
 }
 
 export class ReconciliationService {
-  async reconcileStatement(tenantId: string, statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
+  async reconcileStatement(tenantId: UUID, statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
     const transactions = await BankTransactionModel.find({
       tenantId,
       statementId,
@@ -85,7 +86,7 @@ export class ReconciliationService {
    * Computes the global min/max amount range across all transactions to avoid N+1 queries.
    */
   private async batchFetchCandidateInvoices(
-    tenantId: string,
+    tenantId: UUID,
     transactions: Pick<BankTransaction, "debitMinor" | "description" | "date">[],
     tcsRatePercent: number,
     gstin?: string
@@ -179,7 +180,7 @@ export class ReconciliationService {
       }
 
       candidates.push({
-        invoiceId: String((inv as Record<string, unknown>)._id),
+        invoiceId: toUUID(String((inv as Record<string, unknown>)._id)),
         invoiceNumber,
         vendorName,
         netPayableMinor: netPayable,
@@ -192,7 +193,7 @@ export class ReconciliationService {
   }
 
   async findMatchCandidates(
-    tenantId: string,
+    tenantId: UUID,
     txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
     tcsRatePercent: number = 0,
     gstin?: string
@@ -201,7 +202,7 @@ export class ReconciliationService {
     return this.scoreMatchCandidates(txn, invoices, tcsRatePercent);
   }
 
-  async applyMatch(tenantId: string, transactionId: string, invoiceId: string, confidence: number): Promise<void> {
+  async applyMatch(tenantId: UUID, transactionId: string, invoiceId: string, confidence: number): Promise<void> {
     await BankTransactionModel.updateOne(
       { _id: transactionId },
       { $set: { matchedInvoiceId: invoiceId, matchConfidence: confidence, matchStatus: "matched" } }
@@ -232,7 +233,7 @@ export class ReconciliationService {
     );
   }
 
-  async manualMatch(tenantId: string, transactionId: string, invoiceId: string): Promise<void> {
+  async manualMatch(tenantId: UUID, transactionId: string, invoiceId: string): Promise<void> {
     await this.applyMatch(tenantId, transactionId, invoiceId, 100);
     await BankTransactionModel.updateOne(
       { _id: transactionId },
@@ -240,7 +241,7 @@ export class ReconciliationService {
     );
   }
 
-  async unmatch(tenantId: string, transactionId: string): Promise<void> {
+  async unmatch(tenantId: UUID, transactionId: string): Promise<void> {
     const txn = await BankTransactionModel.findOne({ _id: transactionId, tenantId }).lean();
     if (!txn) return;
 

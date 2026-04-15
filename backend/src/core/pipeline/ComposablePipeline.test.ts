@@ -3,10 +3,11 @@ import { ContextStore } from "@/core/pipeline/PipelineContext.js";
 import type { PipelineContext, PipelineInput } from "@/core/pipeline/PipelineContext.js";
 import type { PipelineStep } from "@/core/pipeline/PipelineStep.js";
 import type { StepOutput } from "@/core/pipeline/PipelineStep.js";
+import { toUUID } from "@/types/uuid.js";
 
 function makeInput(overrides: Partial<PipelineInput> = {}): PipelineInput {
   return {
-    tenantId: "t-1",
+    tenantId: toUUID("t-1"),
     fileName: "invoice.pdf",
     mimeType: "application/pdf",
     fileBuffer: Buffer.from("fake"),

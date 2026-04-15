@@ -3,6 +3,7 @@ import { SSE_HEARTBEAT_INTERVAL_MS } from "@/constants.js";
 import { logger } from "@/utils/logger.js";
 import { getRedisClient } from "@/db/redis.js";
 import type { ParseEventType, BankParseStage } from "@/types/bankParsing.js";
+import type { UUID } from "@/types/uuid.js";
 
 export type { BankParseStage } from "@/types/bankParsing.js";
 
@@ -25,7 +26,7 @@ export class BankStatementParseProgress {
   private readonly subscribers = new Map<string, Set<Response>>();
   private readonly localLastEvent = new Map<string, BankParseProgressEvent>();
 
-  broadcast(tenantId: string, event: BankParseProgressEvent): void {
+  broadcast(tenantId: UUID, event: BankParseProgressEvent): void {
     this.localLastEvent.set(tenantId, event);
     void getRedisClient().setex(`bankparse:lastEvent:${tenantId}`, LAST_EVENT_TTL_SECONDS, JSON.stringify(event)).catch(() => {});
     const subs = this.subscribers.get(tenantId);
@@ -36,7 +37,7 @@ export class BankStatementParseProgress {
     }
   }
 
-  addSubscriber(tenantId: string, res: Response, req: Request): void {
+  addSubscriber(tenantId: UUID, res: Response, req: Request): void {
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
@@ -78,7 +79,7 @@ export class BankStatementParseProgress {
     });
   }
 
-  clearEvent(tenantId: string): void {
+  clearEvent(tenantId: UUID): void {
     this.localLastEvent.delete(tenantId);
     void getRedisClient().del(`bankparse:lastEvent:${tenantId}`).catch(() => {});
   }

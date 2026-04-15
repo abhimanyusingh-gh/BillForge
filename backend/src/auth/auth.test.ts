@@ -10,9 +10,10 @@ import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import type { OidcProvider } from "@/sts/OidcProvider.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
 import { encryptSecret } from "@/utils/secretCrypto.js";
+import { toUUID } from "@/types/uuid.js";
 
-const TENANT_ID = "65f0000000000000000000a1";
-const USER_ID = "65f0000000000000000000c3";
+const TENANT_ID = toUUID("65f0000000000000000000a1");
+const USER_ID = toUUID("65f0000000000000000000c3");
 
 function mockUserLookup(overrides: Partial<{ email: string; enabled: boolean }> = {}) {
   jest.spyOn(UserModel, "findById").mockReturnValue({
@@ -262,19 +263,19 @@ describe("sessionToken", () => {
 
   it("encodes and decodes role and platform claims", () => {
     const token = createSessionToken({
-      userId: "user-1", email: "user@example.com", tenantId: "tenant-1",
+      userId: toUUID("user-1"), email: "user@example.com", tenantId: toUUID("tenant-1"),
       role: "TENANT_ADMIN", isPlatformAdmin: true, ttlSeconds: 600, secret
     });
     const verified = verifySessionToken(token, secret);
     expect(verified).toEqual({
-      userId: "user-1", email: "user@example.com", tenantId: "tenant-1",
+      userId: toUUID("user-1"), email: "user@example.com", tenantId: toUUID("tenant-1"),
       role: "TENANT_ADMIN", isPlatformAdmin: true
     });
   });
 
   it("rejects token payload without valid role", () => {
     const token = createSessionToken({
-      userId: "user-1", email: "user@example.com", tenantId: "tenant-1",
+      userId: toUUID("user-1"), email: "user@example.com", tenantId: toUUID("tenant-1"),
       role: "ap_clerk", isPlatformAdmin: false, ttlSeconds: 600, secret
     });
     const [header, payload] = token.split(".");

@@ -1,8 +1,9 @@
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import type { ExportContentType } from "@/types/mime.js";
+import type { UUID } from "@/types/uuid.js";
 
 export interface ExportResultItem {
-  invoiceId: string;
+  invoiceId: UUID;
   success: boolean;
   externalReference?: string;
   error?: string;

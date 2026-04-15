@@ -5,6 +5,7 @@ import { AnumatiClient } from "@/services/bank/anumati/AnumatiClient.js";
 import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "@/services/bank/anumati/IBankConnectionService.js";
 import { env } from "@/config/env.js";
 import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
+import type { UUID } from "@/types/uuid.js";
 
 export class AnumatiBankConnectionService implements IBankConnectionService {
   private readonly client: AnumatiClient;
@@ -25,8 +26,8 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
   }
 
   async initiateConsent(params: {
-    tenantId: string;
-    userId: string;
+    tenantId: UUID;
+    userId: UUID;
     aaAddress: string;
     displayName: string;
     bankAccountId: string;

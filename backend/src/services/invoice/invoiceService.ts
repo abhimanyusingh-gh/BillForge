@@ -33,9 +33,11 @@ export { InvoiceUpdateError } from "@/services/invoice/invoiceHelpers.js";
 import { EXTRACTION_GROUP_TYPE } from "@/ai/extractors/invoice/learning/extractionLearningStore.js";
 import type { SortDirection } from "@/types/sorting.js";
 
+import type { UUID } from "@/types/uuid.js";
+
 interface ListInvoicesParams {
   status?: string;
-  tenantId: string;
+  tenantId: UUID;
   page: number;
   limit: number;
   from?: Date;
@@ -189,7 +191,7 @@ export class InvoiceService {
     return result;
   }
 
-  async getInvoiceById(id: string, tenantId: string) {
+  async getInvoiceById(id: string, tenantId: UUID) {
     if (!Types.ObjectId.isValid(id)) return null;
     const invoice = await InvoiceModel.findOne({ _id: id, tenantId }).lean();
     return invoice ? sanitizeForApi(invoice) : null;
@@ -308,7 +310,7 @@ export class InvoiceService {
     id: string,
     input: UpdateParsedFieldInput,
     updatedBy = env.DEFAULT_APPROVER,
-    tenantId: string
+    tenantId: UUID
   ) {
     if (!Types.ObjectId.isValid(id)) throw new InvoiceUpdateError("Invalid invoice id.", 400);
     if (!EDITABLE_PARSED_FIELDS.some((f) => Object.prototype.hasOwnProperty.call(input, f)))
@@ -444,7 +446,7 @@ export class InvoiceService {
     return sanitizeForApi(invoice.toObject());
   }
 
-  async renameAttachmentName(id: string, attachmentName: string, tenantId: string) {
+  async renameAttachmentName(id: string, attachmentName: string, tenantId: UUID) {
     if (!Types.ObjectId.isValid(id)) throw new InvoiceUpdateError("Invalid invoice id.", 400);
     const trimmed = attachmentName.trim();
     if (!trimmed) throw new InvoiceUpdateError("Attachment name cannot be empty.", 400);
@@ -458,7 +460,7 @@ export class InvoiceService {
     return sanitizeForApi(invoice.toObject());
   }
 
-  async retriggerCompliance(invoiceId: string, tenantId: string, newGlCode: string, newGlName: string) {
+  async retriggerCompliance(invoiceId: string, tenantId: UUID, newGlCode: string, newGlName: string) {
     if (!Types.ObjectId.isValid(invoiceId)) throw new InvoiceUpdateError("Invalid invoice id.", 400);
 
     const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
@@ -497,7 +499,7 @@ export class InvoiceService {
 export async function retriggerTdsAndTcs(
   compliance: Record<string, unknown>,
   parsed: ParsedInvoiceData,
-  tenantId: string,
+  tenantId: UUID,
   glCode: string,
   invoiceId: string
 ): Promise<void> {

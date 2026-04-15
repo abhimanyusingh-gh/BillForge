@@ -4,6 +4,7 @@ import { getCorrelationId, logger, runWithLogContext } from "@/utils/logger.js";
 import { SSE_HEARTBEAT_INTERVAL_MS, RERUN_MAX_COUNT } from "@/constants.js";
 import { getRedisClient } from "@/db/redis.js";
 import { INGESTION_JOB_STATE, type IngestionJobState } from "@/types/ingestion.js";
+import type { UUID } from "@/types/uuid.js";
 
 interface IngestionJobStatus {
   state: IngestionJobState;
@@ -29,28 +30,28 @@ export class IngestionJobOrchestrator {
   private readonly localPendingRerun = new Map<string, boolean>();
   private readonly subscribers = new Map<string, Set<Response>>();
 
-  getCurrentStatus(tenantId: string): IngestionJobStatus {
+  getCurrentStatus(tenantId: UUID): IngestionJobStatus {
     return this.localStatus.get(tenantId) ?? buildIdleStatus();
   }
 
-  setCurrentStatus(tenantId: string, status: IngestionJobStatus): void {
+  setCurrentStatus(tenantId: UUID, status: IngestionJobStatus): void {
     this.localStatus.set(tenantId, status);
     void getRedisClient().setex(`ingestion:status:${tenantId}`, STATUS_TTL_SECONDS, JSON.stringify(status)).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
   }
 
-  setPendingRerun(tenantId: string): void {
+  setPendingRerun(tenantId: UUID): void {
     this.localPendingRerun.set(tenantId, true);
     void getRedisClient().setex(`ingestion:pendingRerun:${tenantId}`, PENDING_RERUN_TTL_SECONDS, "1").catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
   }
 
-  private consumePendingRerun(tenantId: string): boolean {
+  private consumePendingRerun(tenantId: UUID): boolean {
     const had = this.localPendingRerun.get(tenantId) === true;
     this.localPendingRerun.delete(tenantId);
     void getRedisClient().del(`ingestion:pendingRerun:${tenantId}`).catch((err) => logger.warn("redis.operation.failed", { error: String(err) }));
     return had;
   }
 
-  broadcastToSubscribers(tenantId: string, status: IngestionJobStatus): void {
+  broadcastToSubscribers(tenantId: UUID, status: IngestionJobStatus): void {
     const subs = this.subscribers.get(tenantId);
     if (!subs || subs.size === 0) return;
     const payload = `data: ${JSON.stringify(status)}\n\n`;
@@ -59,7 +60,7 @@ export class IngestionJobOrchestrator {
     }
   }
 
-  addSubscriber(tenantId: string, res: Response, req: Request): void {
+  addSubscriber(tenantId: UUID, res: Response, req: Request): void {
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
@@ -101,7 +102,7 @@ export class IngestionJobOrchestrator {
     });
   }
 
-  startJob(ingestionService: IngestionService, tenantId: string, rerunCount = 0): IngestionJobStatus {
+  startJob(ingestionService: IngestionService, tenantId: UUID, rerunCount = 0): IngestionJobStatus {
     const existing = this.getCurrentStatus(tenantId);
     if (existing.running) {
       this.setPendingRerun(tenantId);
@@ -202,7 +203,7 @@ export class IngestionJobOrchestrator {
     return runningStatus;
   }
 
-  pauseJob(ingestionService: IngestionService, tenantId: string): IngestionJobStatus {
+  pauseJob(ingestionService: IngestionService, tenantId: UUID): IngestionJobStatus {
     const current = this.getCurrentStatus(tenantId);
     if (!current.running) {
       return current;
