@@ -61,8 +61,8 @@ describe("ComposablePipeline", () => {
       .add(makeStage("timer"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.metadata["step.timer.ms"]).toBeDefined();
-    expect(Number(result.metadata["step.timer.ms"])).toBeGreaterThanOrEqual(0);
+    expect(result.metadata["step_timer_ms"]).toBeDefined();
+    expect(Number(result.metadata["step_timer_ms"])).toBeGreaterThanOrEqual(0);
   });
 
   it("halt stops pipeline early", async () => {

@@ -4,9 +4,13 @@ import type { UUID } from "@/types/uuid.js";
 export async function resolveTenantComplianceConfig(
   tenantId: UUID
 ): Promise<TenantComplianceConfigFields | null> {
-  const doc = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
-  if (!doc) return null;
-  return doc as unknown as TenantComplianceConfigFields;
+  try {
+    const doc = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
+    if (!doc) return null;
+    return doc as unknown as TenantComplianceConfigFields;
+  } catch {
+    return null;
+  }
 }
 
 interface FreemailConfig {

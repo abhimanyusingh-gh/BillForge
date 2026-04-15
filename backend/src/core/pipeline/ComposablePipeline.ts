@@ -44,13 +44,13 @@ export class ComposablePipeline<T> {
       try {
         const result = await step.execute(ctx);
         stepsExecuted.push(step);
-        ctx.metadata[`step.${step.name}.ms`] = (performance.now() - stepStart).toFixed(0);
+        ctx.metadata[`step_${step.name}_ms`] = (performance.now() - stepStart).toFixed(0);
 
         if (result.status === PIPELINE_STEP_STATUS.HALT) {
           break;
         }
       } catch (error) {
-        ctx.metadata[`step.${step.name}.error`] = error instanceof Error ? error.message : String(error);
+        ctx.metadata[`step_${step.name}_error`] = error instanceof Error ? error.message : String(error);
         throw error;
       }
     }
