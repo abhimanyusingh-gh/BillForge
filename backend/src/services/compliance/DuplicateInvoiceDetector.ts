@@ -1,6 +1,7 @@
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
+import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 
 export class DuplicateInvoiceDetector {
   async check(
@@ -26,15 +27,12 @@ export class DuplicateInvoiceDetector {
     const existingAmount = existing.parsed?.totalAmountMinor;
     const existingDate = existing.parsed?.invoiceDate;
 
-    return [{
-      code: "DUPLICATE_INVOICE_NUMBER",
-      category: "fraud",
-      severity: "critical",
-      message: `Vendor "${vendorName}" previously submitted invoice "${invoiceNumber}"${existingDate ? ` on ${existingDate instanceof Date ? existingDate.toISOString().slice(0, 10) : String(existingDate)}` : ""}${existingAmount ? ` for ${existingAmount}` : ""}. This submission has different content.`,
-      confidencePenalty: 10,
-      status: "open",
-      resolvedBy: null,
-      resolvedAt: null
-    }];
+    return [createRiskSignal(
+      "DUPLICATE_INVOICE_NUMBER",
+      "fraud",
+      "critical",
+      `Vendor "${vendorName}" previously submitted invoice "${invoiceNumber}"${existingDate ? ` on ${existingDate instanceof Date ? existingDate.toISOString().slice(0, 10) : String(existingDate)}` : ""}${existingAmount ? ` for ${existingAmount}` : ""}. This submission has different content.`,
+      10
+    )];
   }
 }

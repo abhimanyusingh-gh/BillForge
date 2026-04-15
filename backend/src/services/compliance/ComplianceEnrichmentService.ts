@@ -1,5 +1,6 @@
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
+import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
 import { logger } from "@/utils/logger.js";
@@ -152,16 +153,13 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
       };
 
       if (bankChange.isChanged) {
-        riskSignals.push({
-          code: "VENDOR_BANK_CHANGED",
-          category: "fraud",
-          severity: "critical",
-          message: `Vendor bank account changed. Previous bank: ${bankChange.bankName ?? "unknown"}.`,
-          confidencePenalty: 10,
-          status: "open",
-          resolvedBy: null,
-          resolvedAt: null
-        });
+        riskSignals.push(createRiskSignal(
+          "VENDOR_BANK_CHANGED",
+          "fraud",
+          "critical",
+          `Vendor bank account changed. Previous bank: ${bankChange.bankName ?? "unknown"}.`,
+          10
+        ));
       }
     } catch (error) {
       processingIssues.push(`Compliance: Vendor master upsert failed — ${error instanceof Error ? error.message : String(error)}`);
@@ -315,40 +313,31 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
             if (!knownDomains.has(domain)) {
               const freemailDomains = new Set(["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com"]);
               if (freemailDomains.has(domain) && vendor.emailDomains.some((d: string) => !freemailDomains.has(d.toLowerCase()))) {
-                riskSignals.push({
-                  code: "SENDER_FREEMAIL",
-                  category: "fraud",
-                  severity: "warning",
-                  message: `Invoice from freemail provider (${domain}) but vendor previously used corporate email.`,
-                  confidencePenalty: 4,
-                  status: "open",
-                  resolvedBy: null,
-                  resolvedAt: null
-                });
+                riskSignals.push(createRiskSignal(
+                  "SENDER_FREEMAIL",
+                  "fraud",
+                  "warning",
+                  `Invoice from freemail provider (${domain}) but vendor previously used corporate email.`,
+                  4
+                ));
               } else {
-                riskSignals.push({
-                  code: "SENDER_DOMAIN_MISMATCH",
-                  category: "fraud",
-                  severity: "warning",
-                  message: `Sender domain "${domain}" doesn't match vendor's known domains: ${vendor.emailDomains.join(", ")}.`,
-                  confidencePenalty: 4,
-                  status: "open",
-                  resolvedBy: null,
-                  resolvedAt: null
-                });
+                riskSignals.push(createRiskSignal(
+                  "SENDER_DOMAIN_MISMATCH",
+                  "fraud",
+                  "warning",
+                  `Sender domain "${domain}" doesn't match vendor's known domains: ${vendor.emailDomains.join(", ")}.`,
+                  4
+                ));
               }
             }
           } else if (!vendor || !vendor.emailDomains || vendor.emailDomains.length === 0) {
-            riskSignals.push({
-              code: "SENDER_FIRST_TIME",
-              category: "fraud",
-              severity: "info",
-              message: `First invoice from email domain "${domain}" for this vendor.`,
-              confidencePenalty: 0,
-              status: "open",
-              resolvedBy: null,
-              resolvedAt: null
-            });
+            riskSignals.push(createRiskSignal(
+              "SENDER_FIRST_TIME",
+              "fraud",
+              "info",
+              `First invoice from email domain "${domain}" for this vendor.`,
+              0
+            ));
           }
         }
       }

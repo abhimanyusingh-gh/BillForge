@@ -27,6 +27,6 @@ const tenantExportConfigSchema = new Schema(
 tenantExportConfigSchema.index({ tenantId: 1 }, { unique: true });
 
 type TenantExportConfig = InferSchemaType<typeof tenantExportConfigSchema>;
-export type TenantExportConfigDocument = HydratedDocument<TenantExportConfig>;
+type TenantExportConfigDocument = HydratedDocument<TenantExportConfig>;
 
 export const TenantExportConfigModel = model<TenantExportConfig>("TenantExportConfig", tenantExportConfigSchema);

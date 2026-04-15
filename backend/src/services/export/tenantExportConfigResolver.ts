@@ -2,7 +2,7 @@ import { TenantExportConfigModel } from "@/models/integration/TenantExportConfig
 import type { TallyExporterConfig, TallyGstLedgerConfig } from "@/services/export/tallyExporter/xml.js";
 import { env } from "@/config/env.js";
 
-export interface ResolvedTallyConfig {
+interface ResolvedTallyConfig {
   companyName: string;
   purchaseLedgerName: string;
   gstLedgers: TallyGstLedgerConfig;
@@ -10,7 +10,7 @@ export interface ResolvedTallyConfig {
   tcsLedgerName: string;
 }
 
-export interface ResolvedCsvColumnConfig {
+interface ResolvedCsvColumnConfig {
   columns: Array<{ key: string; label: string }> | undefined;
 }
 

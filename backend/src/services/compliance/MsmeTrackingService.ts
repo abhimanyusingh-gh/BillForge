@@ -2,6 +2,7 @@ import { UDYAM_FORMAT } from "@/constants/indianCompliance.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import { MSME_CLASSIFICATION, type MsmeClassification } from "@/types/invoice.js";
+import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 const MSME_PAYMENT_WARNING_DAYS = 30;
 const MSME_PAYMENT_OVERDUE_DAYS = 45;
 
@@ -45,27 +46,21 @@ export class MsmeTrackingService {
         const daysSinceInvoice = Math.floor((Date.now() - invDate.getTime()) / 86400000);
 
         if (daysSinceInvoice > MSME_PAYMENT_OVERDUE_DAYS) {
-          riskSignals.push({
-            code: "MSME_PAYMENT_OVERDUE",
-            category: "compliance",
-            severity: "critical",
-            message: `MSME vendor — invoice is ${daysSinceInvoice} days old, exceeds 45-day payment deadline.`,
-            confidencePenalty: 10,
-            status: "open",
-            resolvedBy: null,
-            resolvedAt: null
-          });
+          riskSignals.push(createRiskSignal(
+            "MSME_PAYMENT_OVERDUE",
+            "compliance",
+            "critical",
+            `MSME vendor — invoice is ${daysSinceInvoice} days old, exceeds 45-day payment deadline.`,
+            10
+          ));
         } else if (daysSinceInvoice > MSME_PAYMENT_WARNING_DAYS) {
-          riskSignals.push({
-            code: "MSME_PAYMENT_DUE_SOON",
-            category: "compliance",
-            severity: "warning",
-            message: `MSME vendor — invoice is ${daysSinceInvoice} days old, approaching 45-day payment deadline.`,
-            confidencePenalty: 4,
-            status: "open",
-            resolvedBy: null,
-            resolvedAt: null
-          });
+          riskSignals.push(createRiskSignal(
+            "MSME_PAYMENT_DUE_SOON",
+            "compliance",
+            "warning",
+            `MSME vendor — invoice is ${daysSinceInvoice} days old, approaching 45-day payment deadline.`,
+            4
+          ));
         }
       }
     }
