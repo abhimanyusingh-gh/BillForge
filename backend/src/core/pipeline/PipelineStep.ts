@@ -1,10 +1,10 @@
 import type { PipelineContext } from "./PipelineContext.js";
 
-export interface StageResult {
+export interface StepOutput {
   status?: "continue" | "skip" | "halt";
 }
 
-export interface PipelineStage {
+export interface PipelineStep {
   readonly name: string;
-  execute(ctx: PipelineContext): Promise<StageResult>;
+  execute(ctx: PipelineContext): Promise<StepOutput>;
 }

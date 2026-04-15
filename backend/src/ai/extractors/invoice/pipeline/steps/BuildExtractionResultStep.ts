@@ -1,4 +1,4 @@
-import type { PipelineContext, PipelineStage, StageResult } from "@/core/pipeline/index.js";
+import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 import type {
   InvoiceCompliance,
@@ -25,10 +25,10 @@ const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource
 /**
  * Stage 16: Assembles the final PipelineExtractionResult from all context store values.
  */
-export class BuildExtractionResultStep implements PipelineStage {
+export class BuildExtractionResultStep implements PipelineStep {
   readonly name = "build-extraction-result";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const parsed = ctx.store.require<ParsedInvoiceData>(POST_ENGINE_CTX.RECOVERED_PARSED);
     const slm = ctx.store.require<InvoiceSlmOutput>(POST_ENGINE_CTX.SLM_OUTPUT);
     const ocrBlocks = ctx.store.require<OcrBlock[]>("invoice.ocrBlocks");

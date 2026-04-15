@@ -1,22 +1,22 @@
-import type { PipelineStage } from "./PipelineStage.js";
+import type { PipelineStep } from "./PipelineStep.js";
 import type { PipelineInput, PipelineContext } from "./PipelineContext.js";
 import { ContextStore } from "./PipelineContext.js";
 import type { PipelineResult } from "./PipelineResult.js";
 
 export class ComposablePipeline<T> {
-  private stages: PipelineStage[] = [];
+  private stages: PipelineStep[] = [];
   private outputExtractor: (ctx: PipelineContext) => T;
 
   constructor(outputExtractor: (ctx: PipelineContext) => T) {
     this.outputExtractor = outputExtractor;
   }
 
-  add(stage: PipelineStage): this {
+  add(stage: PipelineStep): this {
     this.stages.push(stage);
     return this;
   }
 
-  addIf(condition: boolean, stage: PipelineStage | (() => PipelineStage)): this {
+  addIf(condition: boolean, stage: PipelineStep | (() => PipelineStep)): this {
     if (condition) {
       this.stages.push(typeof stage === "function" ? stage() : stage);
     }

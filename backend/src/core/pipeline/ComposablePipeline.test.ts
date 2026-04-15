@@ -1,8 +1,8 @@
 import { ComposablePipeline } from "./ComposablePipeline.js";
 import { ContextStore } from "./PipelineContext.js";
 import type { PipelineContext, PipelineInput } from "./PipelineContext.js";
-import type { PipelineStage } from "./PipelineStage.js";
-import type { StageResult } from "./PipelineStage.js";
+import type { PipelineStep } from "./PipelineStep.js";
+import type { StepOutput } from "./PipelineStep.js";
 
 function makeInput(overrides: Partial<PipelineInput> = {}): PipelineInput {
   return {
@@ -14,7 +14,7 @@ function makeInput(overrides: Partial<PipelineInput> = {}): PipelineInput {
   };
 }
 
-function makeStage(name: string, fn?: (ctx: PipelineContext) => Promise<StageResult>): PipelineStage {
+function makeStage(name: string, fn?: (ctx: PipelineContext) => Promise<StepOutput>): PipelineStep {
   return {
     name,
     execute: fn ?? (async () => ({})),

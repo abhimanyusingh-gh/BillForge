@@ -1,4 +1,4 @@
-import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
+import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import { BankTransactionModel } from "@/models/bank/BankTransaction.js";
 import type { ParsedTransaction } from "./NormalizeTransactionsStep.js";
@@ -9,10 +9,10 @@ import { BANK_CTX } from "../contextKeys.js";
  * database records. Prevents re-importing transactions that were already
  * uploaded in a previous statement.
  */
-export class DeduplicateTransactionsStep implements PipelineStage {
+export class DeduplicateTransactionsStep implements PipelineStep {
   readonly name = "deduplicate-transactions";
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const tenantId = ctx.input.tenantId;
     const parsed = ctx.store.require<ParsedTransaction[]>(BANK_CTX.PARSED_TRANSACTIONS);
 

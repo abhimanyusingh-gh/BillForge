@@ -1,4 +1,4 @@
-import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
+import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import { BankStatementModel, BANK_STATEMENT_SOURCE, BANK_STATEMENT_PROCESSING_STATUS } from "@/models/bank/BankStatement.js";
 import { BankTransactionModel, BANK_TRANSACTION_SOURCE } from "@/models/bank/BankTransaction.js";
@@ -10,12 +10,12 @@ import { BANK_CTX } from "../contextKeys.js";
  * Persists the bank statement and its transactions to MongoDB.
  * Creates a BankStatement document and bulk-inserts BankTransaction documents.
  */
-export class PersistBankStatementStep implements PipelineStage {
+export class PersistBankStatementStep implements PipelineStep {
   readonly name = "persist-bank-statement";
 
   constructor(private readonly uploadedBy: string) {}
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const tenantId = ctx.input.tenantId;
     const fileName = ctx.input.fileName;
     const transactions = ctx.store.require<ParsedTransaction[]>(BANK_CTX.DEDUPLICATED_TRANSACTIONS);

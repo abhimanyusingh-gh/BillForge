@@ -1,4 +1,4 @@
-import type { PipelineStage, StageResult } from "@/core/pipeline/PipelineStage.js";
+import type { PipelineStep, StepOutput } from "@/core/pipeline/PipelineStep.js";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.js";
 import type { ExtractedField } from "@/core/interfaces/OcrProvider.js";
 import { INVOICE_CTX } from "../contextKeys.js";
@@ -9,12 +9,12 @@ import { INVOICE_CTX } from "../contextKeys.js";
  * stages (baseline parse, augment prompt, set validation context) are unnecessary.
  * This stage halts the pipeline in that case.
  */
-export class CheckExtractFieldsGateStep implements PipelineStage {
+export class CheckExtractFieldsGateStep implements PipelineStep {
   readonly name = "check-extract-fields-gate";
 
   constructor(private readonly llamaExtractEnabled: boolean) {}
 
-  async execute(ctx: PipelineContext): Promise<StageResult> {
+  async execute(ctx: PipelineContext): Promise<StepOutput> {
     const extractFields = ctx.store.get<ExtractedField[]>(INVOICE_CTX.EXTRACT_FIELDS);
 
     if ((extractFields?.length ?? 0) > 0) {
