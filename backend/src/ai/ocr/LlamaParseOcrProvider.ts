@@ -112,6 +112,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
 
       try {
         await this.client.files.delete(fileObj.id);
+        logger.info("ocr.file.deleted", { provider: this.name, fileId: fileObj.id });
       } catch (deleteErr) {
         logger.warn("ocr.file.delete.failed", { provider: this.name, fileId: fileObj.id, error: String(deleteErr) });
       }
@@ -142,6 +143,7 @@ export class LlamaParseOcrProvider implements OcrProvider {
       const result = mapExtractResult(completed.extract_result, completed.extract_metadata?.field_metadata?.document_metadata);
       try {
         await this.client.extract.delete(job.id);
+        logger.info("ocr.extract.deleted", { provider: this.name, jobId: job.id });
       } catch (deleteErr) {
         logger.warn("ocr.extract.delete.failed", { provider: this.name, jobId: job.id, error: String(deleteErr) });
       }
