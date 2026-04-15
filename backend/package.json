@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "[ -f .env ] || cp .env.example .env; ENV=${ENV:-local} tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
     "start": "ENV=${ENV:-local} node dist/server.js",
     "worker:once": "ENV=${ENV:-local} tsx src/scripts/runWorkerOnce.ts",
     "seed:platform-admin": "ENV=${ENV:-local} node dist/scripts/seedPlatformAdmin.js",
@@ -49,6 +49,7 @@
     "@types/nodemailer": "^7.0.11",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.9",
+    "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^5.7.2"
   }
