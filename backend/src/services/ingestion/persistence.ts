@@ -1,14 +1,16 @@
-import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
+import { INGESTION_SOURCE_TYPE, type IngestedFile } from "@/core/interfaces/IngestionSource.js";
 import type { OcrBlock } from "@/core/interfaces/OcrProvider.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
-import type {
-  InvoiceExtractionData,
-  InvoiceStatus
+import {
+  INVOICE_STATUS,
+  type InvoiceExtractionData,
+  type InvoiceStatus
 } from "@/types/invoice.js";
 import type { DocumentMimeType } from "@/types/mime.js";
 import type { ArtifactResults } from "@/services/ingestion/artifacts.js";
 import { normalizeExtractionData, encodeExtractionFieldKey } from "@/services/ingestion/provenance.js";
 import { ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
+import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
 
 interface ExtractionResult {
   provider: string;
@@ -19,11 +21,11 @@ interface ExtractionResult {
   ocrTokens?: number;
   slmTokens?: number;
   parseResult: { parsed: unknown; warnings: string[] };
-  confidenceAssessment: { score: number; tone: string; autoSelectForApproval: boolean; riskFlags: string[]; riskMessages: string[] };
+  confidenceAssessment: { score: number; tone: import("@/types/confidence.js").ConfidenceTone; autoSelectForApproval: boolean; riskFlags: import("@/types/confidence.js").RiskFlag[]; riskMessages: string[] };
   processingIssues: string[];
   attempts: unknown[];
-  source: string;
-  strategy: string;
+  source: import("@/core/engine/extractionSource.js").ExtractionSource;
+  strategy: import("@/core/engine/extractionSource.js").ExtractionSource;
   metadata: Record<string, string>;
   compliance?: import("../../types/invoice.js").InvoiceCompliance;
   extraction?: InvoiceExtractionData;
@@ -46,7 +48,7 @@ export function buildSuccessData(
   const parsedResult = extraction.parseResult;
   const confidence = extraction.confidenceAssessment;
   const status: InvoiceStatus =
-    parsedResult.warnings.length > 0 || confidence.riskFlags.length > 0 ? "NEEDS_REVIEW" : "PARSED";
+    parsedResult.warnings.length > 0 || confidence.riskFlags.length > 0 ? INVOICE_STATUS.NEEDS_REVIEW : INVOICE_STATUS.PARSED;
 
   const metadata: Record<string, string> = {
     ...file.metadata,
@@ -88,7 +90,7 @@ export function buildSuccessData(
     }
   }
 
-  const gmailMessageId = file.sourceType === "email" && file.metadata?.messageId
+  const gmailMessageId = file.sourceType === INGESTION_SOURCE_TYPE.EMAIL && file.metadata?.messageId
     ? String(file.metadata.messageId).trim()
     : undefined;
 
@@ -129,12 +131,12 @@ export function buildFailureData(
     autoSelectForApproval: false, riskFlags: [] as string[], riskMessages: [] as string[]
   };
 
-  if (error instanceof ExtractionPipelineError && error.code === "FAILED_OCR") {
-    return { ...base, status: "FAILED_OCR", processingIssues: [error.message] };
+  if (error instanceof ExtractionPipelineError && error.code === PIPELINE_ERROR_CODE.FAILED_OCR) {
+    return { ...base, status: INVOICE_STATUS.FAILED_OCR, processingIssues: [error.message] };
   }
 
   return {
-    ...base, status: "FAILED_PARSE",
+    ...base, status: INVOICE_STATUS.FAILED_PARSE,
     processingIssues: [error instanceof Error ? error.message : "Unknown processing error"]
   };
 }
@@ -142,7 +144,7 @@ export function buildFailureData(
 export async function upsertFromPending(file: IngestedFile, data: Record<string, unknown>): Promise<void> {
   const { attachmentName: _keep, ...updateData } = data;
   const updated = await InvoiceModel.findOneAndUpdate(
-    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId, status: "PENDING" },
+    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId, status: INVOICE_STATUS.PENDING },
     { $set: updateData }
   );
   if (updated) return;
