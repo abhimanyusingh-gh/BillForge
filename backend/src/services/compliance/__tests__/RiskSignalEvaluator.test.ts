@@ -1,5 +1,6 @@
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator";
 import type { ParsedInvoiceData } from "@/types/invoice";
+import { createRiskSignal } from "@/services/compliance/riskSignalFactory";
 
 const evaluator = new RiskSignalEvaluator();
 
@@ -124,16 +125,16 @@ describe("RiskSignalEvaluator", () => {
   describe("sumPenalties", () => {
     it("sums penalties from multiple signals", () => {
       const penalty = RiskSignalEvaluator.sumPenalties([
-        { code: "A", category: "financial", severity: "warning", message: "", confidencePenalty: 10, status: "open", resolvedBy: null, resolvedAt: null },
-        { code: "B", category: "financial", severity: "warning", message: "", confidencePenalty: 8, status: "open", resolvedBy: null, resolvedAt: null }
+        createRiskSignal("A", "financial", "warning", "", 10),
+        createRiskSignal("B", "financial", "warning", "", 8)
       ]);
       expect(penalty).toBe(18);
     });
 
     it("caps at 30", () => {
       const penalty = RiskSignalEvaluator.sumPenalties([
-        { code: "A", category: "financial", severity: "critical", message: "", confidencePenalty: 20, status: "open", resolvedBy: null, resolvedAt: null },
-        { code: "B", category: "financial", severity: "critical", message: "", confidencePenalty: 20, status: "open", resolvedBy: null, resolvedAt: null }
+        createRiskSignal("A", "financial", "critical", "", 20),
+        createRiskSignal("B", "financial", "critical", "", 20)
       ]);
       expect(penalty).toBe(30);
     });

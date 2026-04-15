@@ -1,5 +1,6 @@
-import type { ComplianceRiskSignal, ParsedInvoiceData, RiskSignalSeverity } from "@/types/invoice.js";
+import type { ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { toMinorUnits, minorUnitsToMajorString } from "@/utils/currency.js";
+import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 
 const RISK_SIGNAL_PENALTY_CAP = 30;
 
@@ -42,7 +43,7 @@ export class RiskSignalEvaluator {
     const overRatio = (parsed.totalAmountMinor - expectedMaxTotalMinor) / expectedMaxTotalMinor;
     const penalty = Math.min(30, Math.round(15 + overRatio * 25));
 
-    signals.push(this.signal(
+    signals.push(createRiskSignal(
       "TOTAL_AMOUNT_ABOVE_EXPECTED",
       "financial",
       "warning",
@@ -60,7 +61,7 @@ export class RiskSignalEvaluator {
     ) return;
 
     if (parsed.totalAmountMinor > 0) {
-      signals.push(this.signal(
+      signals.push(createRiskSignal(
         "TOTAL_AMOUNT_BELOW_MINIMUM",
         "financial",
         "info",
@@ -85,7 +86,7 @@ export class RiskSignalEvaluator {
     if (daysToDue <= expectedMaxDueDays) return;
 
     const penalty = Math.min(20, Math.round(8 + (daysToDue - expectedMaxDueDays) / 4));
-    signals.push(this.signal(
+    signals.push(createRiskSignal(
       "DUE_DATE_TOO_FAR",
       "data-quality",
       "warning",
@@ -101,7 +102,7 @@ export class RiskSignalEvaluator {
     if (parsed.totalAmountMinor === undefined || parsed.totalAmountMinor <= 0) missing.push("total amount");
 
     if (missing.length > 0) {
-      signals.push(this.signal(
+      signals.push(createRiskSignal(
         "MISSING_MANDATORY_FIELDS",
         "data-quality",
         "warning",
@@ -111,22 +112,4 @@ export class RiskSignalEvaluator {
     }
   }
 
-  private signal(
-    code: string,
-    category: ComplianceRiskSignal["category"],
-    severity: RiskSignalSeverity,
-    message: string,
-    confidencePenalty: number
-  ): ComplianceRiskSignal {
-    return {
-      code,
-      category,
-      severity,
-      message,
-      confidencePenalty,
-      status: "open",
-      resolvedBy: null,
-      resolvedAt: null
-    };
-  }
 }

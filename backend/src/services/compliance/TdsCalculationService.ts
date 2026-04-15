@@ -4,6 +4,7 @@ import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js
 import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
+import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 
 interface TdsDetectionResult {
   section: string | null;
@@ -155,16 +156,13 @@ export class TdsCalculationService {
     }
 
     if (detection.confidence === TDS_CONFIDENCE.MEDIUM) {
-      riskSignals.push({
-        code: "TDS_SECTION_AMBIGUOUS",
-        category: "compliance",
-        severity: "warning",
-        message: `Multiple TDS sections could apply for category "${glCategory}" — please verify section ${detection.section}.`,
-        confidencePenalty: 4,
-        status: "open",
-        resolvedBy: null,
-        resolvedAt: null
-      });
+      riskSignals.push(createRiskSignal(
+        "TDS_SECTION_AMBIGUOUS",
+        "compliance",
+        "warning",
+        `Multiple TDS sections could apply for category "${glCategory}" — please verify section ${detection.section}.`,
+        4
+      ));
     }
 
     const rateLookup = await this.lookupRate(detection.section, panCategory, tenantId);
@@ -183,27 +181,21 @@ export class TdsCalculationService {
     }
 
     if (!panValid && invoice.pan !== undefined && invoice.pan !== null) {
-      riskSignals.push({
-        code: "TDS_NO_PAN_PENALTY_RATE",
-        category: "compliance",
-        severity: "critical",
-        message: `No valid PAN — TDS at 20% penalty rate (Section 206AA) applies instead of ${rateLookup.rateBps / 100}%.`,
-        confidencePenalty: 10,
-        status: "open",
-        resolvedBy: null,
-        resolvedAt: null
-      });
+      riskSignals.push(createRiskSignal(
+        "TDS_NO_PAN_PENALTY_RATE",
+        "compliance",
+        "critical",
+        `No valid PAN — TDS at 20% penalty rate (Section 206AA) applies instead of ${rateLookup.rateBps / 100}%.`,
+        10
+      ));
     } else if (!invoice.pan) {
-      riskSignals.push({
-        code: "TDS_NO_PAN_PENALTY_RATE",
-        category: "compliance",
-        severity: "critical",
-        message: "No PAN available — TDS at 20% penalty rate (Section 206AA) applies.",
-        confidencePenalty: 10,
-        status: "open",
-        resolvedBy: null,
-        resolvedAt: null
-      });
+      riskSignals.push(createRiskSignal(
+        "TDS_NO_PAN_PENALTY_RATE",
+        "compliance",
+        "critical",
+        "No PAN available — TDS at 20% penalty rate (Section 206AA) applies.",
+        10
+      ));
     }
 
     const taxableAmount = this.determineTaxableAmount(invoice);
@@ -224,16 +216,13 @@ export class TdsCalculationService {
     }
 
     if (rateLookup.thresholdSingleMinor > 0 && taxableAmount < rateLookup.thresholdSingleMinor) {
-      riskSignals.push({
-        code: "TDS_BELOW_THRESHOLD",
-        category: "compliance",
-        severity: "info",
-        message: `Invoice amount below single-transaction TDS threshold for section ${detection.section}.`,
-        confidencePenalty: 0,
-        status: "open",
-        resolvedBy: null,
-        resolvedAt: null
-      });
+      riskSignals.push(createRiskSignal(
+        "TDS_BELOW_THRESHOLD",
+        "compliance",
+        "info",
+        `Invoice amount below single-transaction TDS threshold for section ${detection.section}.`,
+        0
+      ));
 
       return {
         tds: {
