@@ -1,4 +1,8 @@
-import type { ParsedInvoiceData } from "@/types/invoice.js";
+import type {
+  InvoiceFieldKey,
+  InvoiceFieldProvenance,
+  ParsedInvoiceData
+} from "@/types/invoice.js";
 
 const LLAMA_EXTRACT_FIELD_KEY = {
   INVOICE_NUMBER: "invoice_number",
@@ -125,4 +129,35 @@ export function parseLlamaExtractFields(fields: Record<string, unknown>): Parsed
   }
 
   return parsed;
+}
+
+const EXTRACT_KEY_TO_INVOICE_FIELD: Record<string, InvoiceFieldKey> = {
+  invoice_number: "invoiceNumber",
+  vendor_name: "vendorName",
+  invoice_date: "invoiceDate",
+  due_date: "dueDate",
+  total_amount: "totalAmountMinor"
+};
+
+export function buildFieldProvenanceFromExtract(
+  raw: unknown
+): Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const provenance = raw as Record<string, { page?: number; bboxNormalized?: [number, number, number, number]; confidence?: number; parsingConfidence?: number; extractionConfidence?: number }>;
+  const result: Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>> = {};
+  for (const [extractKey, meta] of Object.entries(provenance)) {
+    const invoiceKey = EXTRACT_KEY_TO_INVOICE_FIELD[extractKey];
+    if (!invoiceKey) continue;
+    if (meta.page === undefined && meta.bboxNormalized === undefined && meta.confidence === undefined && meta.parsingConfidence === undefined && meta.extractionConfidence === undefined) continue;
+    result[invoiceKey] = {
+      ...(meta.page !== undefined ? { page: meta.page } : {}),
+      ...(meta.bboxNormalized !== undefined ? { bboxNormalized: meta.bboxNormalized } : {}),
+      ...(meta.confidence !== undefined ? { confidence: meta.confidence } : {}),
+      ...(meta.parsingConfidence !== undefined ? { parsingConfidence: meta.parsingConfidence } : {}),
+      ...(meta.extractionConfidence !== undefined ? { extractionConfidence: meta.extractionConfidence } : {})
+    };
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }

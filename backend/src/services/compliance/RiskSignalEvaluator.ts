@@ -40,49 +40,23 @@ export class RiskSignalEvaluator {
 
   private checkAmountAboveExpected(input: RiskSignalEvaluatorInput, signals: ComplianceRiskSignal[]): void {
     const { parsed, tenantConfig } = input;
-    const maxTotalMinor = tenantConfig?.maxInvoiceTotalMinor;
 
-    if (maxTotalMinor !== undefined) {
-      if (
-        parsed.totalAmountMinor === undefined ||
-        !Number.isInteger(parsed.totalAmountMinor) ||
-        maxTotalMinor <= 0 ||
-        parsed.totalAmountMinor <= maxTotalMinor
-      ) return;
+    if (parsed.totalAmountMinor === undefined || !Number.isInteger(parsed.totalAmountMinor)) return;
 
-      const currencyPrefix = parsed.currency ? `${parsed.currency} ` : "";
-      const overRatio = (parsed.totalAmountMinor - maxTotalMinor) / maxTotalMinor;
-      const penalty = Math.min(30, Math.round(15 + overRatio * 25));
+    const effectiveMaxMinor = tenantConfig?.maxInvoiceTotalMinor
+      ?? toMinorUnits(input.expectedMaxTotal, parsed.currency);
 
-      signals.push(createRiskSignal(
-        RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
-        "financial",
-        "warning",
-        `Total amount ${currencyPrefix}${minorUnitsToMajorString(parsed.totalAmountMinor, parsed.currency)} exceeds expected max ${currencyPrefix}${minorUnitsToMajorString(maxTotalMinor, parsed.currency)}.`,
-        penalty
-      ));
-      return;
-    }
-
-    const { expectedMaxTotal } = input;
-    if (
-      parsed.totalAmountMinor === undefined ||
-      !Number.isInteger(parsed.totalAmountMinor) ||
-      expectedMaxTotal <= 0
-    ) return;
-
-    const expectedMaxTotalMinor = toMinorUnits(expectedMaxTotal, parsed.currency);
-    if (expectedMaxTotalMinor <= 0 || parsed.totalAmountMinor <= expectedMaxTotalMinor) return;
+    if (effectiveMaxMinor <= 0 || parsed.totalAmountMinor <= effectiveMaxMinor) return;
 
     const currencyPrefix = parsed.currency ? `${parsed.currency} ` : "";
-    const overRatio = (parsed.totalAmountMinor - expectedMaxTotalMinor) / expectedMaxTotalMinor;
+    const overRatio = (parsed.totalAmountMinor - effectiveMaxMinor) / effectiveMaxMinor;
     const penalty = Math.min(30, Math.round(15 + overRatio * 25));
 
     signals.push(createRiskSignal(
       RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
       "financial",
       "warning",
-      `Total amount ${currencyPrefix}${minorUnitsToMajorString(parsed.totalAmountMinor, parsed.currency)} exceeds expected max ${currencyPrefix}${minorUnitsToMajorString(expectedMaxTotalMinor, parsed.currency)}.`,
+      `Total amount ${currencyPrefix}${minorUnitsToMajorString(parsed.totalAmountMinor, parsed.currency)} exceeds expected max ${currencyPrefix}${minorUnitsToMajorString(effectiveMaxMinor, parsed.currency)}.`,
       penalty
     ));
   }
@@ -109,34 +83,10 @@ export class RiskSignalEvaluator {
 
   private checkDueDateTooFar(input: RiskSignalEvaluatorInput, signals: ComplianceRiskSignal[]): void {
     const { parsed, tenantConfig, referenceDate = new Date() } = input;
-    const maxDueDays = tenantConfig?.maxDueDays;
 
-    if (maxDueDays !== undefined) {
-      if (!parsed.dueDate || maxDueDays <= 0) return;
+    const effectiveMaxDays = tenantConfig?.maxDueDays ?? input.expectedMaxDueDays;
 
-      const dueDate = parsed.dueDate;
-      if (isNaN(dueDate.getTime())) return;
-
-      const daysToDue = Math.round(
-        (Date.UTC(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()) -
-          Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate())) / 86400000
-      );
-
-      if (daysToDue <= maxDueDays) return;
-
-      const penalty = Math.min(20, Math.round(8 + (daysToDue - maxDueDays) / 4));
-      signals.push(createRiskSignal(
-        RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
-        "data-quality",
-        "warning",
-        `Due date is ${daysToDue} days away, expected max is ${maxDueDays} days.`,
-        penalty
-      ));
-      return;
-    }
-
-    const { expectedMaxDueDays } = input;
-    if (!parsed.dueDate || expectedMaxDueDays <= 0) return;
+    if (!parsed.dueDate || effectiveMaxDays <= 0) return;
 
     const dueDate = parsed.dueDate;
     if (isNaN(dueDate.getTime())) return;
@@ -146,14 +96,14 @@ export class RiskSignalEvaluator {
         Date.UTC(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate())) / 86400000
     );
 
-    if (daysToDue <= expectedMaxDueDays) return;
+    if (daysToDue <= effectiveMaxDays) return;
 
-    const penalty = Math.min(20, Math.round(8 + (daysToDue - expectedMaxDueDays) / 4));
+    const penalty = Math.min(20, Math.round(8 + (daysToDue - effectiveMaxDays) / 4));
     signals.push(createRiskSignal(
       RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
       "data-quality",
       "warning",
-      `Due date is ${daysToDue} days away, expected max is ${expectedMaxDueDays} days.`,
+      `Due date is ${daysToDue} days away, expected max is ${effectiveMaxDays} days.`,
       penalty
     ));
   }
