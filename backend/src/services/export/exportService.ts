@@ -24,12 +24,7 @@ export class ExportService {
     return !!this.fileStore;
   }
 
-  async exportApprovedInvoices(request: ExportRequest) {
-    logger.info("export.run.start", {
-      targetSystem: this.exporter.system,
-      requestedBy: request.requestedBy,
-      requestedIds: request.ids?.length ?? 0
-    });
+  private async fetchExportableInvoices(request: ExportRequest) {
     const query: Record<string, unknown> = {
       status: INVOICE_STATUS.APPROVED,
       tenantId: request.tenantId
@@ -41,7 +36,17 @@ export class ExportService {
       };
     }
 
-    const invoices = await InvoiceModel.find(query).select({ ocrText: 0 });
+    return InvoiceModel.find(query).select({ ocrText: 0 });
+  }
+
+  async exportApprovedInvoices(request: ExportRequest) {
+    logger.info("export.run.start", {
+      targetSystem: this.exporter.system,
+      requestedBy: request.requestedBy,
+      requestedIds: request.ids?.length ?? 0
+    });
+
+    const invoices = await this.fetchExportableInvoices(request);
     if (invoices.length === 0) {
       logger.info("export.run.complete", {
         targetSystem: this.exporter.system,
@@ -129,17 +134,7 @@ export class ExportService {
       throw new Error("File store is required for export file generation.");
     }
 
-    const query: Record<string, unknown> = {
-      status: INVOICE_STATUS.APPROVED,
-      tenantId: request.tenantId
-    };
-    if (request.ids && request.ids.length > 0) {
-      query._id = {
-        $in: request.ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id))
-      };
-    }
-
-    const invoices = await InvoiceModel.find(query).select({ ocrText: 0 });
+    const invoices = await this.fetchExportableInvoices(request);
 
     let alreadyExportedCount = 0;
     if (request.ids && request.ids.length > 0) {

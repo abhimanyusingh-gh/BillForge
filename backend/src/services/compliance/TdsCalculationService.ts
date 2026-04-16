@@ -23,6 +23,18 @@ interface TdsCalculationResult {
   riskSignals: ComplianceRiskSignal[];
 }
 
+interface PanCategoryRates {
+  noPan: number;
+  company: number;
+  individual: number;
+}
+
+function selectRateByPanCategory(panCategory: string | null, rates: PanCategoryRates): number {
+  if (!panCategory) return rates.noPan;
+  if (panCategory === "C") return rates.company;
+  return rates.individual;
+}
+
 export class TdsCalculationService {
   getPanCategory(pan: string | null | undefined): string | null {
     if (!pan || !PAN_FORMAT.test(pan.toUpperCase())) return null;
@@ -72,17 +84,12 @@ export class TdsCalculationService {
         if (entry) {
           if (!entry.active) return null;
 
-          let rateBps: number;
-          if (!panCategory) {
-            rateBps = entry.rateNoPan;
-          } else if (panCategory === "C") {
-            rateBps = entry.rateCompany;
-          } else {
-            rateBps = entry.rateIndividual;
-          }
-
           return {
-            rateBps,
+            rateBps: selectRateByPanCategory(panCategory, {
+              noPan: entry.rateNoPan,
+              company: entry.rateCompany,
+              individual: entry.rateIndividual
+            }),
             thresholdSingleMinor: entry.threshold,
             thresholdAnnualMinor: 0
           };
@@ -98,17 +105,12 @@ export class TdsCalculationService {
 
     if (!rate) return null;
 
-    let rateBps: number;
-    if (!panCategory) {
-      rateBps = rate.rateNoPanBps;
-    } else if (panCategory === "C") {
-      rateBps = rate.rateCompanyBps;
-    } else {
-      rateBps = rate.rateIndividualBps;
-    }
-
     return {
-      rateBps,
+      rateBps: selectRateByPanCategory(panCategory, {
+        noPan: rate.rateNoPanBps,
+        company: rate.rateCompanyBps,
+        individual: rate.rateIndividualBps
+      }),
       thresholdSingleMinor: rate.thresholdSingleMinor,
       thresholdAnnualMinor: rate.thresholdAnnualMinor
     };
