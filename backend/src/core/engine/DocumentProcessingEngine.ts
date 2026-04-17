@@ -3,8 +3,15 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { DocumentMimeType } from "@/types/mime.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
 import type { ChunkableDocumentDefinition, DocumentDefinition } from "@/core/engine/DocumentDefinition.js";
-import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "@/core/engine/types.js";
-import { DocumentProcessingError, ENGINE_STRATEGY, PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
+import type { ProcessingContext, ProcessingResult, ValidationResult } from "@/core/engine/types.js";
+import { DocumentProcessingError, PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
+import {
+  FieldExtractionStrategy,
+  SinglePassProcessingStrategy,
+  ChunkedProcessingStrategy,
+  type OcrStageResult,
+  type ProcessingStrategy,
+} from "@/core/engine/ProcessingStrategy.js";
 
 import { extractNativePdfText } from "@/ai/extractors/stages/nativePdfText.js";
 import { logger } from "@/utils/logger.js";
@@ -18,14 +25,14 @@ export type DocumentProcessingProgressEvent =
 export class DocumentProcessingEngine<TOutput> {
   private readonly ocrProvider: OcrProvider | null;
   private readonly fieldVerifier: FieldVerifier;
-  private readonly definition: DocumentDefinition<TOutput> & DocumentDefinitionCanChunk;
+  private readonly definition: DocumentDefinition<TOutput>;
 
   constructor(
     definition: DocumentDefinition<TOutput>,
     fieldVerifier: FieldVerifier,
     ocrProvider?: OcrProvider | null
   ) {
-    this.definition = definition as DocumentDefinition<TOutput> & DocumentDefinitionCanChunk;
+    this.definition = definition;
     this.fieldVerifier = fieldVerifier;
     this.ocrProvider = ocrProvider ?? null;
   }
@@ -37,78 +44,43 @@ export class DocumentProcessingEngine<TOutput> {
   ): Promise<ProcessingResult<TOutput>> {
     const processingIssues: string[] = [];
 
-    const { text, ocrResult, ocrTokens, ocrConfidence } = await this.runOcrStage(ctx, onProgress);
+    const ocrStage = await this.runOcrStage(ctx, onProgress);
 
     if (afterOcr) {
-      await afterOcr(ocrResult, text);
+      await afterOcr(ocrStage.ocrResult, ocrStage.text);
     }
 
-    if (ocrResult.fields && ocrResult.fields.length > 0) {
-      const fieldsAsRecord: Record<string, unknown> = {};
-      const extractProvenance: Record<string, { page?: number; bboxNormalized?: [number, number, number, number]; confidence?: number; parsingConfidence?: number; extractionConfidence?: number }> = {};
-      for (const field of ocrResult.fields) {
-        fieldsAsRecord[field.key] = field.value;
-        if (field.page !== undefined || field.bboxNormalized !== undefined || field.confidence !== undefined || field.parsingConfidence !== undefined || field.extractionConfidence !== undefined) {
-          extractProvenance[field.key] = {
-            ...(field.page !== undefined ? { page: field.page } : {}),
-            ...(field.bboxNormalized !== undefined ? { bboxNormalized: field.bboxNormalized } : {}),
-            ...(field.confidence !== undefined ? { confidence: field.confidence } : {}),
-            ...(field.parsingConfidence !== undefined ? { parsingConfidence: field.parsingConfidence } : {}),
-            ...(field.extractionConfidence !== undefined ? { extractionConfidence: field.extractionConfidence } : {})
-          };
-        }
-      }
-      if (ocrResult.extractedLineItems && ocrResult.extractedLineItems.length > 0) {
-        fieldsAsRecord["line_items"] = ocrResult.extractedLineItems;
-      }
-      if (Object.keys(extractProvenance).length > 0) {
-        fieldsAsRecord["__extract_provenance__"] = extractProvenance;
-      }
-      const output = this.definition.parseOutput(fieldsAsRecord);
-      const validationResult = this.runValidation(output, processingIssues);
-      return {
-        output,
-        ocrText: text,
-        ocrBlocks: ocrResult.blocks ?? [],
-        ocrPageImages: ocrResult.pageImages ?? [],
-        ocrConfidence,
-        ocrTokens,
-        slmTokens: 0,
-        strategy: ENGINE_STRATEGY.LLAMA_EXTRACT,
-        validationResult,
-        processingIssues
-      };
+    const strategy = this.selectStrategy(ocrStage);
+    return strategy.execute(ocrStage, ctx.mimeType, processingIssues, onProgress);
+  }
+
+  private selectStrategy(ocrStage: OcrStageResult): ProcessingStrategy<TOutput> {
+    const delegate = {
+      invokeSingleSlm: this.runSingleSlm.bind(this),
+      invokeChunkedSlm: this.runChunkedSlm.bind(this),
+      runValidation: this.runValidation.bind(this),
+      parseFieldOutput: this.definition.parseOutput.bind(this.definition),
+    };
+
+    if (ocrStage.ocrResult.fields && ocrStage.ocrResult.fields.length > 0) {
+      return new FieldExtractionStrategy(delegate);
     }
 
     const chunkDef = this.definition.canChunk() ? (this.definition as unknown as ChunkableDocumentDefinition<TOutput>) : null;
     const maxChunkChars = chunkDef?.maxChunkChars ?? 8000;
     const canChunk = Boolean(chunkDef?.mergeChunkOutputs);
 
-    if (text.length > maxChunkChars && canChunk) {
-      return this.runChunkedSlm(text, ctx, ocrResult, ocrTokens, ocrConfidence, processingIssues, onProgress);
+    if (ocrStage.text.length > maxChunkChars && canChunk) {
+      return new ChunkedProcessingStrategy(delegate);
     }
 
-    const { output, slmTokens } = await this.runSingleSlm(text, ocrResult, ctx.mimeType);
-    const validationResult = this.runValidation(output, processingIssues);
-
-    return {
-      output,
-      ocrText: text,
-      ocrBlocks: ocrResult.blocks ?? [],
-      ocrPageImages: ocrResult.pageImages ?? [],
-      ocrConfidence,
-      ocrTokens,
-      slmTokens,
-      strategy: ENGINE_STRATEGY.SLM,
-      validationResult,
-      processingIssues
-    };
+    return new SinglePassProcessingStrategy(delegate);
   }
 
   private async runOcrStage(
     ctx: ProcessingContext,
     _onProgress?: (event: DocumentProcessingProgressEvent) => void
-  ): Promise<{ text: string; ocrResult: OcrResult; ocrTokens: number; ocrConfidence: number | undefined; source: "ocr" | "native-pdf" }> {
+  ): Promise<OcrStageResult> {
     if (this.definition.preferNativePdfText) {
       const minLength = this.definition.nativePdfTextMinLength ?? 100;
       const nativeText = extractNativePdfText(ctx.fileBuffer, ctx.mimeType);
@@ -118,7 +90,6 @@ export class DocumentProcessingEngine<TOutput> {
           ocrResult: { text: nativeText, provider: "native-pdf", blocks: [], pageImages: [] },
           ocrTokens: 0,
           ocrConfidence: undefined,
-          source: "native-pdf"
         };
       }
 
@@ -157,7 +128,7 @@ export class DocumentProcessingEngine<TOutput> {
     const ocrTokens = ocrResult.tokenUsage?.totalTokens ?? 0;
     const ocrConfidence = ocrResult.confidence;
 
-    return { text, ocrResult, ocrTokens, ocrConfidence, source: "ocr" };
+    return { text, ocrResult, ocrTokens, ocrConfidence };
   }
 
   private async runSingleSlm(
@@ -198,13 +169,10 @@ export class DocumentProcessingEngine<TOutput> {
 
   private async runChunkedSlm(
     text: string,
-    ctx: ProcessingContext,
-    ocrResult: OcrResult,
-    ocrTokens: number,
-    ocrConfidence: number | undefined,
+    mimeType: DocumentMimeType,
     processingIssues: string[],
     onProgress?: (event: DocumentProcessingProgressEvent) => void
-  ): Promise<ProcessingResult<TOutput>> {
+  ): Promise<{ mergedOutput: TOutput; slmTokens: number }> {
     const chunks = this.splitTextIntoChunks(text);
     const chunkOutputs: TOutput[] = [];
 
@@ -217,7 +185,7 @@ export class DocumentProcessingEngine<TOutput> {
         const prompt = def.buildChunkPrompt
           ? def.buildChunkPrompt(chunks[i], i, isFirst)
           : this.buildPromptFromSchema(chunks[i], !isFirst);
-        const rawJson = await this.callSlm(prompt, ctx.mimeType, []);
+        const rawJson = await this.callSlm(prompt, mimeType, []);
         const output = this.definition.parseOutput(rawJson);
         chunkOutputs.push(output);
       } catch (error) {
@@ -228,20 +196,7 @@ export class DocumentProcessingEngine<TOutput> {
 
     const def = this.definition as ChunkableDocumentDefinition<TOutput>;
     const mergedOutput = def.mergeChunkOutputs!(chunkOutputs);
-    const validationResult = this.runValidation(mergedOutput, processingIssues);
-
-    return {
-      output: mergedOutput,
-      ocrText: text,
-      ocrBlocks: ocrResult.blocks ?? [],
-      ocrPageImages: ocrResult.pageImages ?? [],
-      ocrConfidence,
-      ocrTokens,
-      slmTokens: 0,
-      strategy: ENGINE_STRATEGY.SLM_CHUNKED,
-      validationResult,
-      processingIssues
-    };
+    return { mergedOutput, slmTokens: 0 };
   }
 
   private async callSlm(prompt: string, mimeType: DocumentMimeType, _pageImages: OcrPageImage[]): Promise<string> {

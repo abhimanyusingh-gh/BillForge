@@ -64,7 +64,7 @@ export type BoundingBox = [number, number, number, number];
 
 export const PROVENANCE_SOURCE = {
   SLM: "slm",
-  HEURISTIC: "heuristic",
+  TEXT_PATTERN: "text-pattern",
   TEMPLATE: "template",
 } as const;
 

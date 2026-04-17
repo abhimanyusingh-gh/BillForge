@@ -171,7 +171,7 @@ export function buildFieldDiagnostics(params: {
         ? PROVENANCE_SOURCE.TEMPLATE
         : params.source.includes("template")
           ? PROVENANCE_SOURCE.TEMPLATE
-          : PROVENANCE_SOURCE.HEURISTIC;
+          : PROVENANCE_SOURCE.TEXT_PATTERN;
 
     fieldProvenance[key] = resolveFieldProvenance(
       key,

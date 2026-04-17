@@ -50,7 +50,7 @@ import {
   InvoiceDocumentDefinition,
   type InvoiceSlmOutput,
 } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
-import { type ExtractionSource } from "@/core/engine/extractionSource.js";
+import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
 import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
 import type { UUID } from "@/types/uuid.js";
@@ -228,6 +228,8 @@ export class InvoiceExtractionPipeline {
 
     ctx.store.set(POST_ENGINE_CTX.SLM_OUTPUT, engineResult.output);
     ctx.store.set(POST_ENGINE_CTX.ENGINE_STRATEGY, engineResult.strategy);
+    const isLlamaExtract = engineResult.strategy === EXTRACTION_SOURCE.LLAMA_EXTRACT;
+    ctx.store.set(POST_ENGINE_CTX.EXTRACTION_SOURCE, isLlamaExtract ? EXTRACTION_SOURCE.LLAMA_EXTRACT : EXTRACTION_SOURCE.SLM_DIRECT);
     ctx.store.set("invoice.ocrProviderName", this.ocrProvider.name);
 
     const postEnginePipeline = createInvoicePostEnginePipeline({

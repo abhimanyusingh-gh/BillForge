@@ -254,7 +254,6 @@ export class AuthService {
       requires_tenant_setup: context.onboardingStatus !== "completed",
       requires_reauth: requiresReauth,
       requires_admin_action: requiresReauth && capabilities.canManageConnections === true,
-      requires_email_confirmation: false,
       must_change_password: userDoc?.mustChangePassword === true
     };
   }

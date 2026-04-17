@@ -429,7 +429,6 @@ async function getSession(token: string): Promise<{
     requires_tenant_setup: boolean;
     requires_reauth: boolean;
     requires_admin_action: boolean;
-    requires_email_confirmation: boolean;
   };
 }> {
   const response = await api.get("/api/session", {
