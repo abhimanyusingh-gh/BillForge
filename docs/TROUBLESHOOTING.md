@@ -137,7 +137,11 @@ OCR_TIMEOUT_MS=7200000
 
 **Fix**:
 ```bash
-docker compose up -d minio-init
+yarn docker:up
+# minio-init runs automatically as part of the docker:up stack.
+# If only minio-init needs re-running, this is one of the few cases
+# where calling docker compose directly is acceptable:
+#   docker compose up -d minio-init
 docker logs billforge-minio-init
 ```
 
@@ -205,4 +209,26 @@ docker logs billforge-mailhog-oauth --tail 20
 docker logs billforge-redis --tail 20
 
 docker logs -f billforge-backend
+```
+
+### TypeScript null vs undefined with Mongoose
+
+**Symptom**: TypeScript compilation error or runtime validation failure when assigning optional fields to Mongoose document properties.
+
+**Cause**: Mongoose distinguishes between `null` and `undefined` for optional fields. TypeScript's strict null checks may pass `null` where Mongoose expects `undefined` (or vice versa).
+
+**Fix**: Use `?? undefined` coercion when assigning to optional Mongoose fields:
+```typescript
+doc.optionalField = inputValue ?? undefined;
+```
+
+### .env.example not tracked by git
+
+**Symptom**: `.env.example` changes are not picked up by `git status` or `git add`.
+
+**Cause**: The `.gitignore` has a `.env.*` pattern that matches `.env.example`.
+
+**Fix**: Force-track the file:
+```bash
+git add -f .env.example
 ```

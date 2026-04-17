@@ -97,7 +97,6 @@ BillForge authenticates exclusively through Keycloak. The following OIDC variabl
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `OIDC_ISSUER_URL` | Keycloak realm issuer | `https://auth.example.com/realms/billforge` |
 | `OIDC_CLIENT_ID` | OIDC client identifier | `billforge-app` |
 | `OIDC_CLIENT_SECRET` | OIDC client secret | (from Keycloak admin console) |
 | `OIDC_AUTH_URL` | Authorization endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/auth` |
@@ -118,7 +117,7 @@ BillForge authenticates exclusively through Keycloak. The following OIDC variabl
 | `OCR_MODEL` | DeepSeek model name | DeepSeek provider |
 | `OCR_TIMEOUT_MS` | OCR request timeout | Always (default 3600000) |
 | `LLAMA_CLOUD_API_KEY` | LlamaCloud API key | `ocr_provider=llamaparse` or LlamaExtract |
-| `LLAMA_PARSE_EXTRACT_ENABLED` | Enable LlamaExtract for extraction (bypasses SLM) | LlamaExtract mode |
+| `LLAMA_PARSE_EXTRACT_ENABLED` | Enable LlamaExtract as the structured extraction provider | LlamaExtract mode |
 | `LLAMA_PARSE_EXTRACT_TIER` | LlamaExtract tier: `cost_effective` or `agentic` | LlamaExtract mode |
 | `FIELD_VERIFIER_PROVIDER` | SLM provider: `http` or `none` | Always |
 | `FIELD_VERIFIER_BASE_URL` | SLM service endpoint | `FIELD_VERIFIER_PROVIDER=http` |

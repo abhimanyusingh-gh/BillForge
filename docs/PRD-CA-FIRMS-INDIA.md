@@ -1,5 +1,7 @@
 # BillForge -- Product Requirements Document for CA and Accounting Firms in India
 
+> **Note:** This document has been refined and superseded by [docs/accounting-payments/PRD.md](accounting-payments/PRD.md) for the Accounting, Payments & Tally Integration feature area. This file is retained as the original domain reference.
+
 > **Implementation Status (2026-04-14)**
 >
 > This document serves as the domain reference for BillForge's India-focused feature set.

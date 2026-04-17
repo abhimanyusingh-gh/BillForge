@@ -1,0 +1,299 @@
+[
+  {
+    "commit": "5ca4acd",
+    "date": "2026-02-19",
+    "message": "feat: product scope, architecture decisions, backend pipeline, dashboard",
+    "backend": 21610,
+    "frontend": 8422,
+    "tests": 7727,
+    "total": 33738
+  },
+  {
+    "commit": "0ac4252",
+    "date": "2026-03-02",
+    "message": "feat: OAuth tenancy, RBAC, platform admin, invite delivery, benchmark runner",
+    "backend": 24803,
+    "frontend": 10537,
+    "tests": 8731,
+    "total": 38994
+  },
+  {
+    "commit": "c1b2596",
+    "date": "2026-03-12",
+    "message": "feat: LLM-assisted extraction, invoice classification, feedback loop, performance",
+    "backend": 27208,
+    "frontend": 10807,
+    "tests": 10015,
+    "total": 41861
+  },
+  {
+    "commit": "dcc8adb",
+    "date": "2026-03-21",
+    "message": "refactor: backend refactoring, export fixes, toolbar cleanup, E2E validation",
+    "backend": 28782,
+    "frontend": 12143,
+    "tests": 10602,
+    "total": 44885
+  },
+  {
+    "commit": "e90b484",
+    "date": "2026-03-26",
+    "message": "feat(extraction): SLM field provenance with spatial label-value proximity",
+    "backend": 23828,
+    "frontend": 12209,
+    "tests": 7130,
+    "total": 39566
+  },
+  {
+    "commit": "de14419",
+    "date": "2026-03-27",
+    "message": "docs: PRD feedback round 4 \u2014 category, interviews, moat, contingency",
+    "backend": 23868,
+    "frontend": 11859,
+    "tests": 7707,
+    "total": 39296
+  },
+  {
+    "commit": "06998c6",
+    "date": "2026-04-02",
+    "message": "feat: state machine rewrite, bank statement upload, TCS, reconciliation",
+    "backend": 28351,
+    "frontend": 12790,
+    "tests": 8077,
+    "total": 46537
+  },
+  {
+    "commit": "42f2ef5",
+    "date": "2026-04-02",
+    "message": "feat(tcs): tenant-level TCS configuration with role-based access",
+    "backend": 32194,
+    "frontend": 15285,
+    "tests": 8387,
+    "total": 52866
+  },
+  {
+    "commit": "81eb2e0",
+    "date": "2026-04-09",
+    "message": "feat(bank): statement upload, OCR+SLM parsing, GSTIN reconciliation, and GL-aware extraction",
+    "backend": 36691,
+    "frontend": 17181,
+    "tests": 10892,
+    "total": 59370
+  },
+  {
+    "commit": "086982a",
+    "date": "2026-04-09",
+    "message": "feat(dx): dynamic OCR model detection, SLM engine-mismatch kill, and docker:up variants",
+    "backend": 37575,
+    "frontend": 17918,
+    "tests": 11512,
+    "total": 61041
+  },
+  {
+    "commit": "f6469e3",
+    "date": "2026-04-09",
+    "message": "fix(extraction): correct date/invoice-number disambiguation and parallelize benchmark",
+    "backend": 38913,
+    "frontend": 17926,
+    "tests": 11928,
+    "total": 62422
+  },
+  {
+    "commit": "f0f4b50",
+    "date": "2026-04-10",
+    "message": "fix(extraction): fall back to raw OCR text when blocks are absent",
+    "backend": 39063,
+    "frontend": 17926,
+    "tests": 11928,
+    "total": 62676
+  },
+  {
+    "commit": "6322314",
+    "date": "2026-04-13",
+    "message": "fix(extraction): invoice number block match, markdown table totals, date edit UX, and per-field DB updates",
+    "backend": 39242,
+    "frontend": 17949,
+    "tests": 11928,
+    "total": 62895
+  },
+  {
+    "commit": "2b0490b",
+    "date": "2026-04-13",
+    "message": "refactor(pipeline): export interfaces and extract ocrTextCandidates ranking module",
+    "backend": 39513,
+    "frontend": 17949,
+    "tests": 12104,
+    "total": 64132
+  },
+  {
+    "commit": "d798220",
+    "date": "2026-04-13",
+    "message": "feat(extract): comprehensive schema with split CGST/SGST/IGST/Cess and hardened field descriptions",
+    "backend": 39837,
+    "frontend": 17949,
+    "tests": 12104,
+    "total": 64888
+  },
+  {
+    "commit": "e049896",
+    "date": "2026-04-14",
+    "message": "fix(manifest): remove hard-coded provider fields that overrode OCR_PROVIDER and FIELD_VERIFIER_PROVIDER env vars",
+    "backend": 39850,
+    "frontend": 17949,
+    "tests": 12104,
+    "total": 64909
+  },
+  {
+    "commit": "405c908",
+    "date": "2026-04-14",
+    "message": "fix(reconciliation): add GET /bank-statements/:id/matches route",
+    "backend": 40893,
+    "frontend": 18086,
+    "tests": 12545,
+    "total": 66090
+  },
+  {
+    "commit": "5df11c8",
+    "date": "2026-04-14",
+    "message": "refactor(ocr): relocate LlamaExtract schema files to ocr/adapters",
+    "backend": 41247,
+    "frontend": 18086,
+    "tests": 12695,
+    "total": 66445
+  },
+  {
+    "commit": "e811658",
+    "date": "2026-04-14",
+    "message": "fix(reorg): resolve remaining import path issues post-rebase",
+    "backend": 41031,
+    "frontend": 18086,
+    "tests": 12695,
+    "total": 66242
+  },
+  {
+    "commit": "0cd3eac",
+    "date": "2026-04-14",
+    "message": "docs(diagrams): rewrite all 5 drawio files to reflect current architecture (#6)",
+    "backend": 41089,
+    "frontend": 18086,
+    "tests": 12695,
+    "total": 66300
+  },
+  {
+    "commit": "629da51",
+    "date": "2026-04-14",
+    "message": "chore: rewrite README and remove legacy scripts (#11)",
+    "backend": 41089,
+    "frontend": 18086,
+    "tests": 12695,
+    "total": 66589
+  },
+  {
+    "commit": "9ab362a",
+    "date": "2026-04-14",
+    "message": "refactor(invoice): integrate composable pipeline into extract() (#18)",
+    "backend": 41575,
+    "frontend": 18086,
+    "tests": 12847,
+    "total": 67078
+  },
+  {
+    "commit": "e71945e",
+    "date": "2026-04-15",
+    "message": "fix: performance and architecture improvements (H12, M1, M4, M8, M10) (#25)",
+    "backend": 38781,
+    "frontend": 18089,
+    "tests": 10379,
+    "total": 67015
+  },
+  {
+    "commit": "54ca003",
+    "date": "2026-04-15",
+    "message": "refactor: PipelineStage\u2192PipelineStep, all relative imports\u2192@/ aliases (#30)",
+    "backend": 38864,
+    "frontend": 18089,
+    "tests": 10381,
+    "total": 67098
+  },
+  {
+    "commit": "ff5a609",
+    "date": "2026-04-15",
+    "message": "refactor: replace all freestyled string fields with typed constants (#35)",
+    "backend": 39118,
+    "frontend": 18089,
+    "tests": 10383,
+    "total": 67353
+  },
+  {
+    "commit": "7cdfc40",
+    "date": "2026-04-15",
+    "message": "refactor: replace remaining inline string unions with typed constant enums (#40)",
+    "backend": 39300,
+    "frontend": 18089,
+    "tests": 10550,
+    "total": 67530
+  },
+  {
+    "commit": "ab56040",
+    "date": "2026-04-15",
+    "message": "refactor(phase2): unify provenance normalization into shared module (#45)",
+    "backend": 40377,
+    "frontend": 18089,
+    "tests": 11460,
+    "total": 68607
+  },
+  {
+    "commit": "0a758fd",
+    "date": "2026-04-15",
+    "message": "refactor(pipeline): remove threshold threading from extraction pipeline (#50)",
+    "backend": 39919,
+    "frontend": 18089,
+    "tests": 11398,
+    "total": 68149
+  },
+  {
+    "commit": "1ae80f9",
+    "date": "2026-04-15",
+    "message": "feat(compliance): wire services to read thresholds from TenantComplianceConfig (#55)",
+    "backend": 41468,
+    "frontend": 18092,
+    "tests": 12692,
+    "total": 69691
+  },
+  {
+    "commit": "50d6beb",
+    "date": "2026-04-15",
+    "message": "fix(confidence): eliminate NaN propagation in scoring pipeline (#60)",
+    "backend": 41918,
+    "frontend": 18092,
+    "tests": 13015,
+    "total": 70141
+  },
+  {
+    "commit": "2c3c268",
+    "date": "2026-04-15",
+    "message": "fix(fields-table): render source crops for LlamaExtract fields using CSS bbox cropping (#62)",
+    "backend": 42007,
+    "frontend": 18236,
+    "tests": 13053,
+    "total": 70374
+  },
+  {
+    "commit": "3ec05b7",
+    "date": "2026-04-16",
+    "message": "fix: remove llamaExtractEnabled pipeline flag \u2014 enforce provider-agnostic pipeline (#66)",
+    "backend": 42557,
+    "frontend": 18319,
+    "tests": 13326,
+    "total": 71014
+  },
+  {
+    "commit": "1c83665",
+    "date": "2026-04-16",
+    "message": "fix: YAGNI Phase 2 \u2014 remove 5 unused route files with no frontend consumers (#65)",
+    "backend": 42056,
+    "frontend": 18319,
+    "tests": 13326,
+    "total": 70513
+  }
+]
