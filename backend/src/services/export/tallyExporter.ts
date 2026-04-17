@@ -201,27 +201,77 @@ interface InvoiceValidationResult {
   resolvedTotalAmountMinor?: number;
 }
 
-export function validateInvoiceForExport(invoice: InvoiceDocument, invoiceId: string): InvoiceValidationResult {
+export interface ExportValidationRule {
+  name: string;
+  validate(invoice: InvoiceDocument, config: TallyExporterConfig): { valid: boolean; error?: string; logLevel?: "warn" };
+}
+
+export class AmountValidationRule implements ExportValidationRule {
+  readonly name = "amount";
+
+  validate(invoice: InvoiceDocument): { valid: boolean; error?: string; logLevel?: "warn" } {
+    const resolved = resolveInvoiceTotalAmountMinor(
+      invoice.parsed?.totalAmountMinor,
+      invoice.parsed?.currency,
+      invoice.ocrText
+    );
+    if (resolved === null) {
+      return { valid: false, error: "Invalid invoice total amount for Tally export.", logLevel: "warn" };
+    }
+    return { valid: true };
+  }
+}
+
+export class VendorNameValidationRule implements ExportValidationRule {
+  readonly name = "vendorName";
+
+  validate(invoice: InvoiceDocument): { valid: boolean; error?: string } {
+    const vendorName = invoice.parsed?.vendorName?.trim();
+    if (!vendorName || vendorName === "Unknown Vendor") {
+      return { valid: false, error: "Vendor name is missing or invalid for Tally export." };
+    }
+    return { valid: true };
+  }
+}
+
+export class InvoiceNumberValidationRule implements ExportValidationRule {
+  readonly name = "invoiceNumber";
+
+  validate(invoice: InvoiceDocument): { valid: boolean; error?: string } {
+    const invoiceNumber = invoice.parsed?.invoiceNumber?.trim();
+    if (!invoiceNumber || /^[0-9a-f]{24}$/i.test(invoiceNumber)) {
+      return { valid: false, error: "Invoice number is missing or invalid for Tally export." };
+    }
+    return { valid: true };
+  }
+}
+
+const DEFAULT_EXPORT_VALIDATION_RULES: ExportValidationRule[] = [
+  new AmountValidationRule(),
+  new VendorNameValidationRule(),
+  new InvoiceNumberValidationRule()
+];
+
+export function validateInvoiceForExport(
+  invoice: InvoiceDocument,
+  invoiceId: string,
+  rules: ExportValidationRule[] = DEFAULT_EXPORT_VALIDATION_RULES,
+  config?: TallyExporterConfig
+): InvoiceValidationResult {
+  for (const rule of rules) {
+    const result = rule.validate(invoice, config!);
+    if (!result.valid) {
+      return { valid: false, error: result.error, logLevel: result.logLevel };
+    }
+  }
+
   const resolvedTotalAmountMinor = resolveInvoiceTotalAmountMinor(
     invoice.parsed?.totalAmountMinor,
     invoice.parsed?.currency,
     invoice.ocrText
   );
-  if (resolvedTotalAmountMinor === null) {
-    return { valid: false, error: "Invalid invoice total amount for Tally export.", logLevel: "warn" };
-  }
 
-  const vendorName = invoice.parsed?.vendorName?.trim();
-  if (!vendorName || vendorName === "Unknown Vendor") {
-    return { valid: false, error: "Vendor name is missing or invalid for Tally export." };
-  }
-
-  const invoiceNumber = invoice.parsed?.invoiceNumber?.trim();
-  if (!invoiceNumber || /^[0-9a-f]{24}$/i.test(invoiceNumber)) {
-    return { valid: false, error: "Invoice number is missing or invalid for Tally export." };
-  }
-
-  return { valid: true, resolvedTotalAmountMinor };
+  return { valid: true, resolvedTotalAmountMinor: resolvedTotalAmountMinor ?? undefined };
 }
 
 export function mapInvoiceToVoucher(config: TallyExporterConfig, invoice: InvoiceDocument, invoiceId: string, resolvedTotalAmountMinor: number): string {

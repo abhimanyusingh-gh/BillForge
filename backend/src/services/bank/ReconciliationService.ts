@@ -13,6 +13,14 @@ const DEFAULT_AUTO_MATCH_THRESHOLD = 50;
 const DEFAULT_SUGGEST_THRESHOLD = 30;
 const DEFAULT_AMOUNT_TOLERANCE_MINOR = 100;
 
+const WEIGHT_EXACT_AMOUNT = 50;
+const WEIGHT_CLOSE_AMOUNT = 10;
+const WEIGHT_INVOICE_NUMBER = 30;
+const WEIGHT_VENDOR_NAME = 20;
+const WEIGHT_DATE_WITHIN_3_DAYS = 10;
+const WEIGHT_DATE_WITHIN_7_DAYS = 5;
+const WEIGHT_DATE_WITHIN_30_DAYS = 2;
+
 export interface ReconciliationScoringWeights {
   exactAmountMatch: number;
   closeAmountMatch: number;
@@ -24,13 +32,13 @@ export interface ReconciliationScoringWeights {
 }
 
 export const DEFAULT_SCORING_WEIGHTS: ReconciliationScoringWeights = {
-  exactAmountMatch: 50,
-  closeAmountMatch: 30,
-  invoiceNumberMatch: 30,
-  vendorNameMatch: 20,
-  dateWithin3Days: 10,
-  dateWithin7Days: 5,
-  dateWithin30Days: 2
+  exactAmountMatch: WEIGHT_EXACT_AMOUNT,
+  closeAmountMatch: WEIGHT_CLOSE_AMOUNT,
+  invoiceNumberMatch: WEIGHT_INVOICE_NUMBER,
+  vendorNameMatch: WEIGHT_VENDOR_NAME,
+  dateWithin3Days: WEIGHT_DATE_WITHIN_3_DAYS,
+  dateWithin7Days: WEIGHT_DATE_WITHIN_7_DAYS,
+  dateWithin30Days: WEIGHT_DATE_WITHIN_30_DAYS
 };
 
 interface MatchCandidate {
@@ -41,14 +49,15 @@ interface MatchCandidate {
   score: number;
 }
 
-function wordOverlap(a: string, b: string): number {
-  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 2));
-  let matches = 0;
-  for (const w of wordsA) {
-    if (wordsB.has(w)) matches++;
-  }
-  return matches;
+function prefixOrSequentialMatch(vendorName: string, description: string): boolean {
+  const vendor = vendorName.toLowerCase().trim();
+  const desc = description.toLowerCase().trim();
+  if (!vendor || !desc) return false;
+  if (desc.includes(vendor)) return true;
+  if (vendor.startsWith(desc) || desc.startsWith(vendor)) return true;
+  const shorter = vendor.length <= desc.length ? vendor : desc;
+  const longer = vendor.length <= desc.length ? desc : vendor;
+  return longer.includes(shorter);
 }
 
 export function scoreAmountMatch(netPayable: number, debitMinor: number, weights: ReconciliationScoringWeights): number {
@@ -62,7 +71,7 @@ export function scoreInvoiceNumberMatch(invoiceNumber: string, descLower: string
 }
 
 export function scoreVendorNameMatch(vendorName: string, descLower: string, weights: ReconciliationScoringWeights): number {
-  if (vendorName && wordOverlap(vendorName, descLower) >= 1) return weights.vendorNameMatch;
+  if (vendorName && prefixOrSequentialMatch(vendorName, descLower)) return weights.vendorNameMatch;
   return 0;
 }
 

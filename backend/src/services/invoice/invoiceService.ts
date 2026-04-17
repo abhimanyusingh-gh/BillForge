@@ -78,6 +78,15 @@ const EDITABLE_PARSED_FIELDS = [
 const STRING_FIELDS = ["invoiceNumber", "vendorName"] as const;
 const DATE_FIELDS = ["invoiceDate", "dueDate"] as const;
 
+interface RecordFieldCorrectionsInput {
+  tenantId: UUID;
+  invoiceId: string;
+  invoice: InvoiceDocument;
+  currentParsed: ParsedInvoiceData;
+  nextParsed: ParsedInvoiceData;
+  updatedBy: string;
+}
+
 const FACET_RETURN_MAP: Record<string, string> = {
   totalAll: "totalAll", approved: "approvedAll", pending: "pendingAll",
   failed: "failedAll", needsReview: "needsReviewAll", parsed: "parsedAll",
@@ -332,7 +341,7 @@ export class InvoiceService {
       invoice.set(`parsed.${field}`, getParsedField(nextParsed, field));
     }
 
-    this.recordFieldCorrections(tenantId, id, invoice, currentParsed, nextParsed, updatedBy);
+    this.recordFieldCorrections({ tenantId, invoiceId: id, invoice, currentParsed, nextParsed, updatedBy });
 
     reassessConfidenceAfterEdit(invoice, nextParsed);
     determineStatusAfterEdit(invoice, nextParsed);
@@ -346,7 +355,8 @@ export class InvoiceService {
     return sanitizeForApi(invoice.toObject());
   }
 
-  private recordFieldCorrections(tenantId: UUID, invoiceId: string, invoice: InvoiceDocument, currentParsed: ParsedInvoiceData, nextParsed: ParsedInvoiceData, updatedBy: string): void {
+  private recordFieldCorrections(input: RecordFieldCorrectionsInput): void {
+    const { tenantId, invoiceId, invoice, currentParsed, nextParsed, updatedBy } = input;
     if (this.learningStore) {
       const correctionFields = ["invoiceNumber", "vendorName", "invoiceDate", "dueDate", "currency", "totalAmountMinor"] as const;
       const corrections = correctionFields

@@ -212,7 +212,7 @@ describe("ReconciliationService", () => {
     expect(amountFilter.$lte).toBeGreaterThan(109000);
   });
 
-  it("word-overlap vendor scoring gives +20 when a full word matches description", async () => {
+  it("prefix vendor scoring gives +20 when vendor name appears in description", async () => {
     const invoice = makeInvoice({
       parsed: { invoiceNumber: "INV-OVERLAP", vendorName: "Acme Corporation", totalAmountMinor: 100000 }
     });
@@ -275,7 +275,7 @@ describe("Reconciliation scoring functions", () => {
   });
 
   it("scoreAmountMatch returns closeAmountMatch weight for near match", () => {
-    expect(scoreAmountMatch(100050, 100000, DEFAULT_SCORING_WEIGHTS)).toBe(30);
+    expect(scoreAmountMatch(100050, 100000, DEFAULT_SCORING_WEIGHTS)).toBe(10);
   });
 
   it("scoreInvoiceNumberMatch returns weight when invoice number is in description", () => {
@@ -286,11 +286,15 @@ describe("Reconciliation scoring functions", () => {
     expect(scoreInvoiceNumberMatch("INV-001", "wire transfer unknown", DEFAULT_SCORING_WEIGHTS)).toBe(0);
   });
 
-  it("scoreVendorNameMatch returns weight when vendor words overlap", () => {
-    expect(scoreVendorNameMatch("Acme Corporation", "payment acme ref", DEFAULT_SCORING_WEIGHTS)).toBe(20);
+  it("scoreVendorNameMatch returns weight when vendor name is a prefix of description text", () => {
+    expect(scoreVendorNameMatch("Acme Corporation", "acme corporation payment ref", DEFAULT_SCORING_WEIGHTS)).toBe(20);
   });
 
-  it("scoreVendorNameMatch returns 0 with no overlap", () => {
+  it("scoreVendorNameMatch returns weight when description is a prefix of vendor name (bank truncation)", () => {
+    expect(scoreVendorNameMatch("Sprinto Technology Private Limited", "sprinto technology pr", DEFAULT_SCORING_WEIGHTS)).toBe(20);
+  });
+
+  it("scoreVendorNameMatch returns 0 with no prefix or substring match", () => {
     expect(scoreVendorNameMatch("Acme Corporation", "wire transfer xyz", DEFAULT_SCORING_WEIGHTS)).toBe(0);
   });
 
