@@ -11,8 +11,8 @@ import {
 } from "@/sources/email/gmailOAuthClient.js";
 import { GmailMailboxNeedsReauthError } from "@/sources/email/errors.js";
 import { decryptSecret, encryptSecret } from "@/utils/secretCrypto.js";
+import { MailboxNotificationService } from "@/services/platform/mailboxNotificationService.js";
 import { HttpError } from "@/errors/HttpError.js";
-import { logger } from "@/utils/logger.js";
 import { GMAIL_CONNECTION_STATUS, type GmailConnectionStatus as GmailConnectionStatusValue } from "@/types/gmail.js";
 
 const PROVIDER = "gmail";
@@ -26,6 +26,7 @@ interface GmailConnectionStatus {
 }
 
 export class TenantGmailIntegrationService {
+  constructor(private readonly notificationService: MailboxNotificationService = new MailboxNotificationService()) {}
 
   async createConnectUrl(input: { tenantId: string; userId: string }): Promise<string> {
     assertGmailOAuthConfigured();
@@ -248,7 +249,7 @@ export class TenantGmailIntegrationService {
     if (previousStatus === GMAIL_CONNECTION_STATUS.CONNECTED) {
       integration.reauthNotifiedAt = new Date();
       await integration.save();
-      logger.warn("mailbox.needs_reauth", {
+      await this.notificationService.notifyNeedsReauth({
         userId: integration.createdByUserId,
         provider: PROVIDER,
         emailAddress: integration.emailAddress ?? "",

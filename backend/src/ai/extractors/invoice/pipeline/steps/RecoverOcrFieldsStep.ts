@@ -14,6 +14,13 @@ import {
   type OcrRecoveryStrategy,
 } from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
+import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
+
+const OCR_RECOVERY_STRATEGY_SOURCE: Record<OcrRecoveryStrategy, ExtractionSource> = {
+  generic: EXTRACTION_SOURCE.SLM_GENERIC,
+  invoice_table: EXTRACTION_SOURCE.SLM_INVOICE_TABLE,
+  receipt_statement: EXTRACTION_SOURCE.SLM_RECEIPT_STATEMENT,
+};
 
 /**
  * Stage 10: Recovers header fields, GST summary, totals, and line items from OCR blocks.
@@ -30,6 +37,11 @@ export class RecoverOcrFieldsStep implements PipelineStep {
     const strategy = classifyOcrRecoveryStrategy(ocrBlocks, primaryText);
     ctx.store.set(POST_ENGINE_CTX.RECOVERY_STRATEGY, strategy);
     ctx.metadata.ocrRecoveryStrategy = strategy;
+
+    const engineStrategy = ctx.store.get<ExtractionSource>(POST_ENGINE_CTX.ENGINE_STRATEGY);
+    const isEngineExtract = engineStrategy === EXTRACTION_SOURCE.LLAMA_EXTRACT;
+    const resolvedStrategy = isEngineExtract ? EXTRACTION_SOURCE.LLAMA_EXTRACT : OCR_RECOVERY_STRATEGY_SOURCE[strategy];
+    ctx.store.set(POST_ENGINE_CTX.RESOLVED_STRATEGY, resolvedStrategy);
 
     const recovered = recoverOcrFields(merged, ocrBlocks, primaryText, strategy);
     ctx.store.set(POST_ENGINE_CTX.RECOVERED_PARSED, recovered);

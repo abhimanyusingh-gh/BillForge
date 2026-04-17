@@ -14,6 +14,8 @@ interface WorkflowStep {
   approverType: ApproverType;
   approverRole?: string;
   approverUserIds?: string[];
+  approverPersona?: string;
+  approverCapability?: string;
   rule: ApprovalRule;
   condition?: { field: string; operator: string; value: unknown } | null;
   timeoutHours?: number | null;
@@ -52,6 +54,8 @@ function mapStepsFromDoc(steps: Array<{
   approverType: string;
   approverRole?: string | null;
   approverUserIds?: string[];
+  approverPersona?: string | null;
+  approverCapability?: string | null;
   rule: string;
   condition?: { field?: string | null; operator?: string | null; value?: unknown } | null;
   timeoutHours?: number | null;
@@ -64,6 +68,8 @@ function mapStepsFromDoc(steps: Array<{
     approverType: s.approverType as WorkflowStep["approverType"],
     approverRole: s.approverRole ?? undefined,
     approverUserIds: s.approverUserIds ?? [],
+    approverPersona: s.approverPersona ?? undefined,
+    approverCapability: s.approverCapability ?? undefined,
     rule: s.rule as ApprovalRule,
     condition: s.condition?.field
       ? { field: s.condition.field, operator: s.condition.operator!, value: s.condition.value! }
@@ -152,6 +158,16 @@ export class ApprovalWorkflowService {
         return false;
       }
       return userRole === normalizeTenantRole(step.approverRole);
+    }
+    if (step.approverType === "persona") {
+      if (!step.approverPersona) {
+        return false;
+      }
+      return userRole === normalizeTenantRole(step.approverPersona);
+    }
+    if (step.approverType === "capability") {
+      const capabilities = (roleRecord as Record<string, unknown>).capabilities as Record<string, boolean> | undefined;
+      return capabilities?.[step.approverCapability ?? ""] === true;
     }
     return userRole !== "PLATFORM_ADMIN";
   }
@@ -279,6 +295,11 @@ export class ApprovalWorkflowService {
         requiredCount = await TenantUserRoleModel.countDocuments({
           tenantId: authContext.tenantId,
           role: normalizeTenantRole(currentStep.approverRole ?? "")
+        });
+      } else if (currentStep.approverType === "persona") {
+        requiredCount = await TenantUserRoleModel.countDocuments({
+          tenantId: authContext.tenantId,
+          role: normalizeTenantRole(currentStep.approverPersona ?? "")
         });
       } else {
         requiredCount = await TenantUserRoleModel.countDocuments({

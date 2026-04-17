@@ -1,5 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
-import { InvoiceStatuses } from "@/types/invoice.js";
+import { InvoiceStatuses, GL_CODE_SOURCE } from "@/types/invoice.js";
 import { ConfidenceTones } from "@/types/confidence.js";
 import { WorkloadTiers } from "@/types/tenant.js";
 
@@ -259,7 +259,7 @@ const invoiceSchema = new Schema(
           type: new Schema({
             code: { type: String, default: null },
             name: { type: String, default: null },
-            source: { type: String, enum: ["vendor-default", "description-match", "slm-classification", "category-default", "manual"] },
+            source: { type: String, enum: Object.values(GL_CODE_SOURCE) },
             confidence: { type: Number, default: null },
             suggestedAlternatives: {
               type: [new Schema({ code: String, name: String, score: Number }, { _id: false })],

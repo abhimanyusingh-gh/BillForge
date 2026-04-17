@@ -6,7 +6,7 @@ import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.ts";
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.ts";
 import type { PipelineExtractionResult } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";
 
-function buildCtx(overrides?: { engineStrategy?: string }): PipelineContext {
+function buildCtx(overrides?: { source?: string; resolvedStrategy?: string }): PipelineContext {
   const store = new ContextStore();
   const parsed = { invoiceNumber: "INV-001", totalAmountMinor: 500000 };
   const slmOutput: InvoiceSlmOutput = {
@@ -31,9 +31,8 @@ function buildCtx(overrides?: { engineStrategy?: string }): PipelineContext {
     details: [],
   });
 
-  if (overrides?.engineStrategy) {
-    store.set(POST_ENGINE_CTX.ENGINE_STRATEGY, overrides.engineStrategy);
-  }
+  store.set(POST_ENGINE_CTX.EXTRACTION_SOURCE, overrides?.source ?? EXTRACTION_SOURCE.SLM_DIRECT);
+  store.set(POST_ENGINE_CTX.RESOLVED_STRATEGY, overrides?.resolvedStrategy ?? EXTRACTION_SOURCE.SLM_GENERIC);
 
   return {
     input: {
@@ -51,8 +50,8 @@ function buildCtx(overrides?: { engineStrategy?: string }): PipelineContext {
 describe("BuildExtractionResultStep", () => {
   const step = new BuildExtractionResultStep();
 
-  it("builds result with SLM source when engine strategy is slm", async () => {
-    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.SLM });
+  it("builds result with SLM source when extraction source is slm-direct", async () => {
+    const ctx = buildCtx({ source: EXTRACTION_SOURCE.SLM_DIRECT, resolvedStrategy: EXTRACTION_SOURCE.SLM_GENERIC });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
@@ -61,8 +60,8 @@ describe("BuildExtractionResultStep", () => {
     expect(result.extraction?.source).toBe(EXTRACTION_SOURCE.SLM_DIRECT);
   });
 
-  it("builds result with LlamaExtract source when engine strategy is llamaextract", async () => {
-    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
+  it("builds result with LlamaExtract source when extraction source is llamaextract", async () => {
+    const ctx = buildCtx({ source: EXTRACTION_SOURCE.LLAMA_EXTRACT, resolvedStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
@@ -72,16 +71,8 @@ describe("BuildExtractionResultStep", () => {
     expect(result.extraction?.strategy).toBe(EXTRACTION_SOURCE.LLAMA_EXTRACT);
   });
 
-  it("defaults to SLM source when engine strategy is not set", async () => {
-    const ctx = buildCtx();
-    await step.execute(ctx);
-
-    const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
-    expect(result.source).toBe(EXTRACTION_SOURCE.SLM_DIRECT);
-  });
-
   it("includes provider, text, confidence, and token counts in result", async () => {
-    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
+    const ctx = buildCtx({ source: EXTRACTION_SOURCE.LLAMA_EXTRACT, resolvedStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
@@ -92,18 +83,16 @@ describe("BuildExtractionResultStep", () => {
     expect(result.slmTokens).toBe(42);
   });
 
-  it("uses recovery strategy for SLM strategy field", async () => {
-    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.SLM });
-    ctx.store.set(POST_ENGINE_CTX.RECOVERY_STRATEGY, "invoice_table");
+  it("uses resolved strategy for SLM strategy field", async () => {
+    const ctx = buildCtx({ source: EXTRACTION_SOURCE.SLM_DIRECT, resolvedStrategy: EXTRACTION_SOURCE.SLM_INVOICE_TABLE });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
     expect(result.strategy).toBe(EXTRACTION_SOURCE.SLM_INVOICE_TABLE);
   });
 
-  it("ignores recovery strategy for LlamaExtract path", async () => {
-    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
-    ctx.store.set(POST_ENGINE_CTX.RECOVERY_STRATEGY, "invoice_table");
+  it("preserves LlamaExtract strategy regardless of recovery context", async () => {
+    const ctx = buildCtx({ source: EXTRACTION_SOURCE.LLAMA_EXTRACT, resolvedStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);

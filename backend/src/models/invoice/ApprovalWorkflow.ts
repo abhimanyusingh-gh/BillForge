@@ -17,9 +17,9 @@ export const WORKFLOW_STEP_ACTION = {
 export type WorkflowStepAction = (typeof WORKFLOW_STEP_ACTION)[keyof typeof WORKFLOW_STEP_ACTION];
 
 const ApprovalWorkflowModes = ["simple", "advanced"] as const;
-const ApproverTypes = ["any_member", "role", "specific_users"] as const;
+const ApproverTypes = ["any_member", "role", "specific_users", "persona", "capability"] as const;
 const ApprovalRules = ["any", "all"] as const;
-const StepTypes = ["approval"] as const;
+const StepTypes = ["approval", "compliance_signoff", "escalation"] as const;
 const ConditionOperators = ["gt", "gte", "lt", "lte", "eq", "in"] as const;
 const ConditionFields = ["totalAmountMinor", "tdsAmountMinor", "riskSignalMaxSeverity", "glCodeSource"] as const;
 
@@ -30,6 +30,8 @@ const workflowStepSchema = new Schema({
   approverType: { type: String, enum: ApproverTypes, required: true },
   approverRole: { type: String },
   approverUserIds: { type: [String], default: [] },
+  approverPersona: { type: String },
+  approverCapability: { type: String },
   rule: { type: String, enum: ApprovalRules, required: true, default: "any" },
   condition: {
     field: { type: String, enum: [...ConditionFields, undefined] },

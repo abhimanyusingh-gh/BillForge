@@ -67,6 +67,13 @@ const mockEnv = {
   TALLY_COMPANY: undefined as string | undefined,
   TALLY_PURCHASE_LEDGER: "Purchase",
   DEFAULT_APPROVER: "system",
+  MAILBOX_ALERT_SMTP_HOST: "",
+  MAILBOX_ALERT_SMTP_PORT: 587,
+  MAILBOX_ALERT_SMTP_SECURE: false,
+  MAILBOX_ALERT_SMTP_USERNAME: "",
+  MAILBOX_ALERT_SMTP_PASSWORD: "",
+  MAILBOX_ALERT_FROM: "",
+  MAILBOX_ALERT_TO: ""
 };
 
 const axiosGetMock = jest.fn();
