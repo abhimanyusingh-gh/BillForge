@@ -5,7 +5,6 @@ import type {
   GlCode,
   GmailConnectionStatus,
   RiskSignalDefinition,
-  TallyFileExportResponse,
   TdsRate,
   TdsRateEntry,
   TenantComplianceConfig
