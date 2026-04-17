@@ -3,8 +3,9 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { DocumentMimeType } from "@/types/mime.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
 import type { ChunkableDocumentDefinition, DocumentDefinition } from "@/core/engine/DocumentDefinition.js";
-import type { DocumentDefinitionCanChunk, ProcessingContext, ProcessingResult, ValidationResult } from "@/core/engine/types.js";
-import { DocumentProcessingError, ENGINE_STRATEGY, PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
+import type { ProcessingContext, ProcessingResult, ValidationResult } from "@/core/engine/types.js";
+import { DocumentProcessingError, PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
+import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.js";
 
 import { extractNativePdfText } from "@/ai/extractors/stages/nativePdfText.js";
 import { logger } from "@/utils/logger.js";
@@ -18,14 +19,14 @@ export type DocumentProcessingProgressEvent =
 export class DocumentProcessingEngine<TOutput> {
   private readonly ocrProvider: OcrProvider | null;
   private readonly fieldVerifier: FieldVerifier;
-  private readonly definition: DocumentDefinition<TOutput> & DocumentDefinitionCanChunk;
+  private readonly definition: DocumentDefinition<TOutput>;
 
   constructor(
     definition: DocumentDefinition<TOutput>,
     fieldVerifier: FieldVerifier,
     ocrProvider?: OcrProvider | null
   ) {
-    this.definition = definition as DocumentDefinition<TOutput> & DocumentDefinitionCanChunk;
+    this.definition = definition;
     this.fieldVerifier = fieldVerifier;
     this.ocrProvider = ocrProvider ?? null;
   }
@@ -74,7 +75,7 @@ export class DocumentProcessingEngine<TOutput> {
         ocrConfidence,
         ocrTokens,
         slmTokens: 0,
-        strategy: ENGINE_STRATEGY.LLAMA_EXTRACT,
+        strategy: EXTRACTION_SOURCE.LLAMA_EXTRACT,
         validationResult,
         processingIssues
       };
@@ -99,7 +100,7 @@ export class DocumentProcessingEngine<TOutput> {
       ocrConfidence,
       ocrTokens,
       slmTokens,
-      strategy: ENGINE_STRATEGY.SLM,
+      strategy: EXTRACTION_SOURCE.SLM,
       validationResult,
       processingIssues
     };
@@ -238,7 +239,7 @@ export class DocumentProcessingEngine<TOutput> {
       ocrConfidence,
       ocrTokens,
       slmTokens: 0,
-      strategy: ENGINE_STRATEGY.SLM_CHUNKED,
+      strategy: EXTRACTION_SOURCE.SLM_CHUNKED,
       validationResult,
       processingIssues
     };

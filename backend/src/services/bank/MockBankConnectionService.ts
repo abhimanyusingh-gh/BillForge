@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
-import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "@/services/bank/anumati/IBankConnectionService.js";
+import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "@/services/bank/IBankConnectionService.js";
 import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
 import type { UUID } from "@/types/uuid.js";
 

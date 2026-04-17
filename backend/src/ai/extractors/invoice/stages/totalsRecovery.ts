@@ -4,8 +4,14 @@ import { parseAmountTokenWithOcrRepair } from "@/ai/parsers/invoiceParser.js";
 import { normalizeInvoiceNumberValue, normalizeVendorText } from "@/ai/extractors/invoice/stages/documentFieldRecovery.js";
 import { detectExplicitCurrency } from "@/ai/extractors/stages/fieldParsingUtils.js";
 import { OCR_RECOVERY_STRATEGY, type OcrRecoveryStrategy } from "@/types/ocrRecovery.js";
-import { AMOUNT_SEARCH_PREFERENCE, type AmountSearchPreference } from "@/types/approvalWorkflow.js";
 import { escapeRegex } from "@/utils/text.js";
+
+const AMOUNT_SEARCH_PREFERENCE = {
+  FIRST: "first",
+  LAST: "last",
+} as const;
+
+type AmountSearchPreference = (typeof AMOUNT_SEARCH_PREFERENCE)[keyof typeof AMOUNT_SEARCH_PREFERENCE];
 
 export function normalizeParsedAgainstOcrText(
   parsed: ParsedInvoiceData,

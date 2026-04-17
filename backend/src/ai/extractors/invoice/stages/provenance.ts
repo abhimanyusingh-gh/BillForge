@@ -185,7 +185,7 @@ export function resolveLineItemProvenance(params: {
         fields[fieldName] = buildProvenanceFromBlock(
           matched.block,
           matched.index,
-          PROVENANCE_SOURCE.HEURISTIC,
+          PROVENANCE_SOURCE.TEXT_PATTERN,
           defaultLineItemFieldConfidence(fieldName)
         );
       }
@@ -304,7 +304,7 @@ function findDescriptionBlockNearAmount(params: {
       }
       return left.box[0] - right.box[0];
     })[0];
-  return best ? buildProvenanceFromBlock(best.block, best.index, PROVENANCE_SOURCE.HEURISTIC, defaultLineItemFieldConfidence("description")) : undefined;
+  return best ? buildProvenanceFromBlock(best.block, best.index, PROVENANCE_SOURCE.TEXT_PATTERN, defaultLineItemFieldConfidence("description")) : undefined;
 }
 
 function defaultLineItemFieldConfidence(field: Exclude<LineItemField, "row">): number {
@@ -342,7 +342,7 @@ function combineLineItemRowProvenance(fields: Record<string, InvoiceFieldProvena
     .filter((entry): entry is Box4 => Boolean(entry));
   if (normalizedBoxes.length > 0) {
     return {
-      source: samePageEntries.some((entry) => entry.source === PROVENANCE_SOURCE.SLM) ? PROVENANCE_SOURCE.SLM : PROVENANCE_SOURCE.HEURISTIC,
+      source: samePageEntries.some((entry) => entry.source === PROVENANCE_SOURCE.SLM) ? PROVENANCE_SOURCE.SLM : PROVENANCE_SOURCE.TEXT_PATTERN,
       page,
       bboxNormalized: unionBoxes(normalizedBoxes),
       confidence: averageConfidence(samePageEntries)
@@ -354,7 +354,7 @@ function combineLineItemRowProvenance(fields: Record<string, InvoiceFieldProvena
     .filter((entry): entry is Box4 => Boolean(entry));
   if (absoluteBoxes.length > 0) {
     return {
-      source: samePageEntries.some((entry) => entry.source === PROVENANCE_SOURCE.SLM) ? PROVENANCE_SOURCE.SLM : PROVENANCE_SOURCE.HEURISTIC,
+      source: samePageEntries.some((entry) => entry.source === PROVENANCE_SOURCE.SLM) ? PROVENANCE_SOURCE.SLM : PROVENANCE_SOURCE.TEXT_PATTERN,
       page,
       bbox: unionBoxes(absoluteBoxes),
       confidence: averageConfidence(samePageEntries)

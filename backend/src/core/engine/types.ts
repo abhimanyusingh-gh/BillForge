@@ -1,10 +1,7 @@
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
+import type { ExtractionSource } from "@/core/engine/extractionSource.js";
 import type { DocumentMimeType } from "@/types/mime.js";
 import type { UUID } from "@/types/uuid.js";
-
-export interface DocumentDefinitionCanChunk {
-  canChunk(): boolean;
-}
 
 export interface ValidationResult {
   valid: boolean;
@@ -21,14 +18,6 @@ export interface ProcessingContext {
 
 export type ChunkingStrategy = "none" | "page-based" | "sliding-window";
 
-export const ENGINE_STRATEGY = {
-  LLAMA_EXTRACT: "llamaextract",
-  SLM: "slm",
-  SLM_CHUNKED: "slm-chunked",
-} as const;
-
-export type EngineStrategy = (typeof ENGINE_STRATEGY)[keyof typeof ENGINE_STRATEGY];
-
 export interface ProcessingResult<TOutput> {
   output: TOutput;
   ocrText: string;
@@ -37,7 +26,7 @@ export interface ProcessingResult<TOutput> {
   ocrConfidence?: number;
   ocrTokens: number;
   slmTokens: number;
-  strategy: EngineStrategy;
+  strategy: ExtractionSource;
   validationResult: ValidationResult;
   processingIssues: string[];
 }

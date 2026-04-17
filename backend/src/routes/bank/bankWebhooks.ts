@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
-import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
+import type { IBankConnectionService } from "@/services/bank/IBankConnectionService.js";
 import { logger } from "@/utils/logger.js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/config/env.js";

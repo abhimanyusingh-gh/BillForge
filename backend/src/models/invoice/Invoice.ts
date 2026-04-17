@@ -190,6 +190,7 @@ const invoiceSchema = new Schema(
           type: new Schema({
             invoiceType: { type: String },
             category: { type: String },
+            glCategory: { type: String },
             tdsSection: { type: String }
           }, { _id: false }),
           default: undefined
@@ -258,7 +259,7 @@ const invoiceSchema = new Schema(
           type: new Schema({
             code: { type: String, default: null },
             name: { type: String, default: null },
-            source: { type: String, enum: ["vendor-default", "description-match", "category-default", "manual"] },
+            source: { type: String, enum: ["vendor-default", "description-match", "slm-classification", "category-default", "manual"] },
             confidence: { type: Number, default: null },
             suggestedAlternatives: {
               type: [new Schema({ code: String, name: String, score: Number }, { _id: false })],

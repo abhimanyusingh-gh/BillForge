@@ -1,4 +1,5 @@
 export const EXTRACTION_SOURCE = {
+  SLM: "slm",
   SLM_DIRECT: "slm-direct",
   LLAMA_EXTRACT: "llamaextract",
   SLM_CHUNKED: "slm-chunked",

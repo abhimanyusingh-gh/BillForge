@@ -11,8 +11,6 @@ import type {
 import type { ConfidenceAssessment } from "@/services/invoice/confidenceAssessment.js";
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.js";
 import type { OcrRecoveryStrategy } from "@/ai/extractors/invoice/stages/lineItemRecovery.js";
-import type { EngineStrategy } from "@/core/engine/types.js";
-import { ENGINE_STRATEGY } from "@/core/engine/types.js";
 import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extractionSource.js";
 import { uniqueStrings } from "@/utils/text.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
@@ -42,9 +40,9 @@ export class BuildExtractionResultStep implements PipelineStep {
     const fieldProvenance = ctx.store.get<Partial<Record<InvoiceFieldKey, InvoiceFieldProvenance>>>(POST_ENGINE_CTX.FIELD_PROVENANCE) ?? {};
     const lineItemProvenance = ctx.store.get<InvoiceLineItemProvenance[]>(POST_ENGINE_CTX.LINE_ITEM_PROVENANCE) ?? [];
     const classification = ctx.store.get<InvoiceExtractionData["classification"]>(POST_ENGINE_CTX.CLASSIFICATION);
-    const engineStrategy = ctx.store.get<EngineStrategy>(POST_ENGINE_CTX.ENGINE_STRATEGY);
+    const engineStrategy = ctx.store.get<ExtractionSource>(POST_ENGINE_CTX.ENGINE_STRATEGY);
 
-    const isLlamaExtract = engineStrategy === ENGINE_STRATEGY.LLAMA_EXTRACT;
+    const isLlamaExtract = engineStrategy === EXTRACTION_SOURCE.LLAMA_EXTRACT;
     const source: ExtractionSource = isLlamaExtract
       ? EXTRACTION_SOURCE.LLAMA_EXTRACT
       : EXTRACTION_SOURCE.SLM_DIRECT;

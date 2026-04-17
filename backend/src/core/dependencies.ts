@@ -23,9 +23,8 @@ import { HttpFieldVerifier } from "@/ai/verifiers/HttpFieldVerifier.js";
 import { S3FileStore } from "@/storage/S3FileStore.js";
 import { EmailSimulationService } from "@/services/platform/emailSimulationService.js";
 import { TenantGmailIntegrationService } from "@/services/tenant/tenantGmailIntegrationService.js";
-import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
-import { AnumatiBankConnectionService } from "@/services/bank/anumati/AnumatiBankConnectionService.js";
-import { MockBankConnectionService } from "@/services/bank/anumati/MockBankConnectionService.js";
+import type { IBankConnectionService } from "@/services/bank/IBankConnectionService.js";
+import { MockBankConnectionService } from "@/services/bank/MockBankConnectionService.js";
 import { HttpOidcProvider } from "@/sts/HttpOidcProvider.js";
 import { AuthService } from "@/auth/AuthService.js";
 import { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
@@ -138,9 +137,7 @@ export async function buildDependencies(): Promise<Dependencies> {
   const storage = buildStorageAndExport(manifest);
 
   const gmailIntegrationService = new TenantGmailIntegrationService();
-  const bankService: IBankConnectionService = env.ANUMATI_ENTITY_ID
-    ? new AnumatiBankConnectionService()
-    : new MockBankConnectionService();
+  const bankService: IBankConnectionService = new MockBankConnectionService();
   const sources = buildIngestionSources(manifest.sources, { gmailMailboxBoundary: gmailIntegrationService });
   const ingestionService = new IngestionService(sources, extraction.ocrProvider, {
     pipeline: extraction.pipeline,

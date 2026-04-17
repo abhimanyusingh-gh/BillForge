@@ -2,7 +2,6 @@ import { ContextStore } from "@/core/pipeline/PipelineContext.ts";
 import type { PipelineContext } from "@/core/pipeline/PipelineContext.ts";
 import { BuildExtractionResultStep } from "@/ai/extractors/invoice/pipeline/steps/BuildExtractionResultStep.ts";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.ts";
-import { ENGINE_STRATEGY } from "@/core/engine/types.ts";
 import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.ts";
 import type { InvoiceSlmOutput } from "@/ai/extractors/invoice/InvoiceDocumentDefinition.ts";
 import type { PipelineExtractionResult } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";
@@ -53,7 +52,7 @@ describe("BuildExtractionResultStep", () => {
   const step = new BuildExtractionResultStep();
 
   it("builds result with SLM source when engine strategy is slm", async () => {
-    const ctx = buildCtx({ engineStrategy: ENGINE_STRATEGY.SLM });
+    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.SLM });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
@@ -63,7 +62,7 @@ describe("BuildExtractionResultStep", () => {
   });
 
   it("builds result with LlamaExtract source when engine strategy is llamaextract", async () => {
-    const ctx = buildCtx({ engineStrategy: ENGINE_STRATEGY.LLAMA_EXTRACT });
+    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
@@ -82,7 +81,7 @@ describe("BuildExtractionResultStep", () => {
   });
 
   it("includes provider, text, confidence, and token counts in result", async () => {
-    const ctx = buildCtx({ engineStrategy: ENGINE_STRATEGY.LLAMA_EXTRACT });
+    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
     await step.execute(ctx);
 
     const result = ctx.store.require<PipelineExtractionResult>(POST_ENGINE_CTX.FINAL_RESULT);
@@ -94,7 +93,7 @@ describe("BuildExtractionResultStep", () => {
   });
 
   it("uses recovery strategy for SLM strategy field", async () => {
-    const ctx = buildCtx({ engineStrategy: ENGINE_STRATEGY.SLM });
+    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.SLM });
     ctx.store.set(POST_ENGINE_CTX.RECOVERY_STRATEGY, "invoice_table");
     await step.execute(ctx);
 
@@ -103,7 +102,7 @@ describe("BuildExtractionResultStep", () => {
   });
 
   it("ignores recovery strategy for LlamaExtract path", async () => {
-    const ctx = buildCtx({ engineStrategy: ENGINE_STRATEGY.LLAMA_EXTRACT });
+    const ctx = buildCtx({ engineStrategy: EXTRACTION_SOURCE.LLAMA_EXTRACT });
     ctx.store.set(POST_ENGINE_CTX.RECOVERY_STRATEGY, "invoice_table");
     await step.execute(ctx);
 
