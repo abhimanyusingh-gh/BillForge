@@ -164,7 +164,7 @@ Set `LLAMA_EXTRACT_SYSTEM_PROMPT` to provide a custom system prompt for LlamaExt
 |----------|--------|---------|-------------|
 | `FIELD_VERIFIER_PROVIDER` | `http`, `none` | `http` | SLM provider (`none` disables SLM) |
 | `FIELD_VERIFIER_BASE_URL` | URL | (local: `http://localhost:8300/v1`) | SLM service endpoint |
-| `FIELD_VERIFIER_TIMEOUT_MS` | number | `180000` | SLM request timeout in milliseconds |
+| `FIELD_VERIFIER_TIMEOUT_MS` | number | `600000` | SLM request timeout in milliseconds |
 | `ANTHROPIC_API_KEY` | string | -- | Anthropic API key (Claude SLM backend) |
 | `ANTHROPIC_MODEL` | string | `claude-sonnet-4-6` | Anthropic model for SLM |
 
