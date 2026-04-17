@@ -13,7 +13,7 @@ const DEFAULT_AUTO_MATCH_THRESHOLD = 50;
 const DEFAULT_SUGGEST_THRESHOLD = 30;
 const DEFAULT_AMOUNT_TOLERANCE_MINOR = 100;
 
-export interface ReconciliationScoringWeights {
+interface ReconciliationScoringWeights {
   exactAmountMatch: number;
   closeAmountMatch: number;
   invoiceNumberMatch: number;
