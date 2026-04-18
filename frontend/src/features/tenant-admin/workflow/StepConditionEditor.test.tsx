@@ -271,4 +271,111 @@ describe("StepConditionEditor", () => {
       value: "manual",
     });
   });
+
+  it("sets default values when switching field to tdsAmountMinor", () => {
+    const onChange = jest.fn();
+    render(<StepConditionEditor condition={null} onChange={onChange} />);
+
+    const select = screen.getByLabelText("Condition:");
+    fireEvent.change(select, { target: { value: "tdsAmountMinor" } });
+    expect(onChange).toHaveBeenCalledWith({
+      field: "tdsAmountMinor",
+      operator: "gt",
+      value: 5000000,
+    });
+  });
+
+  it("calls onChange with updated severity when changed", () => {
+    const onChange = jest.fn();
+    render(
+      <StepConditionEditor
+        condition={{ field: "riskSignalMaxSeverity", operator: "eq", value: "critical" }}
+        onChange={onChange}
+      />
+    );
+
+    const severitySelect = screen.getByLabelText("Severity:");
+    fireEvent.change(severitySelect, { target: { value: "info" } });
+    expect(onChange).toHaveBeenCalledWith({
+      field: "riskSignalMaxSeverity",
+      operator: "eq",
+      value: "info",
+    });
+  });
+
+  it("calls onChange with updated source for glCodeSource eq", () => {
+    const onChange = jest.fn();
+    render(
+      <StepConditionEditor
+        condition={{ field: "glCodeSource", operator: "eq", value: "manual" }}
+        onChange={onChange}
+      />
+    );
+
+    const sourceSelect = screen.getByLabelText("Source:");
+    fireEvent.change(sourceSelect, { target: { value: "override" } });
+    expect(onChange).toHaveBeenCalledWith({
+      field: "glCodeSource",
+      operator: "eq",
+      value: "override",
+    });
+  });
+
+  it("does not show threshold input for glCodeSource", () => {
+    const onChange = jest.fn();
+    render(
+      <StepConditionEditor
+        condition={{ field: "glCodeSource", operator: "eq", value: "manual" }}
+        onChange={onChange}
+      />
+    );
+
+    expect(screen.queryByLabelText(/Threshold/)).not.toBeInTheDocument();
+  });
+
+  it("does not call onChange for operator change when condition is null", () => {
+    const onChange = jest.fn();
+    render(<StepConditionEditor condition={null} onChange={onChange} />);
+    expect(screen.queryByLabelText("Operator:")).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does not show severity dropdown for numeric fields", () => {
+    const onChange = jest.fn();
+    render(
+      <StepConditionEditor
+        condition={{ field: "totalAmountMinor", operator: "gt", value: 5000000 }}
+        onChange={onChange}
+      />
+    );
+
+    expect(screen.queryByLabelText("Severity:")).not.toBeInTheDocument();
+  });
+
+  it("does not show source dropdown for numeric fields", () => {
+    const onChange = jest.fn();
+    render(
+      <StepConditionEditor
+        condition={{ field: "tdsAmountMinor", operator: "gte", value: 100000 }}
+        onChange={onChange}
+      />
+    );
+
+    expect(screen.queryByLabelText("Source:")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Sources:")).not.toBeInTheDocument();
+  });
+
+  it("rejects negative threshold values", () => {
+    const onChange = jest.fn();
+    render(
+      <StepConditionEditor
+        condition={{ field: "totalAmountMinor", operator: "gt", value: 5000000 }}
+        onChange={onChange}
+      />
+    );
+
+    const input = screen.getByLabelText(/Threshold/);
+    fireEvent.change(input, { target: { value: "-100" } });
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

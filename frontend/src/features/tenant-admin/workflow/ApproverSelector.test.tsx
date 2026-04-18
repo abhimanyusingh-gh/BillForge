@@ -188,4 +188,72 @@ describe("ApproverSelector", () => {
     const select = screen.getByLabelText("Capability:") as HTMLSelectElement;
     expect(select.value).toBe("canApproveInvoices");
   });
+
+  it("defaults role to TENANT_ADMIN when not provided", () => {
+    render(
+      <ApproverSelector
+        {...baseProps}
+        approver={{ approverType: "role" }}
+      />
+    );
+
+    const select = screen.getByLabelText("Role:") as HTMLSelectElement;
+    expect(select.value).toBe("TENANT_ADMIN");
+  });
+
+  it("calls onApproverChange when specific users are selected", () => {
+    const onApproverChange = jest.fn();
+    render(
+      <ApproverSelector
+        {...baseProps}
+        approver={{ approverType: "specific_users", approverUserIds: [] }}
+        onApproverChange={onApproverChange}
+      />
+    );
+
+    const select = screen.getByLabelText("Users:") as HTMLSelectElement;
+    const option1 = select.options[0] as HTMLOptionElement;
+    option1.selected = true;
+    fireEvent.change(select);
+    expect(onApproverChange).toHaveBeenCalledWith(
+      expect.objectContaining({ approverUserIds: ["u1"] })
+    );
+  });
+
+  it("hides user list when switching from specific_users to any_member", () => {
+    const { rerender } = render(
+      <ApproverSelector
+        {...baseProps}
+        approver={{ approverType: "specific_users", approverUserIds: ["u1"] }}
+      />
+    );
+    expect(screen.getByLabelText("Users:")).toBeInTheDocument();
+
+    rerender(
+      <ApproverSelector
+        {...baseProps}
+        approver={{ approverType: "any_member" }}
+      />
+    );
+    expect(screen.queryByLabelText("Users:")).not.toBeInTheDocument();
+  });
+
+  it("hides persona dropdown when switching from persona to role", () => {
+    const { rerender } = render(
+      <ApproverSelector
+        {...baseProps}
+        approver={{ approverType: "persona", approverPersona: "ca" }}
+      />
+    );
+    expect(screen.getByLabelText("Persona:")).toBeInTheDocument();
+
+    rerender(
+      <ApproverSelector
+        {...baseProps}
+        approver={{ approverType: "role", approverRole: "TENANT_ADMIN" }}
+      />
+    );
+    expect(screen.queryByLabelText("Persona:")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Role:")).toBeInTheDocument();
+  });
 });

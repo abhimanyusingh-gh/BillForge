@@ -174,4 +174,73 @@ describe("ApprovalLimitsSection", () => {
     fireEvent.change(apClerkInput, { target: { value: "50000" } });
     expect(apClerkInput.value).toBe("50000");
   });
+
+  it("retries loading after clicking retry on error", async () => {
+    mockFetchApprovalLimits.mockRejectedValueOnce(new Error("Network error"));
+    await act(async () => {
+      render(<ApprovalLimitsSection currentUserId="u-admin" currentUserRole="TENANT_ADMIN" />);
+    });
+    expect(screen.getByText("Retry")).toBeInTheDocument();
+
+    mockFetchApprovalLimits.mockResolvedValue(LIMITS_RESPONSE);
+    await act(async () => {
+      fireEvent.click(screen.getByText("Retry"));
+    });
+    expect(screen.getByText("AP Clerk")).toBeInTheDocument();
+    expect(mockFetchApprovalLimits).toHaveBeenCalledTimes(2);
+  });
+
+  it("hides save button after saving resets dirty state", async () => {
+    mockFetchApprovalLimits.mockResolvedValue(LIMITS_RESPONSE);
+    mockSaveApprovalLimits.mockResolvedValue({ updated: true });
+    await act(async () => {
+      render(<ApprovalLimitsSection currentUserId="u-admin" currentUserRole="TENANT_ADMIN" />);
+    });
+
+    const apClerkUnlimited = screen.getByLabelText("AP Clerk unlimited toggle");
+    fireEvent.click(apClerkUnlimited);
+    expect(screen.getByText("Save Limits")).toBeInTheDocument();
+
+    await act(async () => { fireEvent.click(screen.getByText("Save Limits")); });
+    expect(screen.queryByText("Save Limits")).not.toBeInTheDocument();
+  });
+
+  it("disables save button while saving", async () => {
+    mockFetchApprovalLimits.mockResolvedValue(LIMITS_RESPONSE);
+    let resolvePromise: (v: { updated: boolean }) => void;
+    mockSaveApprovalLimits.mockReturnValue(
+      new Promise<{ updated: boolean }>((resolve) => { resolvePromise = resolve; })
+    );
+    await act(async () => {
+      render(<ApprovalLimitsSection currentUserId="u-admin" currentUserRole="TENANT_ADMIN" />);
+    });
+
+    const apClerkUnlimited = screen.getByLabelText("AP Clerk unlimited toggle");
+    fireEvent.click(apClerkUnlimited);
+
+    act(() => { fireEvent.click(screen.getByText("Save Limits")); });
+    expect(screen.getByText("Saving...")).toBeInTheDocument();
+    expect(screen.getByText("Saving...")).toBeDisabled();
+
+    await act(async () => { resolvePromise!({ updated: true }); });
+  });
+
+  it("shows read-only unlimited display for current user role with null limit", async () => {
+    mockFetchApprovalLimits.mockResolvedValue(LIMITS_RESPONSE);
+    await act(async () => {
+      render(<ApprovalLimitsSection currentUserId="u-admin" currentUserRole="TENANT_ADMIN" />);
+    });
+
+    const tenantAdminRow = screen.getByText("Tenant Admin").closest("tr")!;
+    expect(tenantAdminRow.textContent).toContain("Unlimited");
+  });
+
+  it("renders the description text", async () => {
+    mockFetchApprovalLimits.mockResolvedValue(LIMITS_RESPONSE);
+    await act(async () => {
+      render(<ApprovalLimitsSection currentUserId="u-admin" currentUserRole="TENANT_ADMIN" />);
+    });
+
+    expect(screen.getByText(/Set the maximum invoice amount each role can approve/)).toBeInTheDocument();
+  });
 });

@@ -336,5 +336,75 @@ describe("StepCard", () => {
       const header = document.querySelector(".workflow-step-card-header")!;
       expect(header.textContent).toContain("Escalation");
     });
+
+    it("sets timeoutHours to null when timeout input is cleared", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation", timeoutHours: 24 }}
+          onUpdate={onUpdate}
+        />
+      );
+      const input = screen.getByLabelText("Timeout (hours):");
+      fireEvent.change(input, { target: { value: "" } });
+      expect(onUpdate).toHaveBeenCalledWith({ timeoutHours: null });
+    });
+
+    it("rejects non-integer timeout values", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+          onUpdate={onUpdate}
+        />
+      );
+      const input = screen.getByLabelText("Timeout (hours):");
+      fireEvent.change(input, { target: { value: "2.5" } });
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
+
+    it("rejects timeout values out of range", () => {
+      const onUpdate = jest.fn();
+      render(
+        <StepCard
+          {...baseProps}
+          step={{ ...baseStep, type: "escalation" }}
+          onUpdate={onUpdate}
+        />
+      );
+      const input = screen.getByLabelText("Timeout (hours):");
+      fireEvent.change(input, { target: { value: "0" } });
+      expect(onUpdate).not.toHaveBeenCalled();
+      fireEvent.change(input, { target: { value: "721" } });
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Remove callback", () => {
+    it("calls onRemove when remove button is clicked", () => {
+      const onRemove = jest.fn();
+      render(<StepCard {...baseProps} stepCount={2} onRemove={onRemove} />);
+      fireEvent.click(screen.getByText("Remove"));
+      expect(onRemove).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Rule selector", () => {
+    it("renders rule dropdown with any and all options", () => {
+      render(<StepCard {...baseProps} />);
+      const select = screen.getByLabelText("Rule:") as HTMLSelectElement;
+      const options = Array.from(select.options).map((o) => o.value);
+      expect(options).toEqual(["any", "all"]);
+    });
+
+    it("calls onUpdate when rule value changes", () => {
+      const onUpdate = jest.fn();
+      render(<StepCard {...baseProps} onUpdate={onUpdate} />);
+      const select = screen.getByLabelText("Rule:");
+      fireEvent.change(select, { target: { value: "all" } });
+      expect(onUpdate).toHaveBeenCalledWith({ rule: "all" });
+    });
   });
 });
