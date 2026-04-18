@@ -50,6 +50,14 @@ async function bootstrap() {
 }
 
 async function runPollingTick(dependencies: Awaited<ReturnType<typeof buildDependencies>>): Promise<void> {
+  try {
+    await dependencies.notificationService.retryFailedNotifications();
+  } catch (error) {
+    logger.error("polling.notification_retry.failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
   const eligible = await dependencies.gmailIntegrationService.getPollingEligibleIntegrations();
   if (eligible.length === 0) return;
 
