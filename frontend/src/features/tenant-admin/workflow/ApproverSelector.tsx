@@ -1,40 +1,30 @@
-import type { WorkflowStep } from "@/types";
+import type { ApproverState, WorkflowStep } from "@/types";
 import { TENANT_ROLE_OPTIONS, PERSONA_ROLE_OPTIONS, CAPABILITY_FLAG_OPTIONS } from "@/types";
 
 interface ApproverSelectorProps {
-  approverType: WorkflowStep["approverType"];
-  approverRole?: string;
-  approverUserIds?: string[];
-  approverPersona?: string;
-  approverCapability?: string;
+  approver: ApproverState;
   tenantUsers: Array<{ userId: string; email: string }>;
-  onApproverTypeChange: (approverType: WorkflowStep["approverType"]) => void;
-  onApproverRoleChange: (role: string) => void;
-  onApproverUserIdsChange: (userIds: string[]) => void;
-  onApproverPersonaChange: (persona: string) => void;
-  onApproverCapabilityChange: (capability: string) => void;
+  onApproverChange: (approver: ApproverState) => void;
 }
 
 export function ApproverSelector({
-  approverType,
-  approverRole,
-  approverUserIds,
-  approverPersona,
-  approverCapability,
+  approver,
   tenantUsers,
-  onApproverTypeChange,
-  onApproverRoleChange,
-  onApproverUserIdsChange,
-  onApproverPersonaChange,
-  onApproverCapabilityChange,
+  onApproverChange,
 }: ApproverSelectorProps) {
+  const { approverType, approverRole, approverUserIds, approverPersona, approverCapability } = approver;
+
+  function updateApprover(patch: Partial<ApproverState>) {
+    onApproverChange({ ...approver, ...patch });
+  }
+
   return (
     <>
       <label>
         Approver:
         <select
           value={approverType}
-          onChange={(e) => onApproverTypeChange(e.target.value as WorkflowStep["approverType"])}
+          onChange={(e) => updateApprover({ approverType: e.target.value as WorkflowStep["approverType"] })}
         >
           <option value="any_member">Any member</option>
           <option value="role">Role</option>
@@ -49,7 +39,7 @@ export function ApproverSelector({
           Role:
           <select
             value={approverRole ?? "TENANT_ADMIN"}
-            onChange={(e) => onApproverRoleChange(e.target.value)}
+            onChange={(e) => updateApprover({ approverRole: e.target.value })}
           >
             {TENANT_ROLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -67,9 +57,9 @@ export function ApproverSelector({
             multiple
             value={approverUserIds ?? []}
             onChange={(e) =>
-              onApproverUserIdsChange(
-                Array.from(e.target.selectedOptions).map((o) => o.value)
-              )
+              updateApprover({
+                approverUserIds: Array.from(e.target.selectedOptions).map((o) => o.value),
+              })
             }
             style={{ minHeight: "2.5rem" }}
           >
@@ -87,7 +77,7 @@ export function ApproverSelector({
           Persona:
           <select
             value={approverPersona ?? "ap_clerk"}
-            onChange={(e) => onApproverPersonaChange(e.target.value)}
+            onChange={(e) => updateApprover({ approverPersona: e.target.value })}
           >
             {PERSONA_ROLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -103,7 +93,7 @@ export function ApproverSelector({
           Capability:
           <select
             value={approverCapability ?? "canApproveInvoices"}
-            onChange={(e) => onApproverCapabilityChange(e.target.value)}
+            onChange={(e) => updateApprover({ approverCapability: e.target.value })}
           >
             {CAPABILITY_FLAG_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

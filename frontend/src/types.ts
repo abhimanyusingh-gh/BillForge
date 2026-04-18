@@ -529,6 +529,14 @@ export interface WorkflowStepCondition {
   value: number | string | string[];
 }
 
+export interface ApproverState {
+  approverType: WorkflowApproverType;
+  approverRole?: string;
+  approverUserIds?: string[];
+  approverPersona?: string;
+  approverCapability?: string;
+}
+
 export interface WorkflowStep {
   order: number;
   name: string;

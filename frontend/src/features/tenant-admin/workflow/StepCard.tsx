@@ -33,17 +33,15 @@ export function StepCard({ step, stepCount, tenantUsers, onUpdate, onRemove }: S
       </div>
       <div className="workflow-step-card-body">
         <ApproverSelector
-          approverType={step.approverType}
-          approverRole={step.approverRole}
-          approverUserIds={step.approverUserIds}
-          approverPersona={step.approverPersona}
-          approverCapability={step.approverCapability}
+          approver={{
+            approverType: step.approverType,
+            approverRole: step.approverRole,
+            approverUserIds: step.approverUserIds,
+            approverPersona: step.approverPersona,
+            approverCapability: step.approverCapability,
+          }}
           tenantUsers={tenantUsers}
-          onApproverTypeChange={(approverType) => onUpdate({ approverType })}
-          onApproverRoleChange={(approverRole) => onUpdate({ approverRole })}
-          onApproverUserIdsChange={(approverUserIds) => onUpdate({ approverUserIds })}
-          onApproverPersonaChange={(approverPersona) => onUpdate({ approverPersona })}
-          onApproverCapabilityChange={(approverCapability) => onUpdate({ approverCapability })}
+          onApproverChange={(approver) => onUpdate(approver)}
         />
 
         <label>
