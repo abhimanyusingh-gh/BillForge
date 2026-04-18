@@ -3,10 +3,77 @@ import { Router } from "express";
 import type { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { TenantUserRoleModel, TenantAssignableRoles } from "@/models/core/TenantUserRole.js";
+import { getRoleDefaults } from "@/auth/personaDefaults.js";
 
 export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowService) {
   const router = Router();
   router.use(requireAuth);
+
+  router.get("/admin/approval-limits", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+    try {
+      const { tenantId } = getAuth(req);
+      const roleRecords = await TenantUserRoleModel.find({ tenantId }).lean();
+      const limitsMap: Record<string, { approvalLimitMinor: number | null; userIds: string[] }> = {};
+      for (const role of TenantAssignableRoles) {
+        const defaults = getRoleDefaults(role);
+        limitsMap[role] = { approvalLimitMinor: defaults.approvalLimitMinor, userIds: [] };
+      }
+      for (const record of roleRecords) {
+        const role = record.role as string;
+        if (!limitsMap[role]) continue;
+        limitsMap[role].userIds.push(record.userId);
+        const storedLimit = (record.capabilities as Record<string, unknown> | undefined)?.approvalLimitMinor;
+        if (storedLimit !== undefined && storedLimit !== null) {
+          limitsMap[role].approvalLimitMinor = storedLimit as number;
+        }
+      }
+      const complianceUsers = roleRecords
+        .filter((r) => (r.capabilities as Record<string, unknown> | undefined)?.canSignOffCompliance === true)
+        .map((r) => ({ userId: r.userId, role: r.role as string }));
+      res.json({ limits: limitsMap, complianceSignoffUsers: complianceUsers });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.put("/admin/approval-limits", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+    try {
+      const { tenantId, userId: actingUserId } = getAuth(req);
+      const limits = req.body?.limits;
+      if (typeof limits !== "object" || limits === null || Array.isArray(limits)) {
+        res.status(400).json({ message: "limits must be an object mapping role to approvalLimitMinor." });
+        return;
+      }
+      const actingUserRecord = await TenantUserRoleModel.findOne({ tenantId, userId: actingUserId }).lean();
+      const actingRole = actingUserRecord?.role as string | undefined;
+      for (const [role, limitValue] of Object.entries(limits)) {
+        if (!TenantAssignableRoles.includes(role as typeof TenantAssignableRoles[number])) {
+          res.status(400).json({ message: `Invalid role: ${role}` });
+          return;
+        }
+        if (role === actingRole) {
+          res.status(403).json({ message: "You cannot modify your own role's approval limit." });
+          return;
+        }
+        if (limitValue !== null) {
+          if (typeof limitValue !== "number" || !Number.isInteger(limitValue) || limitValue <= 0) {
+            res.status(400).json({ message: `Approval limit for ${role} must be a positive integer (in minor units) or null for unlimited.` });
+            return;
+          }
+        }
+      }
+      for (const [role, limitValue] of Object.entries(limits)) {
+        await TenantUserRoleModel.updateMany(
+          { tenantId, role },
+          { $set: { "capabilities.approvalLimitMinor": limitValue } }
+        );
+      }
+      res.json({ updated: true });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.get("/admin/approval-workflow", requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {

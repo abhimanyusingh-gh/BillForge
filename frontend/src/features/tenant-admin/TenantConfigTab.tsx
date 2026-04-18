@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import type { GmailConnectionStatus } from "@/types";
+import type { GmailConnectionStatus, SessionRole } from "@/types";
 import { TENANT_ROLE_OPTIONS, type TenantRole, type TenantUser, type UserCapabilities } from "@/types";
 import { ApprovalWorkflowSection } from "@/features/tenant-admin/ApprovalWorkflowSection";
+import { ApprovalLimitsSection } from "@/features/tenant-admin/ApprovalLimitsSection";
 import { GlCodeManager } from "@/features/tenant-admin/GlCodeManager";
 import { EmptyState } from "@/components/common/EmptyState";
 import { TcsConfigPanel } from "@/features/tenant-admin/TcsConfigPanel";
@@ -9,11 +10,12 @@ import { ComplianceConfigPanel } from "@/features/tenant-admin/ComplianceConfigP
 import { ReconciliationWeightsSection } from "@/features/tenant-admin/ReconciliationWeightsSection";
 import { useReorderableSections } from "@/hooks/useReorderableSections";
 
-const CONFIG_SECTION_IDS = ["workflow", "gl-codes", "compliance", "reconciliation", "tcs", "users"] as const;
+const CONFIG_SECTION_IDS = ["workflow", "approval-limits", "gl-codes", "compliance", "reconciliation", "tcs", "users"] as const;
 const STORAGE_KEY = "billforge:config-section-order";
 
 interface TenantConfigTabProps {
   currentUserId: string;
+  currentUserRole: SessionRole;
   capabilities: UserCapabilities;
   gmailConnection: GmailConnectionStatus | null;
   onConnectGmail: () => void;
@@ -28,6 +30,7 @@ interface TenantConfigTabProps {
 
 export function TenantConfigTab({
   currentUserId,
+  currentUserRole,
   capabilities,
   gmailConnection,
   onConnectGmail,
@@ -56,6 +59,10 @@ export function TenantConfigTab({
     workflow: {
       visible: canConfigureWorkflow,
       node: <ApprovalWorkflowSection tenantUsers={tenantUsers} />,
+    },
+    "approval-limits": {
+      visible: canConfigureWorkflow,
+      node: <ApprovalLimitsSection currentUserId={currentUserId} currentUserRole={currentUserRole} />,
     },
     "gl-codes": {
       visible: canConfigureGlCodes,
