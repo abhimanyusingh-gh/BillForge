@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ApprovalWorkflowConfig, TenantUser, WorkflowStep } from "@/types";
 import { fetchApprovalWorkflow, saveApprovalWorkflow } from "@/api";
+import { fetchApprovalLimits } from "@/api/admin";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import { StepCard } from "./workflow/StepCard";
 
@@ -33,12 +34,16 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [complianceSignoffUsers, setComplianceSignoffUsers] = useState<Array<{ userId: string; role: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
     fetchApprovalWorkflow()
       .then((data) => { if (!cancelled) { setConfig(data); setSavedConfig(data); setLoaded(true); } })
       .catch(() => { if (!cancelled) setLoaded(true); });
+    fetchApprovalLimits()
+      .then((data) => { if (!cancelled) setComplianceSignoffUsers(data.complianceSignoffUsers ?? []); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -196,6 +201,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
                 step={step}
                 stepCount={config.steps.length}
                 tenantUsers={tenantUsers}
+                complianceSignoffUsers={complianceSignoffUsers}
                 onUpdate={(patch) => updateStep(step.order, patch)}
                 onRemove={() => removeStep(step.order)}
               />

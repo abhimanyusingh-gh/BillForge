@@ -247,6 +247,7 @@ export function App() {
         {activeTab === "config" && canViewConfig && !isPlatformAdmin && (
           <TenantConfigTab
             currentUserId={session.user.id}
+            currentUserRole={session.user.role}
             capabilities={caps}
             gmailConnection={gmailConnection}
             onConnectGmail={() => void handleConnectGmail()}

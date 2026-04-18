@@ -119,6 +119,24 @@ export async function importGlCodesCsv(file: File): Promise<GlCodeImportResult> 
   })).data;
 }
 
+interface ApprovalLimitEntry {
+  approvalLimitMinor: number | null;
+  userIds: string[];
+}
+
+interface ApprovalLimitsResponse {
+  limits: Record<string, ApprovalLimitEntry>;
+  complianceSignoffUsers: Array<{ userId: string; role: string }>;
+}
+
+export async function fetchApprovalLimits(): Promise<ApprovalLimitsResponse> {
+  return (await apiClient.get<ApprovalLimitsResponse>("/admin/approval-limits")).data;
+}
+
+export async function saveApprovalLimits(limits: Record<string, number | null>): Promise<{ updated: boolean }> {
+  return (await apiClient.put<{ updated: boolean }>("/admin/approval-limits", { limits })).data;
+}
+
 export async function fetchGmailConnectionStatus() {
   const data = stripNulls((await apiClient.get<GmailConnectionStatus>("/integrations/gmail")).data) as Partial<GmailConnectionStatus>;
   const validStates = ["CONNECTED", "NEEDS_REAUTH", "DISCONNECTED"] as const;
