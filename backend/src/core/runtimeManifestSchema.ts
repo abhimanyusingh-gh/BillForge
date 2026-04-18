@@ -54,6 +54,7 @@ export const runtimeManifestSchema = z.object({
           region: z.string().min(1).optional(),
           prefix: z.string().optional(),
           endpoint: z.string().optional(),
+          publicEndpoint: z.string().optional(),
           forcePathStyle: z.coerce.boolean().optional()
         })
         .optional()

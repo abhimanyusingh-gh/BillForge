@@ -158,6 +158,7 @@ const envSchema = z.object({
   S3_FILE_STORE_REGION: z.string().default("us-east-1"),
   S3_FILE_STORE_PREFIX: z.string().default("billforge"),
   S3_FILE_STORE_ENDPOINT: z.string().default("http://minio:9000"),
+  S3_FILE_STORE_PUBLIC_ENDPOINT: z.string().default(""),
   S3_FILE_STORE_FORCE_PATH_STYLE: z
     .string()
     .default("true")

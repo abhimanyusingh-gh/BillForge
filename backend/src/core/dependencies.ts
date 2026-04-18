@@ -178,6 +178,7 @@ function resolveFileStore(runtimeManifest: RuntimeManifest): FileStore {
     region: runtimeManifest.fileStore.configuration.region,
     prefix: runtimeManifest.fileStore.configuration.prefix,
     endpoint: runtimeManifest.fileStore.configuration.endpoint,
+    publicEndpoint: runtimeManifest.fileStore.configuration.publicEndpoint,
     forcePathStyle: runtimeManifest.fileStore.configuration.forcePathStyle
   });
 }
