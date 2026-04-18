@@ -22,7 +22,10 @@ export class SendGridInviteEmailSenderProvider implements InviteEmailSenderBound
     await axios.post(
       this.endpoint,
       {
-        personalizations: [{ to: [{ email: payload.to }] }],
+        personalizations: [{
+          to: [{ email: payload.to }],
+          ...(payload.cc?.length ? { cc: payload.cc.map((email) => ({ email })) } : {})
+        }],
         from: { email: payload.from },
         subject: payload.subject,
         content: [

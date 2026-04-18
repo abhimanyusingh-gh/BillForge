@@ -61,6 +61,7 @@ interface Dependencies {
   tenantInviteService: TenantInviteService;
   platformAdminService: PlatformAdminService;
   gmailIntegrationService: TenantGmailIntegrationService;
+  notificationService: MailboxNotificationService;
   bankService: IBankConnectionService;
   fileStore: FileStore;
   keycloakAdmin: KeycloakAdminClient;
@@ -157,6 +158,7 @@ export async function buildDependencies(): Promise<Dependencies> {
     emailSimulationService: new EmailSimulationService(),
     ...auth,
     gmailIntegrationService,
+    notificationService,
     bankService,
     fileStore: storage.fileStore,
     approvalWorkflowService,
