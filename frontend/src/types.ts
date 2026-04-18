@@ -348,18 +348,16 @@ export interface UserCapabilities {
   canSendVendorEmails: boolean;
 }
 
-export interface RoleWithCapabilities {
-  role: SessionRole;
-  capabilities: UserCapabilities;
-}
-
 export interface User {
   email: string;
 }
 
-export interface SessionUser extends User, RoleWithCapabilities {
+export interface SessionUser {
   id: string;
+  email: string;
   isPlatformAdmin: boolean;
+  role: SessionRole;
+  capabilities: UserCapabilities;
 }
 
 export interface TenantUser extends User {
