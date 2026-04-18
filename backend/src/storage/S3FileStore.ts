@@ -7,6 +7,7 @@ interface S3FileStoreOptions {
   region: string;
   prefix?: string;
   endpoint?: string;
+  publicEndpoint?: string;
   forcePathStyle?: boolean;
 }
 
@@ -14,6 +15,7 @@ export class S3FileStore implements FileStore {
   readonly name = "s3";
 
   private readonly client: S3Client;
+  private readonly presignedClient: S3Client;
   private readonly bucket: string;
   private readonly prefix: string;
 
@@ -30,14 +32,29 @@ export class S3FileStore implements FileStore {
 
     this.prefix = normalizePrefix(options.prefix ?? "");
     const endpoint = options.endpoint?.trim() || undefined;
+    const forcePathStyle = options.forcePathStyle ?? false;
+    const credentials = endpoint
+      ? { accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "test", secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "test" }
+      : undefined;
+
     this.client = new S3Client({
       region,
       endpoint,
-      forcePathStyle: options.forcePathStyle ?? false,
-      ...(endpoint
-        ? { credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "test", secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "test" } }
-        : {})
+      forcePathStyle,
+      ...(credentials ? { credentials } : {})
     });
+
+    const publicEndpoint = options.publicEndpoint?.trim() || undefined;
+    if (publicEndpoint) {
+      this.presignedClient = new S3Client({
+        region,
+        endpoint: publicEndpoint,
+        forcePathStyle,
+        ...(credentials ? { credentials } : {})
+      });
+    } else {
+      this.presignedClient = this.client;
+    }
   }
 
   async getObject(key: string): Promise<FileStoreGetResult> {
@@ -95,7 +112,7 @@ export class S3FileStore implements FileStore {
   async generatePresignedPutUrl(key: string, contentType: string, expiresInSeconds: number): Promise<string> {
     const fullKey = this.prefix ? `${this.prefix}/${normalizeKey(key)}` : normalizeKey(key);
     return getSignedUrl(
-      this.client,
+      this.presignedClient,
       new PutObjectCommand({ Bucket: this.bucket, Key: fullKey, ContentType: contentType }),
       { expiresIn: expiresInSeconds }
     );

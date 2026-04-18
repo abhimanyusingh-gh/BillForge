@@ -57,6 +57,7 @@ export function createDefaultManifest(defaultTenantId: UUID, defaultWorkloadTier
         region: env.S3_FILE_STORE_REGION,
         prefix: env.S3_FILE_STORE_PREFIX,
         endpoint: env.S3_FILE_STORE_ENDPOINT,
+        publicEndpoint: env.S3_FILE_STORE_PUBLIC_ENDPOINT,
         forcePathStyle: env.S3_FILE_STORE_FORCE_PATH_STYLE
       }
     },

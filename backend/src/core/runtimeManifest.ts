@@ -104,6 +104,7 @@ export interface RuntimeManifest {
       region: string;
       prefix: string;
       endpoint: string;
+      publicEndpoint: string;
       forcePathStyle: boolean;
     };
   };
