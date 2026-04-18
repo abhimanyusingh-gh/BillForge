@@ -353,9 +353,17 @@ export interface RoleWithCapabilities {
   capabilities: UserCapabilities;
 }
 
-export interface TenantUser {
-  userId: string;
+export interface User {
   email: string;
+}
+
+export interface SessionUser extends User, RoleWithCapabilities {
+  id: string;
+  isPlatformAdmin: boolean;
+}
+
+export interface TenantUser extends User {
+  userId: string;
   role: TenantRole;
   enabled: boolean;
 }

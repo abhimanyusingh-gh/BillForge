@@ -1,6 +1,6 @@
 import axios from "axios";
 import { apiClient } from "@/api/client";
-import type { RoleWithCapabilities, TenantRole, TenantUser } from "@/types";
+import type { SessionUser, TenantRole, TenantUser } from "@/types";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 
@@ -16,7 +16,7 @@ export async function refreshSessionToken(currentToken: string): Promise<string>
 }
 
 interface SessionContextResponse {
-  user: { id: string; email: string; isPlatformAdmin: boolean } & RoleWithCapabilities;
+  user: SessionUser;
   tenant: {
     id: string;
     name: string;

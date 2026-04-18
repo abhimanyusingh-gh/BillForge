@@ -7,12 +7,24 @@ interface ApproverSelectorProps {
   onApproverChange: (approver: ApproverState) => void;
 }
 
+const OPTION_SELECT_CONFIG: Array<{
+  type: WorkflowStep["approverType"];
+  label: string;
+  field: keyof Pick<ApproverState, "approverRole" | "approverPersona" | "approverCapability">;
+  defaultValue: string;
+  options: Array<{ value: string; label: string }>;
+}> = [
+  { type: "role", label: "Role", field: "approverRole", defaultValue: "TENANT_ADMIN", options: TENANT_ROLE_OPTIONS },
+  { type: "persona", label: "Persona", field: "approverPersona", defaultValue: "ap_clerk", options: PERSONA_ROLE_OPTIONS },
+  { type: "capability", label: "Capability", field: "approverCapability", defaultValue: "canApproveInvoices", options: CAPABILITY_FLAG_OPTIONS },
+];
+
 export function ApproverSelector({
   approver,
   tenantUsers,
   onApproverChange,
 }: ApproverSelectorProps) {
-  const { approverType, approverRole, approverUserIds, approverPersona, approverCapability } = approver;
+  const { approverType, approverUserIds } = approver;
 
   function updateApprover(patch: Partial<ApproverState>) {
     onApproverChange({ ...approver, ...patch });
@@ -34,21 +46,21 @@ export function ApproverSelector({
         </select>
       </label>
 
-      {approverType === "role" ? (
-        <label>
-          Role:
+      {OPTION_SELECT_CONFIG.filter((cfg) => cfg.type === approverType).map((cfg) => (
+        <label key={cfg.field}>
+          {cfg.label}:
           <select
-            value={approverRole ?? "TENANT_ADMIN"}
-            onChange={(e) => updateApprover({ approverRole: e.target.value })}
+            value={(approver[cfg.field] as string) ?? cfg.defaultValue}
+            onChange={(e) => updateApprover({ [cfg.field]: e.target.value })}
           >
-            {TENANT_ROLE_OPTIONS.map((option) => (
+            {cfg.options.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
         </label>
-      ) : null}
+      ))}
 
       {approverType === "specific_users" ? (
         <label>
@@ -66,38 +78,6 @@ export function ApproverSelector({
             {tenantUsers.map((u) => (
               <option key={u.userId} value={u.userId}>
                 {u.email}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-
-      {approverType === "persona" ? (
-        <label>
-          Persona:
-          <select
-            value={approverPersona ?? "ap_clerk"}
-            onChange={(e) => updateApprover({ approverPersona: e.target.value })}
-          >
-            {PERSONA_ROLE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-
-      {approverType === "capability" ? (
-        <label>
-          Capability:
-          <select
-            value={approverCapability ?? "canApproveInvoices"}
-            onChange={(e) => updateApprover({ approverCapability: e.target.value })}
-          >
-            {CAPABILITY_FLAG_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
               </option>
             ))}
           </select>
