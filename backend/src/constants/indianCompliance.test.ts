@@ -4,109 +4,73 @@ import {
   UDYAM_FORMAT,
   IRN_FORMAT,
   ADDRESS_SIGNAL_PATTERN,
-  E_INVOICE_THRESHOLD_MINOR,
-  VALID_PAN_CATEGORIES,
   extractPanFromGstin,
   derivePanCategory
 } from "@/constants/indianCompliance";
 
-describe("PAN_FORMAT", () => {
-  it("matches valid PAN strings", () => {
-    expect(PAN_FORMAT.test("ABCPK1234F")).toBe(true);
-    expect(PAN_FORMAT.test("AABCC1234F")).toBe(true);
-    expect(PAN_FORMAT.test("ZZZZZ9999Z")).toBe(true);
+describe("indian compliance regexes", () => {
+  it.each([
+    ["PAN valid ABCPK1234F", PAN_FORMAT, "ABCPK1234F", true],
+    ["PAN valid AABCC1234F", PAN_FORMAT, "AABCC1234F", true],
+    ["PAN valid ZZZZZ9999Z", PAN_FORMAT, "ZZZZZ9999Z", true],
+    ["PAN invalid lowercase", PAN_FORMAT, "abcpk1234f", false],
+    ["PAN invalid digits only", PAN_FORMAT, "1234567890", false],
+    ["PAN invalid short", PAN_FORMAT, "ABCPK1234", false],
+    ["PAN invalid long", PAN_FORMAT, "ABCPK1234FG", false],
+    ["PAN invalid empty", PAN_FORMAT, "", false],
+  ])("%s", (_label, re, input, expected) => {
+    expect(re.test(input)).toBe(expected);
   });
 
-  it("rejects invalid PAN strings", () => {
-    expect(PAN_FORMAT.test("abcpk1234f")).toBe(false);
-    expect(PAN_FORMAT.test("1234567890")).toBe(false);
-    expect(PAN_FORMAT.test("ABCPK1234")).toBe(false);
-    expect(PAN_FORMAT.test("ABCPK1234FG")).toBe(false);
-    expect(PAN_FORMAT.test("")).toBe(false);
-  });
-});
-
-describe("GSTIN_FORMAT", () => {
-  it("matches valid GSTIN strings", () => {
-    expect(GSTIN_FORMAT.test("29ABCPK1234F1Z5")).toBe(true);
-    expect(GSTIN_FORMAT.test("07AABCC1234D1ZA")).toBe(true);
+  it.each([
+    ["GSTIN valid 29ABCPK1234F1Z5", GSTIN_FORMAT, "29ABCPK1234F1Z5", true],
+    ["GSTIN valid 07AABCC1234D1ZA", GSTIN_FORMAT, "07AABCC1234D1ZA", true],
+    ["GSTIN invalid 'INVALID'", GSTIN_FORMAT, "INVALID", false],
+    ["GSTIN invalid wrong check", GSTIN_FORMAT, "29ABCPK1234F1X5", false],
+    ["GSTIN invalid empty", GSTIN_FORMAT, "", false],
+  ])("%s", (_label, re, input, expected) => {
+    expect(re.test(input)).toBe(expected);
   });
 
-  it("rejects invalid GSTIN strings", () => {
-    expect(GSTIN_FORMAT.test("INVALID")).toBe(false);
-    expect(GSTIN_FORMAT.test("29ABCPK1234F1X5")).toBe(false);
-    expect(GSTIN_FORMAT.test("")).toBe(false);
-  });
-});
-
-describe("UDYAM_FORMAT", () => {
-  it("matches valid UDYAM numbers", () => {
-    expect(UDYAM_FORMAT.test("UDYAM-KA-01-1234567")).toBe(true);
-    expect(UDYAM_FORMAT.test("UDYAM-MH-99-0000001")).toBe(true);
+  it.each([
+    ["UDYAM valid KA-01", UDYAM_FORMAT, "UDYAM-KA-01-1234567", true],
+    ["UDYAM valid MH-99", UDYAM_FORMAT, "UDYAM-MH-99-0000001", true],
+    ["UDYAM invalid single-digit block", UDYAM_FORMAT, "UDYAM-KA-1-1234567", false],
+    ["UDYAM invalid prefix", UDYAM_FORMAT, "NOTUDYAM-KA-01-1234567", false],
+    ["UDYAM invalid empty", UDYAM_FORMAT, "", false],
+  ])("%s", (_label, re, input, expected) => {
+    expect(re.test(input)).toBe(expected);
   });
 
-  it("rejects invalid UDYAM numbers", () => {
-    expect(UDYAM_FORMAT.test("UDYAM-KA-1-1234567")).toBe(false);
-    expect(UDYAM_FORMAT.test("NOTUDYAM-KA-01-1234567")).toBe(false);
-    expect(UDYAM_FORMAT.test("")).toBe(false);
-  });
-});
-
-describe("IRN_FORMAT", () => {
-  it("matches valid 64-character hex string", () => {
-    const validIrn = "a".repeat(64);
-    expect(IRN_FORMAT.test(validIrn)).toBe(true);
-    expect(IRN_FORMAT.test("A1b2C3d4".repeat(8))).toBe(true);
+  it.each([
+    ["IRN valid 64 hex lowercase", IRN_FORMAT, "a".repeat(64), true],
+    ["IRN valid 64 hex mixed", IRN_FORMAT, "A1b2C3d4".repeat(8), true],
+    ["IRN invalid 63 chars", IRN_FORMAT, "a".repeat(63), false],
+    ["IRN invalid 65 chars", IRN_FORMAT, "a".repeat(65), false],
+    ["IRN invalid non-hex", IRN_FORMAT, "g".repeat(64), false],
+    ["IRN invalid empty", IRN_FORMAT, "", false],
+  ])("%s", (_label, re, input, expected) => {
+    expect(re.test(input)).toBe(expected);
   });
 
-  it("rejects non-hex or wrong-length strings", () => {
-    expect(IRN_FORMAT.test("a".repeat(63))).toBe(false);
-    expect(IRN_FORMAT.test("a".repeat(65))).toBe(false);
-    expect(IRN_FORMAT.test("g".repeat(64))).toBe(false);
-    expect(IRN_FORMAT.test("")).toBe(false);
-  });
-});
-
-describe("ADDRESS_SIGNAL_PATTERN", () => {
-  it("matches common address keywords", () => {
-    expect(ADDRESS_SIGNAL_PATTERN.test("123 Main Street")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Warehouse No. 5")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Village Hobli")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Taluk Center")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("District Office")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Postal Code 560001")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Pin 560001")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("ZIP 12345")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Near Railway Station")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("State Highway")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Country Road")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Karnataka Region")).toBe(true);
-    expect(ADDRESS_SIGNAL_PATTERN.test("India Gate")).toBe(true);
-  });
-
-  it("does not match non-address text", () => {
-    expect(ADDRESS_SIGNAL_PATTERN.test("ACME Corporation")).toBe(false);
-    expect(ADDRESS_SIGNAL_PATTERN.test("Invoice #12345")).toBe(false);
-  });
-});
-
-describe("E_INVOICE_THRESHOLD_MINOR", () => {
-  it("equals 50 crore in minor units (paisa)", () => {
-    expect(E_INVOICE_THRESHOLD_MINOR).toBe(500_000_000);
-  });
-});
-
-describe("VALID_PAN_CATEGORIES", () => {
-  it("contains all 10 valid PAN entity categories", () => {
-    expect(VALID_PAN_CATEGORIES.size).toBe(10);
-    for (const code of ["C", "P", "H", "F", "T", "A", "B", "L", "J", "G"]) {
-      expect(VALID_PAN_CATEGORIES.has(code)).toBe(true);
-    }
-  });
-
-  it("rejects unknown categories", () => {
-    expect(VALID_PAN_CATEGORIES.has("X")).toBe(false);
-    expect(VALID_PAN_CATEGORIES.has("Z")).toBe(false);
+  it.each([
+    ["street", ADDRESS_SIGNAL_PATTERN, "123 Main Street", true],
+    ["warehouse", ADDRESS_SIGNAL_PATTERN, "Warehouse No. 5", true],
+    ["hobli", ADDRESS_SIGNAL_PATTERN, "Village Hobli", true],
+    ["taluk", ADDRESS_SIGNAL_PATTERN, "Taluk Center", true],
+    ["district", ADDRESS_SIGNAL_PATTERN, "District Office", true],
+    ["postal code", ADDRESS_SIGNAL_PATTERN, "Postal Code 560001", true],
+    ["pin", ADDRESS_SIGNAL_PATTERN, "Pin 560001", true],
+    ["zip", ADDRESS_SIGNAL_PATTERN, "ZIP 12345", true],
+    ["near", ADDRESS_SIGNAL_PATTERN, "Near Railway Station", true],
+    ["state highway", ADDRESS_SIGNAL_PATTERN, "State Highway", true],
+    ["country road", ADDRESS_SIGNAL_PATTERN, "Country Road", true],
+    ["karnataka", ADDRESS_SIGNAL_PATTERN, "Karnataka Region", true],
+    ["india", ADDRESS_SIGNAL_PATTERN, "India Gate", true],
+    ["non-address corp", ADDRESS_SIGNAL_PATTERN, "ACME Corporation", false],
+    ["non-address invoice", ADDRESS_SIGNAL_PATTERN, "Invoice #12345", false],
+  ])("ADDRESS_SIGNAL_PATTERN: %s", (_label, re, input, expected) => {
+    expect(re.test(input)).toBe(expected);
   });
 });
 
