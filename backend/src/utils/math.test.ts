@@ -1,86 +1,39 @@
 import { clampProbability, clamp, normalizeConfidence } from "@/utils/math.js";
 
 describe("clampProbability", () => {
-  it("returns 0 for NaN", () => {
-    expect(clampProbability(NaN)).toBe(0);
-  });
-
-  it("returns 0 for Infinity", () => {
-    expect(clampProbability(Infinity)).toBe(0);
-  });
-
-  it("returns 0 for -Infinity", () => {
-    expect(clampProbability(-Infinity)).toBe(0);
-  });
-
-  it("clamps negative values to 0", () => {
-    expect(clampProbability(-0.5)).toBe(0);
-  });
-
-  it("clamps values above 1 to 1", () => {
-    expect(clampProbability(1.5)).toBe(1);
-  });
-
-  it("returns the value when within [0, 1]", () => {
-    expect(clampProbability(0.5)).toBe(0.5);
-  });
-
-  it("returns 0 for exactly 0", () => {
-    expect(clampProbability(0)).toBe(0);
-  });
-
-  it("returns 1 for exactly 1", () => {
-    expect(clampProbability(1)).toBe(1);
+  it.each([
+    ["NaN", NaN, 0],
+    ["Infinity", Infinity, 0],
+    ["-Infinity", -Infinity, 0],
+    ["negative value", -0.5, 0],
+    ["value above 1", 1.5, 1],
+    ["value within [0,1]", 0.5, 0.5],
+    ["exactly 0", 0, 0],
+    ["exactly 1", 1, 1],
+  ])("returns %s -> clamped probability", (_label, input, expected) => {
+    expect(clampProbability(input)).toBe(expected);
   });
 });
 
 describe("clamp", () => {
-  it("returns value when within range", () => {
-    expect(clamp(5, 0, 10)).toBe(5);
-  });
-
-  it("clamps to min when below", () => {
-    expect(clamp(-5, 0, 10)).toBe(0);
-  });
-
-  it("clamps to max when above", () => {
-    expect(clamp(15, 0, 10)).toBe(10);
-  });
-
-  it("returns min when value equals min", () => {
-    expect(clamp(0, 0, 10)).toBe(0);
-  });
-
-  it("returns max when value equals max", () => {
-    expect(clamp(10, 0, 10)).toBe(10);
-  });
-
-  it("works with negative ranges", () => {
-    expect(clamp(-15, -10, -5)).toBe(-10);
-    expect(clamp(-3, -10, -5)).toBe(-5);
-    expect(clamp(-7, -10, -5)).toBe(-7);
-  });
-
-  it("returns min for NaN", () => {
-    expect(clamp(NaN, 0, 100)).toBe(0);
-  });
-
-  it("returns min for Infinity", () => {
-    expect(clamp(Infinity, 0, 100)).toBe(0);
-  });
-
-  it("returns min for -Infinity", () => {
-    expect(clamp(-Infinity, 0, 100)).toBe(0);
+  it.each([
+    ["within range", 5, 0, 10, 5],
+    ["below min", -5, 0, 10, 0],
+    ["above max", 15, 0, 10, 10],
+    ["equals min", 0, 0, 10, 0],
+    ["equals max", 10, 0, 10, 10],
+    ["negative range below", -15, -10, -5, -10],
+    ["negative range above", -3, -10, -5, -5],
+    ["negative range inside", -7, -10, -5, -7],
+    ["NaN returns min", NaN, 0, 100, 0],
+    ["Infinity returns min", Infinity, 0, 100, 0],
+    ["-Infinity returns min", -Infinity, 0, 100, 0],
+  ])("%s", (_label, value, min, max, expected) => {
+    expect(clamp(value, min, max)).toBe(expected);
   });
 });
 
 describe("normalizeConfidence", () => {
-  it("returns value in [0,1] as-is with 4-decimal precision", () => {
-    expect(normalizeConfidence(0.85)).toBe(0.85);
-    expect(normalizeConfidence(0.12345)).toBe(0.1235);
-    expect(normalizeConfidence(1)).toBe(1);
-  });
-
   it("treats values > 1 and <= 100 as percentages", () => {
     expect(normalizeConfidence(85)).toBe(0.85);
     expect(normalizeConfidence(100)).toBe(1);
@@ -89,29 +42,19 @@ describe("normalizeConfidence", () => {
     expect(normalizeConfidence(50)).toBe(0.5);
   });
 
-  it("clamps values > 100 to 1", () => {
-    expect(normalizeConfidence(150)).toBe(1);
-    expect(normalizeConfidence(200)).toBe(1);
-    expect(normalizeConfidence(100.01)).toBe(1);
-  });
-
-  it("returns 0 for value = 0", () => {
-    expect(normalizeConfidence(0)).toBe(0);
-  });
-
-  it("returns 0 for NaN", () => {
-    expect(normalizeConfidence(NaN)).toBe(0);
-  });
-
-  it("returns 0 for Infinity", () => {
-    expect(normalizeConfidence(Infinity)).toBe(0);
-  });
-
-  it("returns 0 for -Infinity", () => {
-    expect(normalizeConfidence(-Infinity)).toBe(0);
-  });
-
-  it("clamps negative values to 0", () => {
-    expect(normalizeConfidence(-0.5)).toBe(0);
+  it.each([
+    ["value in [0,1] as-is with 4-decimal precision (0.85)", 0.85, 0.85],
+    ["value in [0,1] as-is with 4-decimal precision (0.12345)", 0.12345, 0.1235],
+    ["value in [0,1] as-is (1)", 1, 1],
+    ["clamps > 100 (150)", 150, 1],
+    ["clamps > 100 (200)", 200, 1],
+    ["clamps > 100 (100.01)", 100.01, 1],
+    ["zero", 0, 0],
+    ["NaN", NaN, 0],
+    ["Infinity", Infinity, 0],
+    ["-Infinity", -Infinity, 0],
+    ["negative", -0.5, 0],
+  ])("%s", (_label, input, expected) => {
+    expect(normalizeConfidence(input)).toBe(expected);
   });
 });
