@@ -5,6 +5,7 @@ import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
 import { ExtractedFieldsTable } from "@/components/invoice/ExtractedFieldsTable";
 import { InvoiceSourceViewer } from "@/components/invoice/InvoiceSourceViewer";
 import { LineItemsTable } from "@/components/invoice/LineItemsTable";
+import { VendorCustomerDetails } from "@/components/invoice/VendorCustomerDetails";
 import { CompliancePanel } from "@/components/compliance/CompliancePanel";
 import { RiskSignalList } from "@/components/compliance/RiskSignalList";
 import { CollapsibleSectionHeader } from "@/features/tenant-admin/CollapsibleSectionHeader";
@@ -44,6 +45,11 @@ interface TenantInvoiceDetailPanelProps {
   setActiveExtractedFieldsExpanded: Dispatch<SetStateAction<boolean>>;
   activeLineItemsExpanded: boolean;
   setActiveLineItemsExpanded: Dispatch<SetStateAction<boolean>>;
+  vendorDetailsExpanded: boolean;
+  setVendorDetailsExpanded: Dispatch<SetStateAction<boolean>>;
+  customerDetailsExpanded: boolean;
+  setCustomerDetailsExpanded: Dispatch<SetStateAction<boolean>>;
+  tenantGstin?: string | null;
   onWorkflowApproveSingle: (invoiceId: string) => void;
   onWorkflowRejectSingle: (invoiceId: string) => void;
   onSaveField: (fieldKey: string, value: string, refreshDetail: () => Promise<void>) => Promise<void>;
@@ -74,6 +80,11 @@ export function TenantInvoiceDetailPanel({
   setActiveExtractedFieldsExpanded,
   activeLineItemsExpanded,
   setActiveLineItemsExpanded,
+  vendorDetailsExpanded,
+  setVendorDetailsExpanded,
+  customerDetailsExpanded,
+  setCustomerDetailsExpanded,
+  tenantGstin,
   onWorkflowApproveSingle,
   onWorkflowRejectSingle,
   onSaveField,
@@ -214,6 +225,14 @@ export function TenantInvoiceDetailPanel({
               </button>
             </div>
           ) : null}
+          <VendorCustomerDetails
+            invoice={invoice}
+            vendorDetailsExpanded={vendorDetailsExpanded}
+            onToggleVendorDetails={() => setVendorDetailsExpanded((v) => !v)}
+            customerDetailsExpanded={customerDetailsExpanded}
+            onToggleCustomerDetails={() => setCustomerDetailsExpanded((v) => !v)}
+            tenantGstin={tenantGstin}
+          />
           <div className="source-preview-section">
             <CollapsibleSectionHeader label="Source Preview" expanded={activeSourcePreviewExpanded} onToggle={() => setActiveSourcePreviewExpanded((v) => !v)} />
             {activeSourcePreviewExpanded ? (
