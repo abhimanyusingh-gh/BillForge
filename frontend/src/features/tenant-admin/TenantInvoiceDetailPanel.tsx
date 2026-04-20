@@ -5,7 +5,8 @@ import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
 import { ExtractedFieldsTable } from "@/components/invoice/ExtractedFieldsTable";
 import { InvoiceSourceViewer } from "@/components/invoice/InvoiceSourceViewer";
 import { LineItemsTable } from "@/components/invoice/LineItemsTable";
-import { VendorCustomerDetails } from "@/components/invoice/VendorCustomerDetails";
+import { VendorDetailsSection } from "@/components/invoice/VendorDetailsSection";
+import { CustomerDetailsSection } from "@/components/invoice/CustomerDetailsSection";
 import { CompliancePanel } from "@/components/compliance/CompliancePanel";
 import { RiskSignalList } from "@/components/compliance/RiskSignalList";
 import { CollapsibleSectionHeader } from "@/features/tenant-admin/CollapsibleSectionHeader";
@@ -225,12 +226,15 @@ export function TenantInvoiceDetailPanel({
               </button>
             </div>
           ) : null}
-          <VendorCustomerDetails
+          <VendorDetailsSection
             invoice={invoice}
-            vendorDetailsExpanded={vendorDetailsExpanded}
-            onToggleVendorDetails={() => setVendorDetailsExpanded((v) => !v)}
-            customerDetailsExpanded={customerDetailsExpanded}
-            onToggleCustomerDetails={() => setCustomerDetailsExpanded((v) => !v)}
+            expanded={vendorDetailsExpanded}
+            onToggle={() => setVendorDetailsExpanded((v) => !v)}
+          />
+          <CustomerDetailsSection
+            invoice={invoice}
+            expanded={customerDetailsExpanded}
+            onToggle={() => setCustomerDetailsExpanded((v) => !v)}
             tenantGstin={tenantGstin}
           />
           <div className="source-preview-section">
