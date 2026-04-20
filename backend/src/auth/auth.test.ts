@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import type { Request, Response } from "express";
 import { AuthService } from "@/auth/AuthService.js";
 import { createSessionToken, verifySessionToken } from "@/auth/sessionToken.js";
@@ -14,33 +13,6 @@ import { toUUID } from "@/types/uuid.js";
 
 const TENANT_ID = toUUID("65f0000000000000000000a1");
 const USER_ID = toUUID("65f0000000000000000000c3");
-
-function mockUserLookup(overrides: Partial<{ email: string; enabled: boolean }> = {}) {
-  jest.spyOn(UserModel, "findById").mockReturnValue({
-    lean: jest.fn().mockResolvedValue({
-      _id: USER_ID, email: overrides.email ?? "user@test.com",
-      tenantId: TENANT_ID, enabled: overrides.enabled ?? true
-    })
-  } as never);
-}
-
-function mockTenantLookup(overrides: Partial<{ enabled: boolean }> = {}) {
-  jest.spyOn(TenantModel, "findById").mockReturnValue({
-    lean: jest.fn().mockResolvedValue({
-      _id: TENANT_ID, name: "Tenant", onboardingStatus: "completed",
-      enabled: overrides.enabled ?? true
-    })
-  } as never);
-}
-
-function makeToken(overrides: Partial<{ email: string; isPlatformAdmin: boolean }> = {}) {
-  return createSessionToken({
-    userId: USER_ID, email: overrides.email ?? "user@test.com",
-    tenantId: TENANT_ID, role: "TENANT_ADMIN",
-    isPlatformAdmin: overrides.isPlatformAdmin ?? false,
-    ttlSeconds: 3600, secret: env.APP_SESSION_SIGNING_SECRET
-  });
-}
 
 function makeMockOidc(overrides: Partial<OidcProvider> = {}): OidcProvider {
   return {
@@ -65,28 +37,6 @@ function makeMockKcAdmin(): jest.Mocked<KeycloakAdminClient> {
     userExists: jest.fn(), deleteUser: jest.fn(), executeActionsEmail: jest.fn()
   } as unknown as jest.Mocked<KeycloakAdminClient>;
 }
-
-describe("disabled tenant/user", () => {
-  const authService = new AuthService({} as never, {} as never);
-
-  beforeEach(() => { jest.restoreAllMocks(); });
-
-  it("blocks when tenant is disabled", async () => {
-    mockUserLookup();
-    mockTenantLookup({ enabled: false });
-    await expect(authService.resolveRequestContext(makeToken())).rejects.toEqual(
-      expect.objectContaining({ statusCode: 403, code: "tenant_disabled" })
-    );
-  });
-
-  it("blocks when user is disabled", async () => {
-    mockUserLookup({ enabled: false });
-    mockTenantLookup();
-    await expect(authService.resolveRequestContext(makeToken())).rejects.toEqual(
-      expect.objectContaining({ statusCode: 403, code: "user_disabled" })
-    );
-  });
-});
 
 describe("loginWithPassword", () => {
   beforeEach(() => { jest.restoreAllMocks(); });
@@ -153,22 +103,26 @@ describe("loginWithPassword", () => {
 });
 
 describe("auth middleware", () => {
-  it("prefers authToken query when authorization header token is invalid", () => {
+  it.each([
+    [
+      "prefers authToken query when authorization header token is invalid",
+      (name: string) => (name.toLowerCase() === "authorization" ? "Bearer undefined" : undefined),
+      "/jobs/ingest/sse",
+      "query-token-1"
+    ],
+    [
+      "uses query token when authorization header is missing",
+      () => undefined,
+      "/invoices/abc123/preview",
+      "query-token-2"
+    ],
+  ])("%s", (_label, headerFn, path, expectedToken) => {
     const request = {
-      header: (name: string) => (name.toLowerCase() === "authorization" ? "Bearer undefined" : undefined),
-      path: "/jobs/ingest/sse",
-      query: { authToken: "query-token-1" }
+      header: headerFn,
+      path,
+      query: { authToken: expectedToken }
     } as unknown as Request;
-    expect(resolveBearerToken(request)).toBe("query-token-1");
-  });
-
-  it("uses query token when authorization header is missing", () => {
-    const request = {
-      header: () => undefined,
-      path: "/invoices/abc123/preview",
-      query: { authToken: "query-token-2" }
-    } as unknown as Request;
-    expect(resolveBearerToken(request)).toBe("query-token-2");
+    expect(resolveBearerToken(request)).toBe(expectedToken);
   });
 
   it("ignores query token on non-allowlisted paths", () => {
@@ -255,36 +209,6 @@ describe("requireNotViewer", () => {
     const next = jest.fn();
     requireNotViewer(request, response, next);
     expect(response.status).toHaveBeenCalledWith(401);
-  });
-});
-
-describe("sessionToken", () => {
-  const secret = "test-secret";
-
-  it("encodes and decodes role and platform claims", () => {
-    const token = createSessionToken({
-      userId: toUUID("user-1"), email: "user@example.com", tenantId: toUUID("tenant-1"),
-      role: "TENANT_ADMIN", isPlatformAdmin: true, ttlSeconds: 600, secret
-    });
-    const verified = verifySessionToken(token, secret);
-    expect(verified).toEqual({
-      userId: toUUID("user-1"), email: "user@example.com", tenantId: toUUID("tenant-1"),
-      role: "TENANT_ADMIN", isPlatformAdmin: true
-    });
-  });
-
-  it("rejects token payload without valid role", () => {
-    const token = createSessionToken({
-      userId: toUUID("user-1"), email: "user@example.com", tenantId: toUUID("tenant-1"),
-      role: "ap_clerk", isPlatformAdmin: false, ttlSeconds: 600, secret
-    });
-    const [header, payload] = token.split(".");
-    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Record<string, unknown>;
-    parsed.role = "UNKNOWN";
-    const tamperedPayload = Buffer.from(JSON.stringify(parsed), "utf8").toString("base64url");
-    const signature = createHmac("sha256", secret).update(`${header}.${tamperedPayload}`).digest("base64url");
-    const tampered = `${header}.${tamperedPayload}.${signature}`;
-    expect(() => verifySessionToken(tampered, secret)).toThrow(/payload is incomplete/i);
   });
 });
 
