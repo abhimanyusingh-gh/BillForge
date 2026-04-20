@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const ZOOM_MIN = 0.5;
+const ZOOM_MIN = 1;
 const ZOOM_MAX = 5;
 
 interface BoundingBox {
