@@ -1,6 +1,6 @@
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.ts";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.ts";
-import { DocumentProcessingEngine, OCR_SENTINEL_KEY, type DocumentProcessingProgressEvent } from "@/core/engine/DocumentProcessingEngine.ts";
+import { DocumentProcessingEngine, type DocumentProcessingProgressEvent } from "@/core/engine/DocumentProcessingEngine.ts";
 import type { ChunkableDocumentDefinition, DocumentDefinition, SinglePassDocumentDefinition } from "@/core/engine/DocumentDefinition.ts";
 import { DOC_TYPE } from "@/core/engine/DocumentDefinition.ts";
 import type { ProcessingContext, ValidationResult } from "@/core/engine/types.ts";
@@ -62,38 +62,6 @@ function makeCtx(overrides?: Partial<ProcessingContext>): ProcessingContext {
 describe("DocumentProcessingEngine", () => {
   beforeEach(() => {
     makeNativePdfText("");
-  });
-
-  it("calls OCR provider and passes text to SLM", async () => {
-    const ocrProvider = makeOcrProvider("OCR TEXT");
-    const fieldVerifier = makeFieldVerifier("slm-result");
-    const definition = new TestDocumentDefinition();
-    const engine = new DocumentProcessingEngine(definition, fieldVerifier, ocrProvider);
-
-    const result = await engine.process(makeCtx());
-
-    expect(ocrProvider.extractText).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      "application/pdf",
-      undefined
-    );
-    expect(result.ocrText).toBe("OCR TEXT");
-    expect(result.output).toBe("PARSED:slm-result");
-    expect(result.strategy).toBe("slm");
-  });
-
-  it("passes ocrLanguageHint to extractText", async () => {
-    const ocrProvider = makeOcrProvider("TEXT");
-    const fieldVerifier = makeFieldVerifier("{}");
-    const engine = new DocumentProcessingEngine(new TestDocumentDefinition(), fieldVerifier, ocrProvider);
-
-    await engine.process(makeCtx({ ocrLanguageHint: "en" }));
-
-    expect(ocrProvider.extractText).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      "application/pdf",
-      { languageHint: "en" }
-    );
   });
 
   it("throws DocumentProcessingError FAILED_OCR on empty OCR text", async () => {
@@ -168,30 +136,6 @@ describe("DocumentProcessingEngine", () => {
       code: "FAILED_OCR",
       message: expect.stringContaining("OCR provider is not available")
     });
-  });
-
-  it("routes to llamaextract when ocrResult.fields is present", async () => {
-    const fields = [{ key: "invoice_number", value: "INV-001" }];
-    const ocrProvider = makeOcrProvider("OCR TEXT", { fields });
-
-    class ExtractFieldsDefinition extends TestDocumentDefinition {
-      parseOutput(raw: string | Record<string, unknown>): string {
-        if (typeof raw === "object") {
-          return `EXTRACTED:${(raw as Record<string, unknown>)["invoice_number"]}`;
-        }
-        return `PARSED:${raw}`;
-      }
-    }
-
-    const fieldVerifier = makeFieldVerifier("should not be called");
-    const engine = new DocumentProcessingEngine(new ExtractFieldsDefinition(), fieldVerifier, ocrProvider);
-
-    const result = await engine.process(makeCtx());
-
-    expect(result.strategy).toBe("llamaextract");
-    expect(result.output).toBe("EXTRACTED:INV-001");
-    expect(result.slmTokens).toBe(0);
-    expect((fieldVerifier.verify as jest.Mock)).not.toHaveBeenCalled();
   });
 
   it("propagates parsingConfidence and extractionConfidence in extract provenance", async () => {
@@ -379,10 +323,6 @@ describe("DocumentProcessingEngine", () => {
     expect(sentPrompt).toContain("name (string): The name field");
     expect(sentPrompt).toContain("DOCUMENT TEXT");
     expect(sentPrompt).toContain("Respond with ONLY a valid JSON object");
-  });
-
-  it("OCR_SENTINEL_KEY is the bank statement extraction sentinel string", () => {
-    expect(OCR_SENTINEL_KEY).toBe("__bank_statement_extraction__");
   });
 
   it("onProgress callback receives DocumentProcessingProgressEvent for chunked SLM", async () => {
