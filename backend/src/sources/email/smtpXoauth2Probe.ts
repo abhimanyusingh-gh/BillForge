@@ -10,7 +10,7 @@ interface SmtpXoauth2ProbeInput {
   timeoutMs: number;
 }
 
-export function buildSmtpXoauth2Token(user: string, accessToken: string): string {
+function buildSmtpXoauth2Token(user: string, accessToken: string): string {
   return Buffer.from(`user=${user}\x01auth=Bearer ${accessToken}\x01\x01`).toString("base64");
 }
 

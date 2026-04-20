@@ -35,14 +35,6 @@ export function findSecondHandler(router: any, method: string, path: string): Fu
   throw new Error(`No handler found for ${method.toUpperCase()} ${path}`);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function hasMiddleware(router: any, name: string): boolean {
-  return router.stack.some(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (layer: any) => !layer.route && layer.handle?.name === name
-  );
-}
-
 export function mockRequest(overrides: Record<string, unknown> = {}) {
   const listeners: Record<string, Function[]> = {};
   return {
