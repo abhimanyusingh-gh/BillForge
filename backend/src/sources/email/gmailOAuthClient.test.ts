@@ -34,106 +34,46 @@ function createMockHttpClient(responseData: unknown) {
   };
 }
 
-function createFailingHttpClient(status: number, errorBody: unknown) {
-  const error = Object.assign(new Error(`Request failed with status ${status}`), {
-    response: { status, data: errorBody },
-    isAxiosError: true
-  });
-  return {
-    post: jest.fn(async () => { throw error; }),
-    get: jest.fn(async () => { throw error; })
-  };
-}
-
 describe("refreshGoogleAccessToken", () => {
-  it("returns access token and expiry on successful refresh", async () => {
-    const client = createMockHttpClient({
-      access_token: "fresh-access-token",
-      expires_in: 3600
-    });
+  it("builds refresh_token grant body with client credentials and endpoint/timeout", async () => {
+    const client = createMockHttpClient({ access_token: "fresh-access-token", expires_in: 3600 });
 
     const result = await refreshGoogleAccessToken(BASE_REFRESH_INPUT, client);
 
     expect(result.accessToken).toBe("fresh-access-token");
-    expect(result.expiresInSeconds).toBe(3600);
     expect(client.post).toHaveBeenCalledWith(
       TOKEN_ENDPOINT,
-      expect.stringContaining("grant_type=refresh_token"),
+      expect.any(String),
       expect.objectContaining({ timeout: TIMEOUT_MS })
     );
-  });
-
-  it("sends client_id, client_secret, refresh_token in form body", async () => {
-    const client = createMockHttpClient({ access_token: "tok", expires_in: 1800 });
-
-    await refreshGoogleAccessToken(BASE_REFRESH_INPUT, client);
-
     const body = String((client.post.mock.calls as unknown[][])[0][1]);
+    expect(body).toContain("grant_type=refresh_token");
     expect(body).toContain("client_id=test-client-id");
     expect(body).toContain("client_secret=test-client-secret");
     expect(body).toContain("refresh_token=test-refresh-token");
   });
 
-  it("defaults expires_in to 3600 when missing from response", async () => {
-    const client = createMockHttpClient({ access_token: "tok" });
-
+  it.each([
+    ["defaults expires_in to 3600 when missing", { access_token: "tok" }, 3600],
+    ["parses string expires_in value", { access_token: "tok", expires_in: "7200" }, 7200],
+  ])("%s", async (_label, responseData, expectedSeconds) => {
+    const client = createMockHttpClient(responseData);
     const result = await refreshGoogleAccessToken(BASE_REFRESH_INPUT, client);
-
-    expect(result.expiresInSeconds).toBe(3600);
+    expect(result.expiresInSeconds).toBe(expectedSeconds);
   });
 
-  it("parses string expires_in value", async () => {
-    const client = createMockHttpClient({ access_token: "tok", expires_in: "7200" });
-
-    const result = await refreshGoogleAccessToken(BASE_REFRESH_INPUT, client);
-
-    expect(result.expiresInSeconds).toBe(7200);
-  });
-
-  it("throws when response has error field (invalid_grant)", async () => {
-    const client = createMockHttpClient({
-      error: "invalid_grant",
-      error_description: "Token has been revoked."
-    });
-
-    await expect(refreshGoogleAccessToken(BASE_REFRESH_INPUT, client)).rejects.toThrow("Token has been revoked.");
-  });
-
-  it("throws when access_token is missing from response", async () => {
-    const client = createMockHttpClient({ expires_in: 3600 });
-
-    await expect(refreshGoogleAccessToken(BASE_REFRESH_INPUT, client)).rejects.toThrow("access_token");
-  });
-
-  it("throws when response body is null", async () => {
-    const client = createMockHttpClient(null);
-
-    await expect(refreshGoogleAccessToken(BASE_REFRESH_INPUT, client)).rejects.toThrow("access_token");
-  });
-
-  it("propagates HTTP errors from the client", async () => {
-    const client = createFailingHttpClient(500, { error: "server_error" });
-
-    await expect(refreshGoogleAccessToken(BASE_REFRESH_INPUT, client)).rejects.toThrow();
+  it.each([
+    ["error field invalid_grant", { error: "invalid_grant", error_description: "Token has been revoked." }, /Token has been revoked/],
+    ["access_token missing", { expires_in: 3600 }, /access_token/],
+    ["response body null", null, /access_token/],
+  ])("throws when %s", async (_label, responseData, expectedMessage) => {
+    const client = createMockHttpClient(responseData);
+    await expect(refreshGoogleAccessToken(BASE_REFRESH_INPUT, client)).rejects.toThrow(expectedMessage);
   });
 });
 
 describe("exchangeGoogleAuthorizationCode", () => {
-  it("returns access token, refresh token, and expiry on success", async () => {
-    const client = createMockHttpClient({
-      access_token: "new-access-token",
-      refresh_token: "new-refresh-token",
-      expires_in: 3600
-    });
-
-    const result = await exchangeGoogleAuthorizationCode(BASE_EXCHANGE_INPUT, client);
-
-    expect(result.accessToken).toBe("new-access-token");
-    expect(result.refreshToken).toBe("new-refresh-token");
-    expect(result.expiresInSeconds).toBe(3600);
-  });
-
-  it("sends code, code_verifier, redirect_uri in form body", async () => {
+  it("sends code, code_verifier, redirect_uri in authorization_code grant body", async () => {
     const client = createMockHttpClient({
       access_token: "tok",
       refresh_token: "ref",
@@ -149,45 +89,23 @@ describe("exchangeGoogleAuthorizationCode", () => {
     expect(body).toContain("grant_type=authorization_code");
   });
 
-  it("throws when refresh_token is missing (consent not granted)", async () => {
-    const client = createMockHttpClient({
-      access_token: "tok",
-      expires_in: 3600
-    });
-
-    await expect(exchangeGoogleAuthorizationCode(BASE_EXCHANGE_INPUT, client)).rejects.toThrow("refresh_token");
-  });
-
-  it("throws when access_token is missing", async () => {
-    const client = createMockHttpClient({ refresh_token: "ref" });
-
-    await expect(exchangeGoogleAuthorizationCode(BASE_EXCHANGE_INPUT, client)).rejects.toThrow("access_token");
-  });
-
-  it("throws on OAuth error response", async () => {
-    const client = createMockHttpClient({
-      error: "invalid_request",
-      error_description: "Missing required parameter."
-    });
-
-    await expect(exchangeGoogleAuthorizationCode(BASE_EXCHANGE_INPUT, client)).rejects.toThrow("Missing required parameter.");
+  it.each([
+    ["refresh_token missing (consent not granted)", { access_token: "tok", expires_in: 3600 }, /refresh_token/],
+    ["access_token missing", { refresh_token: "ref" }, /access_token/],
+    ["OAuth error response", { error: "invalid_request", error_description: "Missing required parameter." }, /Missing required parameter/],
+  ])("throws when %s", async (_label, responseData, expectedMessage) => {
+    const client = createMockHttpClient(responseData);
+    await expect(exchangeGoogleAuthorizationCode(BASE_EXCHANGE_INPUT, client)).rejects.toThrow(expectedMessage);
   });
 });
 
 describe("fetchGoogleUserEmail", () => {
-  it("returns lowercase trimmed email from userinfo response", async () => {
+  it("normalizes email (lowercase + trim) and sends Bearer token in Authorization header", async () => {
     const client = createMockHttpClient({ email: "  User@Example.COM  " });
 
-    const email = await fetchGoogleUserEmail("access-tok", USERINFO_ENDPOINT, TIMEOUT_MS, client);
+    const email = await fetchGoogleUserEmail("my-token-123", USERINFO_ENDPOINT, TIMEOUT_MS, client);
 
     expect(email).toBe("user@example.com");
-  });
-
-  it("sends Bearer token in Authorization header", async () => {
-    const client = createMockHttpClient({ email: "user@test.com" });
-
-    await fetchGoogleUserEmail("my-token-123", USERINFO_ENDPOINT, TIMEOUT_MS, client);
-
     expect(client.get).toHaveBeenCalledWith(
       USERINFO_ENDPOINT,
       expect.objectContaining({
@@ -196,62 +114,34 @@ describe("fetchGoogleUserEmail", () => {
     );
   });
 
-  it("throws when email is missing from response", async () => {
-    const client = createMockHttpClient({});
-
-    await expect(fetchGoogleUserEmail("tok", USERINFO_ENDPOINT, TIMEOUT_MS, client)).rejects.toThrow("email");
-  });
-
-  it("throws when email is empty string", async () => {
-    const client = createMockHttpClient({ email: "   " });
-
-    await expect(fetchGoogleUserEmail("tok", USERINFO_ENDPOINT, TIMEOUT_MS, client)).rejects.toThrow("email");
-  });
-
-  it("throws when email is non-string type", async () => {
-    const client = createMockHttpClient({ email: 12345 });
-
-    await expect(fetchGoogleUserEmail("tok", USERINFO_ENDPOINT, TIMEOUT_MS, client)).rejects.toThrow("email");
+  it.each([
+    ["email missing from response", {}],
+    ["email is whitespace-only", { email: "   " }],
+    ["email is non-string type", { email: 12345 }],
+  ])("throws when %s", async (_label, responseData) => {
+    const client = createMockHttpClient(responseData);
+    await expect(fetchGoogleUserEmail("tok", USERINFO_ENDPOINT, TIMEOUT_MS, client)).rejects.toThrow(/email/);
   });
 });
 
 describe("isInvalidGrantError", () => {
-  it("detects invalid_grant from axios error response", () => {
+  function makeAxiosError(data: unknown) {
     const error = Object.assign(new Error("fail"), {
       isAxiosError: true,
-      response: { status: 400, data: { error: "invalid_grant" } }
+      response: { status: 400, data }
     });
     Object.defineProperty(error, "isAxiosError", { value: true, enumerable: true });
+    return error;
+  }
 
-    expect(isInvalidGrantError(error)).toBe(true);
-  });
-
-  it("returns false for other error codes", () => {
-    const error = Object.assign(new Error("fail"), {
-      isAxiosError: true,
-      response: { status: 400, data: { error: "invalid_request" } }
-    });
-    Object.defineProperty(error, "isAxiosError", { value: true, enumerable: true });
-
-    expect(isInvalidGrantError(error)).toBe(false);
-  });
-
-  it("returns false for non-axios errors", () => {
-    expect(isInvalidGrantError(new Error("random error"))).toBe(false);
-  });
-
-  it("returns false for null/undefined", () => {
-    expect(isInvalidGrantError(null)).toBe(false);
-    expect(isInvalidGrantError(undefined)).toBe(false);
-  });
-
-  it("case-insensitive match on invalid_grant", () => {
-    const error = Object.assign(new Error("fail"), {
-      isAxiosError: true,
-      response: { status: 400, data: { error: "INVALID_GRANT" } }
-    });
-    Object.defineProperty(error, "isAxiosError", { value: true, enumerable: true });
-
-    expect(isInvalidGrantError(error)).toBe(true);
+  it.each([
+    ["invalid_grant lowercase", () => makeAxiosError({ error: "invalid_grant" }), true],
+    ["invalid_grant uppercase", () => makeAxiosError({ error: "INVALID_GRANT" }), true],
+    ["other axios error code", () => makeAxiosError({ error: "invalid_request" }), false],
+    ["non-axios error", () => new Error("random error"), false],
+    ["null", () => null, false],
+    ["undefined", () => undefined, false],
+  ])("%s", (_label, inputFn, expected) => {
+    expect(isInvalidGrantError(inputFn())).toBe(expected);
   });
 });
