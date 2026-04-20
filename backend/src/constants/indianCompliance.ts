@@ -11,7 +11,7 @@ export const ADDRESS_SIGNAL_PATTERN =
 
 export const E_INVOICE_THRESHOLD_MINOR = 500_000_000;
 
-export const VALID_PAN_CATEGORIES = new Set(["C", "P", "H", "F", "T", "A", "B", "L", "J", "G"]);
+const VALID_PAN_CATEGORIES = new Set(["C", "P", "H", "F", "T", "A", "B", "L", "J", "G"]);
 
 export function extractPanFromGstin(gstin: string): string {
   return gstin.substring(2, 12);

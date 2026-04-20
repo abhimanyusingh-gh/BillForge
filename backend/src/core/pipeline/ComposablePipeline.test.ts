@@ -83,21 +83,16 @@ describe("ComposablePipeline", () => {
     expect(result.stepsExecuted.map(s => s.name)).toEqual(["skipper", "next"]);
   });
 
-  it("addIf(false) skips the stage", async () => {
+  it.each([
+    ["addIf(false) skips the stage", false, ["kept"]],
+    ["addIf(true) includes the stage", true, ["gated", "kept"]],
+  ])("%s", async (_label, flag, expectedNames) => {
     const pipeline = new ComposablePipeline<void>(() => undefined)
-      .addIf(false, makeStage("skipped"))
+      .addIf(flag, makeStage("gated"))
       .add(makeStage("kept"));
 
     const result = await pipeline.execute(makeInput());
-    expect(result.stepsExecuted.map(s => s.name)).toEqual(["kept"]);
-  });
-
-  it("addIf(true) includes the stage", async () => {
-    const pipeline = new ComposablePipeline<void>(() => undefined)
-      .addIf(true, makeStage("included"));
-
-    const result = await pipeline.execute(makeInput());
-    expect(result.stepsExecuted.map(s => s.name)).toEqual(["included"]);
+    expect(result.stepsExecuted.map(s => s.name)).toEqual(expectedNames);
   });
 
   it("addIf with factory function", async () => {

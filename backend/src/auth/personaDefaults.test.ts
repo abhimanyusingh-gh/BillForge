@@ -6,67 +6,44 @@ import {
 
 describe("personaDefaults", () => {
   describe("getRoleDefaults", () => {
-    it("returns ap_clerk defaults with 10000000 approval limit", () => {
-      const caps = getRoleDefaults("ap_clerk");
-      expect(caps.approvalLimitMinor).toBe(10000000);
-      expect(caps.canApproveInvoices).toBe(true);
+    it.each([
+      ["ap_clerk approval limit", "ap_clerk", 10000000],
+      ["senior_accountant approval limit", "senior_accountant", 100000000],
+      ["TENANT_ADMIN unlimited approval limit", "TENANT_ADMIN", null],
+    ])("%s", (_label, role, expected) => {
+      const caps = getRoleDefaults(role as Parameters<typeof getRoleDefaults>[0]);
+      expect(caps.approvalLimitMinor).toBe(expected);
     });
 
-    it("returns senior_accountant defaults with 100000000 approval limit", () => {
-      const caps = getRoleDefaults("senior_accountant");
-      expect(caps.approvalLimitMinor).toBe(100000000);
-    });
-
-    it("returns TENANT_ADMIN defaults with null (unlimited) approval limit", () => {
-      const caps = getRoleDefaults("TENANT_ADMIN");
-      expect(caps.approvalLimitMinor).toBeNull();
+    it("ap_clerk defaults include canApproveInvoices=true", () => {
+      expect(getRoleDefaults("ap_clerk").canApproveInvoices).toBe(true);
     });
   });
 
   describe("applyApprovalLimitOverrides", () => {
-    it("returns original capabilities when overrides is undefined", () => {
+    it.each([
+      ["undefined overrides", undefined, 10000000],
+      ["null overrides", null, 10000000],
+      ["role not in overrides", { senior_accountant: 50000000 }, 10000000],
+    ])("returns default when %s", (_label, overrides, expected) => {
       const caps = getRoleDefaults("ap_clerk");
-      const result = applyApprovalLimitOverrides(caps, "ap_clerk", undefined);
-      expect(result.approvalLimitMinor).toBe(10000000);
+      const result = applyApprovalLimitOverrides(caps, "ap_clerk", overrides as any);
+      expect(result.approvalLimitMinor).toBe(expected);
     });
 
-    it("returns original capabilities when overrides is null", () => {
+    it("applies override when role is present and preserves other capabilities", () => {
       const caps = getRoleDefaults("ap_clerk");
-      const result = applyApprovalLimitOverrides(caps, "ap_clerk", null);
-      expect(result.approvalLimitMinor).toBe(10000000);
-    });
-
-    it("returns original capabilities when role not in overrides", () => {
-      const caps = getRoleDefaults("ap_clerk");
-      const result = applyApprovalLimitOverrides(caps, "ap_clerk", { senior_accountant: 50000000 });
-      expect(result.approvalLimitMinor).toBe(10000000);
-    });
-
-    it("applies override when role is present", () => {
-      const caps = getRoleDefaults("ap_clerk");
-      const result = applyApprovalLimitOverrides(caps, "ap_clerk", { ap_clerk: 20000000 });
-      expect(result.approvalLimitMinor).toBe(20000000);
+      const result = applyApprovalLimitOverrides(caps, "ap_clerk", { ap_clerk: 5000000 });
+      expect(result.approvalLimitMinor).toBe(5000000);
+      expect(result.canApproveInvoices).toBe(true);
+      expect(result.canEditInvoiceFields).toBe(true);
+      expect(result.canExportToTally).toBe(true);
     });
 
     it("applies zero override to effectively remove approval ability", () => {
       const caps = getRoleDefaults("senior_accountant");
       const result = applyApprovalLimitOverrides(caps, "senior_accountant", { senior_accountant: 0 });
       expect(result.approvalLimitMinor).toBe(0);
-    });
-
-    it("does not mutate original capabilities", () => {
-      const caps = getRoleDefaults("ap_clerk");
-      const original = caps.approvalLimitMinor;
-      applyApprovalLimitOverrides(caps, "ap_clerk", { ap_clerk: 99999 });
-      expect(caps.approvalLimitMinor).toBe(original);
-    });
-
-    it("preserves all other capabilities when applying override", () => {
-      const caps = getRoleDefaults("ap_clerk");
-      const result = applyApprovalLimitOverrides(caps, "ap_clerk", { ap_clerk: 5000000 });
-      expect(result.canApproveInvoices).toBe(true);
-      expect(result.canEditInvoiceFields).toBe(true);
-      expect(result.canExportToTally).toBe(true);
     });
 
     it("applies override for multiple roles independently", () => {

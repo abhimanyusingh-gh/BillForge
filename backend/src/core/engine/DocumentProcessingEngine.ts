@@ -17,7 +17,7 @@ import { extractNativePdfText } from "@/ai/extractors/stages/nativePdfText.js";
 import { logger } from "@/utils/logger.js";
 import { buildExtractionPromptFromSchema } from "@/core/engine/promptFromSchema.js";
 
-export const OCR_SENTINEL_KEY = "__bank_statement_extraction__" as const;
+const OCR_SENTINEL_KEY = "__bank_statement_extraction__" as const;
 
 export type DocumentProcessingProgressEvent =
   | { type: "progress"; stage: "slm-chunk"; chunk: number; totalChunks: number };
