@@ -7,6 +7,7 @@ import type {
 const LLAMA_EXTRACT_FIELD_KEY = {
   INVOICE_NUMBER: "invoice_number",
   VENDOR_NAME: "vendor_name",
+  VENDOR_ADDRESS: "vendor_address",
   INVOICE_DATE: "invoice_date",
   DUE_DATE: "due_date",
   CURRENCY: "currency",
@@ -18,6 +19,9 @@ const LLAMA_EXTRACT_FIELD_KEY = {
   IGST_AMOUNT: "igst_amount",
   CESS_AMOUNT: "cess_amount",
   GSTIN: "gstin",
+  CUSTOMER_NAME: "customer_name",
+  CUSTOMER_ADDRESS: "customer_address",
+  CUSTOMER_GSTIN: "customer_gstin",
   LINE_ITEMS: "line_items",
 } as const;
 
@@ -44,6 +48,9 @@ export function parseLlamaExtractFields(fields: Record<string, unknown>): Parsed
   const vendorName = getString(LLAMA_EXTRACT_FIELD_KEY.VENDOR_NAME);
   if (vendorName) parsed.vendorName = vendorName;
 
+  const vendorAddress = getString(LLAMA_EXTRACT_FIELD_KEY.VENDOR_ADDRESS);
+  if (vendorAddress) parsed.vendorAddress = vendorAddress;
+
   const invoiceDateStr = getString(LLAMA_EXTRACT_FIELD_KEY.INVOICE_DATE);
   if (invoiceDateStr) {
     const d = new Date(invoiceDateStr);
@@ -63,7 +70,19 @@ export function parseLlamaExtractFields(fields: Record<string, unknown>): Parsed
   if (totalAmountRaw !== undefined) parsed.totalAmountMinor = Math.round(totalAmountRaw * 100);
 
   const pan = getString(LLAMA_EXTRACT_FIELD_KEY.PAN);
-  if (pan) parsed.pan = pan;
+  if (pan) {
+    parsed.pan = pan;
+    parsed.vendorPan = pan;
+  }
+
+  const customerName = getString(LLAMA_EXTRACT_FIELD_KEY.CUSTOMER_NAME);
+  if (customerName) parsed.customerName = customerName;
+
+  const customerAddress = getString(LLAMA_EXTRACT_FIELD_KEY.CUSTOMER_ADDRESS);
+  if (customerAddress) parsed.customerAddress = customerAddress;
+
+  const customerGstin = getString(LLAMA_EXTRACT_FIELD_KEY.CUSTOMER_GSTIN);
+  if (customerGstin) parsed.customerGstin = customerGstin;
 
   const subtotalRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.SUBTOTAL);
   const cgstRaw = getNumber(LLAMA_EXTRACT_FIELD_KEY.CGST_AMOUNT);
@@ -89,7 +108,10 @@ export function parseLlamaExtractFields(fields: Record<string, unknown>): Parsed
     if (igstRaw !== undefined) gst.igstMinor = Math.round(igstRaw * 100);
     if (cessRaw !== undefined) gst.cessMinor = Math.round(cessRaw * 100);
     if (totalTaxRaw > 0) gst.totalTaxMinor = Math.round(totalTaxRaw * 100);
-    if (gstin !== undefined) gst.gstin = gstin;
+    if (gstin !== undefined) {
+      gst.gstin = gstin;
+      parsed.vendorGstin = gstin;
+    }
     parsed.gst = gst;
   }
 
@@ -134,9 +156,15 @@ export function parseLlamaExtractFields(fields: Record<string, unknown>): Parsed
 const EXTRACT_KEY_TO_INVOICE_FIELD: Record<string, InvoiceFieldKey> = {
   invoice_number: "invoiceNumber",
   vendor_name: "vendorName",
+  vendor_address: "vendorAddress",
   invoice_date: "invoiceDate",
   due_date: "dueDate",
-  total_amount: "totalAmountMinor"
+  total_amount: "totalAmountMinor",
+  customer_name: "customerName",
+  customer_address: "customerAddress",
+  customer_gstin: "customerGstin",
+  vendor_gstin: "vendorGstin",
+  vendor_pan: "vendorPan"
 };
 
 export function buildFieldProvenanceFromExtract(

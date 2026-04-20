@@ -11,6 +11,11 @@ export const LLAMA_EXTRACT_INVOICE_SCHEMA = {
     description:
       "The full legal name of the company or individual who ISSUED (sold/supplied) this invoice — the seller or service provider. Look in sections labeled 'Name of Supplier', 'Supplier', 'From', 'Sold By', or the letterhead. Do NOT return the buyer, recipient, consignee, or 'Bill To' / 'Ship To' party name.",
   },
+  vendor_address: {
+    type: "string",
+    description:
+      "The full postal address of the vendor/supplier who issued this invoice. Look in sections labeled 'Supplier Address', 'From', 'Sold By', or near the vendor name in the letterhead. Include street, city, state, PIN/ZIP code, and country if present.",
+  },
   invoice_date: {
     type: "string",
     description:
@@ -65,7 +70,22 @@ export const LLAMA_EXTRACT_INVOICE_SCHEMA = {
     type: "string",
     description:
       "The 10-character Permanent Account Number (PAN) of the supplier/vendor. May be labeled 'PAN', 'Company PAN', or \"Company's PAN\". Format: 5 letters + 4 digits + 1 letter (e.g. 'AGIPP2724Q').",
-    },
+  },
+  customer_name: {
+    type: "string",
+    description:
+      "The full legal name of the BUYER/CUSTOMER — the party receiving goods or services. Look in sections labeled 'Bill To', 'Buyer', 'Billed To', 'Ship To', 'Customer Name', 'Consignee', or 'Sold To'. Do NOT return the vendor/supplier name.",
+  },
+  customer_address: {
+    type: "string",
+    description:
+      "The full postal address of the buyer/customer. Look in sections labeled 'Bill To', 'Buyer Address', 'Ship To', 'Consignee Address', or near the customer name. Include street, city, state, PIN/ZIP code, and country if present.",
+  },
+  customer_gstin: {
+    type: "string",
+    description:
+      "The 15-character GST Identification Number of the BUYER/CUSTOMER (not the supplier). Look in the buyer/consignee section labeled 'GSTIN', 'GST No', 'GSTIN/UIN of Recipient', or similar. Format: 2-digit state code + 10-char PAN + 1 digit + Z + 1 check digit.",
+  },
   line_items: {
     type: "array",
     description:
