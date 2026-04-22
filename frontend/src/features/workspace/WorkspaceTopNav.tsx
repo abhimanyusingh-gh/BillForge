@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-interface TenantAdminTopNavProps {
+interface WorkspaceTopNavProps {
   userEmail: string;
   onLogout: () => void;
   onChangePassword: () => void;
@@ -8,7 +8,7 @@ interface TenantAdminTopNavProps {
   themeToggle?: React.ReactNode;
 }
 
-export function TenantAdminTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle }: TenantAdminTopNavProps) {
+export function WorkspaceTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle }: WorkspaceTopNavProps) {
   const avatarLabel = useMemo(() => {
     const trimmed = userEmail.trim();
     if (!trimmed) {
