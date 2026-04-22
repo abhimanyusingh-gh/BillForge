@@ -5,7 +5,12 @@ import type { FileStore } from "@/core/interfaces/FileStore.js";
 import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 import { logger } from "@/utils/logger.js";
-import { normalizeAbsoluteBox, normalizeModelBox, normalizeUnitBox, type Box4 } from "@/services/ingestion/box.js";
+import {
+  normalizeAbsoluteBox,
+  normalizeModelBox,
+  normalizeUnitBox,
+  toPixelRectFloat
+} from "@/services/ingestion/box.js";
 import {
   flattenLineItemProvenance,
   parseFieldProvenance,
@@ -402,19 +407,21 @@ async function renderOverlayImage(
   box: [number, number, number, number],
   field: string
 ): Promise<Buffer> {
-  const left = Math.max(0, Math.min(pageImage.width - 1, Math.floor(box[0] * pageImage.width)));
-  const top = Math.max(0, Math.min(pageImage.height - 1, Math.floor(box[1] * pageImage.height)));
-  const right = Math.max(left + 1, Math.min(pageImage.width, Math.ceil(box[2] * pageImage.width)));
-  const bottom = Math.max(top + 1, Math.min(pageImage.height, Math.ceil(box[3] * pageImage.height)));
-  const width = Math.max(1, right - left);
-  const height = Math.max(1, bottom - top);
+  const { left, top, width, height } = toPixelRectFloat(box, pageImage.width, pageImage.height);
   const strokeWidth = Math.max(2, Math.round(Math.min(pageImage.width, pageImage.height) * 0.004));
   const labelText = escapeSvgText(field);
 
+  // Label strip sits just above the highlight; round to integer pixels so the
+  // decorative band doesn't gain subpixel fuzz at the top edge.
+  const labelLeft = Math.round(left);
+  const labelTop = Math.max(0, Math.round(top) - 24);
+  const labelWidth = Math.min(pageImage.width - labelLeft, Math.max(110, labelText.length * 8));
+  const textY = Math.max(15, Math.round(top) - 9);
+
   const overlaySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pageImage.width}" height="${pageImage.height}" viewBox="0 0 ${pageImage.width} ${pageImage.height}">
-  <rect x="${left}" y="${top}" width="${width}" height="${height}" fill="rgba(31,122,108,0.2)" stroke="#1f7a6c" stroke-width="${strokeWidth}" />
-  <rect x="${left}" y="${Math.max(0, top - 24)}" width="${Math.min(pageImage.width - left, Math.max(110, labelText.length * 8))}" height="22" fill="#1f7a6c" />
-  <text x="${left + 8}" y="${Math.max(15, top - 9)}" fill="#ffffff" font-size="13" font-family="Arial, sans-serif">${labelText}</text>
+  <rect x="${left.toFixed(3)}" y="${top.toFixed(3)}" width="${width.toFixed(3)}" height="${height.toFixed(3)}" fill="rgba(31,122,108,0.2)" stroke="#1f7a6c" stroke-width="${strokeWidth}" />
+  <rect x="${labelLeft}" y="${labelTop}" width="${labelWidth}" height="22" fill="#1f7a6c" />
+  <text x="${labelLeft + 8}" y="${textY}" fill="#ffffff" font-size="13" font-family="Arial, sans-serif">${labelText}</text>
 </svg>`;
 
   return sharp(pageImage.buffer)
