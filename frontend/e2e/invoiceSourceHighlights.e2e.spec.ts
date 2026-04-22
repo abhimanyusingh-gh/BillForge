@@ -388,12 +388,15 @@ async function verifyInvoiceOverlayFlow(page: Page, attachmentName: string): Pro
     .toBeGreaterThan(0);
   await dialog.locator(".source-highlight-chip").first().click();
 
+  // Server-side overlay baking has been removed; the preview image is the page preview and the
+  // highlight is rendered as a DOM box on top of it.
   await expect
     .poll(async () => {
       const src = await dialog.locator(".source-preview-image img").first().getAttribute("src");
       return src ?? "";
     })
-    .toContain("/source-overlays/");
+    .toContain("/preview");
+  await expect(dialog.locator(".source-preview-box").first()).toBeVisible();
 
   await expect
     .poll(async () => dialog.locator("button[aria-label^='Inspect extracted source crop']").count(), {

@@ -143,15 +143,6 @@ describe("auth middleware", () => {
     expect(resolveBearerToken(request)).toBe("crop-token");
   });
 
-  it("allows query token on source-overlay paths", () => {
-    const request = {
-      header: () => undefined,
-      path: "/invoices/abc123/source-overlays/vendorName",
-      query: { authToken: "overlay-token" }
-    } as unknown as Request;
-    expect(resolveBearerToken(request)).toBe("overlay-token");
-  });
-
   it("authenticates request using query token", async () => {
     const authService = {
       resolveRequestContext: jest.fn().mockResolvedValue({

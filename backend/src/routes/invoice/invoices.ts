@@ -29,12 +29,6 @@ import { logger } from "@/utils/logger.js";
 import { isRecord, isString, validateDateRange } from "@/utils/validation.js";
 
 let s3Client: S3Client | null = null;
-const SOURCE_OVERLAY_FIELDS = new Set([
-  "vendorName", "invoiceNumber", "invoiceDate", "dueDate", "totalAmountMinor", "currency",
-  "gst.gstin", "gst.subtotalMinor", "gst.cgstMinor", "gst.sgstMinor", "gst.igstMinor", "gst.cessMinor", "gst.totalTaxMinor"
-]);
-const SOURCE_OVERLAY_LINE_ITEM_RE =
-  /^lineItems\.\d+\.(?:row|description|hsnSac|quantity|rate|amountMinor|taxRate|cgstMinor|sgstMinor|igstMinor)$/;
 
 type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
 
@@ -300,22 +294,6 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     if (!cropPath) { res.status(404).json({ message: "OCR block crop image was not found." }); return; }
 
     await sendStoredImage(res, cropPath, "OCR block crop image", next);
-  }));
-
-  router.get("/invoices/:id/source-overlays/:field", wrap(async (req, res, next) => {
-    const field = String(req.params.field ?? "");
-    if (!SOURCE_OVERLAY_FIELDS.has(field) && !SOURCE_OVERLAY_LINE_ITEM_RE.test(field)) {
-      res.status(400).json({ message: "Unsupported source overlay field." });
-      return;
-    }
-
-    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
-    if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
-
-    const overlayPath = parseMetadataJsonField(invoice.metadata, "fieldOverlayPaths", field);
-    if (!overlayPath) { res.status(404).json({ message: "Source overlay image was not found for this field." }); return; }
-
-    await sendStoredImage(res, overlayPath, "Source overlay image", next);
   }));
 
   return router;

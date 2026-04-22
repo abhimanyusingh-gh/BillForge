@@ -26,7 +26,6 @@ interface InvoicePopupProps {
   setPopupRawOcrExpanded: Dispatch<SetStateAction<boolean>>;
   popupMappingExpanded: boolean;
   setPopupMappingExpanded: Dispatch<SetStateAction<boolean>>;
-  popupOverlayUrlByField: Partial<Record<SourceFieldKey, string>>;
   popupCropUrlByField: Partial<Record<SourceFieldKey, CropSource>>;
   popupExtractedRows: ExtractedFieldRow[];
   popupTallyMappings: TallyMappingRow[];
@@ -51,7 +50,6 @@ export function InvoicePopup({
   setPopupRawOcrExpanded,
   popupMappingExpanded,
   setPopupMappingExpanded,
-  popupOverlayUrlByField,
   popupCropUrlByField,
   popupExtractedRows,
   popupTallyMappings,
@@ -92,7 +90,6 @@ export function InvoicePopup({
             {popupSourcePreviewExpanded ? (
               <InvoiceSourceViewer
                 invoice={invoice}
-                overlayUrlByField={popupOverlayUrlByField}
                 resolvePreviewUrl={resolvePreviewUrl}
               />
             ) : null}

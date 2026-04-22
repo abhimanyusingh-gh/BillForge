@@ -41,7 +41,6 @@ export interface InvoiceExtractionData {
   fieldConfidence?: Record<string, number>;
   fieldProvenance?: Record<string, InvoiceFieldProvenance>;
   lineItemProvenance?: InvoiceLineItemProvenance[];
-  fieldOverlayPaths?: Record<string, string>;
 }
 
 export interface Invoice {

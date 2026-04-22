@@ -349,7 +349,6 @@ Requires `requireNonPlatformAdmin` + `requireTenantSetupCompleted` + `requireAut
 | `GET` | `/api/invoices/:id/document` | -- | -- | Binary file (original document) |
 | `GET` | `/api/invoices/:id/preview` | -- | `?page=` | Binary image (preview) |
 | `GET` | `/api/invoices/:id/ocr-blocks/:index/crop` | -- | -- | Binary image (block crop) |
-| `GET` | `/api/invoices/:id/source-overlays/:field` | -- | field in: vendorName, invoiceNumber, invoiceDate, dueDate, totalAmountMinor, currency | Binary image (field overlay) |
 
 #### 3.9.1 PATCH /api/invoices/:id
 

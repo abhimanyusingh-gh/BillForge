@@ -37,7 +37,6 @@ interface InvoiceDetailPanelProps {
   canOverrideTds: boolean;
   tenantGlCodes: GlCode[];
   tenantTdsRates: TdsRate[];
-  activeOverlayUrlByField: Partial<Record<SourceFieldKey, string>>;
   activeCropUrlByField: Partial<Record<SourceFieldKey, CropSource>>;
   resolvePreviewUrl: (page: number) => string;
   activeSourcePreviewExpanded: boolean;
@@ -72,7 +71,6 @@ export function InvoiceDetailPanel({
   canOverrideTds,
   tenantGlCodes,
   tenantTdsRates,
-  activeOverlayUrlByField,
   activeCropUrlByField,
   resolvePreviewUrl,
   activeSourcePreviewExpanded,
@@ -242,7 +240,6 @@ export function InvoiceDetailPanel({
             {activeSourcePreviewExpanded ? (
               <InvoiceSourceViewer
                 invoice={invoice}
-                overlayUrlByField={activeOverlayUrlByField}
                 resolvePreviewUrl={resolvePreviewUrl}
               />
             ) : null}

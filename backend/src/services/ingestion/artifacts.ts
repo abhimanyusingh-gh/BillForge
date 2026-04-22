@@ -5,13 +5,7 @@ import type { FileStore } from "@/core/interfaces/FileStore.js";
 import type { IngestedFile } from "@/core/interfaces/IngestionSource.js";
 import type { OcrBlock, OcrPageImage } from "@/core/interfaces/OcrProvider.js";
 import { logger } from "@/utils/logger.js";
-import { normalizeAbsoluteBox, normalizeModelBox, normalizeUnitBox, type Box4 } from "@/services/ingestion/box.js";
-import {
-  flattenLineItemProvenance,
-  parseFieldProvenance,
-  sanitizeFieldProvenanceRecord,
-  type FieldProvenanceEntry
-} from "@/services/ingestion/provenance.js";
+import { normalizeAbsoluteBox, normalizeModelBox, normalizeUnitBox } from "@/services/ingestion/box.js";
 import { DOCUMENT_MIME_TYPE, IMAGE_MIME_TYPE, type DocumentMimeType } from "@/types/mime.js";
 
 interface CropPageImage {
@@ -24,7 +18,6 @@ interface CropPageImage {
 export interface ArtifactResults {
   previewImagePaths: Record<string, string>;
   cropPathsByIndex: Map<number, string>;
-  fieldOverlayPaths: Map<string, string>;
 }
 
 export async function persistFieldArtifacts(input: {
@@ -33,25 +26,12 @@ export async function persistFieldArtifacts(input: {
   extraction: {
     ocrPageImages: OcrPageImage[];
     metadata: Record<string, string>;
-    extraction?: {
-      fieldProvenance?: Record<string, FieldProvenanceEntry>;
-      lineItemProvenance?: Array<{ index: number; row?: FieldProvenanceEntry; fields?: Record<string, FieldProvenanceEntry> }>;
-    };
   };
   ocrBlocks: OcrBlock[];
   fileStore?: FileStore;
 }): Promise<ArtifactResults> {
   const artifactPrefix = buildArtifactPrefix(input.file);
   const pageSources = await buildPageSourcesForCropping(input.file, input.mimeType, input.extraction.ocrPageImages);
-  const structuredFieldProvenance = sanitizeFieldProvenanceRecord(input.extraction.extraction?.fieldProvenance);
-  const lineItemOverlayProvenance = flattenLineItemProvenance(input.extraction.extraction?.lineItemProvenance ?? []);
-  const fallbackFieldProvenance = parseFieldProvenance(input.extraction.metadata.fieldProvenance);
-  const fieldProvenance = {
-    ...(structuredFieldProvenance && Object.keys(structuredFieldProvenance).length > 0
-      ? structuredFieldProvenance
-      : fallbackFieldProvenance),
-    ...lineItemOverlayProvenance
-  };
 
   const [previewImagePaths, cropPathsByIndex] = await Promise.all([
     input.fileStore
@@ -74,18 +54,7 @@ export async function persistFieldArtifacts(input: {
       : Promise.resolve(new Map<number, string>())
   ]);
 
-  const fieldOverlayPaths =
-    input.fileStore && Object.keys(fieldProvenance).length > 0
-      ? await persistFieldOverlayImages({
-          file: input.file,
-          fieldProvenance,
-          pageSources,
-          keyPrefix: `${artifactPrefix}/source-overlays`,
-          fileStore: input.fileStore
-        })
-      : new Map<string, string>();
-
-  return { previewImagePaths, cropPathsByIndex, fieldOverlayPaths };
+  return { previewImagePaths, cropPathsByIndex };
 }
 
 function buildArtifactPrefix(file: IngestedFile): string {
@@ -208,69 +177,6 @@ async function persistOcrBlockCrops(input: {
   return results;
 }
 
-async function persistFieldOverlayImages(input: {
-  file: IngestedFile;
-  fieldProvenance: Record<string, FieldProvenanceEntry>;
-  pageSources: Map<number, CropPageImage>;
-  keyPrefix: string;
-  fileStore: FileStore;
-}): Promise<Map<string, string>> {
-  if (input.pageSources.size === 0) {
-    return new Map<string, string>();
-  }
-
-  const entries = Object.entries(input.fieldProvenance).filter(
-    ([, value]) => value.bbox || value.bboxNormalized || value.bboxModel
-  );
-  if (entries.length === 0) {
-    return new Map<string, string>();
-  }
-
-  const results = new Map<string, string>();
-  const concurrency = 4;
-  for (let offset = 0; offset < entries.length; offset += concurrency) {
-    const batch = entries.slice(offset, offset + concurrency);
-    const settled = await Promise.allSettled(
-      batch.map(async ([field, provenance]) => {
-        const pageImage = input.pageSources.get(provenance.page ?? 1) ?? input.pageSources.get(1);
-        if (!pageImage) {
-          return;
-        }
-
-        const normalized = resolveFieldOverlayBox(provenance, pageImage.width, pageImage.height);
-        if (!normalized) {
-          return;
-        }
-
-        const overlayBuffer = await renderOverlayImage(pageImage, normalized, field);
-        const objectRef = await input.fileStore.putObject({
-          key: `${input.keyPrefix}/${sanitizeObjectName(field)}.png`,
-          body: overlayBuffer,
-          contentType: IMAGE_MIME_TYPE.PNG,
-          metadata: {
-            tenantId: input.file.tenantId,
-            sourceKey: input.file.sourceKey,
-            sourceDocumentId: input.file.sourceDocumentId
-          }
-        });
-
-        results.set(field, objectRef.path);
-      })
-    );
-
-    settled.forEach((result) => {
-      if (result.status === "rejected") {
-        logger.warn("ingestion.overlay.persist.failed", {
-          sourceDocumentId: input.file.sourceDocumentId,
-          error: result.reason instanceof Error ? result.reason.message : String(result.reason)
-        });
-      }
-    });
-  }
-
-  return results;
-}
-
 async function buildPageSourcesForCropping(
   file: IngestedFile,
   mimeType: DocumentMimeType,
@@ -364,65 +270,6 @@ function resolveCropRegion(
   return { left, top, width, height };
 }
 
-function resolveFieldOverlayBox(
-  provenance: FieldProvenanceEntry,
-  pageWidth: number,
-  pageHeight: number
-): [number, number, number, number] | undefined {
-  if (pageWidth <= 0 || pageHeight <= 0) {
-    return undefined;
-  }
-
-  const bbox = provenance.bbox;
-  const bboxNormalized = provenance.bboxNormalized;
-  const bboxModel = provenance.bboxModel;
-  if (bboxNormalized) {
-    const normalized = normalizeUnitBox(bboxNormalized);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  if (bboxModel) {
-    const normalized = normalizeModelBox(bboxModel);
-    if (normalized) {
-      return normalized;
-    }
-  }
-
-  if (!bbox) {
-    return undefined;
-  }
-
-  return normalizeUnitBox(bbox) ?? normalizeAbsoluteBox(bbox, pageWidth, pageHeight);
-}
-
-async function renderOverlayImage(
-  pageImage: CropPageImage,
-  box: [number, number, number, number],
-  field: string
-): Promise<Buffer> {
-  const left = Math.max(0, Math.min(pageImage.width - 1, Math.floor(box[0] * pageImage.width)));
-  const top = Math.max(0, Math.min(pageImage.height - 1, Math.floor(box[1] * pageImage.height)));
-  const right = Math.max(left + 1, Math.min(pageImage.width, Math.ceil(box[2] * pageImage.width)));
-  const bottom = Math.max(top + 1, Math.min(pageImage.height, Math.ceil(box[3] * pageImage.height)));
-  const width = Math.max(1, right - left);
-  const height = Math.max(1, bottom - top);
-  const strokeWidth = Math.max(2, Math.round(Math.min(pageImage.width, pageImage.height) * 0.004));
-  const labelText = escapeSvgText(field);
-
-  const overlaySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${pageImage.width}" height="${pageImage.height}" viewBox="0 0 ${pageImage.width} ${pageImage.height}">
-  <rect x="${left}" y="${top}" width="${width}" height="${height}" fill="rgba(31,122,108,0.2)" stroke="#1f7a6c" stroke-width="${strokeWidth}" />
-  <rect x="${left}" y="${Math.max(0, top - 24)}" width="${Math.min(pageImage.width - left, Math.max(110, labelText.length * 8))}" height="22" fill="#1f7a6c" />
-  <text x="${left + 8}" y="${Math.max(15, top - 9)}" fill="#ffffff" font-size="13" font-family="Arial, sans-serif">${labelText}</text>
-</svg>`;
-
-  return sharp(pageImage.buffer)
-    .composite([{ input: Buffer.from(overlaySvg), blend: "over" }])
-    .png({ compressionLevel: 9 })
-    .toBuffer();
-}
-
 function decodeDataUrl(value: string): { mimeType: string; buffer: Buffer } | undefined {
   const separatorIndex = value.indexOf(",");
   if (separatorIndex < 0) {
@@ -451,18 +298,4 @@ function extensionForMimeType(value: string): string {
     return "jpg";
   }
   return "png";
-}
-
-const SANITIZE_OBJECT_NAME_REGEX = /[^a-z0-9_-]/gi;
-function sanitizeObjectName(value: string): string {
-  return value.replace(SANITIZE_OBJECT_NAME_REGEX, "-").toLowerCase();
-}
-
-function escapeSvgText(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

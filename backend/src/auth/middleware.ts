@@ -6,7 +6,6 @@ function isQueryTokenAllowed(path: string): boolean {
   if (path === "/jobs/ingest/sse") return true;
   if (/^\/invoices\/[^/]+\/preview$/.test(path)) return true;
   if (/^\/invoices\/[^/]+\/ocr-blocks\/\d+\/crop$/.test(path)) return true;
-  if (/^\/invoices\/[^/]+\/source-overlays\/[^/]+$/.test(path)) return true;
   return false;
 }
 

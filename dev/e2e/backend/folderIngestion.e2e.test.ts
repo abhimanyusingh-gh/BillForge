@@ -72,15 +72,6 @@ interface InvoiceDetailResponse {
 
 const RECOGNIZED_CURRENCIES = new Set(["USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "AED", "SGD"]);
 
-const SOURCE_OVERLAY_FIELDS = [
-  "vendorName",
-  "invoiceNumber",
-  "invoiceDate",
-  "dueDate",
-  "totalAmountMinor",
-  "currency"
-] as const;
-
 const ALLOWED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "FAILED_OCR", "FAILED_PARSE", "APPROVED", "EXPORTED"]);
 const NON_FAILED_STATUSES = new Set(["PARSED", "NEEDS_REVIEW", "APPROVED", "EXPORTED"]);
 const CONFIDENCE_TONES = new Set(["red", "yellow", "green"]);
@@ -225,6 +216,9 @@ describe("local full-stack ingestion e2e", () => {
         expect(detail.metadata.llmAssistChangedFields).toBeDefined();
       }
 
+      // Server-side overlay PNG baking has been removed; the client renders highlights as DOM boxes.
+      // Per-block OCR crops are still produced (product feature).
+      expect(detail.metadata?.fieldOverlayPaths).toBeUndefined();
       const blocks = detail.ocrBlocks ?? [];
       if (blocks.length === 0) {
         return;
@@ -232,20 +226,13 @@ describe("local full-stack ingestion e2e", () => {
       const blocksWithCropPath = blocks.filter((block) => typeof block.cropPath === "string" && block.cropPath.length > 0);
       expect(blocksWithCropPath.length).toBeGreaterThan(0);
       expect(typeof detail.metadata?.ocrBlockCropCount).toBe("string");
-      expect(typeof detail.metadata?.fieldOverlayPaths).toBe("string");
     });
 
     for (const response of invoiceDetails) {
       const detail = response.data;
-      const overlayMap = parseStringMap(detail.metadata?.fieldOverlayPaths);
-      const firstField = SOURCE_OVERLAY_FIELDS.find((field) => typeof overlayMap[field] === "string");
-      if (!firstField) {
-        continue;
-      }
-
-      const overlayResponse = await api.get(`/api/invoices/${detail._id}/source-overlays/${firstField}`);
-      expect(overlayResponse.status).toBe(200);
-      expect(String(overlayResponse.headers["content-type"] ?? "")).toContain("image/");
+      // The source-overlays route has been removed; any legacy URL should now 404.
+      const overlayResponse = await api.get(`/api/invoices/${detail._id}/source-overlays/vendorName`);
+      expect(overlayResponse.status).toBe(404);
     }
   });
 
@@ -398,23 +385,3 @@ function isPercentage(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
 }
 
-function parseStringMap(value: unknown): Record<string, string> {
-  if (typeof value !== "string") {
-    return {};
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(value);
-  } catch {
-    return {};
-  }
-
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return {};
-  }
-
-  return Object.fromEntries(
-    Object.entries(parsed).filter(([, entry]) => typeof entry === "string" && entry.trim().length > 0)
-  );
-}
