@@ -1,9 +1,11 @@
 import type { SourceHighlight } from "@/lib/invoice/sourceHighlights";
 import type { InvoiceStatus } from "@/types";
 
-export type CropSource =
-  | { type: "url"; url: string }
-  | { type: "bbox"; pageImageUrl: string; bboxNormalized: [number, number, number, number] };
+export type CropSource = {
+  type: "bbox";
+  pageImageUrl: string;
+  bboxNormalized: [number, number, number, number];
+};
 
 export const STATUSES: Array<InvoiceStatus | "ALL" | "FAILED"> = [
   "ALL",
@@ -28,29 +30,25 @@ export const STATUS_LABELS: Record<string, string> = {
   EXPORTED: "Exported"
 };
 
-export function buildFieldCropUrlMap(
+export function buildFieldCropSourceMap(
   invoiceId: string,
   highlights: SourceHighlight[],
-  resolveCropUrl: (invoiceId: string, blockIndex: number) => string,
-  resolvePageImageUrl?: (invoiceId: string, page: number) => string
+  resolvePageImageUrl: (invoiceId: string, page: number) => string
 ): Partial<Record<SourceHighlight["fieldKey"], CropSource>> {
   const output: Partial<Record<SourceHighlight["fieldKey"], CropSource>> = {};
   for (const highlight of highlights) {
-    if (typeof highlight.blockIndex === "number" && highlight.blockIndex >= 0 && highlight.cropPath) {
-      output[highlight.fieldKey] = { type: "url", url: resolveCropUrl(invoiceId, highlight.blockIndex) };
+    if (!highlight.bboxNormalized) {
       continue;
     }
-    if (resolvePageImageUrl && highlight.bboxNormalized) {
-      const pageImageUrl = resolvePageImageUrl(invoiceId, highlight.page);
-      if (pageImageUrl) {
-        output[highlight.fieldKey] = {
-          type: "bbox",
-          pageImageUrl,
-          bboxNormalized: highlight.bboxNormalized
-        };
-      }
+    const pageImageUrl = resolvePageImageUrl(invoiceId, highlight.page);
+    if (!pageImageUrl) {
+      continue;
     }
+    output[highlight.fieldKey] = {
+      type: "bbox",
+      pageImageUrl,
+      bboxNormalized: highlight.bboxNormalized
+    };
   }
   return output;
 }
-

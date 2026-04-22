@@ -290,7 +290,6 @@ export class IngestionService {
         file,
         mimeType: normalizedMimeType,
         extraction,
-        ocrBlocks,
         fileStore: this.fileStore
       });
       const successData = buildSuccessData(file, normalizedMimeType, extraction, ocrBlocks, artifactResults);

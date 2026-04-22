@@ -60,22 +60,7 @@ export function buildSuccessData(
     metadata.previewPageImages = JSON.stringify(artifacts.previewImagePaths);
   }
 
-  let finalBlocks = ocrBlocks;
-  const textBlockCount = ocrBlocks.filter((block) => block.text.trim().length > 0).length;
-  if (artifacts.cropPathsByIndex.size > 0) {
-    metadata.ocrBlockCropCount = String(artifacts.cropPathsByIndex.size);
-    metadata.ocrBlockCropProvider = "";
-    metadata.ocrBlockCropPaths = JSON.stringify(Object.fromEntries(artifacts.cropPathsByIndex));
-    finalBlocks = ocrBlocks.map((block, index) => {
-      const cropPath = artifacts.cropPathsByIndex.get(index);
-      return cropPath ? { ...block, cropPath } : block;
-    });
-  }
-  if (textBlockCount > 0 && artifacts.cropPathsByIndex.size === 0) {
-    processingIssues.push(`Crop generation failed for all ${textBlockCount} OCR blocks.`);
-  } else if (textBlockCount > 0 && artifacts.cropPathsByIndex.size < textBlockCount) {
-    processingIssues.push(`Crop generation partial: ${artifacts.cropPathsByIndex.size}/${textBlockCount} blocks.`);
-  }
+  const finalBlocks = ocrBlocks;
 
   const gmailMessageId = file.sourceType === INGESTION_SOURCE_TYPE.EMAIL && file.metadata?.messageId
     ? String(file.metadata.messageId).trim()

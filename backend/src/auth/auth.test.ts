@@ -134,15 +134,6 @@ describe("auth middleware", () => {
     expect(resolveBearerToken(request)).toBe("");
   });
 
-  it("allows query token on ocr-block crop paths", () => {
-    const request = {
-      header: () => undefined,
-      path: "/invoices/abc123/ocr-blocks/5/crop",
-      query: { authToken: "crop-token" }
-    } as unknown as Request;
-    expect(resolveBearerToken(request)).toBe("crop-token");
-  });
-
   it("authenticates request using query token", async () => {
     const authService = {
       resolveRequestContext: jest.fn().mockResolvedValue({

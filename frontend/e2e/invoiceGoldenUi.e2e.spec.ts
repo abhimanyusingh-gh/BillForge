@@ -109,7 +109,7 @@ async function expectFieldCropThumbnail(
     .filter({ has: page.getByRole("cell", { name: label, exact: true }) })
     .first();
   await expect(row).toBeVisible({ timeout: 10_000 });
-  await expect(row.locator("img.field-crop-thumbnail")).toBeVisible({ timeout: 10_000 });
+  await expect(row.locator(".field-crop-inline img")).toBeVisible({ timeout: 10_000 });
 }
 
 async function ensureSourcePreviewOpen(page: Parameters<typeof test>[0]["page"]) {
