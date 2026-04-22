@@ -7,8 +7,8 @@ import { PlatformActivityMonitor } from "@/features/platform-admin/PlatformActiv
 import { PlatformOnboardSection } from "@/features/platform-admin/PlatformOnboardSection";
 import { PlatformUsageOverviewSection } from "@/features/platform-admin/PlatformUsageOverviewSection";
 import { PlatformAnalyticsDashboard } from "@/features/platform-admin/PlatformAnalyticsDashboard";
-import { TenantAdminTopNav } from "@/features/tenant-admin/TenantAdminTopNav";
-import { TenantViewTabs } from "@/features/tenant-admin/TenantViewTabs";
+import { WorkspaceTopNav } from "@/features/workspace/WorkspaceTopNav";
+import { WorkspaceTabBar } from "@/features/workspace/WorkspaceTabBar";
 import { TenantConfigTab } from "@/features/tenant-admin/TenantConfigTab";
 import { InvoiceView } from "@/features/invoices/InvoiceView";
 import { ExportHistoryDashboard } from "@/features/exports/ExportHistoryDashboard";
@@ -207,7 +207,7 @@ export function App() {
           themeToggle={themeToggle}
         />
       ) : (
-        <TenantAdminTopNav
+        <WorkspaceTopNav
           userEmail={session.user.email}
           onLogout={handleLogout}
           onChangePassword={() => setShowChangePassword(true)}
@@ -216,7 +216,7 @@ export function App() {
         />
       )}
 
-      {!isPlatformAdmin && <TenantViewTabs activeTab={activeTab} canViewTenantConfig={canViewConfig} canViewConnections={canViewConnections} onTabChange={setActiveTab} />}
+      {!isPlatformAdmin && <WorkspaceTabBar activeTab={activeTab} canViewTenantConfig={canViewConfig} canViewConnections={canViewConnections} onTabChange={setActiveTab} />}
 
       <section className="controls">
         {requiresTenantSetup && !isPlatformAdmin && canManageUsers && (

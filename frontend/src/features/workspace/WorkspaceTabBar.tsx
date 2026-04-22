@@ -1,13 +1,13 @@
 import type { TenantViewTab } from "@/types";
 
-interface TenantViewTabsProps {
+interface WorkspaceTabBarProps {
   activeTab: TenantViewTab;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
   onTabChange: (tab: TenantViewTab) => void;
 }
 
-export function TenantViewTabs({ activeTab, canViewTenantConfig, canViewConnections, onTabChange }: TenantViewTabsProps) {
+export function WorkspaceTabBar({ activeTab, canViewTenantConfig, canViewConnections, onTabChange }: WorkspaceTabBarProps) {
   return (
     <div className="tenant-view-tabs" role="tablist" aria-label="Tenant workspace sections">
       <button
