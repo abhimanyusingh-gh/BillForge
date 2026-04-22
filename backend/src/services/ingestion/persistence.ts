@@ -8,7 +8,7 @@ import {
 } from "@/types/invoice.js";
 import type { DocumentMimeType } from "@/types/mime.js";
 import type { ArtifactResults } from "@/services/ingestion/artifacts.js";
-import { normalizeExtractionData, encodeExtractionFieldKey } from "@/services/ingestion/provenance.js";
+import { normalizeExtractionData } from "@/services/ingestion/provenance.js";
 import { ExtractionPipelineError } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.js";
 import { PIPELINE_ERROR_CODE } from "@/core/engine/types.js";
 import { uniqueStrings } from "@/utils/text.js";
@@ -75,15 +75,6 @@ export function buildSuccessData(
     processingIssues.push(`Crop generation failed for all ${textBlockCount} OCR blocks.`);
   } else if (textBlockCount > 0 && artifacts.cropPathsByIndex.size < textBlockCount) {
     processingIssues.push(`Crop generation partial: ${artifacts.cropPathsByIndex.size}/${textBlockCount} blocks.`);
-  }
-  if (artifacts.fieldOverlayPaths.size > 0) {
-    const overlayPaths = Object.fromEntries(artifacts.fieldOverlayPaths);
-    metadata.fieldOverlayPaths = JSON.stringify(overlayPaths);
-    if (extractionData) {
-      extractionData.fieldOverlayPaths = Object.fromEntries(
-        Object.entries(overlayPaths).map(([field, path]) => [encodeExtractionFieldKey(field), path])
-      );
-    }
   }
 
   const gmailMessageId = file.sourceType === INGESTION_SOURCE_TYPE.EMAIL && file.metadata?.messageId

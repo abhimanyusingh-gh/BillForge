@@ -38,11 +38,10 @@ const baseInvoice: Invoice = {
 };
 
 describe("InvoiceSourceViewer", () => {
-  it("renders preview fallback with client-side bounding box when overlay URL is missing", () => {
+  it("renders preview with client-side DOM bounding box", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={baseInvoice}
-        overlayUrlByField={{}}
         resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
       />
     );
@@ -55,7 +54,6 @@ describe("InvoiceSourceViewer", () => {
     const html = renderToStaticMarkup(
       <InvoiceSourceViewer
         invoice={baseInvoice}
-        overlayUrlByField={{}}
         resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
       />
     );
@@ -65,5 +63,36 @@ describe("InvoiceSourceViewer", () => {
     expect(html).toContain("top:10%");
     expect(html).toContain("width:20%");
     expect(html).toContain("height:10%");
+  });
+
+  it("renders float-percent DOM box regardless of any legacy overlay fields on input", () => {
+    const legacyInvoice = {
+      ...baseInvoice,
+      extraction: {
+        fieldProvenance: {
+          invoiceNumber: {
+            source: "ocr",
+            page: 1,
+            bboxNormalized: [0.2, 0.1, 0.4, 0.2]
+          }
+        },
+        // Legacy field that used to drive server-baked overlay PNGs; should be ignored.
+        fieldOverlayPaths: { invoiceNumber: "legacy/path.png" }
+      } as unknown as Invoice["extraction"]
+    } satisfies Invoice;
+
+    const html = renderToStaticMarkup(
+      <InvoiceSourceViewer
+        invoice={legacyInvoice}
+        resolvePreviewUrl={() => "http://localhost:4100/api/invoices/inv-1/preview?page=1"}
+      />
+    );
+
+    expect(html).toContain("source-preview-box");
+    expect(html).toContain("left:20%");
+    expect(html).toContain("top:10%");
+    expect(html).toContain("width:20%");
+    expect(html).toContain("height:10%");
+    expect(html).not.toContain("legacy/path.png");
   });
 });

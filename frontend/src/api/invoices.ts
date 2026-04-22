@@ -56,10 +56,6 @@ export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): s
   return authenticatedUrl(`/invoices/${invoiceId}/ocr-blocks/${blockIndex}/crop`);
 }
 
-export function getInvoiceFieldOverlayUrl(invoiceId: string, field: string): string {
-  return authenticatedUrl(`/invoices/${invoiceId}/source-overlays/${field}`);
-}
-
 export function getInvoicePreviewUrl(invoiceId: string, page = 1): string {
   return authenticatedUrl(`/invoices/${invoiceId}/preview`, { page: Math.max(1, Math.round(page)) });
 }

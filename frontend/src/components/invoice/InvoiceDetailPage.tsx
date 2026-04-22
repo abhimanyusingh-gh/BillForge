@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useInvoiceDetail } from "@/hooks/useInvoiceDetail";
 import { getExtractedFieldRows } from "@/lib/invoice/extractedFields";
 import { getInvoiceSourceHighlights } from "@/lib/invoice/sourceHighlights";
-import { buildFieldOverlayUrlMap, buildFieldCropUrlMap } from "@/lib/invoice/invoiceView";
+import { buildFieldCropUrlMap } from "@/lib/invoice/invoiceView";
 import { formatMinorAmountWithCurrency } from "@/lib/common/currency";
 import { InvoiceSourceViewer } from "@/components/invoice/InvoiceSourceViewer";
 import { ExtractedFieldsTable } from "@/components/invoice/ExtractedFieldsTable";
@@ -10,7 +10,7 @@ import { LineItemsTable } from "@/components/invoice/LineItemsTable";
 import { CompliancePanel } from "@/components/compliance/CompliancePanel";
 import { RiskSignalList } from "@/components/compliance/RiskSignalList";
 import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
-import { getInvoicePreviewUrl, getInvoiceFieldOverlayUrl, getInvoiceBlockCropUrl } from "@/api";
+import { getInvoicePreviewUrl, getInvoiceBlockCropUrl } from "@/api";
 
 interface InvoiceDetailPageProps {
   invoiceId: string;
@@ -42,7 +42,6 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
   }
 
   const highlights = getInvoiceSourceHighlights(invoice);
-  const overlayMap = buildFieldOverlayUrlMap(invoice._id, highlights, getInvoiceFieldOverlayUrl);
   const cropMap = buildFieldCropUrlMap(invoice._id, highlights, getInvoiceBlockCropUrl, getInvoicePreviewUrl);
   const extractedRows = getExtractedFieldRows(invoice);
 
@@ -84,7 +83,6 @@ export function InvoiceDetailPage({ invoiceId }: InvoiceDetailPageProps) {
         {sourceExpanded ? (
           <InvoiceSourceViewer
             invoice={invoice}
-            overlayUrlByField={overlayMap}
             resolvePreviewUrl={resolvePreviewUrl}
           />
         ) : null}

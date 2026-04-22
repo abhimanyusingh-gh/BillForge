@@ -54,17 +54,3 @@ export function buildFieldCropUrlMap(
   return output;
 }
 
-export function buildFieldOverlayUrlMap(
-  invoiceId: string,
-  highlights: SourceHighlight[],
-  resolveOverlayUrl: (invoiceId: string, fieldKey: SourceHighlight["fieldKey"]) => string
-): Partial<Record<SourceHighlight["fieldKey"], string>> {
-  const output: Partial<Record<SourceHighlight["fieldKey"], string>> = {};
-  for (const highlight of highlights) {
-    if (!highlight.overlayPath) {
-      continue;
-    }
-    output[highlight.fieldKey] = resolveOverlayUrl(invoiceId, highlight.fieldKey);
-  }
-  return output;
-}

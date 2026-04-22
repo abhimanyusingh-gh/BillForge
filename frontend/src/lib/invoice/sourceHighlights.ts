@@ -62,18 +62,16 @@ export interface SourceHighlight {
   bboxNormalized: [number, number, number, number];
   blockIndex?: number;
   cropPath?: string;
-  overlayPath?: string;
 }
 
 export function getInvoiceSourceHighlights(invoice: Invoice): SourceHighlight[] {
   const provenanceByField = resolveFieldProvenanceMap(invoice);
   const confidenceByField = resolveFieldConfidenceMap(invoice);
-  const overlayPathByField = resolveOverlayPathMap(invoice);
   const lineItemProvenanceByIndex = resolveLineItemProvenanceMap(invoice);
   const blocks = invoice.ocrBlocks ?? [];
   return [
-    ...buildScalarHighlights(blocks, invoice, provenanceByField, confidenceByField, overlayPathByField),
-    ...buildLineItemHighlights(blocks, invoice, lineItemProvenanceByIndex, confidenceByField, overlayPathByField)
+    ...buildScalarHighlights(blocks, invoice, provenanceByField, confidenceByField),
+    ...buildLineItemHighlights(blocks, invoice, lineItemProvenanceByIndex, confidenceByField)
   ];
 }
 
@@ -81,8 +79,7 @@ function buildScalarHighlights(
   blocks: NonNullable<Invoice["ocrBlocks"]>,
   invoice: Invoice,
   provenanceByField: Record<string, ProvenanceEntry>,
-  confidenceByField: Record<string, number>,
-  overlayPathByField: Record<string, string>
+  confidenceByField: Record<string, number>
 ): SourceHighlight[] {
   const highlights: SourceHighlight[] = [];
 
@@ -99,8 +96,7 @@ function buildScalarHighlights(
       label: field.label,
       value,
       provenance,
-      confidence: confidenceByField[field.key],
-      overlayPath: overlayPathByField[field.key]
+      confidence: confidenceByField[field.key]
     });
     if (highlight) {
       highlights.push(highlight);
@@ -114,8 +110,7 @@ function buildLineItemHighlights(
   blocks: NonNullable<Invoice["ocrBlocks"]>,
   invoice: Invoice,
   lineItemProvenanceByIndex: Map<number, InvoiceLineItemProvenance>,
-  confidenceByField: Record<string, number>,
-  overlayPathByField: Record<string, string>
+  confidenceByField: Record<string, number>
 ): SourceHighlight[] {
   const highlights: SourceHighlight[] = [];
   const lineItems = invoice.parsed?.lineItems ?? [];
@@ -136,8 +131,7 @@ function buildLineItemHighlights(
         label: `Line ${lineIndex + 1} ${field.label}`,
         value,
         provenance,
-        confidence: normalizeConfidence(provenance.confidence) ?? confidenceByField[fieldKey],
-        overlayPath: overlayPathByField[fieldKey]
+        confidence: normalizeConfidence(provenance.confidence) ?? confidenceByField[fieldKey]
       });
       if (highlight) {
         highlights.push(highlight);
@@ -155,7 +149,6 @@ function buildHighlight(input: {
   value: string;
   provenance: ProvenanceEntry;
   confidence?: number;
-  overlayPath?: string;
 }): SourceHighlight | undefined {
   const matchedBlock = resolveMatchedBlock(input.blocks, input.provenance, input.fieldKey, input.value);
   const page = readPage(input.provenance.page, matchedBlock?.block.page);
@@ -197,10 +190,7 @@ function buildHighlight(input: {
     bbox,
     bboxNormalized,
     ...(matchedBlock ? { blockIndex: matchedBlock.index } : {}),
-    ...(matchedBlock?.block.cropPath ? { cropPath: matchedBlock.block.cropPath } : {}),
-    ...(typeof input.overlayPath === "string" && input.overlayPath.trim().length > 0
-      ? { overlayPath: input.overlayPath.trim() }
-      : {})
+    ...(matchedBlock?.block.cropPath ? { cropPath: matchedBlock.block.cropPath } : {})
   };
 }
 
@@ -281,13 +271,6 @@ function resolveFieldConfidenceMap(invoice: Invoice): Record<string, number> {
     return decodeExtractionRecord(extractionConfidence);
   }
   return parseMetadataRecord<number>(invoice.metadata?.fieldConfidence) ?? {};
-}
-
-function resolveOverlayPathMap(invoice: Invoice): Record<string, string> {
-  if (invoice.extraction?.fieldOverlayPaths && Object.keys(invoice.extraction.fieldOverlayPaths).length > 0) {
-    return decodeExtractionRecord(invoice.extraction.fieldOverlayPaths);
-  }
-  return parseMetadataRecord<string>(invoice.metadata?.fieldOverlayPaths) ?? {};
 }
 
 function resolveLineItemProvenanceMap(invoice: Invoice): Map<number, InvoiceLineItemProvenance> {

@@ -12,7 +12,6 @@ import {
   pauseIngestion,
   runIngestion,
   getInvoiceBlockCropUrl,
-  getInvoiceFieldOverlayUrl,
   getInvoicePreviewUrl,
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
@@ -41,7 +40,6 @@ import { fetchGlCodes, fetchTdsRates, updateInvoiceComplianceOverride } from "@/
 import type { GlCode, TdsRate } from "@/types";
 import {
   buildFieldCropUrlMap,
-  buildFieldOverlayUrlMap,
   STATUS_LABELS,
   STATUSES
 } from "@/lib/invoice/invoiceView";
@@ -374,17 +372,6 @@ export function InvoiceView({
     [popupInvoiceDetail, popupInvoiceSummary]
   );
 
-  const activeOverlayUrlByField = useMemo(() => {
-    if (!activeInvoice) {
-      return {};
-    }
-    return buildFieldOverlayUrlMap(
-      activeInvoice._id,
-      getInvoiceSourceHighlights(activeInvoice),
-      getInvoiceFieldOverlayUrl
-    );
-  }, [activeInvoice]);
-
   const popupExtractedRows = useMemo(
     () => (popupInvoice ? getExtractedFieldRows(popupInvoice) : []),
     [popupInvoice]
@@ -403,17 +390,6 @@ export function InvoiceView({
   const popupCropUrlByField = useMemo(() => {
     if (!popupInvoice) return {};
     return buildFieldCropUrlMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoiceBlockCropUrl, getInvoicePreviewUrl);
-  }, [popupInvoice]);
-
-  const popupOverlayUrlByField = useMemo(() => {
-    if (!popupInvoice) {
-      return {};
-    }
-    return buildFieldOverlayUrlMap(
-      popupInvoice._id,
-      getInvoiceSourceHighlights(popupInvoice),
-      getInvoiceFieldOverlayUrl
-    );
   }, [popupInvoice]);
 
   const ingestionProgressPercent = !ingestionStatus || ingestionStatus.totalFiles <= 0
@@ -1548,7 +1524,6 @@ export function InvoiceView({
                   canOverrideTds={canOverrideTds}
                   tenantGlCodes={tenantGlCodes}
                   tenantTdsRates={tenantTdsRates}
-                  activeOverlayUrlByField={activeOverlayUrlByField}
                   activeCropUrlByField={activeCropUrlByField}
                   resolvePreviewUrl={(page) => getInvoicePreviewUrl(activeInvoice._id, page)}
                   activeSourcePreviewExpanded={!!sectionExpanded.activeSourcePreview}
@@ -1655,7 +1630,6 @@ export function InvoiceView({
           setPopupRawOcrExpanded={(v) => setSection("popupRawOcr", v)}
           popupMappingExpanded={!!sectionExpanded.popupMapping}
           setPopupMappingExpanded={(v) => setSection("popupMapping", v)}
-          popupOverlayUrlByField={popupOverlayUrlByField}
           popupCropUrlByField={popupCropUrlByField}
           popupExtractedRows={popupExtractedRows}
           popupTallyMappings={popupTallyMappings}

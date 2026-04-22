@@ -1,4 +1,4 @@
-import { buildFieldCropUrlMap, buildFieldOverlayUrlMap } from "@/lib/invoice/invoiceView";
+import { buildFieldCropUrlMap } from "@/lib/invoice/invoiceView";
 import type { SourceHighlight } from "@/lib/invoice/sourceHighlights";
 
 describe("invoiceView", () => {
@@ -81,31 +81,4 @@ describe("invoiceView", () => {
     expect(map.invoiceNumber).toEqual({ type: "url", url: "invoice-1:5" });
   });
 
-  it("maps only valid overlay urls", () => {
-    const highlights = [
-      {
-        fieldKey: "currency",
-        label: "Currency",
-        value: "USD",
-        source: "ocr",
-        page: 1,
-        bbox: [10, 10, 30, 30],
-        bboxNormalized: [0.1, 0.1, 0.3, 0.3],
-        overlayPath: "/tmp/overlay.png"
-      },
-      {
-        fieldKey: "dueDate",
-        label: "Due Date",
-        value: "2026-02-28",
-        source: "ocr",
-        page: 1,
-        bbox: [10, 10, 30, 30],
-        bboxNormalized: [0.1, 0.1, 0.3, 0.3]
-      }
-    ] as SourceHighlight[];
-
-    const map = buildFieldOverlayUrlMap("invoice-2", highlights, (invoiceId, fieldKey) => `${invoiceId}:${fieldKey}`);
-    expect(map.currency).toBe("invoice-2:currency");
-    expect(map.dueDate).toBeUndefined();
-  });
 });
