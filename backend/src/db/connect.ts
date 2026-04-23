@@ -4,16 +4,30 @@ import { logger } from "@/utils/logger.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
+import { applyMinorFieldValidators } from "@/db/applyJsonSchemaValidators.js";
+import { ValidationAction, ValidationLevel } from "@/db/applyJsonSchemaValidators.js";
+import "@/models/invoice/Invoice.js";
+import "@/models/bank/BankAccount.js";
+import "@/models/bank/BankTransaction.js";
+import "@/models/core/TenantUserRole.js";
+import "@/models/integration/TenantComplianceConfig.js";
+import "@/models/compliance/TdsRateTable.js";
+
+const MINOR_FIELD_VALIDATOR_MIGRATION = "minor_field_jsonschema_validators_v1";
+
+export interface ConnectOptions {
+  skipBootstrap?: boolean;
+}
 
 let connectionPromise: Promise<void> | null = null;
 
-export async function connectToDatabase() {
+export async function connectToDatabase(options: ConnectOptions = {}) {
   if (connectionPromise) return connectionPromise;
-  connectionPromise = doConnect();
+  connectionPromise = doConnect(options);
   return connectionPromise;
 }
 
-async function doConnect() {
+async function doConnect(options: ConnectOptions) {
   const runtimeManifest = loadRuntimeManifest();
   await mongoose.connect(runtimeManifest.database.uri, {
     maxPoolSize: 10,
@@ -80,6 +94,49 @@ async function doConnect() {
     }
   } catch (err) {
     logger.warn("db.migration.glCodes.failed", {
+      error: err instanceof Error ? err.message : String(err)
+    });
+  }
+
+  if (options.skipBootstrap) return;
+
+  try {
+    const db = mongoose.connection.db;
+    if (!db) return;
+
+    const migrations = db.collection("migrations");
+    const alreadyApplied = await migrations.findOne({ _id: MINOR_FIELD_VALIDATOR_MIGRATION } as never);
+    if (alreadyApplied) return;
+
+    const results = await applyMinorFieldValidators(db, {
+      action: ValidationAction.Warn,
+      level: ValidationLevel.Strict,
+      log: (event, details) => logger.info(event, details)
+    });
+
+    const failed = results.filter((r) => !r.ok);
+    if (failed.length > 0) {
+      logger.warn("db.migration.minorValidators.partial", {
+        failed: failed.map((r) => ({ modelName: r.modelName, error: r.errorMessage }))
+      });
+    }
+
+    await migrations.updateOne(
+      { _id: MINOR_FIELD_VALIDATOR_MIGRATION } as never,
+      {
+        $setOnInsert: {
+          _id: MINOR_FIELD_VALIDATOR_MIGRATION,
+          appliedAt: new Date(),
+          action: ValidationAction.Warn,
+          level: ValidationLevel.Strict,
+          source: "bootstrap"
+        }
+      } as never,
+      { upsert: true }
+    );
+    logger.info("db.migration.recorded", { name: MINOR_FIELD_VALIDATOR_MIGRATION });
+  } catch (err) {
+    logger.warn("db.migration.minorValidators.failed", {
       error: err instanceof Error ? err.message : String(err)
     });
   }

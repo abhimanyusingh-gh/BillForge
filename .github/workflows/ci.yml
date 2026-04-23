@@ -73,6 +73,13 @@ jobs:
       - run: yarn install --immutable
       - run: yarn run knip
 
+  backend-minor-field-registry:
+    name: Backend Minor Field Registry Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash backend/scripts/check-minor-field-registry.sh
+
   frontend-typecheck:
     name: Frontend Typecheck
     runs-on: ubuntu-latest
