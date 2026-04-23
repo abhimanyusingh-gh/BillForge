@@ -1,7 +1,3 @@
-/**
- * Spinner stories — CSF3-compatible fixtures. See `Button.stories.tsx` for
- * rationale on the absence of Storybook binary at this time.
- */
 import type { SpinnerProps } from "./Spinner";
 import { Spinner } from "./Spinner";
 

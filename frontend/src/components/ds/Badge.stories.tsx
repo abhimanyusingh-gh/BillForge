@@ -1,7 +1,3 @@
-/**
- * Badge stories — CSF3-compatible fixtures. See `Button.stories.tsx` for
- * rationale on the absence of Storybook binary at this time.
- */
 import type { BadgeProps } from "./Badge";
 import { Badge } from "./Badge";
 

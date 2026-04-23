@@ -1,33 +1,13 @@
-/**
- * Design system tokens — single typed source of truth for colour, spacing,
- * radius, shadow, and typography values used across the LedgerBuddy frontend.
- *
- * **Reuse contract**: the source-of-truth for token *values* is the CSS custom
- * properties defined in `frontend/src/styles.css` (`:root` and
- * `[data-theme="dark"]` blocks). This module exposes those same names as
- * typed TS constants so components can:
- *
- *   1. reference tokens safely via `tokens.color.accent`
- *   2. resolve the live value at runtime via `cssVar("color.accent")`
- *      — which compiles to `var(--accent)` and therefore honours dark mode.
- *
- * Do NOT inline new hex values in components. If a new token is needed add it
- * to `styles.css` first, then mirror here.
- *
- * Implements D-028/D-029/D-030 groundwork (consistent Tally-export surfacing
- * uses the same colour ramp) and the UX quick-win palette referenced in
- * Phase 1 FE-2/FE-3a (risk-signal dot, action-hint badges).
- */
-
-/** Mapping from logical token path to underlying CSS custom property name. */
-export const TOKEN_CSS_VAR: Record<string, string> = {
+export const TOKEN_CSS_VAR = {
   "color.bg.main": "--bg-main",
   "color.bg.panel": "--bg-panel",
   "color.ink": "--ink",
   "color.ink.soft": "--ink-soft",
   "color.accent": "--accent",
   "color.accent.hover": "--accent-2",
+  "color.accent.softBg": "--badge-accent-soft-bg",
   "color.warn": "--warn",
+  "color.warn.softBg": "--badge-warning-soft-bg",
   "color.line": "--line",
   "color.status.approved": "--status-approved",
   "color.status.exported": "--status-exported",
@@ -64,29 +44,24 @@ export const TOKEN_CSS_VAR: Record<string, string> = {
   "shadow.sm": "--shadow-sm",
   "shadow.md": "--shadow-md",
   "shadow.lg": "--shadow-lg"
-};
+} as const;
 
 export type TokenPath = keyof typeof TOKEN_CSS_VAR;
 
-/**
- * Resolve a token path to its CSS `var(--…)` reference string.
- * Use in inline styles: `{ color: cssVar("color.ink") }`.
- */
 export function cssVar(path: TokenPath): string {
-  const name = TOKEN_CSS_VAR[path];
-  if (!name) {
-    throw new Error(`[ds/tokens] unknown token path: ${path}`);
-  }
-  return `var(${name})`;
+  return `var(${TOKEN_CSS_VAR[path]})`;
 }
 
-/** Structured token tree for autocomplete-friendly access. */
 export const tokens = {
   color: {
     bg: { main: cssVar("color.bg.main"), panel: cssVar("color.bg.panel") },
     ink: { base: cssVar("color.ink"), soft: cssVar("color.ink.soft") },
-    accent: { base: cssVar("color.accent"), hover: cssVar("color.accent.hover") },
-    warn: cssVar("color.warn"),
+    accent: {
+      base: cssVar("color.accent"),
+      hover: cssVar("color.accent.hover"),
+      softBg: cssVar("color.accent.softBg")
+    },
+    warn: { base: cssVar("color.warn"), softBg: cssVar("color.warn.softBg") },
     line: cssVar("color.line"),
     status: {
       approved: cssVar("color.status.approved"),
@@ -117,10 +92,6 @@ export const tokens = {
     md: cssVar("shadow.md"),
     lg: cssVar("shadow.lg")
   },
-  /**
-   * Typography: font family is inherited from `<body>` (Inter, imported in
-   * styles.css). Sizes expressed in rem so they scale with user preference.
-   */
   font: {
     family: '"Inter", system-ui, -apple-system, sans-serif',
     size: {

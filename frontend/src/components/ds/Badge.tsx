@@ -1,44 +1,28 @@
 import type { ReactNode } from "react";
 import { cssVar, tokens } from "./tokens";
 
-/**
- * Design-system `Badge` — generic pill/chip primitive.
- *
- * **Motivation**: the codebase has a number of ad-hoc badge renderings:
- * `ConfidenceBadge` (score-specific), status classes `.status-*`, and a
- * proliferation of `--badge-*-bg/-fg` tokens. Phase 1 PRs FE-2/FE-3a/FE-5a
- * introduce `RiskDot`, `StatusBadge`, `PaymentStatusBadge`,
- * `ActionHintBadge`, and `AgingBadge` — all share the same visual
- * anatomy: a small rounded label with semantic colour + optional icon.
- *
- * This primitive owns the layout + a11y; the specialized badges compose it
- * with their own colour choice and label-forming logic.
- *
- * 4-state contract: badges are presentational — no async states. All 4
- * states of a consuming feature (empty/loading/error/data) are handled by
- * the feature deciding whether to render the badge at all.
- *
- * a11y: when `title` is supplied it is exposed via `aria-label`; otherwise
- * the text content itself is the accessible name. Colour is never the only
- * information channel — callers MUST include text or an icon name.
- */
+export const BADGE_TONE = {
+  neutral: "neutral",
+  info: "info",
+  success: "success",
+  warning: "warning",
+  danger: "danger",
+  accent: "accent"
+} as const;
 
-export type BadgeTone =
-  | "neutral"
-  | "info"
-  | "success"
-  | "warning"
-  | "danger"
-  | "accent";
+export type BadgeTone = keyof typeof BADGE_TONE;
 
-export type BadgeSize = "sm" | "md";
+export const BADGE_SIZE = {
+  sm: "sm",
+  md: "md"
+} as const;
+
+export type BadgeSize = keyof typeof BADGE_SIZE;
 
 export interface BadgeProps {
   tone?: BadgeTone;
   size?: BadgeSize;
-  /** Material Symbols icon name, rendered before children. */
   icon?: string;
-  /** Accessible label if children alone are insufficient (e.g. dot badges). */
   title?: string;
   className?: string;
   children?: ReactNode;
@@ -46,7 +30,7 @@ export interface BadgeProps {
 
 const TONE_STYLE: Record<BadgeTone, { background: string; color: string; border?: string }> = {
   neutral: {
-    background: "var(--bg-main)",
+    background: cssVar("color.bg.main"),
     color: cssVar("color.ink.soft"),
     border: `1px solid ${cssVar("color.line")}`
   },
@@ -59,7 +43,7 @@ const TONE_STYLE: Record<BadgeTone, { background: string; color: string; border?
     color: cssVar("color.badge.valid.fg")
   },
   warning: {
-    background: "rgba(245, 158, 11, 0.15)",
+    background: cssVar("color.warn.softBg"),
     color: cssVar("color.status.parsed")
   },
   danger: {
@@ -67,7 +51,7 @@ const TONE_STYLE: Record<BadgeTone, { background: string; color: string; border?
     color: cssVar("color.badge.invalid.fg")
   },
   accent: {
-    background: "rgba(17, 82, 212, 0.1)",
+    background: cssVar("color.accent.softBg"),
     color: cssVar("color.accent")
   }
 };
@@ -87,11 +71,15 @@ export function Badge({
 }: BadgeProps) {
   const toneStyle = TONE_STYLE[tone];
   const sizeStyle = SIZE_STYLE[size];
+  const hasChildren = children !== undefined && children !== null && children !== false;
+  const ariaLabel = !hasChildren && title ? title : undefined;
+  const role = ariaLabel ? "img" : undefined;
   return (
     <span
       className={className}
-      role={title ? "img" : undefined}
-      aria-label={title}
+      role={role}
+      aria-label={ariaLabel}
+      title={title || undefined}
       style={{
         display: "inline-flex",
         alignItems: "center",
