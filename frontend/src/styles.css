@@ -50,6 +50,8 @@
   --badge-tenant-match-bg: #f0fdf4;
   --badge-tenant-match-fg: #15803d;
   --badge-tenant-match-border: #bbf7d0;
+  --badge-warning-soft-bg: rgba(245, 158, 11, 0.15);
+  --badge-accent-soft-bg: rgba(17, 82, 212, 0.1);
 }
 
 [data-theme="dark"] {
@@ -80,6 +82,8 @@
   --badge-tenant-match-bg: rgba(34, 197, 94, 0.1);
   --badge-tenant-match-fg: #86efac;
   --badge-tenant-match-border: rgba(34, 197, 94, 0.3);
+  --badge-warning-soft-bg: rgba(251, 191, 36, 0.18);
+  --badge-accent-soft-bg: rgba(59, 130, 246, 0.18);
   color-scheme: dark;
 }
 
@@ -502,6 +506,11 @@ select:focus {
 .app-button-secondary:hover:not(:disabled) {
   border-color: var(--ink-soft);
   opacity: 0.85;
+}
+
+.app-button-secondary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .controls {
