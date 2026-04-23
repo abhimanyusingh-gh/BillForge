@@ -1,23 +1,17 @@
-/**
- * BE-0 — pure-function tests for the `$jsonSchema` validator builder.
- *
- * We intentionally do NOT spin up a Mongo instance here:
- *   - The repo does not yet depend on `mongodb-memory-server`.
- *   - The INFRA-1 harness that would provide a real-Mongo test fixture is not
- *     merged at the time this PR is opened.
- *   - An integration test against real Atlas is covered by ops validation
- *     (the migration runs idempotently on boot; logs will surface offenders).
- *
- * These tests lock down the generated JSON Schema shape so regressions in the
- * builder are caught before they reach `collMod`.
- */
-
+import mongoose from "mongoose";
 import {
   MINOR_FIELD_REGISTRY,
   buildAllJsonSchemas,
   buildCollectionJsonSchema,
   buildMinorFieldRule
 } from "@/db/jsonSchemaValidators.js";
+
+import "@/models/invoice/Invoice.js";
+import "@/models/bank/BankAccount.js";
+import "@/models/bank/BankTransaction.js";
+import "@/models/core/TenantUserRole.js";
+import "@/models/integration/TenantComplianceConfig.js";
+import "@/models/compliance/TdsRateTable.js";
 
 describe("buildMinorFieldRule", () => {
   it("accepts int, long, and double with multipleOf: 1 for non-nullable fields", () => {
@@ -170,8 +164,50 @@ describe("MINOR_FIELD_REGISTRY", () => {
 
     for (const { modelName, jsonSchema } of schemas) walk(jsonSchema, modelName);
     expect(minorFieldsSeen.length).toBeGreaterThan(0);
-    // All Minor fields: we captured at least one per collection.
     const collectionsHit = new Set(minorFieldsSeen.map((p) => p.split(".")[0]));
     expect(collectionsHit.size).toBe(MINOR_FIELD_REGISTRY.length);
+  });
+
+  it("registry covers every *Minor field declared in mongoose models", () => {
+    const MINOR_SUFFIX = /Minor$/;
+
+    const collectMinorPaths = (schema: mongoose.Schema, prefix: string, out: Set<string>): void => {
+      for (const [key, schemaType] of Object.entries(schema.paths)) {
+        const fullPath = prefix ? `${prefix}.${key}` : key;
+        const nestedSchema = (schemaType as { schema?: mongoose.Schema }).schema;
+        if (nestedSchema) {
+          collectMinorPaths(nestedSchema, fullPath, out);
+          continue;
+        }
+        if (MINOR_SUFFIX.test(key)) {
+          out.add(fullPath);
+        }
+      }
+    };
+
+    const coveredByModel = new Map<string, Set<string>>();
+    for (const entry of MINOR_FIELD_REGISTRY) {
+      const paths = new Set<string>();
+      for (const group of entry.groups) {
+        for (const field of group.fields) {
+          const full = group.prefix === "" ? field : `${group.prefix}.${field}`;
+          paths.add(full);
+        }
+      }
+      coveredByModel.set(entry.modelName, paths);
+    }
+
+    const missing: string[] = [];
+    for (const [modelName, model] of Object.entries(mongoose.models)) {
+      if (!coveredByModel.has(modelName)) continue;
+      const declared = new Set<string>();
+      collectMinorPaths(model.schema, "", declared);
+      const covered = coveredByModel.get(modelName)!;
+      for (const path of declared) {
+        if (!covered.has(path)) missing.push(`${modelName}.${path}`);
+      }
+    }
+
+    expect(missing).toEqual([]);
   });
 });

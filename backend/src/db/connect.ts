@@ -5,8 +5,7 @@ import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { applyMinorFieldValidators } from "@/db/applyJsonSchemaValidators.js";
-// BE-0: Ensure every model with `*Minor` fields is registered before the
-// validator migration runs (see `jsonSchemaValidators.ts` registry).
+import { ValidationAction, ValidationLevel } from "@/db/applyJsonSchemaValidators.js";
 import "@/models/invoice/Invoice.js";
 import "@/models/bank/BankAccount.js";
 import "@/models/bank/BankTransaction.js";
@@ -14,15 +13,21 @@ import "@/models/core/TenantUserRole.js";
 import "@/models/integration/TenantComplianceConfig.js";
 import "@/models/compliance/TdsRateTable.js";
 
+const MINOR_FIELD_VALIDATOR_MIGRATION = "minor_field_jsonschema_validators_v1";
+
+export interface ConnectOptions {
+  skipBootstrap?: boolean;
+}
+
 let connectionPromise: Promise<void> | null = null;
 
-export async function connectToDatabase() {
+export async function connectToDatabase(options: ConnectOptions = {}) {
   if (connectionPromise) return connectionPromise;
-  connectionPromise = doConnect();
+  connectionPromise = doConnect(options);
   return connectionPromise;
 }
 
-async function doConnect() {
+async function doConnect(options: ConnectOptions) {
   const runtimeManifest = loadRuntimeManifest();
   await mongoose.connect(runtimeManifest.database.uri, {
     maxPoolSize: 10,
@@ -93,34 +98,43 @@ async function doConnect() {
     });
   }
 
-  // BE-0: install `$jsonSchema` defence-in-depth validators on every collection
-  // with `*Minor` fields (Phase 0.4, implements C-001). Idempotent — `collMod`
-  // replaces the previous validator on each run. First rollout uses
-  // `validationAction: 'warn'` so any legacy non-integer minor values surface
-  // in Mongo logs without rejecting the write; a follow-up PR will flip to
-  // `'error'` once logs are clean.
+  if (options.skipBootstrap) return;
+
   try {
     const db = mongoose.connection.db;
-    if (db) {
-      const migrations = db.collection("migrations");
-      const validatorMigrationName = "minor_field_jsonschema_validators_v1";
-      const previouslyApplied = await migrations.findOne({ _id: validatorMigrationName } as never);
-      const results = await applyMinorFieldValidators(db, {
-        action: "warn",
-        level: "strict",
-        log: (event, details) => logger.info(event, details)
+    if (!db) return;
+
+    const migrations = db.collection("migrations");
+    const alreadyApplied = await migrations.findOne({ _id: MINOR_FIELD_VALIDATOR_MIGRATION } as never);
+    if (alreadyApplied) return;
+
+    const results = await applyMinorFieldValidators(db, {
+      action: ValidationAction.Warn,
+      level: ValidationLevel.Strict,
+      log: (event, details) => logger.info(event, details)
+    });
+
+    const failed = results.filter((r) => !r.ok);
+    if (failed.length > 0) {
+      logger.warn("db.migration.minorValidators.partial", {
+        failed: failed.map((r) => ({ modelName: r.modelName, error: r.errorMessage }))
       });
-      const failed = results.filter((r) => !r.ok);
-      if (failed.length > 0) {
-        logger.warn("db.migration.minorValidators.partial", {
-          failed: failed.map((r) => ({ modelName: r.modelName, error: r.errorMessage }))
-        });
-      }
-      if (!previouslyApplied) {
-        await migrations.insertOne({ _id: validatorMigrationName, appliedAt: new Date() } as never);
-        logger.info("db.migration.recorded", { name: validatorMigrationName });
-      }
     }
+
+    await migrations.updateOne(
+      { _id: MINOR_FIELD_VALIDATOR_MIGRATION } as never,
+      {
+        $setOnInsert: {
+          _id: MINOR_FIELD_VALIDATOR_MIGRATION,
+          appliedAt: new Date(),
+          action: ValidationAction.Warn,
+          level: ValidationLevel.Strict,
+          source: "bootstrap"
+        }
+      } as never,
+      { upsert: true }
+    );
+    logger.info("db.migration.recorded", { name: MINOR_FIELD_VALIDATOR_MIGRATION });
   } catch (err) {
     logger.warn("db.migration.minorValidators.failed", {
       error: err instanceof Error ? err.message : String(err)

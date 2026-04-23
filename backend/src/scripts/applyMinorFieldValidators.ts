@@ -1,38 +1,29 @@
-/**
- * BE-0 — standalone CLI to (re-)apply the `$jsonSchema` validators on every
- * collection with `*Minor` fields.
- *
- * Usage:
- *   ENV=local yarn tsx src/scripts/applyMinorFieldValidators.ts           # warn (default)
- *   ENV=local yarn tsx src/scripts/applyMinorFieldValidators.ts --action=error
- *
- * The `--action=error` flag flips the collection-level `validationAction` from
- * `warn` to `error`, causing the DB to reject writes that violate the integer
- * contract. Run this only after a warn-only window has shown zero offenders
- * in production logs.
- *
- * Idempotent: re-running is a no-op when the action/level are unchanged.
- * Safe to wire into deploy pipelines.
- */
-
 import mongoose from "mongoose";
 import { connectToDatabase, disconnectFromDatabase } from "@/db/connect.js";
-import { applyMinorFieldValidators, type ValidationAction } from "@/db/applyJsonSchemaValidators.js";
+import {
+  applyMinorFieldValidators,
+  ValidationAction,
+  ValidationLevel
+} from "@/db/applyJsonSchemaValidators.js";
 import { logger } from "@/utils/logger.js";
+
+const VALIDATOR_MIGRATION_ID = "minor_field_jsonschema_validators_v1";
 
 function parseAction(argv: string[]): ValidationAction {
   const flag = argv.find((a) => a.startsWith("--action="));
-  if (!flag) return "warn";
+  if (!flag) return ValidationAction.Warn;
   const value = flag.split("=")[1];
-  if (value !== "warn" && value !== "error") {
-    throw new Error(`invalid --action value: ${value}. Expected 'warn' or 'error'.`);
+  if (value !== ValidationAction.Warn && value !== ValidationAction.Error) {
+    throw new Error(
+      `invalid --action value: ${value}. Expected '${ValidationAction.Warn}' or '${ValidationAction.Error}'.`
+    );
   }
   return value;
 }
 
 async function run(): Promise<void> {
   const action = parseAction(process.argv.slice(2));
-  await connectToDatabase();
+  await connectToDatabase({ skipBootstrap: true });
 
   const db = mongoose.connection.db;
   if (!db) {
@@ -41,11 +32,26 @@ async function run(): Promise<void> {
 
   const results = await applyMinorFieldValidators(db, {
     action,
-    level: "strict",
+    level: ValidationLevel.Strict,
     log: (event, details) => logger.info(event, details)
   });
 
   const failed = results.filter((r) => !r.ok);
+
+  await db.collection("migrations").updateOne(
+    { _id: VALIDATOR_MIGRATION_ID } as never,
+    {
+      $set: {
+        _id: VALIDATOR_MIGRATION_ID,
+        appliedAt: new Date(),
+        action,
+        level: ValidationLevel.Strict,
+        source: "cli"
+      }
+    } as never,
+    { upsert: true }
+  );
+
   console.log(JSON.stringify({ action, total: results.length, failed: failed.length, results }, null, 2));
 
   if (failed.length > 0) {
