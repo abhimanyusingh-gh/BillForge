@@ -61,7 +61,6 @@ export interface SourceHighlight {
   bbox: [number, number, number, number];
   bboxNormalized: [number, number, number, number];
   blockIndex?: number;
-  cropPath?: string;
 }
 
 export function getInvoiceSourceHighlights(invoice: Invoice): SourceHighlight[] {
@@ -189,8 +188,7 @@ function buildHighlight(input: {
     page,
     bbox,
     bboxNormalized,
-    ...(matchedBlock ? { blockIndex: matchedBlock.index } : {}),
-    ...(matchedBlock?.block.cropPath ? { cropPath: matchedBlock.block.cropPath } : {})
+    ...(matchedBlock ? { blockIndex: matchedBlock.index } : {})
   };
 }
 

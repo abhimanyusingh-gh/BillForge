@@ -40,6 +40,7 @@ const ocrBlockSchema = new Schema(
         message: "ocrBlocks.bboxModel must contain exactly four ordered numeric values in 0-999 range when provided."
       }
     },
+    // legacy — no longer populated (server-side per-block crop baking removed)
     cropPath: { type: String },
     blockType: { type: String }
   },

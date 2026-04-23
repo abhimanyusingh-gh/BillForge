@@ -66,8 +66,7 @@ describe("getInvoiceSourceHighlights", () => {
         {
           text: "INV-42",
           page: 1,
-          bbox: [220, 90, 420, 130],
-          cropPath: "/tmp/ledgerbuddy-artifacts/tenant-a/local-folder/hash/ocr-blocks/page-1/block-1.png"
+          bbox: [220, 90, 420, 130]
         },
         {
           text: "Acme Corp",
@@ -84,8 +83,8 @@ describe("getInvoiceSourceHighlights", () => {
     expect(invoiceNumber?.bbox).toEqual([220, 90, 420, 130]);
     expect(invoiceNumber?.bboxNormalized[0]).toBeGreaterThan(0.5);
     expect(invoiceNumber?.bboxNormalized[2]).toBeLessThanOrEqual(1);
-    expect(invoiceNumber?.cropPath).toContain("ocr-blocks");
     expect(typeof invoiceNumber?.blockIndex).toBe("number");
+    expect(invoiceNumber?.bboxNormalized).toBeDefined();
   });
 
   it("uses bboxModel when normalized box is unavailable", () => {

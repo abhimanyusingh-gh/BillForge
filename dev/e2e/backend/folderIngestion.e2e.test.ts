@@ -216,23 +216,24 @@ describe("local full-stack ingestion e2e", () => {
         expect(detail.metadata.llmAssistChangedFields).toBeDefined();
       }
 
-      // Server-side overlay PNG baking has been removed; the client renders highlights as DOM boxes.
-      // Per-block OCR crops are still produced (product feature).
+      // Server-side overlay PNG baking and per-block OCR crop baking have both been removed;
+      // the client renders highlights and field crops as DOM boxes over the page preview image.
       expect(detail.metadata?.fieldOverlayPaths).toBeUndefined();
+      expect(detail.metadata?.ocrBlockCropCount).toBeUndefined();
+      expect(detail.metadata?.ocrBlockCropPaths).toBeUndefined();
+      expect(detail.metadata?.ocrBlockCropProvider).toBeUndefined();
       const blocks = detail.ocrBlocks ?? [];
-      if (blocks.length === 0) {
-        return;
-      }
       const blocksWithCropPath = blocks.filter((block) => typeof block.cropPath === "string" && block.cropPath.length > 0);
-      expect(blocksWithCropPath.length).toBeGreaterThan(0);
-      expect(typeof detail.metadata?.ocrBlockCropCount).toBe("string");
+      expect(blocksWithCropPath.length).toBe(0);
     });
 
     for (const response of invoiceDetails) {
       const detail = response.data;
-      // The source-overlays route has been removed; any legacy URL should now 404.
+      // The source-overlays and per-block crop routes have been removed; any legacy URL should now 404.
       const overlayResponse = await api.get(`/api/invoices/${detail._id}/source-overlays/vendorName`);
       expect(overlayResponse.status).toBe(404);
+      const cropResponse = await api.get(`/api/invoices/${detail._id}/ocr-blocks/0/crop`);
+      expect(cropResponse.status).toBe(404);
     }
   });
 

@@ -6,7 +6,7 @@ import type { CropSource } from "@/lib/invoice/invoiceView";
 
 const BBOX_CROP_HEIGHT = 28;
 
-function BboxCrop({
+export function BboxCrop({
   pageImageUrl,
   bboxNormalized,
   alt,
@@ -166,24 +166,12 @@ export function ExtractedFieldsTable({ rows, cropUrlByField, editable, onSaveFie
                 </td>
                 <td>
                   {cropSource && !cropFailed ? (
-                    cropSource.type === "url" ? (
-                      <div className="field-crop-inline">
-                        <img
-                          src={cropSource.url}
-                          alt={`Source crop for ${row.label}`}
-                          loading="lazy"
-                          className="field-crop-thumbnail"
-                          onError={() => setFailedCrops((prev) => new Set(prev).add(row.fieldKey))}
-                        />
-                      </div>
-                    ) : (
-                      <BboxCrop
-                        pageImageUrl={cropSource.pageImageUrl}
-                        bboxNormalized={cropSource.bboxNormalized}
-                        alt={`Source crop for ${row.label}`}
-                        onError={() => setFailedCrops((prev) => new Set(prev).add(row.fieldKey))}
-                      />
-                    )
+                    <BboxCrop
+                      pageImageUrl={cropSource.pageImageUrl}
+                      bboxNormalized={cropSource.bboxNormalized}
+                      alt={`Source crop for ${row.label}`}
+                      onError={() => setFailedCrops((prev) => new Set(prev).add(row.fieldKey))}
+                    />
                   ) : (
                     <div className="table-cell-scroll">
                       <span className="muted">{cropFailed ? "unavailable" : "-"}</span>

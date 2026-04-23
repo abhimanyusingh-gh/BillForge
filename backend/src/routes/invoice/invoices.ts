@@ -282,20 +282,6 @@ export function createInvoiceRouter(invoiceService: InvoiceService, fileStore?: 
     res.status(404).json({ message: "Preview image not found for this invoice." });
   }));
 
-  router.get("/invoices/:id/ocr-blocks/:index/crop", wrap(async (req, res, next) => {
-    const blockIndex = Number.parseInt(req.params.index, 10);
-    if (!Number.isFinite(blockIndex) || blockIndex < 0) { res.status(400).json({ message: "OCR block index must be a positive integer." }); return; }
-
-    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
-    if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
-
-    const blocks = invoice.ocrBlocks;
-    const cropPath = Array.isArray(blocks) && blockIndex < blocks.length ? trimOrNull(blocks[blockIndex]?.cropPath) : null;
-    if (!cropPath) { res.status(404).json({ message: "OCR block crop image was not found." }); return; }
-
-    await sendStoredImage(res, cropPath, "OCR block crop image", next);
-  }));
-
   return router;
 }
 

@@ -52,10 +52,6 @@ export async function fetchInvoiceById(invoiceId: string) {
   return stripNulls((await apiClient.get<Invoice>(`/invoices/${invoiceId}`)).data) as Invoice;
 }
 
-export function getInvoiceBlockCropUrl(invoiceId: string, blockIndex: number): string {
-  return authenticatedUrl(`/invoices/${invoiceId}/ocr-blocks/${blockIndex}/crop`);
-}
-
 export function getInvoicePreviewUrl(invoiceId: string, page = 1): string {
   return authenticatedUrl(`/invoices/${invoiceId}/preview`, { page: Math.max(1, Math.round(page)) });
 }

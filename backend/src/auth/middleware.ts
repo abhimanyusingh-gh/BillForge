@@ -5,7 +5,6 @@ import { normalizeTenantRole } from "@/models/core/TenantUserRole.js";
 function isQueryTokenAllowed(path: string): boolean {
   if (path === "/jobs/ingest/sse") return true;
   if (/^\/invoices\/[^/]+\/preview$/.test(path)) return true;
-  if (/^\/invoices\/[^/]+\/ocr-blocks\/\d+\/crop$/.test(path)) return true;
   return false;
 }
 

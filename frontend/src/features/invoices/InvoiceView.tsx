@@ -11,7 +11,6 @@ import {
   fetchInvoices,
   pauseIngestion,
   runIngestion,
-  getInvoiceBlockCropUrl,
   getInvoicePreviewUrl,
   subscribeIngestionSSE,
   updateInvoiceParsedFields,
@@ -39,7 +38,7 @@ import { formatMinorAmountWithCurrency } from "@/lib/common/currency";
 import { fetchGlCodes, fetchTdsRates, updateInvoiceComplianceOverride } from "@/api";
 import type { GlCode, TdsRate } from "@/types";
 import {
-  buildFieldCropUrlMap,
+  buildFieldCropSourceMap,
   STATUS_LABELS,
   STATUSES
 } from "@/lib/invoice/invoiceView";
@@ -384,12 +383,12 @@ export function InvoiceView({
 
   const activeCropUrlByField = useMemo(() => {
     if (!activeInvoice) return {};
-    return buildFieldCropUrlMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoiceBlockCropUrl, getInvoicePreviewUrl);
+    return buildFieldCropSourceMap(activeInvoice._id, getInvoiceSourceHighlights(activeInvoice), getInvoicePreviewUrl);
   }, [activeInvoice]);
 
   const popupCropUrlByField = useMemo(() => {
     if (!popupInvoice) return {};
-    return buildFieldCropUrlMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoiceBlockCropUrl, getInvoicePreviewUrl);
+    return buildFieldCropSourceMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), getInvoicePreviewUrl);
   }, [popupInvoice]);
 
   const ingestionProgressPercent = !ingestionStatus || ingestionStatus.totalFiles <= 0
