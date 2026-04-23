@@ -1,0 +1,177 @@
+/**
+ * BE-0 — pure-function tests for the `$jsonSchema` validator builder.
+ *
+ * We intentionally do NOT spin up a Mongo instance here:
+ *   - The repo does not yet depend on `mongodb-memory-server`.
+ *   - The INFRA-1 harness that would provide a real-Mongo test fixture is not
+ *     merged at the time this PR is opened.
+ *   - An integration test against real Atlas is covered by ops validation
+ *     (the migration runs idempotently on boot; logs will surface offenders).
+ *
+ * These tests lock down the generated JSON Schema shape so regressions in the
+ * builder are caught before they reach `collMod`.
+ */
+
+import {
+  MINOR_FIELD_REGISTRY,
+  buildAllJsonSchemas,
+  buildCollectionJsonSchema,
+  buildMinorFieldRule
+} from "@/db/jsonSchemaValidators.js";
+
+describe("buildMinorFieldRule", () => {
+  it("accepts int, long, and double with multipleOf: 1 for non-nullable fields", () => {
+    expect(buildMinorFieldRule(false)).toEqual({
+      bsonType: ["int", "long", "double"],
+      multipleOf: 1
+    });
+  });
+
+  it("adds 'null' for nullable fields", () => {
+    expect(buildMinorFieldRule(true)).toEqual({
+      bsonType: ["int", "long", "double", "null"],
+      multipleOf: 1
+    });
+  });
+});
+
+describe("buildCollectionJsonSchema", () => {
+  it("emits a top-level properties entry for flat (prefix: '') groups", () => {
+    const schema = buildCollectionJsonSchema({
+      modelName: "BankAccount",
+      groups: [{ prefix: "", fields: ["balanceMinor"], nullable: true }]
+    });
+    expect(schema).toEqual({
+      bsonType: "object",
+      properties: {
+        balanceMinor: { bsonType: ["int", "long", "double", "null"], multipleOf: 1 }
+      }
+    });
+  });
+
+  it("emits nested object wrappers for dotted prefixes", () => {
+    const schema = buildCollectionJsonSchema({
+      modelName: "TenantUserRole",
+      groups: [{ prefix: "capabilities", fields: ["approvalLimitMinor"], nullable: true }]
+    });
+    const capabilities = (schema.properties as Record<string, unknown>).capabilities as {
+      bsonType: string;
+      properties: Record<string, unknown>;
+    };
+    expect(capabilities.bsonType).toBe("object");
+    expect(capabilities.properties.approvalLimitMinor).toEqual({
+      bsonType: ["int", "long", "double", "null"],
+      multipleOf: 1
+    });
+  });
+
+  it("emits array-item wrappers for array groups", () => {
+    const schema = buildCollectionJsonSchema({
+      modelName: "Invoice",
+      groups: [
+        {
+          prefix: "parsed.lineItems",
+          fields: ["amountMinor"],
+          nullable: true,
+          array: true
+        }
+      ]
+    });
+    const parsed = (schema.properties as Record<string, unknown>).parsed as {
+      properties: { lineItems: { bsonType: string; items: { bsonType: string; properties: Record<string, unknown> } } };
+    };
+    expect(parsed.properties.lineItems.bsonType).toBe("array");
+    expect(parsed.properties.lineItems.items.bsonType).toBe("object");
+    expect(parsed.properties.lineItems.items.properties.amountMinor).toEqual({
+      bsonType: ["int", "long", "double", "null"],
+      multipleOf: 1
+    });
+  });
+
+  it("merges multiple groups that share a common ancestor prefix", () => {
+    const schema = buildCollectionJsonSchema({
+      modelName: "Invoice",
+      groups: [
+        { prefix: "parsed", fields: ["totalAmountMinor"], nullable: true },
+        {
+          prefix: "parsed.gst",
+          fields: ["subtotalMinor", "cgstMinor"],
+          nullable: true
+        }
+      ]
+    });
+    const parsed = (schema.properties as Record<string, unknown>).parsed as {
+      properties: Record<string, unknown>;
+    };
+    expect(parsed.properties.totalAmountMinor).toBeDefined();
+    const gst = parsed.properties.gst as { properties: Record<string, unknown> };
+    expect(gst.properties.subtotalMinor).toBeDefined();
+    expect(gst.properties.cgstMinor).toBeDefined();
+  });
+
+  it("marks required-in-Mongoose fields as non-nullable", () => {
+    const schema = buildCollectionJsonSchema({
+      modelName: "TdsRateTable",
+      groups: [
+        { prefix: "", fields: ["thresholdSingleMinor", "thresholdAnnualMinor"], nullable: false }
+      ]
+    });
+    const single = (schema.properties as Record<string, unknown>).thresholdSingleMinor as {
+      bsonType: string[];
+    };
+    expect(single.bsonType).not.toContain("null");
+    expect(single.bsonType).toEqual(["int", "long", "double"]);
+  });
+});
+
+describe("MINOR_FIELD_REGISTRY", () => {
+  it("includes every expected collection (no silent drops)", () => {
+    const names = MINOR_FIELD_REGISTRY.map((s) => s.modelName).sort();
+    expect(names).toEqual(
+      [
+        "BankAccount",
+        "BankTransaction",
+        "Invoice",
+        "TdsRateTable",
+        "TenantComplianceConfig",
+        "TenantUserRole"
+      ].sort()
+    );
+  });
+
+  it("buildAllJsonSchemas returns one entry per registry row", () => {
+    const out = buildAllJsonSchemas();
+    expect(out.length).toBe(MINOR_FIELD_REGISTRY.length);
+    for (const row of out) {
+      expect(row.jsonSchema).toHaveProperty("bsonType", "object");
+      expect(row.jsonSchema).toHaveProperty("properties");
+    }
+  });
+
+  it("every generated field rule is an integer-compatible bsonType with multipleOf: 1", () => {
+    const schemas = buildAllJsonSchemas();
+    const minorFieldsSeen: string[] = [];
+
+    const walk = (node: unknown, path: string): void => {
+      if (!node || typeof node !== "object") return;
+      const obj = node as Record<string, unknown>;
+      if (typeof obj.multipleOf === "number") {
+        expect(obj.multipleOf).toBe(1);
+        const bson = obj.bsonType as string[];
+        expect(bson).toEqual(expect.arrayContaining(["int", "long", "double"]));
+        minorFieldsSeen.push(path);
+        return;
+      }
+      if (obj.properties && typeof obj.properties === "object") {
+        for (const [k, v] of Object.entries(obj.properties)) walk(v, `${path}.${k}`);
+      }
+      if (obj.items) walk(obj.items, `${path}[]`);
+    };
+
+    for (const { modelName, jsonSchema } of schemas) walk(jsonSchema, modelName);
+    expect(minorFieldsSeen.length).toBeGreaterThan(0);
+    // All Minor fields: we captured at least one per collection.
+    const collectionsHit = new Set(minorFieldsSeen.map((p) => p.split(".")[0]));
+    expect(collectionsHit.size).toBe(MINOR_FIELD_REGISTRY.length);
+  });
+});
