@@ -1,6 +1,6 @@
 # Accounting-Payments Implementation Plan — v4.2 (execution baseline)
 
-**Status**: execution baseline. Supersedes v4 and v4.1 (kept as review artefacts).
+**Status**: execution baseline. Supersedes all prior plan revisions.
 
 **Changelog from v4.1** (driven by Round-2 RICE review from two Senior Node.js SWEs, 2026-04-23):
 - **Re-sequenced around RICE** — waves replaced by 12 phases ordered by customer-value / dependency.
@@ -20,8 +20,7 @@
 ## Source documents
 - `docs/accounting-payments/MASTER-SYNTHESIS.md`
 - `docs/accounting-payments/RFC-BACKEND.md`, `RFC-FRONTEND.md`
-- `docs/accounting-payments/TALLY-INTEGRATION-DEEP-DIVE.md`
-- Review artefacts: `IMPLEMENTATION-PLAN-v3.md`, `v4.md`, `v4.md` (Round 1 & 2 reviewer outputs in conversation history)
+- `docs/accounting-payments/input/TALLY-INTEGRATION-DEEP-DIVE.md`
 
 ## Operating constraints (v4.2 — updated)
 
