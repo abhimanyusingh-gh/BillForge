@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const correctionEntrySchema = new Schema(
   {
@@ -20,6 +21,10 @@ const extractionLearningSchema = new Schema(
   },
   { timestamps: true }
 );
+
+extractionLearningSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 extractionLearningSchema.index({ clientOrgId: 1, groupKey: 1, groupType: 1 }, { unique: true });
 extractionLearningSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });

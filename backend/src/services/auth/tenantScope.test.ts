@@ -1,9 +1,12 @@
 import { Types } from "mongoose";
 import { describeHarness } from "@/test-utils/mongoTestHarness.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
 import {
   findClientOrgIdsForTenant,
-  findClientOrgIdByIdForTenant
+  findClientOrgIdByIdForTenant,
+  ClientOrgTenantInvariantError
 } from "@/services/auth/tenantScope.js";
 
 const GSTIN_A = "29ABCDE1234F1Z5";
@@ -59,5 +62,73 @@ describeHarness("tenantScope helpers", () => {
 
     const result = await findClientOrgIdByIdForTenant(orgA._id.toString(), tenantB);
     expect(result).toBeNull();
+  });
+});
+
+describeHarness("validateClientOrgTenantInvariant pre-save hook (Invoice)", () => {
+  const baseInvoiceFields = {
+    workloadTier: "standard",
+    sourceType: "test-invariant",
+    sourceKey: "invariant-src",
+    mimeType: "application/pdf",
+    receivedAt: new Date("2026-01-01T00:00:00Z")
+  } as const;
+
+  test("rejects save when clientOrgId belongs to another tenant", async () => {
+    const tenantA = new Types.ObjectId().toString();
+    const tenantB = new Types.ObjectId().toString();
+    const orgB = await ClientOrganizationModel.create({
+      tenantId: tenantB,
+      gstin: GSTIN_A,
+      companyName: "B-Corp"
+    });
+
+    const invoice = new InvoiceModel({
+      ...baseInvoiceFields,
+      tenantId: tenantA,
+      clientOrgId: orgB._id,
+      sourceDocumentId: "doc-mismatch",
+      attachmentName: "mismatch.pdf",
+      status: INVOICE_STATUS.PARSED
+    });
+
+    await expect(invoice.save()).rejects.toBeInstanceOf(
+      ClientOrgTenantInvariantError
+    );
+  });
+
+  test("allows save when status is PENDING_TRIAGE and clientOrgId is null", async () => {
+    const tenantId = new Types.ObjectId().toString();
+
+    const invoice = new InvoiceModel({
+      ...baseInvoiceFields,
+      tenantId,
+      clientOrgId: null,
+      sourceDocumentId: "doc-triage",
+      attachmentName: "triage.pdf",
+      status: INVOICE_STATUS.PENDING_TRIAGE
+    });
+
+    await expect(invoice.save()).resolves.toBeDefined();
+  });
+
+  test("allows save when tenantId matches the clientOrg's tenantId", async () => {
+    const tenantId = new Types.ObjectId().toString();
+    const org = await ClientOrganizationModel.create({
+      tenantId,
+      gstin: GSTIN_B,
+      companyName: "Owned-Corp"
+    });
+
+    const invoice = new InvoiceModel({
+      ...baseInvoiceFields,
+      tenantId,
+      clientOrgId: org._id,
+      sourceDocumentId: "doc-happy",
+      attachmentName: "happy.pdf",
+      status: INVOICE_STATUS.PARSED
+    });
+
+    await expect(invoice.save()).resolves.toBeDefined();
   });
 });

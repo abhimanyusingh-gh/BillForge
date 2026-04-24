@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const EXTRACTION_MAPPING_SOURCE = {
   MANUAL: "manual",
@@ -39,6 +40,10 @@ const extractionMappingSchema = new Schema(
   },
   { timestamps: true }
 );
+
+extractionMappingSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 extractionMappingSchema.index({ clientOrgId: 1, matchType: 1, matchKey: 1 }, { unique: true });
 extractionMappingSchema.index({ clientOrgId: 1, updatedAt: -1 });

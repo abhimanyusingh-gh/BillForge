@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const costCenterMasterSchema = new Schema(
   {
@@ -12,6 +13,10 @@ const costCenterMasterSchema = new Schema(
   },
   { timestamps: true }
 );
+
+costCenterMasterSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 costCenterMasterSchema.index({ clientOrgId: 1, code: 1 }, { unique: true });
 

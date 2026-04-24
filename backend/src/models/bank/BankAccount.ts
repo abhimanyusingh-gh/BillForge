@@ -1,5 +1,6 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 import { BankAccountStatuses, BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const bankAccountSchema = new Schema(
   {
@@ -25,6 +26,10 @@ const bankAccountSchema = new Schema(
     timestamps: true
   }
 );
+
+bankAccountSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 bankAccountSchema.index({ clientOrgId: 1, createdAt: -1 });
 bankAccountSchema.index({ consentHandle: 1 }, { sparse: true });

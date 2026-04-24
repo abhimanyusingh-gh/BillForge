@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 export const BANK_TRANSACTION_MATCH_STATUS = {
   MATCHED: "matched",
@@ -33,6 +34,10 @@ const bankTransactionSchema = new Schema(
   },
   { timestamps: true }
 );
+
+bankTransactionSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 bankTransactionSchema.index({ clientOrgId: 1, statementId: 1 });
 bankTransactionSchema.index({ clientOrgId: 1, matchStatus: 1 });

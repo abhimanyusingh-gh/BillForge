@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 export const WORKFLOW_STATUS = {
   IN_PROGRESS: "in_progress",
@@ -54,6 +55,10 @@ const approvalWorkflowSchema = new Schema({
   steps: { type: [workflowStepSchema], default: [] },
   updatedBy: { type: String }
 }, { timestamps: true });
+
+approvalWorkflowSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 approvalWorkflowSchema.index({ clientOrgId: 1 }, { unique: true });
 

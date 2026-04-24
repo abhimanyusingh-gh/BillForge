@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 export const BANK_STATEMENT_SOURCE = {
   PDF: "pdf-parsed",
@@ -38,6 +39,10 @@ const bankStatementSchema = new Schema(
   },
   { timestamps: true }
 );
+
+bankStatementSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 bankStatementSchema.index({ clientOrgId: 1, createdAt: -1 });
 bankStatementSchema.index({ clientOrgId: 1, bankName: 1, accountNumberMasked: 1 });

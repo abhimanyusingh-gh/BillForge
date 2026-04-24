@@ -21,7 +21,6 @@ import { TALLY_ACTION } from "@/services/export/tallyExporter/xml.ts";
 // persistence cases.
 const CLIENT_ORG_1 = "000000000000000000000001";
 const CLIENT_ORG_2 = "000000000000000000000002";
-const CLIENT_ORG_A = "abcdefabcdefabcdefabcdef";
 
 describe("computeVoucherGuid", () => {
   it("is deterministic for the same (clientOrgId, invoiceId, exportVersion)", () => {
@@ -68,17 +67,23 @@ describe("computeVoucherGuid", () => {
 describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarness }) => {
   afterEach(async () => {
     await getHarness().reset();
+    gstinCounter = 0;
   });
 
+  let gstinCounter = 0;
   async function persistClientOrg(overrides: {
     f12OverwriteByGuidVerified?: boolean;
     stateName?: string | null;
   } = {}): Promise<Types.ObjectId> {
+    gstinCounter += 1;
+    const n = gstinCounter;
+    const first = String.fromCharCode("A".charCodeAt(0) + (n % 26));
+    const second = String.fromCharCode("A".charCodeAt(0) + (Math.floor(n / 26) % 26));
     const doc = await ClientOrganizationModel.create({
       tenantId: "tenant-1",
       companyName: "ACME",
       stateName: overrides.stateName ?? null,
-      gstin: "29ABCDE1234F1Z5",
+      gstin: `29${first}${second}CDE1234F1Z5`,
       f12OverwriteByGuidVerified: overrides.f12OverwriteByGuidVerified ?? false
     });
     return doc._id;
@@ -135,9 +140,12 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
   });
 
   async function createInvoice(overrides: Record<string, unknown>) {
+    const { clientOrgId: overrideClientOrgId, ...rest } = overrides;
+    const clientOrgId = overrideClientOrgId
+      ? (overrideClientOrgId as Types.ObjectId)
+      : await persistClientOrg();
     return InvoiceModel.create({
       tenantId: "tenant-1",
-      clientOrgId: new Types.ObjectId(CLIENT_ORG_A),
       sourceType: "manual",
       sourceKey: `k-${Math.random().toString(36).slice(2)}`,
       sourceDocumentId: `d-${Math.random().toString(36).slice(2)}`,
@@ -145,7 +153,8 @@ describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarnes
       mimeType: "application/pdf",
       receivedAt: new Date(),
       status: "PARSED",
-      ...overrides
+      ...rest,
+      clientOrgId
     });
   }
 

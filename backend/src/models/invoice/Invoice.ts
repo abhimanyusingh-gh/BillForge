@@ -2,6 +2,7 @@ import { Schema, model, type InferSchemaType, type HydratedDocument } from "mong
 import { InvoiceStatuses, INVOICE_STATUS, GL_CODE_SOURCE } from "@/types/invoice.js";
 import { ConfidenceTones } from "@/types/confidence.js";
 import { WorkloadTiers } from "@/types/tenant.js";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const ocrBlockSchema = new Schema(
   {
@@ -401,6 +402,14 @@ const invoiceSchema = new Schema(
     timestamps: true
   }
 );
+
+invoiceSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(
+    this.tenantId,
+    this.clientOrgId,
+    this.status
+  );
+});
 
 invoiceSchema.index(
   {

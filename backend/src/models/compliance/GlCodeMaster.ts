@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const glCodeMasterSchema = new Schema(
   {
@@ -13,6 +14,10 @@ const glCodeMasterSchema = new Schema(
   },
   { timestamps: true }
 );
+
+glCodeMasterSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 glCodeMasterSchema.index({ clientOrgId: 1, code: 1 }, { unique: true });
 glCodeMasterSchema.index({ clientOrgId: 1, category: 1 });

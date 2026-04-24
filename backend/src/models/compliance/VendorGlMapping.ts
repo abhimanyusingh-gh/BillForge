@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const vendorGlMappingSchema = new Schema(
   {
@@ -13,6 +14,10 @@ const vendorGlMappingSchema = new Schema(
   },
   { timestamps: true }
 );
+
+vendorGlMappingSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 vendorGlMappingSchema.index({ clientOrgId: 1, vendorFingerprint: 1, glCode: 1 }, { unique: true });
 

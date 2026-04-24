@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const exportBatchSchema = new Schema(
   {
@@ -15,6 +16,10 @@ const exportBatchSchema = new Schema(
     timestamps: true
   }
 );
+
+exportBatchSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 exportBatchSchema.index({ clientOrgId: 1, createdAt: -1 });
 

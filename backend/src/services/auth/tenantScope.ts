@@ -19,6 +19,14 @@
 
 import type { Types } from "mongoose";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { INVOICE_STATUS } from "@/types/invoice.js";
+
+export class ClientOrgTenantInvariantError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClientOrgTenantInvariantError";
+  }
+}
 
 /**
  * Return the ObjectIds of every ClientOrganization owned by `tenantId`.
@@ -61,4 +69,47 @@ export async function findClientOrgIdByIdForTenant(
     .select("_id")
     .lean();
   return doc?._id ?? null;
+}
+
+/**
+ * Pre-save invariant: every accounting-leaf document must carry a
+ * `clientOrgId` whose referenced `ClientOrganization.tenantId` matches
+ * the document's own `tenantId`. Triage invoices (`PENDING_TRIAGE` +
+ * `clientOrgId: null`) are exempt — client-org assignment is deferred
+ * until a human triages the doc.
+ */
+export async function validateClientOrgTenantInvariant(
+  tenantId: string | null | undefined,
+  clientOrgId: Types.ObjectId | string | null | undefined,
+  status?: string
+): Promise<void> {
+  if (status === INVOICE_STATUS.PENDING_TRIAGE && clientOrgId == null) {
+    return;
+  }
+  if (tenantId == null && clientOrgId == null) {
+    return;
+  }
+  if (!tenantId) {
+    throw new ClientOrgTenantInvariantError(
+      "tenantId required on accounting-leaf documents."
+    );
+  }
+  if (clientOrgId == null) {
+    throw new ClientOrgTenantInvariantError(
+      "clientOrgId required on accounting-leaf documents outside PENDING_TRIAGE."
+    );
+  }
+  const clientOrg = await ClientOrganizationModel.findById(clientOrgId)
+    .select("tenantId")
+    .lean();
+  if (!clientOrg) {
+    throw new ClientOrgTenantInvariantError(
+      `clientOrgId ${String(clientOrgId)} does not exist.`
+    );
+  }
+  if (clientOrg.tenantId !== tenantId) {
+    throw new ClientOrgTenantInvariantError(
+      `clientOrgId ${String(clientOrgId)} belongs to tenant ${clientOrg.tenantId}, not ${tenantId}.`
+    );
+  }
 }

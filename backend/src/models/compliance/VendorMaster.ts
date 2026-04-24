@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const bankHistoryEntrySchema = new Schema(
   {
@@ -46,6 +47,10 @@ const vendorMasterSchema = new Schema(
   },
   { timestamps: true }
 );
+
+vendorMasterSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 vendorMasterSchema.index({ clientOrgId: 1, vendorFingerprint: 1 }, { unique: true });
 vendorMasterSchema.index({ clientOrgId: 1, pan: 1 }, { sparse: true });

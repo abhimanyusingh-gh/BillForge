@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const tdsSectionMappingSchema = new Schema(
   {
@@ -17,6 +18,10 @@ const tdsSectionMappingSchema = new Schema(
   },
   { timestamps: true }
 );
+
+tdsSectionMappingSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
 tdsSectionMappingSchema.index({ clientOrgId: 1, glCategory: 1, panCategory: 1 });
 
