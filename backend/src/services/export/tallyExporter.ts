@@ -18,6 +18,11 @@ import type {
 } from "@/services/export/tallyExporter/xml.js";
 import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
 import { buildTallyExportConfig } from "@/services/export/tenantExportConfigResolver.js";
+import {
+  commitExportVersionBump,
+  resolveReExportDecision
+} from "@/services/export/tallyReExportGuard.js";
+import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
 
 export {
   buildTallyBatchImportXml,
@@ -83,7 +88,15 @@ export class TallyExporter implements AccountingExporter {
           continue;
         }
 
-        const voucherPayload = mapInvoiceToVoucher(invoice, effectiveConfig, invoiceId);
+        const decision = tenantId
+          ? await resolveReExportDecision({
+              tenantId,
+              invoiceId,
+              currentExportVersion: invoice.exportVersion ?? 0
+            })
+          : undefined;
+
+        const voucherPayload = mapInvoiceToVoucher(invoice, effectiveConfig, invoiceId, decision);
 
         const response = await postWithRetry(effectiveConfig.endpoint, voucherPayload, {
           headers: {
@@ -103,6 +116,10 @@ export class TallyExporter implements AccountingExporter {
             error: detail
           });
           continue;
+        }
+
+        if (decision) {
+          await commitExportVersionBump({ invoiceId: String(invoice._id), nextExportVersion: decision.nextExportVersion });
         }
 
         logger.info("tally.export.invoice.success", { invoiceId, reference: summary.lastVchId ?? null });
@@ -367,12 +384,36 @@ function validateInvoiceForExport(invoice: InvoiceDocument, invoiceId: string): 
   return null;
 }
 
-function mapInvoiceToVoucher(invoice: InvoiceDocument, config: TallyExporterConfig, invoiceId: string): string {
+function mapInvoiceToVoucher(
+  invoice: InvoiceDocument,
+  config: TallyExporterConfig,
+  invoiceId: string,
+  decision?: ReExportDecision
+): string {
   const resolvedTotalAmountMinor = resolveInvoiceTotalAmountMinor(
     invoice.parsed?.totalAmountMinor,
     invoice.parsed?.currency,
     invoice.ocrText
   )!;
 
-  return buildTallyPurchaseVoucherPayload(buildVoucherInput(config, invoice, invoiceId, resolvedTotalAmountMinor));
+  const input = buildVoucherInput(config, invoice, invoiceId, resolvedTotalAmountMinor);
+  return buildTallyPurchaseVoucherPayload(decision ? applyReExportDecision(input, decision) : input);
+}
+
+function applyReExportDecision(
+  input: VoucherPayloadInput,
+  decision: ReExportDecision
+): VoucherPayloadInput {
+  const placeOfSupplyStateName = (
+    decision.buyerStateName &&
+    input.partyStateName &&
+    decision.buyerStateName.trim().toLowerCase() !== input.partyStateName.trim().toLowerCase()
+  ) ? decision.buyerStateName : undefined;
+
+  return {
+    ...input,
+    guid: decision.guid,
+    action: decision.action,
+    placeOfSupplyStateName: placeOfSupplyStateName ?? input.placeOfSupplyStateName
+  };
 }
