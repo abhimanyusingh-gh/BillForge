@@ -41,6 +41,9 @@ interface UseInvoiceTableStateResult {
   clearSelection: () => void;
   removeFromSelection: (ids: string[]) => void;
   reconcileWithLoaded: (items: Invoice[]) => void;
+
+  isRiskSignalsExpanded: (invoiceId: string) => boolean;
+  toggleRiskSignalsExpanded: (invoiceId: string) => void;
 }
 
 function readStoredSortDirection(): SortDirection {
@@ -80,6 +83,25 @@ export function useInvoiceTableState(
   );
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const [collapsedRiskRows, setCollapsedRiskRows] = useState<Record<string, true>>({});
+
+  const isRiskSignalsExpanded = useCallback(
+    (invoiceId: string) => collapsedRiskRows[invoiceId] !== true,
+    [collapsedRiskRows]
+  );
+
+  const toggleRiskSignalsExpanded = useCallback((invoiceId: string) => {
+    setCollapsedRiskRows((current) => {
+      const next = { ...current };
+      if (next[invoiceId]) {
+        delete next[invoiceId];
+      } else {
+        next[invoiceId] = true;
+      }
+      return next;
+    });
+  }, []);
 
   const toggleSelection = useCallback((invoice: Invoice) => {
     if (!isInvoiceSelectable(invoice)) {
@@ -136,7 +158,9 @@ export function useInvoiceTableState(
       toggleSelectAllVisible,
       clearSelection,
       removeFromSelection,
-      reconcileWithLoaded
+      reconcileWithLoaded,
+      isRiskSignalsExpanded,
+      toggleRiskSignalsExpanded
     }),
     [
       currentPage,
@@ -151,7 +175,9 @@ export function useInvoiceTableState(
       toggleSelectAllVisible,
       clearSelection,
       removeFromSelection,
-      reconcileWithLoaded
+      reconcileWithLoaded,
+      isRiskSignalsExpanded,
+      toggleRiskSignalsExpanded
     ]
   );
 }

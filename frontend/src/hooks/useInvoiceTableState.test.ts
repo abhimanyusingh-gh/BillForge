@@ -126,6 +126,23 @@ describe("useInvoiceTableState", () => {
     expect(result.current.selectedIds).toEqual([]);
   });
 
+  it("risk signals are expanded by default and toggle between expanded/collapsed", () => {
+    const { result } = renderHook(() => useInvoiceTableState());
+
+    expect(result.current.isRiskSignalsExpanded("inv-1")).toBe(true);
+
+    act(() => {
+      result.current.toggleRiskSignalsExpanded("inv-1");
+    });
+    expect(result.current.isRiskSignalsExpanded("inv-1")).toBe(false);
+    expect(result.current.isRiskSignalsExpanded("inv-2")).toBe(true);
+
+    act(() => {
+      result.current.toggleRiskSignalsExpanded("inv-1");
+    });
+    expect(result.current.isRiskSignalsExpanded("inv-1")).toBe(true);
+  });
+
   it("reconcileWithLoaded drops selected ids whose loaded invoice is no longer selectable", () => {
     const { result } = renderHook(() => useInvoiceTableState());
 
