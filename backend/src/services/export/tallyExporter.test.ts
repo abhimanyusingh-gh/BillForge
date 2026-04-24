@@ -1618,3 +1618,91 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     expect(payload).not.toContain("<GUID>");
   });
 });
+
+describe("TallyExporter PLACEOFSUPPLY emission (vendor-state derivation)", () => {
+  const TENANT_ID = "tenant-pos";
+
+  const CREATE_DECISION_MAHARASHTRA = {
+    guid: "sha-pos-mh",
+    action: "Create",
+    priorExportVersion: 0,
+    nextExportVersion: 1,
+    buyerStateName: "Maharashtra"
+  } as const;
+
+  const CREATE_DECISION_KARNATAKA = {
+    guid: "sha-pos-ka",
+    action: "Create",
+    priorExportVersion: 0,
+    nextExportVersion: 1,
+    buyerStateName: "Karnataka"
+  } as const;
+
+  beforeEach(() => {
+    axiosPostMock.mockReset();
+    resolveReExportDecisionMock.mockReset();
+    stageInFlightExportVersionMock.mockReset();
+    promoteExportVersionMock.mockReset();
+    clearInFlightExportVersionMock.mockReset();
+    tenantTallyCompanyFindOneMock.mockReset();
+    buildTallyExportConfigMock.mockReset();
+    buildTallyExportConfigMock.mockResolvedValue(DEFAULT_TALLY_CONFIG);
+    tenantTallyCompanyFindOneMock.mockResolvedValue(null);
+    stageInFlightExportVersionMock.mockResolvedValue(undefined);
+    promoteExportVersionMock.mockResolvedValue(undefined);
+  });
+
+  async function runExport(
+    decision: { guid: string; action: string; priorExportVersion: number; nextExportVersion: number; buyerStateName: string | null },
+    parsed: Record<string, unknown>
+  ) {
+    resolveReExportDecisionMock.mockResolvedValue(decision);
+    axiosPostMock.mockResolvedValue({
+      data: makeImportResponse({ status: 1, created: 1, lastVchId: "pos-1" })
+    });
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "pos-inv",
+      parsed: { invoiceNumber: "POS-1", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000, ...parsed }
+    });
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    return String(axiosPostMock.mock.calls[0]?.[1] ?? "");
+  }
+
+  it("same-state: Maharashtra GSTIN + Maharashtra tenant — PLACEOFSUPPLY absent", async () => {
+    const payload = await runExport(CREATE_DECISION_MAHARASHTRA, { vendorGstin: "27AABCA1234C1Z5" });
+    expect(payload).not.toContain("<PLACEOFSUPPLY>");
+    expect(payload).toContain("<STATENAME>Maharashtra</STATENAME>");
+  });
+
+  it("cross-state: Maharashtra GSTIN + Karnataka tenant — PLACEOFSUPPLY=Karnataka", async () => {
+    const payload = await runExport(CREATE_DECISION_KARNATAKA, { vendorGstin: "27AABCA1234C1Z5" });
+    expect(payload).toContain("<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>");
+    expect(payload).toContain("<STATENAME>Maharashtra</STATENAME>");
+  });
+
+  it("invalid GSTIN + no address — PLACEOFSUPPLY absent (no derivation)", async () => {
+    const payload = await runExport(CREATE_DECISION_KARNATAKA, { vendorGstin: "INVALID" });
+    expect(payload).not.toContain("<PLACEOFSUPPLY>");
+    expect(payload).not.toContain("<STATENAME>");
+  });
+
+  it("unknown GSTIN prefix — PLACEOFSUPPLY absent, no throw", async () => {
+    const payload = await runExport(CREATE_DECISION_KARNATAKA, { vendorGstin: "99AABCA1234C1Z5" });
+    expect(payload).not.toContain("<PLACEOFSUPPLY>");
+  });
+
+  it("address fallback: no GSTIN, vendorAddress contains 'Tamil Nadu' — STATENAME=Tamil Nadu + cross-state PLACEOFSUPPLY", async () => {
+    const payload = await runExport(CREATE_DECISION_KARNATAKA, {
+      vendorAddress: "Plot 7, Chennai, Tamil Nadu - 600001"
+    });
+    expect(payload).toContain("<STATENAME>Tamil Nadu</STATENAME>");
+    expect(payload).toContain("<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>");
+  });
+
+  it("both absent: no GSTIN, no address — PLACEOFSUPPLY absent, STATENAME absent", async () => {
+    const payload = await runExport(CREATE_DECISION_KARNATAKA, {});
+    expect(payload).not.toContain("<PLACEOFSUPPLY>");
+    expect(payload).not.toContain("<STATENAME>");
+  });
+});
