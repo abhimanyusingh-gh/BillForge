@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useId, useRef } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useModalDismiss } from "@/hooks/useModalDismiss";
 import { tokens } from "./tokens";
 
 const SLIDE_OVER_WIDTH = {
@@ -51,34 +53,20 @@ export function SlideOverPanel({
 }: SlideOverPanelProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
-  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useModalDismiss({
+    open,
+    onClose,
+    options: { lockScroll: true, saveFocusOnOpen: true }
+  });
 
   useEffect(() => {
     if (!open) return;
-
-    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const frame = window.requestAnimationFrame(() => {
       panelRef.current?.focus();
     });
-
-    const handleKey = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("keydown", handleKey);
-      document.body.style.overflow = prevOverflow;
-      previouslyFocusedRef.current?.focus?.();
-    };
-  }, [open, onClose]);
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   const handleBackdrop = useCallback(() => {
     if (dismissOnBackdrop) onClose();
@@ -110,11 +98,12 @@ export function SlideOverPanel({
   );
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
   const reduceMotion = prefersReducedMotion();
   const sideIsRight = side === "right";
 
-  return (
+  return createPortal(
     <div
       data-testid="slide-over-backdrop"
       onClick={handleBackdrop}
@@ -214,6 +203,7 @@ export function SlideOverPanel({
           </footer>
         ) : null}
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 }
