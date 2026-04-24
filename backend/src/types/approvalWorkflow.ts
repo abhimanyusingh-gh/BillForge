@@ -57,7 +57,7 @@ export interface WorkflowStep {
 }
 
 export interface Workflow {
-  tenantId: string;
+  clientOrgId: string;
   enabled: boolean;
   mode: ApprovalWorkflowMode;
   steps: WorkflowStep[];

@@ -3,6 +3,7 @@ import { Schema, model, type InferSchemaType, type HydratedDocument } from "mong
 const costCenterMasterSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     code: { type: String, required: true },
     name: { type: String, required: true },
     department: { type: String, default: null },
@@ -12,7 +13,7 @@ const costCenterMasterSchema = new Schema(
   { timestamps: true }
 );
 
-costCenterMasterSchema.index({ tenantId: 1, code: 1 }, { unique: true });
+costCenterMasterSchema.index({ clientOrgId: 1, code: 1 }, { unique: true });
 
 type CostCenterMaster = InferSchemaType<typeof costCenterMasterSchema>;
 type CostCenterMasterDocument = HydratedDocument<CostCenterMaster>;

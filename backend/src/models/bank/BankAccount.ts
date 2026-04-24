@@ -4,6 +4,7 @@ import { BankAccountStatuses, BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js
 const bankAccountSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     createdByUserId: { type: String, required: true },
     status: { type: String, enum: BankAccountStatuses, required: true, default: BANK_ACCOUNT_STATUS.PENDING_CONSENT },
     consentHandle: { type: String },
@@ -25,7 +26,7 @@ const bankAccountSchema = new Schema(
   }
 );
 
-bankAccountSchema.index({ tenantId: 1, createdAt: -1 });
+bankAccountSchema.index({ clientOrgId: 1, createdAt: -1 });
 bankAccountSchema.index({ consentHandle: 1 }, { sparse: true });
 bankAccountSchema.index({ sessionId: 1 }, { sparse: true });
 

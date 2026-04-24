@@ -12,6 +12,15 @@ export type IngestionSourceType = (typeof INGESTION_SOURCE_TYPE)[keyof typeof IN
 
 export interface IngestedFile {
   tenantId: UUID;
+  /**
+   * Resolved client-org for this file (#156/#159). Set by the source
+   * when it has a deterministic answer — GSTIN match against the
+   * mailbox's `clientOrgIds[]`, a single-candidate mailbox, or a caller
+   * -supplied + ownership-verified value on the upload route. `null`
+   * when resolution lands in the triage bucket; the resulting Invoice
+   * gets `status: PENDING_TRIAGE` + `clientOrgId: null`.
+   */
+  clientOrgId: string | null;
   workloadTier: WorkloadTier;
   sourceKey: string;
   sourceType: IngestionSourceType;

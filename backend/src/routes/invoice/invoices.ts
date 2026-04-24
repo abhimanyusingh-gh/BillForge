@@ -76,11 +76,11 @@ export function createInvoiceRouter(
     return { userId: authContext.userId, role: authContext.role, capabilities };
   }
 
-  function findFolderSource(invoice: { sourceKey: string; tenantId: string; workloadTier: string }) {
+  function findFolderSource(invoice: { sourceKey: string; workloadTier: string }, tenantId: string) {
     return runtimeManifest.sources.find(
       (s): s is FolderSourceManifest =>
         s.type === INGESTION_SOURCE_TYPE.FOLDER && s.key === invoice.sourceKey &&
-        s.tenantId === invoice.tenantId && s.workloadTier === invoice.workloadTier
+        s.tenantId === tenantId && s.workloadTier === invoice.workloadTier
     );
   }
 
@@ -265,7 +265,7 @@ export function createInvoiceRouter(
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
     if (invoice.sourceType !== INGESTION_SOURCE_TYPE.FOLDER) { res.status(404).json({ message: "Original document is unavailable for this ingestion source." }); return; }
 
-    const folderSource = findFolderSource(invoice);
+    const folderSource = findFolderSource(invoice, getAuth(req).tenantId);
     if (!folderSource) { res.status(404).json({ message: "Folder source configuration not found for this invoice." }); return; }
 
     const filePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
@@ -304,7 +304,7 @@ export function createInvoiceRouter(
     }
 
     if (invoice.sourceType === INGESTION_SOURCE_TYPE.FOLDER && invoice.mimeType.startsWith("image/")) {
-      const folderSource = findFolderSource(invoice);
+      const folderSource = findFolderSource(invoice, getAuth(req).tenantId);
       if (folderSource) {
         const imagePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
         if (imagePath) {

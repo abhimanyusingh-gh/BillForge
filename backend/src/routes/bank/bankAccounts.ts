@@ -4,6 +4,10 @@ import { requireCap } from "@/auth/requireCapability.js";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
 import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
+import {
+  findClientOrgIdsForTenant,
+  findClientOrgIdByIdForTenant
+} from "@/services/auth/tenantScope.js";
 
 export function createBankAccountsRouter(bankService: IBankConnectionService) {
   const router = Router();
@@ -11,11 +15,14 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   router.get("/bank/accounts", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const { tenantId } = getAuth(req);
-      const accounts = await BankAccountModel.find({ tenantId }).sort({ createdAt: -1 }).lean();
+      const clientOrgIds = await findClientOrgIdsForTenant(tenantId);
+      const accounts = await BankAccountModel.find({ clientOrgId: { $in: clientOrgIds } })
+        .sort({ createdAt: -1 })
+        .lean();
       res.json({
         items: accounts.map((a) => ({
           _id: a._id.toString(),
-          tenantId: a.tenantId,
+          clientOrgId: String(a.clientOrgId),
           status: a.status,
           aaAddress: a.aaAddress,
           displayName: a.displayName,
@@ -38,14 +45,24 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
       const { tenantId, userId } = getAuth(req);
       const aaAddress = typeof req.body?.aaAddress === "string" ? req.body.aaAddress.trim() : "";
       const displayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
+      const clientOrgIdRaw = typeof req.body?.clientOrgId === "string" ? req.body.clientOrgId.trim() : "";
 
       if (!aaAddress) {
         res.status(400).json({ message: "aaAddress is required." });
         return;
       }
+      if (!clientOrgIdRaw) {
+        res.status(400).json({ message: "clientOrgId is required." });
+        return;
+      }
+      const ownedClientOrgId = await findClientOrgIdByIdForTenant(clientOrgIdRaw, tenantId);
+      if (!ownedClientOrgId) {
+        res.status(403).json({ message: "clientOrgId does not belong to this tenant." });
+        return;
+      }
 
       const account = await BankAccountModel.create({
-        tenantId,
+        clientOrgId: ownedClientOrgId,
         createdByUserId: userId,
         aaAddress,
         displayName: displayName || aaAddress,
@@ -69,7 +86,11 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   router.delete("/bank/accounts/:id", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const { tenantId } = getAuth(req);
-      const account = await BankAccountModel.findOne({ _id: req.params.id, tenantId });
+      const clientOrgIds = await findClientOrgIdsForTenant(tenantId);
+      const account = await BankAccountModel.findOne({
+        _id: req.params.id,
+        clientOrgId: { $in: clientOrgIds }
+      });
       if (!account) {
         res.status(404).json({ message: "Bank account not found." });
         return;
@@ -85,7 +106,11 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   router.post("/bank/accounts/:id/refresh", requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const { tenantId } = getAuth(req);
-      const account = await BankAccountModel.findOne({ _id: req.params.id, tenantId });
+      const clientOrgIds = await findClientOrgIdsForTenant(tenantId);
+      const account = await BankAccountModel.findOne({
+        _id: req.params.id,
+        clientOrgId: { $in: clientOrgIds }
+      });
       if (!account) {
         res.status(404).json({ message: "Bank account not found." });
         return;

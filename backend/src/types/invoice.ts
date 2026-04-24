@@ -10,6 +10,14 @@ export const INVOICE_STATUS = {
   FAILED_PARSE: "FAILED_PARSE",
   APPROVED: "APPROVED",
   EXPORTED: "EXPORTED",
+  /**
+   * Polled-ingestion triage state (#159): invoice arrived via Gmail
+   * poller / folder-watcher but neither GSTIN match nor single-candidate
+   * resolution could assign a `clientOrgId`. The only status under
+   * which `Invoice.clientOrgId` is permitted to be null — a human
+   * assigns the client-org via triage UI, then transitions status.
+   */
+  PENDING_TRIAGE: "PENDING_TRIAGE",
 } as const;
 
 export const INVOICE_FIELD_KEY = {

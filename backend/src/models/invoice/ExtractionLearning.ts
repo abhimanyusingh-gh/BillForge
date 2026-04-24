@@ -13,6 +13,7 @@ const correctionEntrySchema = new Schema(
 const extractionLearningSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     groupKey: { type: String, required: true },
     groupType: { type: String, required: true, enum: ["invoice-type", "vendor"] },
     corrections: { type: [correctionEntrySchema], default: [] }
@@ -20,7 +21,7 @@ const extractionLearningSchema = new Schema(
   { timestamps: true }
 );
 
-extractionLearningSchema.index({ tenantId: 1, groupKey: 1, groupType: 1 }, { unique: true });
+extractionLearningSchema.index({ clientOrgId: 1, groupKey: 1, groupType: 1 }, { unique: true });
 extractionLearningSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 
 type ExtractionLearning = InferSchemaType<typeof extractionLearningSchema>;

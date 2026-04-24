@@ -27,6 +27,7 @@ const fieldOverridesSchema = new Schema(
 const extractionMappingSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     matchType: { type: String, required: true, enum: ExtractionMappingMatchTypes },
     matchKey: { type: String, required: true },
     canonicalVendorName: { type: String },
@@ -39,8 +40,8 @@ const extractionMappingSchema = new Schema(
   { timestamps: true }
 );
 
-extractionMappingSchema.index({ tenantId: 1, matchType: 1, matchKey: 1 }, { unique: true });
-extractionMappingSchema.index({ tenantId: 1, updatedAt: -1 });
+extractionMappingSchema.index({ clientOrgId: 1, matchType: 1, matchKey: 1 }, { unique: true });
+extractionMappingSchema.index({ clientOrgId: 1, updatedAt: -1 });
 
 type ExtractionMapping = InferSchemaType<typeof extractionMappingSchema>;
 

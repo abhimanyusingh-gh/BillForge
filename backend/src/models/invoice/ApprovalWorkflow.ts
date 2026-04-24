@@ -44,6 +44,7 @@ const workflowStepSchema = new Schema({
 
 const approvalWorkflowSchema = new Schema({
   tenantId: { type: String, required: true },
+  clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
   enabled: { type: Boolean, required: true, default: false },
   mode: { type: String, enum: ApprovalWorkflowModes, required: true, default: "simple" },
   simpleConfig: {
@@ -54,7 +55,7 @@ const approvalWorkflowSchema = new Schema({
   updatedBy: { type: String }
 }, { timestamps: true });
 
-approvalWorkflowSchema.index({ tenantId: 1 }, { unique: true });
+approvalWorkflowSchema.index({ clientOrgId: 1 }, { unique: true });
 
 type ApprovalWorkflow = InferSchemaType<typeof approvalWorkflowSchema>;
 export const ApprovalWorkflowModel = model<ApprovalWorkflow>("ApprovalWorkflow", approvalWorkflowSchema);

@@ -15,6 +15,7 @@ import { IngestionJobOrchestrator } from "@/services/ingestion/IngestionJobOrche
 import { MAX_UPLOAD_FILE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from "@/constants.js";
 import { isAllowedFileExtension } from "@/utils/validation.js";
 import { guessMimeTypeFromKey } from "@/utils/mime.js";
+import { findClientOrgIdByIdForTenant } from "@/services/auth/tenantScope.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -111,6 +112,22 @@ export function createJobsRouter(
         return;
       }
 
+      // Post-hierarchy-pivot (#156): every upload must carry a
+      // caller-supplied `clientOrgId` that belongs to the caller's
+      // tenant. Ownership re-check each request — never trust the body.
+      const clientOrgIdRaw = typeof (req.body as { clientOrgId?: unknown })?.clientOrgId === "string"
+        ? ((req.body as { clientOrgId: string }).clientOrgId).trim()
+        : "";
+      if (!clientOrgIdRaw) {
+        res.status(400).json({ message: "clientOrgId is required in the upload request." });
+        return;
+      }
+      const ownedClientOrgId = await findClientOrgIdByIdForTenant(clientOrgIdRaw, context.tenantId);
+      if (!ownedClientOrgId) {
+        res.status(403).json({ message: "clientOrgId does not belong to this tenant." });
+        return;
+      }
+
       const rejected = files.filter((f) => !isAllowedFileExtension(f.originalname));
       if (rejected.length > 0) {
         res.status(400).json({
@@ -145,7 +162,7 @@ export function createJobsRouter(
 
         try {
           await InvoiceModel.create({
-            tenantId: context.tenantId,
+            clientOrgId: ownedClientOrgId,
             workloadTier: "standard",
             sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
             sourceKey: `s3-upload-${context.tenantId}`,
@@ -210,10 +227,30 @@ export function createJobsRouter(
         return;
       }
 
+      // Post-hierarchy-pivot: by-keys uploads carry a single
+      // `clientOrgId` that applies to every key in the batch. Wrap each
+      // item in a fresh ownership re-check — callers don't get to
+      // cross-assign on a per-key basis without a second ownership call.
+      const clientOrgIdRaw = typeof (req.body as { clientOrgId?: unknown })?.clientOrgId === "string"
+        ? ((req.body as { clientOrgId: string }).clientOrgId).trim()
+        : "";
+      if (!clientOrgIdRaw) {
+        res.status(400).json({ message: "clientOrgId is required in the upload request." });
+        return;
+      }
+
       const uploaded: string[] = [];
       let newlyCreated = 0;
 
       for (const key of keys) {
+        // Re-verify ownership inside the loop — mirrors the closed #153
+        // reviewer feedback: batch loops must not skip per-item checks.
+        const ownedClientOrgId = await findClientOrgIdByIdForTenant(clientOrgIdRaw, context.tenantId);
+        if (!ownedClientOrgId) {
+          res.status(403).json({ message: "clientOrgId does not belong to this tenant." });
+          return;
+        }
+
         const { body: fileBuffer, contentType } = await fileStore.getObject(key);
         const contentHash = createHash("sha256").update(fileBuffer).digest("base64url");
         const mimeType = contentType !== "application/octet-stream" ? contentType : guessMimeTypeFromKey(key);
@@ -221,7 +258,7 @@ export function createJobsRouter(
 
         try {
           await InvoiceModel.create({
-            tenantId: context.tenantId,
+            clientOrgId: ownedClientOrgId,
             workloadTier: "standard",
             sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
             sourceKey: `s3-upload-${context.tenantId}`,

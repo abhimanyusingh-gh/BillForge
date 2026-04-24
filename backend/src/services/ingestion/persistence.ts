@@ -66,8 +66,16 @@ export function buildSuccessData(
     ? String(file.metadata.messageId).trim()
     : undefined;
 
+  // Post hierarchy-pivot: `clientOrgId: null` + `status: PENDING_TRIAGE`
+  // is the only permitted null-client-org combination (#159). If the
+  // source couldn't resolve a client-org, the caller upstream already
+  // set triage; otherwise the normal status path applies.
+  const triage = file.clientOrgId === null;
+  const effectiveStatus: InvoiceStatus = triage ? INVOICE_STATUS.PENDING_TRIAGE : status;
+
   return {
-    sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+    tenantId: file.tenantId,
+    sourceType: file.sourceType, clientOrgId: file.clientOrgId, workloadTier: file.workloadTier,
     sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
     attachmentName: file.attachmentName, mimeType,
     receivedAt: file.receivedAt,
@@ -75,7 +83,7 @@ export function buildSuccessData(
     ocrProvider: extraction.provider, ocrText: extraction.text,
     ocrConfidence: extraction.confidence, ocrBlocks: finalBlocks,
     ocrTokens: extraction.ocrTokens, slmTokens: extraction.slmTokens,
-    status, metadata,
+    status: effectiveStatus, metadata,
     parsed: parsedResult.parsed,
     confidenceScore: Number.isFinite(confidence.score) ? confidence.score : 0, confidenceTone: confidence.tone,
     autoSelectForApproval: confidence.autoSelectForApproval,
@@ -92,7 +100,8 @@ export function buildFailureData(
   error: unknown
 ): Record<string, unknown> {
   const base = {
-    sourceType: file.sourceType, tenantId: file.tenantId, workloadTier: file.workloadTier,
+    tenantId: file.tenantId,
+    sourceType: file.sourceType, clientOrgId: file.clientOrgId, workloadTier: file.workloadTier,
     sourceKey: file.sourceKey, sourceDocumentId: file.sourceDocumentId,
     attachmentName: file.attachmentName, mimeType,
     receivedAt: file.receivedAt, metadata: file.metadata,
@@ -114,14 +123,22 @@ export function buildFailureData(
 
 export async function upsertFromPending(file: IngestedFile, data: Record<string, unknown>): Promise<void> {
   const { attachmentName: _keep, ...updateData } = data;
+  // Triage-state pending rows carry clientOrgId: null; match on sourceDocumentId alone.
+  const matchBase: Record<string, unknown> = { sourceDocumentId: file.sourceDocumentId };
+  if (file.clientOrgId) {
+    matchBase.clientOrgId = file.clientOrgId;
+  } else {
+    matchBase.clientOrgId = null;
+  }
+
   const updated = await InvoiceModel.findOneAndUpdate(
-    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId, status: INVOICE_STATUS.PENDING },
+    { ...matchBase, status: INVOICE_STATUS.PENDING },
     { $set: updateData }
   );
   if (updated) return;
 
   const overwritten = await InvoiceModel.findOneAndUpdate(
-    { tenantId: file.tenantId, sourceDocumentId: file.sourceDocumentId },
+    matchBase,
     { $set: updateData }
   );
   if (overwritten) return;

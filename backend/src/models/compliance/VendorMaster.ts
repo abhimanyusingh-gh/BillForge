@@ -15,6 +15,7 @@ const bankHistoryEntrySchema = new Schema(
 const vendorMasterSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     vendorFingerprint: { type: String, required: true },
     name: { type: String, required: true },
     aliases: { type: [String], default: [] },
@@ -46,9 +47,9 @@ const vendorMasterSchema = new Schema(
   { timestamps: true }
 );
 
-vendorMasterSchema.index({ tenantId: 1, vendorFingerprint: 1 }, { unique: true });
-vendorMasterSchema.index({ tenantId: 1, pan: 1 }, { sparse: true });
-vendorMasterSchema.index({ tenantId: 1, name: "text" });
+vendorMasterSchema.index({ clientOrgId: 1, vendorFingerprint: 1 }, { unique: true });
+vendorMasterSchema.index({ clientOrgId: 1, pan: 1 }, { sparse: true });
+vendorMasterSchema.index({ clientOrgId: 1, name: "text" });
 
 type VendorMaster = InferSchemaType<typeof vendorMasterSchema>;
 export type VendorMasterDocument = HydratedDocument<VendorMaster>;

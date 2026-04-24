@@ -68,6 +68,11 @@ export class FolderIngestionSource implements IngestionSource {
       const buffer = await fs.readFile(entry.absolutePath);
       files.push({
         tenantId: this.tenantId,
+        // Per #159: folder-watcher files enter the ingestion service's
+        // resolver (GSTIN match → single-candidate → triage). Default to
+        // triage fallback; service upgrades the client-org when a
+        // deterministic resolution is possible.
+        clientOrgId: null,
         workloadTier: this.workloadTier,
         sourceKey: this.key,
         sourceType: this.type,

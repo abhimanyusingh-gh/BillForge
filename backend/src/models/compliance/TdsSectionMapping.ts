@@ -2,7 +2,14 @@ import { Schema, model, type InferSchemaType, type HydratedDocument } from "mong
 
 const tdsSectionMappingSchema = new Schema(
   {
+    /**
+     * Nullable: global default mappings carry `tenantId: null` + `clientOrgId: null`;
+     * client-org-specific overrides carry a concrete tenantId + ObjectId. The
+     * resolver prefers client-org-specific rows over the global
+     * default at match time.
+     */
     tenantId: { type: String, default: null },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", default: null },
     glCategory: { type: String, required: true },
     panCategory: { type: String, required: true },
     tdsSection: { type: String, required: true },
@@ -11,7 +18,7 @@ const tdsSectionMappingSchema = new Schema(
   { timestamps: true }
 );
 
-tdsSectionMappingSchema.index({ tenantId: 1, glCategory: 1, panCategory: 1 });
+tdsSectionMappingSchema.index({ clientOrgId: 1, glCategory: 1, panCategory: 1 });
 
 type TdsSectionMapping = InferSchemaType<typeof tdsSectionMappingSchema>;
 type TdsSectionMappingDocument = HydratedDocument<TdsSectionMapping>;
