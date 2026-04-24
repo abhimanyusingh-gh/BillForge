@@ -12,6 +12,7 @@ interface VoucherGuidInputs {
 export interface ReExportDecision {
   guid: string;
   action: TallyAction;
+  priorExportVersion: number;
   nextExportVersion: number;
   buyerStateName: string | null;
 }
@@ -26,8 +27,26 @@ export class F12OverwriteNotVerifiedError extends Error {
   }
 }
 
+export class ExportVersionConflictError extends Error {
+  readonly code = "TALLY_EXPORT_VERSION_CONFLICT";
+  constructor(readonly invoiceId: string, readonly expectedPriorVersion: number) {
+    super(
+      `Export version CAS conflict for invoice ${invoiceId}: expected exportVersion=${expectedPriorVersion} ` +
+      "but another exporter advanced it concurrently. Retry with the refreshed invoice state."
+    );
+  }
+}
+
+function lengthPrefix(value: string): string {
+  return `${value.length}:${value}`;
+}
+
 export function computeVoucherGuid(inputs: VoucherGuidInputs): string {
-  const payload = `${inputs.tenantId}:${inputs.invoiceId}:${inputs.exportVersion}`;
+  const payload = [
+    lengthPrefix(inputs.tenantId),
+    lengthPrefix(inputs.invoiceId),
+    String(inputs.exportVersion)
+  ].join("|");
   return createHash("sha256").update(payload).digest("hex");
 }
 
@@ -49,6 +68,7 @@ export async function resolveReExportDecision(params: {
   return {
     guid: computeVoucherGuid({ tenantId, invoiceId, exportVersion: nextExportVersion }),
     action,
+    priorExportVersion: currentExportVersion,
     nextExportVersion,
     buyerStateName: company?.stateName ?? null
   };
@@ -56,10 +76,23 @@ export async function resolveReExportDecision(params: {
 
 export async function commitExportVersionBump(params: {
   invoiceId: string;
-  nextExportVersion: number;
+  expectedPriorVersion: number;
+}): Promise<void> {
+  const result = await InvoiceModel.updateOne(
+    { _id: params.invoiceId, exportVersion: params.expectedPriorVersion },
+    { $inc: { exportVersion: 1 } }
+  );
+  if (result.matchedCount === 0) {
+    throw new ExportVersionConflictError(params.invoiceId, params.expectedPriorVersion);
+  }
+}
+
+export async function rollbackExportVersionBump(params: {
+  invoiceId: string;
+  bumpedVersion: number;
 }): Promise<void> {
   await InvoiceModel.updateOne(
-    { _id: params.invoiceId },
-    { $set: { exportVersion: params.nextExportVersion } }
+    { _id: params.invoiceId, exportVersion: params.bumpedVersion },
+    { $inc: { exportVersion: -1 } }
   );
 }

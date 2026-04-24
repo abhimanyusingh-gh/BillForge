@@ -1,7 +1,9 @@
 const axiosPostMock = jest.fn();
 const resolveReExportDecisionMock = jest.fn();
 const commitExportVersionBumpMock = jest.fn();
+const rollbackExportVersionBumpMock = jest.fn();
 const buildTallyExportConfigMock = jest.fn();
+const tenantTallyCompanyFindOneMock = jest.fn();
 const DEFAULT_TALLY_CONFIG = {
   endpoint: "http://example.test/tally",
   companyName: "Demo",
@@ -15,18 +17,30 @@ jest.mock("axios", () => ({
   }
 }));
 
-jest.mock("@/services/export/tallyReExportGuard.js", () => ({
+jest.mock("@/services/export/tallyReExportGuard.ts", () => ({
   __esModule: true,
   resolveReExportDecision: (...args: unknown[]) => resolveReExportDecisionMock(...args),
   commitExportVersionBump: (...args: unknown[]) => commitExportVersionBumpMock(...args),
+  rollbackExportVersionBump: (...args: unknown[]) => rollbackExportVersionBumpMock(...args),
   computeVoucherGuid: jest.requireActual("@/services/export/tallyReExportGuard.ts").computeVoucherGuid,
-  F12OverwriteNotVerifiedError: jest.requireActual("@/services/export/tallyReExportGuard.ts").F12OverwriteNotVerifiedError
+  F12OverwriteNotVerifiedError: jest.requireActual("@/services/export/tallyReExportGuard.ts").F12OverwriteNotVerifiedError,
+  ExportVersionConflictError: jest.requireActual("@/services/export/tallyReExportGuard.ts").ExportVersionConflictError
 }));
 
-jest.mock("@/services/export/tenantExportConfigResolver.js", () => ({
+jest.mock("@/services/export/tenantExportConfigResolver.ts", () => ({
   __esModule: true,
   buildTallyExportConfig: (...args: unknown[]) => buildTallyExportConfigMock(...args),
   buildCsvExportConfig: jest.fn()
+}));
+
+jest.mock("@/models/integration/TenantTallyCompany.ts", () => ({
+  __esModule: true,
+  TenantTallyCompanyModel: {
+    findOne: (...args: unknown[]) => ({
+      lean: () => tenantTallyCompanyFindOneMock(...args)
+    })
+  },
+  TALLY_VERSION: jest.requireActual("@/models/integration/TenantTallyCompany.ts").TALLY_VERSION
 }));
 
 import {
@@ -1354,7 +1368,10 @@ describe("TallyExporter re-export guard (BE-2)", () => {
     axiosPostMock.mockReset();
     resolveReExportDecisionMock.mockReset();
     commitExportVersionBumpMock.mockReset();
+    rollbackExportVersionBumpMock.mockReset();
     buildTallyExportConfigMock.mockReset();
+    tenantTallyCompanyFindOneMock.mockReset();
+    tenantTallyCompanyFindOneMock.mockResolvedValue(null);
     buildTallyExportConfigMock.mockResolvedValue({
       companyName: "Demo Co",
       purchaseLedgerName: "Purchase",
@@ -1364,10 +1381,11 @@ describe("TallyExporter re-export guard (BE-2)", () => {
     });
   });
 
-  it("first export stamps GUID + ACTION=Create and bumps exportVersion to 1 on success", async () => {
+  it("first export stamps GUID + ACTION=Create and bumps exportVersion via CAS on success", async () => {
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-new-1",
       action: "Create",
+      priorExportVersion: 0,
       nextExportVersion: 1,
       buyerStateName: null
     });
@@ -1392,13 +1410,15 @@ describe("TallyExporter re-export guard (BE-2)", () => {
     const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
     expect(payload).toContain("ACTION=\"Create\"");
     expect(payload).toContain("<GUID>sha-new-1</GUID>");
-    expect(commitExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-1", nextExportVersion: 1 });
+    expect(commitExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-1", expectedPriorVersion: 0 });
+    expect(rollbackExportVersionBumpMock).not.toHaveBeenCalled();
   });
 
-  it("re-export stamps ACTION=Alter with bumped version GUID and bumps exportVersion on 200 OK", async () => {
+  it("re-export stamps ACTION=Alter with bumped version GUID and CAS-bumps exportVersion on 200 OK", async () => {
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-alter-v2",
       action: "Alter",
+      priorExportVersion: 1,
       nextExportVersion: 2,
       buyerStateName: null
     });
@@ -1424,13 +1444,15 @@ describe("TallyExporter re-export guard (BE-2)", () => {
     const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
     expect(payload).toContain("ACTION=\"Alter\"");
     expect(payload).toContain("<GUID>sha-alter-v2</GUID>");
-    expect(commitExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-2", nextExportVersion: 2 });
+    expect(commitExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-2", expectedPriorVersion: 1 });
+    expect(rollbackExportVersionBumpMock).not.toHaveBeenCalled();
   });
 
-  it("does NOT bump exportVersion when Tally import fails (ERRORS>0)", async () => {
+  it("rolls back the CAS bump when Tally import fails (ERRORS>0)", async () => {
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-x",
       action: "Create",
+      priorExportVersion: 0,
       nextExportVersion: 1,
       buyerStateName: null
     });
@@ -1446,7 +1468,30 @@ describe("TallyExporter re-export guard (BE-2)", () => {
 
     const results = await exporter.exportInvoices([invoice], TENANT_ID);
     expect(results[0].success).toBe(false);
-    expect(commitExportVersionBumpMock).not.toHaveBeenCalled();
+    expect(commitExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-3", expectedPriorVersion: 0 });
+    expect(rollbackExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-3", bumpedVersion: 1 });
+  });
+
+  it("rolls back the CAS bump when axios POST throws", async () => {
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "sha-throw",
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    });
+    mockAxiosPostRejected(new Error("connect refused"));
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "re-3b",
+      parsed: { invoiceNumber: "RE-3B", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+    });
+
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    expect(commitExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-3b", expectedPriorVersion: 0 });
+    expect(rollbackExportVersionBumpMock).toHaveBeenCalledWith({ invoiceId: "re-3b", bumpedVersion: 1 });
   });
 
   it("surfaces F12OverwriteNotVerifiedError with a clear message when re-export is attempted without verification", async () => {
@@ -1471,6 +1516,7 @@ describe("TallyExporter re-export guard (BE-2)", () => {
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-pos",
       action: "Create",
+      priorExportVersion: 0,
       nextExportVersion: 1,
       buyerStateName: "Karnataka"
     });
@@ -1488,6 +1534,29 @@ describe("TallyExporter re-export guard (BE-2)", () => {
     const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
     expect(payload).toContain("<GUID>sha-pos</GUID>");
     expect(payload).not.toContain("<PLACEOFSUPPLY>");
+  });
+
+  it("reads detectedVersion from TenantTallyCompany when tenantId is provided", async () => {
+    tenantTallyCompanyFindOneMock.mockResolvedValue({ detectedVersion: "prime" });
+    resolveReExportDecisionMock.mockResolvedValue({
+      guid: "sha-dv",
+      action: "Create",
+      priorExportVersion: 0,
+      nextExportVersion: 1,
+      buyerStateName: null
+    });
+    axiosPostMock.mockResolvedValue({
+      data: makeImportResponse({ status: 1, created: 1, lastVchId: "905" })
+    });
+
+    const exporter = createExporter();
+    const invoice = createInvoiceStub({
+      _id: "re-dv",
+      parsed: { invoiceNumber: "RE-DV", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+    });
+
+    await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(tenantTallyCompanyFindOneMock).toHaveBeenCalledWith({ tenantId: TENANT_ID });
   });
 
   it("does not engage the guard or bump version when tenantId is omitted (backward-compat)", async () => {

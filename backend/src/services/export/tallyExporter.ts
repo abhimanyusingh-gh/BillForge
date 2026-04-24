@@ -20,9 +20,11 @@ import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/
 import { buildTallyExportConfig } from "@/services/export/tenantExportConfigResolver.js";
 import {
   commitExportVersionBump,
-  resolveReExportDecision
+  resolveReExportDecision,
+  rollbackExportVersionBump
 } from "@/services/export/tallyReExportGuard.js";
 import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
+import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
 
 export {
   buildTallyBatchImportXml,
@@ -72,6 +74,14 @@ export class TallyExporter implements AccountingExporter {
       ? await this.resolveEffectiveConfig(tenantId)
       : this.config;
 
+    if (tenantId) {
+      const company = await TenantTallyCompanyModel.findOne({ tenantId }).lean();
+      logger.info("tally.export.detected_version", {
+        tenantId,
+        detectedVersion: company?.detectedVersion ?? null
+      });
+    }
+
     for (const invoice of invoices) {
       const invoiceId = toUUID(String(invoice._id));
 
@@ -96,18 +106,54 @@ export class TallyExporter implements AccountingExporter {
             })
           : undefined;
 
+        if (decision) {
+          await commitExportVersionBump({
+            invoiceId: String(invoice._id),
+            expectedPriorVersion: decision.priorExportVersion
+          });
+        }
+
         const voucherPayload = mapInvoiceToVoucher(invoice, effectiveConfig, invoiceId, decision);
 
-        const response = await postWithRetry(effectiveConfig.endpoint, voucherPayload, {
-          headers: {
-            "Content-Type": "text/xml; charset=utf-8"
-          },
-          timeout: 30_000,
-          responseType: "text"
-        });
+        let summary;
+        try {
+          const response = await postWithRetry(effectiveConfig.endpoint, voucherPayload, {
+            headers: {
+              "Content-Type": "text/xml; charset=utf-8"
+            },
+            timeout: 30_000,
+            responseType: "text"
+          });
+          summary = parseTallyImportResponse(String(response.data ?? ""));
+        } catch (postError) {
+          if (decision) {
+            await rollbackExportVersionBump({
+              invoiceId: String(invoice._id),
+              bumpedVersion: decision.nextExportVersion
+            }).catch((rollbackErr) => {
+              logger.error("tally.export.rollback.failed", {
+                invoiceId,
+                bumpedVersion: decision.nextExportVersion,
+                error: (rollbackErr as Error).message
+              });
+            });
+          }
+          throw postError;
+        }
 
-        const summary = parseTallyImportResponse(String(response.data ?? ""));
         if (!isSuccessfulImport(summary)) {
+          if (decision) {
+            await rollbackExportVersionBump({
+              invoiceId: String(invoice._id),
+              bumpedVersion: decision.nextExportVersion
+            }).catch((rollbackErr) => {
+              logger.error("tally.export.rollback.failed", {
+                invoiceId,
+                bumpedVersion: decision.nextExportVersion,
+                error: (rollbackErr as Error).message
+              });
+            });
+          }
           const detail = summary.lineErrors[0] ?? `Import failed with ERRORS=${summary.errors}`;
           logger.warn("tally.export.invoice.failed", { invoiceId, error: detail });
           results.push({
@@ -116,10 +162,6 @@ export class TallyExporter implements AccountingExporter {
             error: detail
           });
           continue;
-        }
-
-        if (decision) {
-          await commitExportVersionBump({ invoiceId: String(invoice._id), nextExportVersion: decision.nextExportVersion });
         }
 
         logger.info("tally.export.invoice.success", { invoiceId, reference: summary.lastVchId ?? null });
