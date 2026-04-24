@@ -53,6 +53,7 @@ import { InvoiceDetailPanel } from "@/components/invoice/InvoiceDetailPanel";
 import { RiskDot, RISK_SEVERITY, type RiskSeverity } from "@/components/compliance/RiskDot";
 import { InvoicePopup } from "@/components/invoice/InvoicePopup";
 import { GlCodeDropdown } from "@/components/compliance/GlCodeDropdown";
+import { ActionHintBadge } from "@/components/invoice/ActionHintBadge";
 
 function formatTaxSummary(invoice: { parsed?: { gst?: { cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number }; currency?: string } }): string {
   const gst = invoice.parsed?.gst;
@@ -1225,20 +1226,21 @@ export function InvoiceView({
               <table>
                 <thead>
                   <tr>
-                    <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
+                    <th><input type="checkbox" aria-label="Select all visible invoices" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
                     {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["tax", "Tax"], ["glCode", "GL Code"], ["tds", "TDS"], ["signals", "Signals"], ["confidence", "Score"], ["status", "Status"], ["approvedBy", "Approved By"], ["received", "Received"]] as const).map(([key, label]) => (
                       <th
                         key={key}
                         className="sortable-th"
+                        aria-sort={sortColumn === key ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                         style={columnWidths[key] ? { width: columnWidths[key], position: "relative" } : { position: "relative" }}
                         onClick={() => { if (sortColumn === key) { setSortDirection((d) => d === "asc" ? "desc" : "asc"); } else { setSortColumn(key); setSortDirection("asc"); } }}
                       >
                         {label}
-                        {sortColumn === key ? <span className="sort-indicator">{sortDirection === "asc" ? " \u25B2" : " \u25BC"}</span> : null}
+                        {sortColumn === key ? <span className="sort-indicator" aria-hidden="true">{sortDirection === "asc" ? " \u25B2" : " \u25BC"}</span> : null}
                         <span className="col-resize-handle" onMouseDown={(e) => handleColumnResize(key, e)} />
                       </th>
                     ))}
-                    <th></th>
+                    <th aria-label="Row actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -1256,6 +1258,7 @@ export function InvoiceView({
                         <td>
                           <input
                             type="checkbox"
+                            aria-label={`Select invoice ${invoice.attachmentName}`}
                             checked={selectedIds.includes(invoice._id)}
                             disabled={!isInvoiceSelectable(invoice)}
                             onChange={() => toggleSelection(invoice)}
@@ -1429,23 +1432,24 @@ export function InvoiceView({
                             });
                             const ingesting = ingestingIds.has(invoice._id);
                             return (
-                              <>
+                              <div className="row-actions-cell" style={{ display: "inline-flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap" }}>
+                                <ActionHintBadge invoice={invoice} />
                                 {actions.includes("approve") && !ingesting && (
-                                  <button type="button" className="row-action-button row-action-approve" title="Approve" onClick={() => void handleApproveSingle(invoice._id)}>
-                                    <span className="material-symbols-outlined">check_circle</span>
+                                  <button type="button" className="row-action-button row-action-approve" title="Approve" aria-label={`Approve invoice ${invoice.attachmentName}`} onClick={() => void handleApproveSingle(invoice._id)}>
+                                    <span className="material-symbols-outlined" aria-hidden="true">check_circle</span>
                                   </button>
                                 )}
                                 {actions.includes("reingest") && !ingesting && (
-                                  <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
-                                    <span className="material-symbols-outlined">replay</span>
+                                  <button type="button" className="row-action-button row-action-retry" title="Reingest" aria-label={`Reingest invoice ${invoice.attachmentName}`} onClick={() => void handleRetrySingle(invoice._id)}>
+                                    <span className="material-symbols-outlined" aria-hidden="true">replay</span>
                                   </button>
                                 )}
                                 {actions.includes("delete") && !ingesting && (
-                                  <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
-                                    <span className="material-symbols-outlined">delete</span>
+                                  <button type="button" className="row-action-button" title="Delete" aria-label={`Delete invoice ${invoice.attachmentName}`} onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
+                                    <span className="material-symbols-outlined" aria-hidden="true">delete</span>
                                   </button>
                                 )}
-                              </>
+                              </div>
                             );
                           })()}
                         </td>

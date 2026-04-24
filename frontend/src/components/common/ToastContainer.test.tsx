@@ -50,4 +50,29 @@ describe("ToastContainer", () => {
     expect(screen.getByText("First")).toBeInTheDocument();
     expect(screen.getByText("Second")).toBeInTheDocument();
   });
+
+  it("uses role=status + aria-live=polite for non-error toasts", () => {
+    render(<ToastContainer toasts={[makeToast({ type: "success" })]} onRemove={jest.fn()} />);
+    const toast = document.querySelector(".toast-success");
+    expect(toast).toHaveAttribute("role", "status");
+    expect(toast).toHaveAttribute("aria-live", "polite");
+    expect(toast).toHaveAttribute("aria-atomic", "true");
+  });
+
+  it("uses role=alert + aria-live=assertive for error toasts", () => {
+    render(<ToastContainer toasts={[makeToast({ type: "error" })]} onRemove={jest.fn()} />);
+    const toast = document.querySelector(".toast-error");
+    expect(toast).toHaveAttribute("role", "alert");
+    expect(toast).toHaveAttribute("aria-live", "assertive");
+  });
+
+  it("labels the dismiss button for screen readers", () => {
+    render(<ToastContainer toasts={[makeToast()]} onRemove={jest.fn()} />);
+    expect(screen.getByRole("button", { name: "Dismiss notification" })).toBeInTheDocument();
+  });
+
+  it("labels the container region", () => {
+    render(<ToastContainer toasts={[makeToast()]} onRemove={jest.fn()} />);
+    expect(document.querySelector(".toast-container")).toHaveAttribute("aria-label", "Notifications");
+  });
 });

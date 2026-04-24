@@ -7,6 +7,18 @@ const ICON_MAP: Record<Toast["type"], string> = {
   info: "info"
 };
 
+const ARIA_LIVE_BY_TYPE: Record<Toast["type"], "polite" | "assertive"> = {
+  success: "polite",
+  info: "polite",
+  error: "assertive"
+};
+
+const ROLE_BY_TYPE: Record<Toast["type"], "status" | "alert"> = {
+  success: "status",
+  info: "status",
+  error: "alert"
+};
+
 interface ToastContainerProps {
   toasts: Toast[];
   onRemove: (id: string) => void;
@@ -29,11 +41,21 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
   }, [exiting, toast.id, onRemove]);
 
   return (
-    <div className={`toast toast-${toast.type}${exiting ? " toast-exiting" : ""}`}>
-      <span className="material-symbols-outlined toast-icon">{ICON_MAP[toast.type]}</span>
+    <div
+      className={`toast toast-${toast.type}${exiting ? " toast-exiting" : ""}`}
+      role={ROLE_BY_TYPE[toast.type]}
+      aria-live={ARIA_LIVE_BY_TYPE[toast.type]}
+      aria-atomic="true"
+    >
+      <span className="material-symbols-outlined toast-icon" aria-hidden="true">{ICON_MAP[toast.type]}</span>
       <span className="toast-message">{toast.message}</span>
-      <button type="button" className="toast-dismiss" onClick={() => setExiting(true)}>
-        <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>close</span>
+      <button
+        type="button"
+        className="toast-dismiss"
+        aria-label="Dismiss notification"
+        onClick={() => setExiting(true)}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "1rem" }}>close</span>
       </button>
     </div>
   );
@@ -43,7 +65,7 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="toast-container">
+    <div className="toast-container" aria-label="Notifications">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
       ))}
