@@ -1,4 +1,4 @@
-import { Badge, type BadgeTone } from "@/components/ds/Badge";
+import { BADGE_SIZE, BADGE_TONE, Badge, type BadgeTone } from "@/components/ds/Badge";
 
 export const RISK_SEVERITY = {
   CRITICAL: "critical",
@@ -15,10 +15,10 @@ interface RiskDotProps {
 }
 
 const TONE_BY_SEVERITY: Record<RiskSeverity, BadgeTone> = {
-  critical: "danger",
-  warning: "warning",
-  info: "info",
-  clean: "success"
+  critical: BADGE_TONE.danger,
+  warning: BADGE_TONE.warning,
+  info: BADGE_TONE.info,
+  clean: BADGE_TONE.success
 };
 
 const ICON_BY_SEVERITY: Record<RiskSeverity, string> = {
@@ -49,11 +49,11 @@ export function RiskDot({ severity, count }: RiskDotProps) {
   const icon = ICON_BY_SEVERITY[severity];
   const ariaLabel = buildAriaLabel(severity, count);
   if (isClean) {
-    return <Badge tone={tone} size="sm" icon={icon} title={ariaLabel} className="risk-dot" />;
+    return <Badge tone={tone} size={BADGE_SIZE.sm} icon={icon} title={ariaLabel} className="risk-dot" />;
   }
   return (
     <span role="img" aria-label={ariaLabel} className="risk-dot-wrapper">
-      <Badge tone={tone} size="sm" icon={icon} title={ariaLabel} className="risk-dot">
+      <Badge tone={tone} size={BADGE_SIZE.sm} icon={icon} title={ariaLabel} className="risk-dot">
         {count}
       </Badge>
     </span>

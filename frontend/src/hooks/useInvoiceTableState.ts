@@ -44,7 +44,6 @@ interface UseInvoiceTableStateResult {
 
   isRiskSignalsExpanded: (invoiceId: string) => boolean;
   toggleRiskSignalsExpanded: (invoiceId: string) => void;
-  setRiskSignalsExpanded: (invoiceId: string, value: boolean) => void;
 }
 
 function readStoredSortDirection(): SortDirection {
@@ -101,19 +100,6 @@ export function useInvoiceTableState(
         next[invoiceId] = true;
       }
       return next;
-    });
-  }, []);
-
-  const setRiskSignalsExpanded = useCallback((invoiceId: string, value: boolean) => {
-    setCollapsedRiskRows((current) => {
-      if (value) {
-        if (!current[invoiceId]) return current;
-        const next = { ...current };
-        delete next[invoiceId];
-        return next;
-      }
-      if (current[invoiceId]) return current;
-      return { ...current, [invoiceId]: true };
     });
   }, []);
 
@@ -174,8 +160,7 @@ export function useInvoiceTableState(
       removeFromSelection,
       reconcileWithLoaded,
       isRiskSignalsExpanded,
-      toggleRiskSignalsExpanded,
-      setRiskSignalsExpanded
+      toggleRiskSignalsExpanded
     }),
     [
       currentPage,
@@ -192,8 +177,7 @@ export function useInvoiceTableState(
       removeFromSelection,
       reconcileWithLoaded,
       isRiskSignalsExpanded,
-      toggleRiskSignalsExpanded,
-      setRiskSignalsExpanded
+      toggleRiskSignalsExpanded
     ]
   );
 }

@@ -143,20 +143,6 @@ describe("useInvoiceTableState", () => {
     expect(result.current.isRiskSignalsExpanded("inv-1")).toBe(true);
   });
 
-  it("setRiskSignalsExpanded writes the explicit expanded/collapsed state", () => {
-    const { result } = renderHook(() => useInvoiceTableState());
-
-    act(() => {
-      result.current.setRiskSignalsExpanded("inv-1", false);
-    });
-    expect(result.current.isRiskSignalsExpanded("inv-1")).toBe(false);
-
-    act(() => {
-      result.current.setRiskSignalsExpanded("inv-1", true);
-    });
-    expect(result.current.isRiskSignalsExpanded("inv-1")).toBe(true);
-  });
-
   it("reconcileWithLoaded drops selected ids whose loaded invoice is no longer selectable", () => {
     const { result } = renderHook(() => useInvoiceTableState());
 
