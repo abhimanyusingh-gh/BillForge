@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { VendorGlMappingModel } from "@/models/compliance/VendorGlMapping.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
@@ -10,20 +11,21 @@ interface GlSuggestion {
 export class GlCodeSuggestionService {
   async suggest(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     parsed: ParsedInvoiceData,
     ocrText?: string,
     slmGlCategory?: string
   ): Promise<GlSuggestion> {
-    const vendorResult = await this.suggestFromVendorHistory(tenantId, vendorFingerprint);
+    const vendorResult = await this.suggestFromVendorHistory(tenantId, clientOrgId, vendorFingerprint);
     if (vendorResult) return vendorResult;
 
     if (slmGlCategory) {
-      const slmResult = await this.suggestFromSlmClassification(tenantId, slmGlCategory);
+      const slmResult = await this.suggestFromSlmClassification(tenantId, clientOrgId, slmGlCategory);
       if (slmResult) return slmResult;
     }
 
-    const descriptionResult = await this.suggestFromDescription(tenantId, parsed, ocrText);
+    const descriptionResult = await this.suggestFromDescription(tenantId, clientOrgId, parsed, ocrText);
     if (descriptionResult) return descriptionResult;
 
     return {
@@ -39,12 +41,13 @@ export class GlCodeSuggestionService {
 
   async suggestFromSlmClassification(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     slmGlCategory: string
   ): Promise<GlSuggestion | null> {
     const normalizedCategory = slmGlCategory.trim().toLowerCase();
     if (!normalizedCategory) return null;
 
-    const glCodes = await GlCodeMasterModel.find({ tenantId, isActive: true }).lean();
+    const glCodes = await GlCodeMasterModel.find({ tenantId, clientOrgId, isActive: true }).lean();
     if (glCodes.length === 0) return null;
 
     const exactMatch = glCodes.find(
@@ -89,12 +92,13 @@ export class GlCodeSuggestionService {
 
   async recordUsage(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     glCode: string,
     glCodeName: string
   ): Promise<void> {
     const now = new Date();
-    const existing = await VendorGlMappingModel.findOne({ tenantId, vendorFingerprint, glCode });
+    const existing = await VendorGlMappingModel.findOne({ tenantId, clientOrgId, vendorFingerprint, glCode });
 
     if (existing) {
       existing.usageCount += 1;
@@ -105,6 +109,7 @@ export class GlCodeSuggestionService {
     } else {
       await VendorGlMappingModel.create({
         tenantId,
+        clientOrgId,
         vendorFingerprint,
         glCode,
         glCodeName,
@@ -114,10 +119,10 @@ export class GlCodeSuggestionService {
       });
     }
 
-    const allMappings = await VendorGlMappingModel.find({ tenantId, vendorFingerprint }).sort({ usageCount: -1 }).limit(1).lean();
+    const allMappings = await VendorGlMappingModel.find({ tenantId, clientOrgId, vendorFingerprint }).sort({ usageCount: -1 }).limit(1).lean();
     if (allMappings.length > 0) {
       await VendorMasterModel.updateOne(
-        { tenantId, vendorFingerprint },
+        { tenantId, clientOrgId, vendorFingerprint },
         { $set: { defaultGlCode: allMappings[0].glCode } }
       );
     }
@@ -125,9 +130,10 @@ export class GlCodeSuggestionService {
 
   private async suggestFromVendorHistory(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string
   ): Promise<GlSuggestion | null> {
-    const mappings = await VendorGlMappingModel.find({ tenantId, vendorFingerprint }).lean();
+    const mappings = await VendorGlMappingModel.find({ tenantId, clientOrgId, vendorFingerprint }).lean();
     if (mappings.length === 0) return null;
 
     const now = Date.now();
@@ -169,6 +175,7 @@ export class GlCodeSuggestionService {
 
   private async suggestFromDescription(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     parsed: ParsedInvoiceData,
     ocrText?: string
   ): Promise<GlSuggestion | null> {
@@ -183,7 +190,7 @@ export class GlCodeSuggestionService {
     const tokens = combinedText.split(/\s+/).filter(t => t.length > 2);
     if (tokens.length === 0) return null;
 
-    const glCodes = await GlCodeMasterModel.find({ tenantId, isActive: true }).lean();
+    const glCodes = await GlCodeMasterModel.find({ tenantId, clientOrgId, isActive: true }).lean();
     if (glCodes.length === 0) return null;
 
     let bestMatch: { code: string; name: string; matchCount: number } | null = null;

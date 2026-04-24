@@ -4,6 +4,7 @@ import { logger } from "@/utils/logger.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { applyMinorFieldValidators } from "@/db/applyJsonSchemaValidators.js";
 import { ValidationAction, ValidationLevel } from "@/db/applyJsonSchemaValidators.js";
 import "@/models/invoice/Invoice.js";
@@ -78,11 +79,19 @@ async function doConnect(options: ConnectOptions) {
         let totalSkipped = 0;
         for (const tenant of tenants) {
           const tenantId = String(tenant._id);
-          const existingCount = await GlCodeMasterModel.countDocuments({ tenantId });
-          if (existingCount === 0) {
-            const result = await seedDefaultGlCodes(tenantId);
-            totalCreated += result.created;
-            totalSkipped += result.skipped;
+          // Post hierarchy-pivot: seedDefaultGlCodes is scoped per
+          // client-org. A tenant may have 0..N client-orgs; loop over all.
+          const clientOrgs = await ClientOrganizationModel.find({ tenantId }, { _id: 1 }).lean();
+          for (const clientOrg of clientOrgs) {
+            const existingCount = await GlCodeMasterModel.countDocuments({
+              tenantId,
+              clientOrgId: clientOrg._id
+            });
+            if (existingCount === 0) {
+              const result = await seedDefaultGlCodes(tenantId, clientOrg._id);
+              totalCreated += result.created;
+              totalSkipped += result.skipped;
+            }
           }
         }
         if (totalCreated > 0) {

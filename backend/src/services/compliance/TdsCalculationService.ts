@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { PAN_FORMAT, derivePanCategory } from "@/constants/indianCompliance.js";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
@@ -44,18 +45,21 @@ export class TdsCalculationService {
   async detectSection(
     panCategory: string | null,
     glCategory: string | null,
-    tenantId: string
+    tenantId: string,
+    clientOrgId: Types.ObjectId
   ): Promise<TdsDetectionResult> {
     if (!glCategory) {
       return { section: null, confidence: TDS_CONFIDENCE.LOW };
     }
 
     const effectivePanCategory = panCategory ?? "*";
+    // Tenant-specific overrides first (scoped to the caller's client-org),
+    // then global defaults (tenantId: null + clientOrgId: null rows).
     const queries = [
-      { tenantId, glCategory, panCategory: effectivePanCategory },
-      { tenantId, glCategory, panCategory: "*" },
-      { tenantId: null, glCategory, panCategory: effectivePanCategory },
-      { tenantId: null, glCategory, panCategory: "*" }
+      { tenantId, clientOrgId, glCategory, panCategory: effectivePanCategory },
+      { tenantId, clientOrgId, glCategory, panCategory: "*" },
+      { tenantId: null, clientOrgId: null, glCategory, panCategory: effectivePanCategory },
+      { tenantId: null, clientOrgId: null, glCategory, panCategory: "*" }
     ];
 
     for (const query of queries) {
@@ -72,6 +76,9 @@ export class TdsCalculationService {
     return { section: null, confidence: TDS_CONFIDENCE.LOW };
   }
 
+  // lookupRate queries the global TdsRateTable (no tenant scoping) and
+  // resolves tenant-level compliance config overrides. Neither is an
+  // accounting leaf, so no clientOrgId parameter is required.
   async lookupRate(
     section: string,
     panCategory: string | null,
@@ -136,13 +143,14 @@ export class TdsCalculationService {
   async computeTds(
     invoice: ParsedInvoiceData,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     glCategory: string | null
   ): Promise<TdsCalculationResult> {
     const riskSignals: ComplianceRiskSignal[] = [];
     const panCategory = this.getPanCategory(invoice.pan);
     const panValid = invoice.pan ? PAN_FORMAT.test(invoice.pan.toUpperCase()) : false;
 
-    const detection = await this.detectSection(panCategory, glCategory, tenantId);
+    const detection = await this.detectSection(panCategory, glCategory, tenantId, clientOrgId);
 
     if (!detection.section) {
       return {

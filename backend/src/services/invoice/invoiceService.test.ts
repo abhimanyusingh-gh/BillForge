@@ -135,20 +135,23 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
     });
   });
 
+  const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000e1");
+
   function makeInvoiceDoc(status = "PARSED") {
     return {
       status,
       toObject: jest.fn().mockReturnValue({
         status,
         parsed: { totalAmountMinor: 10000, currency: "INR" },
-        compliance: {}
+        compliance: {},
+        clientOrgId: CLIENT_ORG_ID
       }),
       set: jest.fn(),
       save: jest.fn().mockResolvedValue(undefined)
     };
   }
 
-  it("queries GlCodeMasterModel using tenantId, code, and isActive when retriggering compliance", async () => {
+  it("queries GlCodeMasterModel using tenantId, clientOrgId, code, and isActive when retriggering compliance", async () => {
     const invoiceId = makeObjectId();
     const mockInvoice = makeInvoiceDoc();
 
@@ -162,6 +165,7 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
 
     expect(GlCodeMasterModel.findOne).toHaveBeenCalledWith({
       tenantId: TENANT_ID,
+      clientOrgId: CLIENT_ORG_ID,
       code: "GL001",
       isActive: true
     });
@@ -181,6 +185,7 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
 
     expect(GlCodeMasterModel.findOne).toHaveBeenCalledWith({
       tenantId: TENANT_ID,
+      clientOrgId: CLIENT_ORG_ID,
       code: "GL999",
       isActive: true
     });

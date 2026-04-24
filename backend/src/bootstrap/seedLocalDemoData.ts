@@ -9,6 +9,7 @@ import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { seedTdsRates } from "@/bootstrap/seedTdsRates.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
 import { seedDemoInvoices } from "@/bootstrap/seedDemoInvoices.js";
 import { env } from "@/config/env.js";
@@ -92,7 +93,17 @@ export async function seedLocalDemoData(
   await seedTdsRates();
 
   for (const tenant of config.tenants) {
-    await seedDefaultGlCodes(tenant.id);
+    // Seed GL codes for every client-org the tenant owns. A tenant that
+    // hasn't completed onboarding may have zero client-orgs — skip
+    // silently in that case; the codes will be seeded when the first
+    // client-org is created.
+    const clientOrgs = await ClientOrganizationModel.find(
+      { tenantId: tenant.id },
+      { _id: 1 }
+    ).lean();
+    for (const clientOrg of clientOrgs) {
+      await seedDefaultGlCodes(tenant.id, clientOrg._id);
+    }
   }
 
   const DEMO_TENANT_ID = "65f0000000000000000000c3";

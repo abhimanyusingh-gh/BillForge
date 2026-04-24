@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
+import type { Types } from "mongoose";
 import { derivePanCategory } from "@/constants/indianCompliance.js";
 import { VendorMasterModel, type VendorMasterDocument } from "@/models/compliance/VendorMaster.js";
-import type { ParsedInvoiceData } from "@/types/invoice.js";
 import { logger } from "@/utils/logger.js";
 
 interface VendorUpsertInput {
@@ -21,12 +21,17 @@ interface BankChangeResult {
 }
 
 export class VendorMasterService {
-  async findByFingerprint(tenantId: string, vendorFingerprint: string): Promise<VendorMasterDocument | null> {
-    return VendorMasterModel.findOne({ tenantId, vendorFingerprint }).lean() as Promise<VendorMasterDocument | null>;
+  async findByFingerprint(
+    tenantId: string,
+    clientOrgId: Types.ObjectId,
+    vendorFingerprint: string
+  ): Promise<VendorMasterDocument | null> {
+    return VendorMasterModel.findOne({ tenantId, clientOrgId, vendorFingerprint }).lean() as Promise<VendorMasterDocument | null>;
   }
 
   async upsertFromInvoice(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     input: VendorUpsertInput
   ): Promise<VendorMasterDocument> {
@@ -42,6 +47,7 @@ export class VendorMasterService {
       $inc: { invoiceCount: 1 },
       $setOnInsert: {
         tenantId,
+        clientOrgId,
         vendorFingerprint,
         name: input.vendorName,
         createdAt: now
@@ -62,17 +68,18 @@ export class VendorMasterService {
     }
 
     const doc = await VendorMasterModel.findOneAndUpdate(
-      { tenantId, vendorFingerprint },
+      { tenantId, clientOrgId, vendorFingerprint },
       updateOps,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     if (input.bankAccountNumber && input.bankIfsc) {
-      await this.updateBankHistory(tenantId, vendorFingerprint, input.bankAccountNumber, input.bankIfsc);
+      await this.updateBankHistory(tenantId, clientOrgId, vendorFingerprint, input.bankAccountNumber, input.bankIfsc);
     }
 
     logger.info("vendor.master.upsert", {
       tenantId,
+      clientOrgId: String(clientOrgId),
       vendorFingerprint,
       vendorName: input.vendorName,
       hasPan: Boolean(input.pan),
@@ -84,6 +91,7 @@ export class VendorMasterService {
 
   async detectBankChange(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     bankAccountNumber: string | null | undefined,
     bankIfsc: string | null | undefined
@@ -93,7 +101,7 @@ export class VendorMasterService {
     }
 
     const accountHash = hashAccountNumber(bankAccountNumber);
-    const vendor = await VendorMasterModel.findOne({ tenantId, vendorFingerprint }).lean();
+    const vendor = await VendorMasterModel.findOne({ tenantId, clientOrgId, vendorFingerprint }).lean();
 
     if (!vendor || !vendor.bankHistory || vendor.bankHistory.length === 0) {
       return { isChanged: false, accountHash, ifsc: bankIfsc, bankName: null };
@@ -113,6 +121,7 @@ export class VendorMasterService {
 
   private async updateBankHistory(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     bankAccountNumber: string,
     bankIfsc: string
@@ -121,7 +130,7 @@ export class VendorMasterService {
     const now = new Date();
 
     const updated = await VendorMasterModel.findOneAndUpdate(
-      { tenantId, vendorFingerprint, "bankHistory.accountHash": accountHash },
+      { tenantId, clientOrgId, vendorFingerprint, "bankHistory.accountHash": accountHash },
       {
         $set: { "bankHistory.$.lastSeen": now },
         $inc: { "bankHistory.$.invoiceCount": 1 }
@@ -130,7 +139,7 @@ export class VendorMasterService {
 
     if (!updated) {
       await VendorMasterModel.findOneAndUpdate(
-        { tenantId, vendorFingerprint },
+        { tenantId, clientOrgId, vendorFingerprint },
         {
           $push: {
             bankHistory: {

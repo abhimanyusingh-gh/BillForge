@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { UDYAM_FORMAT } from "@/constants/indianCompliance.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
@@ -24,6 +25,7 @@ interface MsmeTrackingResult {
 export class MsmeTrackingService {
   async checkAndUpdate(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     udyamNumber: string | null | undefined,
     invoiceDate: Date | null | undefined,
@@ -36,14 +38,14 @@ export class MsmeTrackingService {
     const overdueDays = tenantConfig?.msmePaymentOverdueDays ?? DEFAULT_MSME_PAYMENT_OVERDUE_DAYS;
 
     if (udyamNumber && UDYAM_FORMAT.test(udyamNumber.toUpperCase())) {
-      const existingVendor = await VendorMasterModel.findOne({ tenantId, vendorFingerprint }).lean();
+      const existingVendor = await VendorMasterModel.findOne({ tenantId, clientOrgId, vendorFingerprint }).lean();
       classification = (existingVendor?.msme?.classification as MsmeClassification | null) ?? null;
       await VendorMasterModel.updateOne(
-        { tenantId, vendorFingerprint },
+        { tenantId, clientOrgId, vendorFingerprint },
         { $set: { "msme.udyamNumber": udyamNumber.toUpperCase(), "msme.verifiedAt": new Date(), ...(classification ? { "msme.classification": classification } : {}) } }
       );
     } else {
-      const vendor = await VendorMasterModel.findOne({ tenantId, vendorFingerprint }).lean();
+      const vendor = await VendorMasterModel.findOne({ tenantId, clientOrgId, vendorFingerprint }).lean();
       if (vendor?.msme?.udyamNumber) {
         classification = (vendor.msme.classification as MsmeClassification | null) ?? null;
       }

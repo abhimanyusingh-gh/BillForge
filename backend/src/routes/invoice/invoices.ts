@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { getAuth } from "@/types/auth.js";
 import { DOCUMENT_MIME_TYPE } from "@/types/mime.js";
 import { SORT_DIRECTION, type SortDirection } from "@/types/sorting.js";
@@ -187,13 +188,20 @@ export function createInvoiceRouter(
             const glName = typeof req.body.glName === "string" && req.body.glName.trim() ? req.body.glName.trim() : req.body.glCode;
             const glService = new GlCodeSuggestionService();
             const fingerprint = invoice.metadata?.get("vendorFingerprint");
-            if (fingerprint) {
-              await glService.recordUsage(authContext.tenantId, fingerprint, req.body.glCode, glName);
+            // Post hierarchy-pivot: compliance services are scoped per
+            // client-org. Use the invoice's own clientOrgId — it was
+            // validated on ingestion and (after sub-PR 4 lands) will also
+            // be cross-checked against req.activeClientOrgId.
+            const invoiceClientOrgId = (invoice as unknown as { clientOrgId?: Types.ObjectId }).clientOrgId;
+            if (fingerprint && invoiceClientOrgId) {
+              await glService.recordUsage(authContext.tenantId, invoiceClientOrgId, fingerprint, req.body.glCode, glName);
             }
             (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: glName, source: GL_CODE_SOURCE.MANUAL, confidence: 100 };
 
             const parsed = invoice.toObject().parsed ?? {};
-            await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, req.body.glCode, req.params.id);
+            if (invoiceClientOrgId) {
+              await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, invoiceClientOrgId, req.body.glCode, req.params.id);
+            }
           }
         }
 

@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster";
 
@@ -6,6 +7,7 @@ jest.mock("../../../models/compliance/VendorGlMapping");
 jest.mock("../../../models/compliance/VendorMaster");
 
 const service = new GlCodeSuggestionService();
+const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000d2");
 
 describe("GlCodeSuggestionService", () => {
   beforeEach(() => {
@@ -20,7 +22,7 @@ describe("GlCodeSuggestionService", () => {
       if (docs !== null) {
         (GlCodeMasterModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(docs) });
       }
-      const result = await service.suggestFromSlmClassification("tenant-1", slmCategory);
+      const result = await service.suggestFromSlmClassification("tenant-1", CLIENT_ORG_ID, slmCategory);
       expect(result).toBeNull();
     });
 
@@ -36,7 +38,7 @@ describe("GlCodeSuggestionService", () => {
     ])("matches %s (case-insensitive) with confidence 80", async (_label, query, docs) => {
       (GlCodeMasterModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(docs) });
 
-      const result = await service.suggestFromSlmClassification("tenant-1", query);
+      const result = await service.suggestFromSlmClassification("tenant-1", CLIENT_ORG_ID, query);
       expect(result).not.toBeNull();
       expect(result!.glCode.code).toBe("4002");
       expect(result!.glCode.source).toBe("slm-classification");
@@ -51,7 +53,7 @@ describe("GlCodeSuggestionService", () => {
         ])
       });
 
-      const result = await service.suggestFromSlmClassification("tenant-1", "Software License");
+      const result = await service.suggestFromSlmClassification("tenant-1", CLIENT_ORG_ID, "Software License");
       expect(result).not.toBeNull();
       expect(result!.glCode.code).toBe("4003");
       expect(result!.glCode.source).toBe("slm-classification");
@@ -65,7 +67,7 @@ describe("GlCodeSuggestionService", () => {
         ])
       });
 
-      const result = await service.suggestFromSlmClassification("tenant-1", "Utilities");
+      const result = await service.suggestFromSlmClassification("tenant-1", CLIENT_ORG_ID, "Utilities");
       expect(result).toBeNull();
     });
   });
@@ -79,7 +81,7 @@ describe("GlCodeSuggestionService", () => {
         ])
       });
 
-      const result = await service.suggest("tenant-1", "fp-123", {}, undefined, "Professional Services");
+      const result = await service.suggest("tenant-1", CLIENT_ORG_ID, "fp-123", {}, undefined, "Professional Services");
       expect(result.glCode.code).toBe("5001");
       expect(result.glCode.source).toBe("vendor-default");
     });
@@ -94,7 +96,7 @@ describe("GlCodeSuggestionService", () => {
         ])
       });
 
-      const result = await service.suggest("tenant-1", "fp-123", {}, undefined, "Professional Services");
+      const result = await service.suggest("tenant-1", CLIENT_ORG_ID, "fp-123", {}, undefined, "Professional Services");
       expect(result.glCode.code).toBe("4002");
       expect(result.glCode.source).toBe("slm-classification");
     });

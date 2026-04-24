@@ -387,7 +387,13 @@ export class InvoiceService {
       confidence: 100
     };
 
-    await retriggerTdsAndTcs(compliance, parsed, tenantId, newGlCode, invoiceId);
+    // Invoice doc carries its own clientOrgId post hierarchy-pivot.
+    const invoiceClientOrgId = invoiceObj.clientOrgId as Types.ObjectId | undefined;
+    if (invoiceClientOrgId) {
+      await retriggerTdsAndTcs(compliance, parsed, tenantId, invoiceClientOrgId, newGlCode, invoiceId);
+    } else {
+      logger.warn("compliance.retrigger.skipped.no_client_org", { invoiceId, tenantId });
+    }
 
     invoice.set("compliance", compliance);
     await invoice.save();
@@ -536,14 +542,15 @@ export async function retriggerTdsAndTcs(
   compliance: Record<string, unknown>,
   parsed: ParsedInvoiceData,
   tenantId: UUID,
+  clientOrgId: Types.ObjectId,
   glCode: string,
   invoiceId: string
 ): Promise<void> {
   const tdsService = new TdsCalculationService();
   try {
-    const glDoc = await GlCodeMasterModel.findOne({ tenantId, code: glCode, isActive: true }).lean();
+    const glDoc = await GlCodeMasterModel.findOne({ tenantId, clientOrgId, code: glCode, isActive: true }).lean();
     const glCategory = glDoc?.category ?? glCode;
-    const tdsResult = await tdsService.computeTds(parsed, tenantId, glCategory);
+    const tdsResult = await tdsService.computeTds(parsed, tenantId, clientOrgId, glCategory);
     compliance.tds = tdsResult.tds;
 
     const existingSignals = (compliance.riskSignals as ComplianceRiskSignal[]) ?? [];

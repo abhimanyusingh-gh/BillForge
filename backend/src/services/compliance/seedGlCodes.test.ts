@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Types } from "mongoose";
+
 const mockFind = jest.fn();
 const mockCreate = jest.fn();
 const mockCountDocuments = jest.fn();
@@ -17,6 +19,8 @@ jest.mock("../../utils/logger.js", () => ({
 
 import { seedDefaultGlCodes, DEFAULT_GL_CODES } from "@/services/compliance/seedGlCodes";
 
+const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000d1");
+
 beforeEach(() => {
   mockFind.mockReset().mockResolvedValue([]);
   mockCreate.mockReset().mockImplementation(async (data: any) => ({ ...data, _id: `gl-${data.code}` }));
@@ -24,8 +28,8 @@ beforeEach(() => {
 });
 
 describe("seedDefaultGlCodes", () => {
-  it("creates 20 GL codes for a new tenant with zero existing codes", async () => {
-    const result = await seedDefaultGlCodes("tenant-new");
+  it("creates 20 GL codes for a new tenant/client-org with zero existing codes", async () => {
+    const result = await seedDefaultGlCodes("tenant-new", CLIENT_ORG_ID);
 
     expect(result.created).toBe(20);
     expect(result.skipped).toBe(0);
@@ -33,6 +37,7 @@ describe("seedDefaultGlCodes", () => {
 
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: "tenant-new",
+      clientOrgId: CLIENT_ORG_ID,
       code: "4001",
       name: "Professional Services",
       category: "Professional Services",
@@ -42,6 +47,7 @@ describe("seedDefaultGlCodes", () => {
 
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: "tenant-new",
+      clientOrgId: CLIENT_ORG_ID,
       code: "4020",
       name: "Miscellaneous Expenses",
       category: "Other",
@@ -51,7 +57,7 @@ describe("seedDefaultGlCodes", () => {
   });
 
   it("is idempotent — running twice does not create duplicates", async () => {
-    const firstResult = await seedDefaultGlCodes("tenant-idem");
+    const firstResult = await seedDefaultGlCodes("tenant-idem", CLIENT_ORG_ID);
     expect(firstResult.created).toBe(20);
     expect(firstResult.skipped).toBe(0);
 
@@ -59,7 +65,7 @@ describe("seedDefaultGlCodes", () => {
     mockFind.mockResolvedValue(existingCodes);
     mockCreate.mockReset();
 
-    const secondResult = await seedDefaultGlCodes("tenant-idem");
+    const secondResult = await seedDefaultGlCodes("tenant-idem", CLIENT_ORG_ID);
     expect(secondResult.created).toBe(0);
     expect(secondResult.skipped).toBe(20);
     expect(mockCreate).not.toHaveBeenCalled();
@@ -72,7 +78,7 @@ describe("seedDefaultGlCodes", () => {
       { code: "4010" }
     ]);
 
-    const result = await seedDefaultGlCodes("tenant-partial");
+    const result = await seedDefaultGlCodes("tenant-partial", CLIENT_ORG_ID);
 
     expect(result.created).toBe(17);
     expect(result.skipped).toBe(3);
@@ -93,7 +99,7 @@ describe("seedDefaultGlCodes", () => {
       .mockRejectedValueOnce(dupError)
       .mockImplementation(async (data: any) => ({ ...data }));
 
-    const result = await seedDefaultGlCodes("tenant-race");
+    const result = await seedDefaultGlCodes("tenant-race", CLIENT_ORG_ID);
 
     expect(result.created).toBe(19);
     expect(result.skipped).toBe(1);
@@ -102,11 +108,11 @@ describe("seedDefaultGlCodes", () => {
   it("propagates non-duplicate database errors", async () => {
     mockCreate.mockRejectedValueOnce(new Error("Connection lost"));
 
-    await expect(seedDefaultGlCodes("tenant-fail")).rejects.toThrow("Connection lost");
+    await expect(seedDefaultGlCodes("tenant-fail", CLIENT_ORG_ID)).rejects.toThrow("Connection lost");
   });
 
   it("sets isActive to true for all seeded GL codes", async () => {
-    await seedDefaultGlCodes("tenant-active");
+    await seedDefaultGlCodes("tenant-active", CLIENT_ORG_ID);
 
     for (const call of mockCreate.mock.calls) {
       expect(call[0].isActive).toBe(true);
@@ -114,7 +120,7 @@ describe("seedDefaultGlCodes", () => {
   });
 
   it("seeds correct TDS section for each GL code", async () => {
-    await seedDefaultGlCodes("tenant-tds");
+    await seedDefaultGlCodes("tenant-tds", CLIENT_ORG_ID);
 
     const codeToTds = new Map(mockCreate.mock.calls.map((call: any[]) => [call[0].code, call[0].linkedTdsSection]));
     expect(codeToTds.get("4001")).toBe("194J");

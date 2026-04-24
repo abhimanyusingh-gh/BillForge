@@ -1,8 +1,11 @@
+import { Types } from "mongoose";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable";
 import { resolveTdsRatesConfig } from "@/services/compliance/tenantConfigResolver";
 import type { ParsedInvoiceData } from "@/types/invoice";
+
+const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000d3");
 
 jest.mock("../../../models/compliance/TdsSectionMapping");
 jest.mock("../../../models/compliance/TdsRateTable");
@@ -37,7 +40,7 @@ describe("Compliance Retrigger", () => {
         totalAmountMinor: 10000000,
         currency: "INR"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", null);
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,null);
       expect(result.tds.section).toBeNull();
       expect(result.tds.confidence).toBe("low");
     });
@@ -51,7 +54,7 @@ describe("Compliance Retrigger", () => {
         totalAmountMinor: 10000000,
         currency: "INR"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Nonexistent Category");
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,"Nonexistent Category");
       expect(result.tds.section).toBeNull();
       expect(result.tds.confidence).toBe("low");
     });
@@ -75,7 +78,7 @@ describe("Compliance Retrigger", () => {
         totalAmountMinor: 10000000,
         currency: "INR"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Professional Services");
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,"Professional Services");
       expect(result.tds.section).toBe("194J");
       expect(result.tds.confidence).toBe("high");
       expect(result.tds.rate).toBe(2000);
@@ -93,7 +96,7 @@ describe("Compliance Retrigger", () => {
         currency: "INR",
         pan: "ABCPK1234F"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Professional Services");
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,"Professional Services");
       expect(result.tds.section).toBe("194J");
       expect(result.tds.rate).toBe(800);
       expect(result.tds.amountMinor).toBe(800000);
@@ -112,7 +115,7 @@ describe("Compliance Retrigger", () => {
         currency: "INR",
         pan: "ABCPK1234F"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Professional Services");
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,"Professional Services");
       expect(result.tds.section).toBe("194J");
       expect(result.tds.rate).toBeNull();
       expect(result.tds.amountMinor).toBeNull();
@@ -131,7 +134,7 @@ describe("Compliance Retrigger", () => {
         currency: "INR",
         pan: "ABCPK1234F"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Contractor Services");
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,"Contractor Services");
       expect(result.tds.amountMinor).toBe(0);
       expect(result.tds.netPayableMinor).toBe(3000000);
       expect(result.riskSignals.some(s => s.code === "TDS_BELOW_THRESHOLD")).toBe(true);
@@ -159,7 +162,7 @@ describe("Compliance Retrigger", () => {
         currency: "INR",
         pan: "ABCPK1234F"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Professional Services");
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,"Professional Services");
       expect(result.tds.section).toBe("194J");
       expect(result.tds.rate).toBe(1000);
       expect(TdsRateTableModel.findOne).toHaveBeenCalled();
@@ -184,7 +187,7 @@ describe("Compliance Retrigger", () => {
         totalAmountMinor: 5000000,
         currency: "INR"
       };
-      const result = await tdsService.computeTds(invoice, "tenant-1", "Contractor Services");
+      const result = await tdsService.computeTds(invoice, "tenant-1", CLIENT_ORG_ID,"Contractor Services");
       expect(result.tds.section).toBe("194C");
       expect(result.riskSignals.some(s => s.code === "TDS_NO_PAN_PENALTY_RATE")).toBe(true);
     });
