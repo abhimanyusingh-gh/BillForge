@@ -1,15 +1,44 @@
 import { useEffect, useRef } from "react";
 
+export const SHORTCUT_KEY = {
+  NextRow: "j",
+  PrevRow: "k",
+  ToggleExpand: " ",
+  OpenDetail: "Enter",
+  Approve: "a",
+  Export: "e",
+  Escape: "Escape",
+  Help: "?"
+} as const;
+
 interface KeyboardShortcutActions {
+  enabled: boolean;
   onMoveDown?: () => void;
   onMoveUp?: () => void;
-  onToggleSelect?: () => void;
+  onToggleExpand?: () => void;
   onOpenDetail?: () => void;
   onApprove?: () => void;
   onExport?: () => void;
   onEscape?: () => void;
   onShowHelp?: () => void;
-  enabled: boolean;
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active) return false;
+    return isEditableElement(active);
+  }
+  return isEditableElement(target);
+}
+
+function isEditableElement(el: HTMLElement): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  if (el.isContentEditable) return true;
+  const editableAttr = el.getAttribute("contenteditable");
+  if (editableAttr === "" || editableAttr === "true" || editableAttr === "plaintext-only") return true;
+  return false;
 }
 
 export function useKeyboardShortcuts(actions: KeyboardShortcutActions): void {
@@ -17,42 +46,41 @@ export function useKeyboardShortcuts(actions: KeyboardShortcutActions): void {
   actionsRef.current = actions;
 
   useEffect(() => {
-    if (!actionsRef.current.enabled) return;
+    if (!actions.enabled) return;
 
-    function handler(e: KeyboardEvent) {
-      const tag = (document.activeElement?.tagName ?? "").toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
+    function handler(event: KeyboardEvent) {
+      if (isEditableTarget(event.target)) return;
 
       const a = actionsRef.current;
-      switch (e.key) {
+      switch (event.key) {
         case "ArrowDown":
-        case "j":
-          e.preventDefault();
+        case SHORTCUT_KEY.NextRow:
+          event.preventDefault();
           a.onMoveDown?.();
           break;
         case "ArrowUp":
-        case "k":
-          e.preventDefault();
+        case SHORTCUT_KEY.PrevRow:
+          event.preventDefault();
           a.onMoveUp?.();
           break;
-        case " ":
-          e.preventDefault();
-          a.onToggleSelect?.();
+        case SHORTCUT_KEY.ToggleExpand:
+          event.preventDefault();
+          a.onToggleExpand?.();
           break;
-        case "Enter":
-          e.preventDefault();
+        case SHORTCUT_KEY.OpenDetail:
+          event.preventDefault();
           a.onOpenDetail?.();
           break;
-        case "a":
+        case SHORTCUT_KEY.Approve:
           a.onApprove?.();
           break;
-        case "e":
+        case SHORTCUT_KEY.Export:
           a.onExport?.();
           break;
-        case "Escape":
+        case SHORTCUT_KEY.Escape:
           a.onEscape?.();
           break;
-        case "?":
+        case SHORTCUT_KEY.Help:
           a.onShowHelp?.();
           break;
       }

@@ -1,37 +1,59 @@
+import { useModalDismiss } from "@/hooks/useModalDismiss";
+
 interface KeyboardShortcutsOverlayProps {
   open: boolean;
   onClose: () => void;
 }
 
-const SHORTCUTS = [
-  ["↓ / j", "Move to next invoice"],
-  ["↑ / k", "Move to previous invoice"],
-  ["Space", "Toggle selection"],
-  ["Enter", "Open invoice detail popup"],
-  ["a", "Approve selected"],
-  ["e", "Export selected"],
-  ["Escape", "Close popup / clear selection"],
-  ["?", "Show this overlay"]
-];
+const SHORTCUT_ROWS = [
+  { keys: ["↓", "j"], description: "Move to next invoice" },
+  { keys: ["↑", "k"], description: "Move to previous invoice" },
+  { keys: ["Space"], description: "Toggle risk-signals expand on active invoice" },
+  { keys: ["Enter"], description: "Open invoice detail popup" },
+  { keys: ["a"], description: "Approve active invoice" },
+  { keys: ["e"], description: "Export active invoice to Tally" },
+  { keys: ["Escape"], description: "Close popup / clear selection" },
+  { keys: ["?"], description: "Show this help overlay" }
+] as const;
 
 export function KeyboardShortcutsOverlay({ open, onClose }: KeyboardShortcutsOverlayProps) {
+  useModalDismiss({ open, onClose });
   if (!open) return null;
 
   return (
-    <div className="popup-overlay" role="presentation" onClick={onClose}>
-      <section className="popup-card" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="popup-overlay"
+      role="presentation"
+      onClick={onClose}
+      data-testid="shortcuts-overlay"
+    >
+      <section
+        className="popup-card shortcuts-help-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-help-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="popup-header">
-          <h2>Keyboard Shortcuts</h2>
-          <button type="button" onClick={onClose}>Close</button>
+          <h2 id="shortcuts-help-title">Keyboard Shortcuts</h2>
+          <button type="button" onClick={onClose} aria-label="Close keyboard shortcuts help">
+            Close
+          </button>
         </div>
-        <div style={{ marginTop: "0.75rem" }}>
-          {SHORTCUTS.map(([key, desc]) => (
-            <div key={key} style={{ display: "flex", justifyContent: "space-between", padding: "0.35rem 0", borderBottom: "1px solid var(--line)" }}>
-              <kbd style={{ background: "var(--bg-main)", borderRadius: 4, padding: "0.15rem 0.5rem", fontSize: "0.8rem", fontFamily: "monospace", fontWeight: 600, border: "1px solid var(--line)" }}>{key}</kbd>
-              <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>{desc}</span>
-            </div>
+        <ul className="shortcuts-help-list">
+          {SHORTCUT_ROWS.map((row) => (
+            <li key={row.description} className="shortcuts-help-row">
+              <span className="shortcuts-help-keys">
+                {row.keys.map((k, idx) => (
+                  <kbd key={`${row.description}-${idx}`} className="shortcuts-help-kbd">
+                    {k}
+                  </kbd>
+                ))}
+              </span>
+              <span className="shortcuts-help-desc">{row.description}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
     </div>
   );

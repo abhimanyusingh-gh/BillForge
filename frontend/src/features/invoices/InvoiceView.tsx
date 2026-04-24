@@ -478,6 +478,12 @@ export function InvoiceView({
     return { gridTemplateColumns: `${listPanelPercent}% 6px 1fr` };
   }, [detailsPanelVisible, listPanelPercent]);
 
+  const [shortcutAnnouncement, setShortcutAnnouncement] = useState("");
+  const announceShortcut = useCallback((message: string) => {
+    setShortcutAnnouncement("");
+    requestAnimationFrame(() => setShortcutAnnouncement(message));
+  }, []);
+
   useKeyboardShortcuts({
     enabled: !popupInvoiceId && !confirmDialog && !showShortcutsHelp,
     onMoveDown: () => {
@@ -489,6 +495,7 @@ export function InvoiceView({
         requestAnimationFrame(() => {
           document.querySelector(`[data-invoice-id="${next._id}"]`)?.scrollIntoView({ block: "nearest" });
         });
+        announceShortcut(`Focused invoice ${next.attachmentName}`);
       }
     },
     onMoveUp: () => {
@@ -500,16 +507,30 @@ export function InvoiceView({
         requestAnimationFrame(() => {
           document.querySelector(`[data-invoice-id="${prev._id}"]`)?.scrollIntoView({ block: "nearest" });
         });
+        announceShortcut(`Focused invoice ${prev.attachmentName}`);
       }
     },
-    onToggleSelect: () => {
+    onToggleExpand: () => {
       if (!activeId) return;
-      const inv = filteredInvoices.find((i) => i._id === activeId);
-      if (inv) toggleSelection(inv);
+      toggleRiskSignalsExpanded(activeId);
+      const expandedNow = !isRiskSignalsExpanded(activeId);
+      announceShortcut(expandedNow ? "Expanded risk signals" : "Collapsed risk signals");
     },
     onOpenDetail: () => { if (activeId) setPopupInvoiceId(activeId); },
-    onApprove: () => { if (selectedApprovableIds.length > 0) void handleApprove(); },
-    onExport: () => { if (selectedExportableIds.length > 0) handleExport(); },
+    onApprove: () => {
+      if (!activeId) return;
+      const inv = filteredInvoices.find((i) => i._id === activeId);
+      if (!inv || !isInvoiceApprovable(inv) || !canApproveInvoices) return;
+      announceShortcut(`Approved invoice ${inv.attachmentName}`);
+      void handleApproveSingle(activeId);
+    },
+    onExport: () => {
+      if (!activeId) return;
+      const inv = filteredInvoices.find((i) => i._id === activeId);
+      if (!inv || !isInvoiceExportable(inv) || !canExportToTally) return;
+      announceShortcut(`Exported invoice ${inv.attachmentName}`);
+      void handleExportSingle(activeId);
+    },
     onEscape: () => {
       if (selectedIds.length > 0) { clearSelection(); return; }
       if (detailsPanelVisible) { setDetailsPanelVisible(false); }
@@ -719,6 +740,38 @@ export function InvoiceView({
       await loadInvoices();
     } catch (approveError) {
       addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
+    }
+  }
+
+  async function handleExportSingle(invoiceId: string) {
+    if (!canExportToTally) {
+      addToast("error", "You do not have permission to export invoices.");
+      return;
+    }
+    try {
+      setActionLoading("export");
+      const fileResult = await generateTallyXmlFile([invoiceId]);
+      if (!fileResult.batchId) {
+        addToast("error", "Export failed — invoice may have invalid amounts or is already exported.");
+        await loadInvoices();
+        return;
+      }
+      const blob = await downloadTallyXmlFile(fileResult.batchId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileResult.filename ?? "tally-import.xml";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      await loadInvoices();
+      addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
+    } catch (downloadError) {
+      addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
+      await loadInvoices();
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -1607,6 +1660,9 @@ export function InvoiceView({
         onCancel={() => setConfirmDialog(null)}
       />
       <KeyboardShortcutsOverlay open={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="shortcut-announcer">
+        {shortcutAnnouncement}
+      </div>
 
       {popupInvoice ? (
         <InvoicePopup
