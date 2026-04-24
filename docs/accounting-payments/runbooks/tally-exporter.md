@@ -118,37 +118,54 @@ Expected response (success path):
 
 Code paths: envelope construction at `backend/src/services/export/tallyExporter/xml.ts:126`, response parsing at `backend/src/services/export/tallyExporter/xml.ts:99`, tenant-scoped export loop at `backend/src/services/export/tallyExporter.ts:70`.
 
+## 2.5 Vendor matching priority ladder
+
+(Rule #1: GSTIN-first vendor matching.)
+
+When the exporter needs to resolve an invoice's vendor to a Tally ledger, it walks a 5-step priority ladder — stop at the first match, never skip ahead:
+
+1. **GSTIN equality** — exact match on the 15-character vendor GSTIN. Highest-confidence signal; short-circuits everything below.
+2. **Stored Tally ledger GUID** — `VendorMaster.tallyLedgerGuid` persisted on first sighting from a prior Tally pull.
+3. **Normalised name** — case-folded, whitespace-collapsed exact name match.
+4. **Canonicalised abbreviations** — e.g. `Pvt Ltd` = `Private Limited`, `&` = `and`, with the same normalisation as step 3 applied after canonicalisation.
+5. **Token Jaccard similarity** — last-resort fuzzy match. **Never auto-merge on Jaccard alone** — surface the candidate to the operator for confirmation.
+
+Operators debugging "vendor not found" or suspicious auto-matches should start by checking which rung of the ladder fired (logged on the match event). If step 5 fires and auto-merges silently, that's a bug — file it.
+
 ## 3. Re-export / Alter flow (2-phase staging)
 
 Re-export is triggered when an invoice is corrected after its first successful export, or when an earlier attempt crashed mid-POST. The invariant: **Tally and our DB end with the same `exportVersion`, or the DB stays behind and the operator retries.**
 
-### 3.1 Three-phase semantics
+### 3.1 Two-phase staging semantics
+
+The user-visible atomicity model is **two DB phases** — `stage` and `promote-or-clear` — with the Tally `POST` sandwiched between them as an out-of-phase network side-effect. The DB never holds an in-between state visible to other writers: either `exportVersion` has moved forward, or it hasn't.
 
 Implementation: `backend/src/services/export/tallyReExportGuard.ts` + call sites in `backend/src/services/export/tallyExporter.ts:102` onward.
 
 ```
-Phase 1 — stage          tallyReExportGuard.ts:92
+Phase 1 — stage                       tallyReExportGuard.ts:92
   CAS-set Invoice.inFlightExportVersion = v+1
   WHERE exportVersion = v AND (inFlight IS NULL OR inFlight = v+1)
   If another exporter advanced v concurrently → ExportVersionConflictError.
 
-Phase 2 — POST to Tally  tallyExporter.ts:121
+(out-of-phase) POST to Tally          tallyExporter.ts:121
   Build envelope with GUID(v+1) and ACTION = "Alter" (if v > 0) or "Create" (if v = 0).
   Alter path is gated on f12OverwriteByGuidVerified (tallyReExportGuard.ts:79).
+  Network side-effect; no DB mutation here.
 
-Phase 3a — promote       tallyReExportGuard.ts:129
+Phase 2a — promote                    tallyReExportGuard.ts:129
   On Tally success:  atomically set exportVersion = v+1 AND clear inFlight.
 
-Phase 3b — clear         tallyReExportGuard.ts:146
+Phase 2b — clear                      tallyReExportGuard.ts:146
   On POST failure or ERRORS>0: clear inFlight only.
   exportVersion never moved, so there is nothing to roll back.
 ```
 
 ### 3.2 Crash recovery (why you will sometimes see `inFlightExportVersion` stuck)
 
-If an invoice has `inFlightExportVersion = v+1` set but `exportVersion = v` unchanged, a prior export crashed between Phase 1 (stage) and Phase 3 (promote/clear) — typically because the backend process died mid-POST or the Tally connection timed out before the response came back.
+If an invoice has `inFlightExportVersion = v+1` set but `exportVersion = v` unchanged, a prior export crashed between Phase 1 (stage) and Phase 2 (promote/clear) — typically because the backend process died mid-POST or the Tally connection timed out before the response came back.
 
-The next exporter run auto-recovers: Phase 1's CAS also accepts the already-staged case (see the `{ inFlightExportVersion: stagedVersion }` branch at `backend/src/services/export/tallyReExportGuard.ts:104`), Phase 2 re-issues the **same GUID** with `ACTION="Alter"` — Tally treats this as idempotent because of the F12 toggle — and Phase 3a promotes. No manual operator action is required unless the crash indicates a systemic failure (e.g. repeated Tally timeouts).
+The next exporter run auto-recovers: Phase 1's CAS also accepts the already-staged case (see the `{ inFlightExportVersion: stagedVersion }` branch at `backend/src/services/export/tallyReExportGuard.ts:104`), the POST re-issues the **same GUID** with `ACTION="Alter"` — Tally treats this as idempotent because of the F12 toggle — and Phase 2a promotes. No manual operator action is required unless the crash indicates a systemic failure (e.g. repeated Tally timeouts).
 
 If you genuinely need to unstick an invoice by hand — e.g. the F12 toggle was never enabled and the tenant is blocked — manually null out `Invoice.inFlightExportVersion` in the DB and re-run the exporter. Only do this after you have confirmed the Tally side has no voucher at GUID(v+1).
 
@@ -159,6 +176,10 @@ If you genuinely need to unstick an invoice by hand — e.g. the F12 toggle was 
 ## 4. LINEERROR ordinal correlation
 
 (Rule #7: deterministic ordinal order, fallback-per-ordinal on partial failure.)
+
+### 4.0 Batch size invariant
+
+The exporter emits at most 25 vouchers per XML batch (`TALLY_BATCH_SIZE` at `backend/src/services/export/tallyExporter/xml.ts:19`). Tight batches limit blast radius on partial failure and simplify LINEERROR ordinal correlation (§4). This is rule #6 — do not raise it without an OAR.
 
 Tally returns batch failures as a count plus `<LINEERROR>` blocks — it does **not** return a voucher-number-to-error map. To correlate a `LINEERROR` back to an invoice:
 
@@ -208,7 +229,7 @@ Payment-voucher push is not yet implemented in the exporter (it is a Phase 2 fea
 
 (GST state-of-supply determination for inter-state purchases.)
 
-The exporter emits `<PLACEOFSUPPLY>` inside the `VOUCHER` element at `backend/src/services/export/tallyExporter/xml.ts:151`. The gating condition is computed in `applyReExportDecision` at `backend/src/services/export/tallyExporter.ts:453`:
+The exporter emits `<PLACEOFSUPPLY>` inside the `VOUCHER` element at `backend/src/services/export/tallyExporter/xml.ts:152` (gated by the guard at `backend/src/services/export/tallyExporter/xml.ts:151`). The gating condition is computed in `applyReExportDecision` at `backend/src/services/export/tallyExporter.ts:453`:
 
 ```ts
 const placeOfSupplyStateName = (
@@ -321,12 +342,12 @@ Every numbered rule in `reference_tally_integration.md` surfaces somewhere in th
 
 | Rule # | Rule summary | Runbook section |
 |---|---|---|
-| 1 | GSTIN-first vendor matching; never auto-merge on Jaccard alone | §12 Boundaries |
+| 1 | GSTIN-first vendor matching; never auto-merge on Jaccard alone | §2.5 Vendor matching priority ladder; §12 Boundaries |
 | 2 | Dual-tag emission on writes (ERP9 + Prime aliases); tolerant reads | §9 Dual-tag emission |
 | 3 | `SVCURRENTCOMPANY` on every request | §2.1 (envelope example) |
 | 4 | No client-supplied ledger GUIDs — Tally issues them | §12 Boundaries; §3.3 (voucher GUIDs are client-supplied, ledger GUIDs are not) |
 | 5 | F12 "Overwrite by GUID" gate for idempotent re-export; `ACTION="Alter"` on re-export | §1.3 F12 pre-req; §3 Re-export flow |
-| 6 | Batch default: 25 vouchers per request | §4 LINEERROR ordinal correlation (`TALLY_BATCH_SIZE = 25`) |
+| 6 | Batch default: 25 vouchers per request | §4.0 Batch size invariant |
 | 7 | LINEERROR ordinal correlation; deterministic emission order | §4 LINEERROR ordinal correlation |
 | 8 | AlterID cursors for drift detection; full re-sync on rollback | §5 AlterID cursor behaviour |
 | 9 | Settlement precheck — verify `Bills Outstanding REFERENCE` before payment voucher | §6 Settlement precheck |
