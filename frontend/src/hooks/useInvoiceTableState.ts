@@ -36,7 +36,6 @@ interface UseInvoiceTableStateResult {
   setSortDirection: (value: SortDirection | ((prev: SortDirection) => SortDirection)) => void;
 
   selectedIds: string[];
-  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   toggleSelection: (invoice: Invoice) => void;
   toggleSelectAllVisible: (selectableVisibleIds: string[], areAllSelected: boolean) => void;
   clearSelection: () => void;
@@ -133,7 +132,6 @@ export function useInvoiceTableState(
       setSortColumn,
       setSortDirection,
       selectedIds,
-      setSelectedIds,
       toggleSelection,
       toggleSelectAllVisible,
       clearSelection,

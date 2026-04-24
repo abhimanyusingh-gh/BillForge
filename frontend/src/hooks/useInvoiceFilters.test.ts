@@ -4,8 +4,11 @@
 import { renderHook, act } from "@testing-library/react";
 import { useInvoiceFilters, DATE_VALIDATION_ERROR } from "@/hooks/useInvoiceFilters";
 
+const FROZEN_NOW = new Date("2026-04-24T00:00:00.000Z");
+
 beforeEach(() => {
   jest.useFakeTimers();
+  jest.setSystemTime(FROZEN_NOW);
 });
 
 afterEach(() => {
@@ -120,12 +123,9 @@ describe("useInvoiceFilters", () => {
 
   it("validateDateRange flags end more than one year in the future", () => {
     const { result } = renderHook(() => useInvoiceFilters());
-    const farFuture = new Date();
-    farFuture.setFullYear(farFuture.getFullYear() + 2);
-    const farFutureStr = farFuture.toISOString().slice(0, 10);
 
     act(() => {
-      result.current.setInvoiceDateTo(farFutureStr);
+      result.current.setInvoiceDateTo("2028-04-24");
     });
 
     expect(result.current.validateDateRange()).toBe(DATE_VALIDATION_ERROR.END_TOO_FAR);

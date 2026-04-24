@@ -5,17 +5,8 @@ import { renderHook, act } from "@testing-library/react";
 import { useInvoiceTableState, SORT_DIRECTION } from "@/hooks/useInvoiceTableState";
 import type { Invoice } from "@/types";
 
-function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
-  return {
-    _id: "inv-1",
-    tenantId: "t-1",
-    status: "PARSED",
-    attachmentName: "file.pdf",
-    receivedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    parsed: {},
-    ...overrides
-  } as Invoice;
+function makeInvoice(overrides: Pick<Invoice, "_id" | "status">): Invoice {
+  return { ...overrides } as Invoice;
 }
 
 beforeEach(() => {
@@ -102,8 +93,9 @@ describe("useInvoiceTableState", () => {
     const { result } = renderHook(() => useInvoiceTableState());
 
     act(() => {
-      result.current.setSelectedIds(["off-page", "a"]);
+      result.current.toggleSelectAllVisible(["off-page", "a"], false);
     });
+    expect(result.current.selectedIds.sort()).toEqual(["a", "off-page"]);
 
     act(() => {
       result.current.toggleSelectAllVisible(["a", "b"], false);
@@ -120,13 +112,13 @@ describe("useInvoiceTableState", () => {
     const { result } = renderHook(() => useInvoiceTableState());
 
     act(() => {
-      result.current.setSelectedIds(["a", "b", "c"]);
+      result.current.toggleSelectAllVisible(["a", "b", "c"], false);
     });
 
     act(() => {
       result.current.removeFromSelection(["b"]);
     });
-    expect(result.current.selectedIds).toEqual(["a", "c"]);
+    expect(result.current.selectedIds.sort()).toEqual(["a", "c"]);
 
     act(() => {
       result.current.clearSelection();
@@ -138,7 +130,7 @@ describe("useInvoiceTableState", () => {
     const { result } = renderHook(() => useInvoiceTableState());
 
     act(() => {
-      result.current.setSelectedIds(["a", "b", "off-page"]);
+      result.current.toggleSelectAllVisible(["a", "b", "off-page"], false);
     });
 
     act(() => {

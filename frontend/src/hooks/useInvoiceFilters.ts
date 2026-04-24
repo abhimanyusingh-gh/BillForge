@@ -39,12 +39,6 @@ interface UseInvoiceFiltersResult {
   validateDateRange: () => DateValidationError | null;
 }
 
-function computeMaxFutureDate(): string {
-  const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() + MAX_FUTURE_YEARS);
-  return maxDate.toISOString().slice(0, 10);
-}
-
 export function useInvoiceFilters(
   options: UseInvoiceFiltersOptions = {}
 ): UseInvoiceFiltersResult {
@@ -75,7 +69,10 @@ export function useInvoiceFilters(
     if (invoiceDateFrom && invoiceDateTo && invoiceDateFrom > invoiceDateTo) {
       return DATE_VALIDATION_ERROR.START_AFTER_END;
     }
-    if (invoiceDateTo && invoiceDateTo > computeMaxFutureDate()) {
+    const maxFutureDate = new Date();
+    maxFutureDate.setFullYear(maxFutureDate.getFullYear() + MAX_FUTURE_YEARS);
+    const maxFutureIso = maxFutureDate.toISOString().slice(0, 10);
+    if (invoiceDateTo && invoiceDateTo > maxFutureIso) {
       return DATE_VALIDATION_ERROR.END_TOO_FAR;
     }
     return null;
