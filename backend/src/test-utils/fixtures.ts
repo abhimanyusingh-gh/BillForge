@@ -20,6 +20,7 @@ import { Types } from "mongoose";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { ONBOARDING_STATUS, TENANT_MODE } from "@/types/onboarding.js";
 
@@ -140,6 +141,8 @@ export async function buildFixtures(
     };
     tenants.push(tenant);
 
+    const clientOrgId = deterministicObjectId(`client-org:${t}`);
+
     if (persist) {
       await TenantModel.create({
         _id: tenant._id,
@@ -149,6 +152,14 @@ export async function buildFixtures(
         defaultCurrency: "INR",
         mode: TENANT_MODE.TEST,
         enabled: true
+      });
+
+      await ClientOrganizationModel.create({
+        _id: clientOrgId,
+        tenantId: String(tenant._id),
+        companyName: tenant.name,
+        gstin: synthGstin(rng),
+        f12OverwriteByGuidVerified: false
       });
     }
 
@@ -192,6 +203,7 @@ export async function buildFixtures(
           await InvoiceModel.create({
             _id: invoice._id,
             tenantId: invoice.tenantId,
+            clientOrgId,
             workloadTier: "standard",
             sourceType: "harness",
             sourceKey: `harness-${seed}`,

@@ -145,6 +145,7 @@ const invoiceExportSchema = new Schema(
 const invoiceSchema = new Schema(
   {
     tenantId: { type: String, required: true, default: "default" },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     workloadTier: { type: String, enum: WorkloadTiers, required: true, default: "standard" },
     sourceType: { type: String, required: true },
     sourceKey: { type: String, required: true },
@@ -396,6 +397,7 @@ invoiceSchema.index(
   { tenantId: 1, gmailMessageId: 1 },
   { unique: true, partialFilterExpression: { gmailMessageId: { $type: "string" } } }
 );
+invoiceSchema.index({ tenantId: 1, clientOrgId: 1 });
 invoiceSchema.index({ tenantId: 1, "approval.userId": 1 });
 invoiceSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 invoiceSchema.index({ tenantId: 1, createdAt: 1 });

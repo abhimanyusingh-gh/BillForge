@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { GSTIN_FORMAT } from "@/constants/indianCompliance.js";
 
 export const TALLY_VERSION = {
   ERP9: "erp9",
@@ -7,12 +8,20 @@ export const TALLY_VERSION = {
 } as const;
 export type TallyVersion = typeof TALLY_VERSION[keyof typeof TALLY_VERSION];
 
-const tenantTallyCompanySchema = new Schema(
+const clientOrganizationSchema = new Schema(
   {
     tenantId: { type: String, required: true },
     companyName: { type: String },
     companyGuid: { type: String },
     stateName: { type: String },
+    gstin: {
+      type: String,
+      required: true,
+      validate: {
+        validator: (value: string) => GSTIN_FORMAT.test(value),
+        message: "gstin must match the 15-character GSTIN format."
+      }
+    },
     f12OverwriteByGuidVerified: { type: Boolean, required: true, default: false },
     detectedVersion: {
       type: String,
@@ -24,11 +33,11 @@ const tenantTallyCompanySchema = new Schema(
   { timestamps: true }
 );
 
-tenantTallyCompanySchema.index({ tenantId: 1 }, { unique: true });
+clientOrganizationSchema.index({ tenantId: 1, gstin: 1 }, { unique: true });
 
-type TenantTallyCompany = InferSchemaType<typeof tenantTallyCompanySchema>;
+export type ClientOrganization = InferSchemaType<typeof clientOrganizationSchema>;
 
-export const TenantTallyCompanyModel = model<TenantTallyCompany>(
-  "TenantTallyCompany",
-  tenantTallyCompanySchema
+export const ClientOrganizationModel = model<ClientOrganization>(
+  "ClientOrganization",
+  clientOrganizationSchema
 );

@@ -4,7 +4,7 @@ const stageInFlightExportVersionMock = jest.fn();
 const promoteExportVersionMock = jest.fn();
 const clearInFlightExportVersionMock = jest.fn();
 const buildTallyExportConfigMock = jest.fn();
-const tenantTallyCompanyFindOneMock = jest.fn();
+const clientOrganizationFindByIdMock = jest.fn();
 const DEFAULT_TALLY_CONFIG = {
   endpoint: "http://example.test/tally",
   companyName: "Demo",
@@ -36,14 +36,14 @@ jest.mock("@/services/export/tenantExportConfigResolver.ts", () => ({
   buildCsvExportConfig: jest.fn()
 }));
 
-jest.mock("@/models/integration/TenantTallyCompany.ts", () => ({
+jest.mock("@/models/integration/ClientOrganization.ts", () => ({
   __esModule: true,
-  TenantTallyCompanyModel: {
-    findOne: (...args: unknown[]) => ({
-      lean: () => tenantTallyCompanyFindOneMock(...args)
+  ClientOrganizationModel: {
+    findById: (...args: unknown[]) => ({
+      lean: () => clientOrganizationFindByIdMock(...args)
     })
   },
-  TALLY_VERSION: jest.requireActual("@/models/integration/TenantTallyCompany.ts").TALLY_VERSION
+  TALLY_VERSION: jest.requireActual("@/models/integration/ClientOrganization.ts").TALLY_VERSION
 }));
 
 import {
@@ -1234,6 +1234,7 @@ function createInvoiceStub(input: InvoiceStubInput) {
 
   return {
     _id: input._id,
+    clientOrgId: "client-org-1",
     sourceType: input.sourceType ?? "email",
     sourceKey: input.sourceKey ?? "inbox",
     attachmentName: input.attachmentName ?? "file.pdf",
@@ -1374,8 +1375,15 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     promoteExportVersionMock.mockReset();
     clearInFlightExportVersionMock.mockReset();
     buildTallyExportConfigMock.mockReset();
-    tenantTallyCompanyFindOneMock.mockReset();
-    tenantTallyCompanyFindOneMock.mockResolvedValue(null);
+    clientOrganizationFindByIdMock.mockReset();
+    clientOrganizationFindByIdMock.mockResolvedValue({
+      _id: "client-org-1",
+      tenantId: "tenant-1",
+      companyName: "Demo Co",
+      gstin: "29ABCPK1234F1Z5",
+      f12OverwriteByGuidVerified: true,
+      detectedVersion: null
+    });
     stageInFlightExportVersionMock.mockResolvedValue(undefined);
     promoteExportVersionMock.mockResolvedValue(undefined);
     clearInFlightExportVersionMock.mockResolvedValue(undefined);
@@ -1576,8 +1584,14 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     expect(payload).not.toContain("<PLACEOFSUPPLY>");
   });
 
-  it("reads detectedVersion from TenantTallyCompany when tenantId is provided", async () => {
-    tenantTallyCompanyFindOneMock.mockResolvedValue({ detectedVersion: "prime" });
+  it("reads detectedVersion from the invoice's ClientOrganization when tenantId is provided", async () => {
+    clientOrganizationFindByIdMock.mockResolvedValue({
+      _id: "client-org-1",
+      tenantId: TENANT_ID,
+      gstin: "29ABCPK1234F1Z5",
+      f12OverwriteByGuidVerified: true,
+      detectedVersion: "prime"
+    });
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-dv",
       action: "Create",
@@ -1596,7 +1610,7 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     });
 
     await exporter.exportInvoices([invoice], TENANT_ID);
-    expect(tenantTallyCompanyFindOneMock).toHaveBeenCalledWith({ tenantId: TENANT_ID });
+    expect(clientOrganizationFindByIdMock).toHaveBeenCalledWith("client-org-1");
   });
 
   it("does not engage the guard when tenantId is omitted (backward-compat)", async () => {

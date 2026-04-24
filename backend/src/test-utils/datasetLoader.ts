@@ -26,9 +26,12 @@
  */
 
 import { writeFileSync, readFileSync } from "node:fs";
+import { Types } from "mongoose";
+import { createHash } from "node:crypto";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { ONBOARDING_STATUS, TENANT_MODE } from "@/types/onboarding.js";
 import {
@@ -36,6 +39,23 @@ import {
   FIXTURE_NOW,
   type FixtureSet
 } from "./fixtures.js";
+
+function clientOrgIdForTenant(tenantId: string): Types.ObjectId {
+  const hex = createHash("sha1").update(`client-org:${tenantId}`).digest("hex").slice(0, 24);
+  return new Types.ObjectId(hex);
+}
+
+function syntheticGstinForTenant(tenantId: string): string {
+  const hex = createHash("sha1").update(`gstin:${tenantId}`).digest("hex").toUpperCase();
+  const digits = hex.replace(/[^0-9]/g, "").padEnd(6, "0");
+  const letters = hex.replace(/[^A-F]/g, "").padEnd(6, "A");
+  const stateCode = (digits.slice(0, 2).padStart(2, "0")).slice(0, 2) || "29";
+  const panHead = letters.slice(0, 5).padEnd(5, "A");
+  const panDigits = digits.slice(2, 6).padEnd(4, "0");
+  const panTail = letters[5] ?? "A";
+  const check = letters[0] ?? "A";
+  return `${stateCode}${panHead}${panDigits}${panTail}1Z${check}`;
+}
 
 export interface DatasetScale {
   tenants: number;
@@ -78,6 +98,17 @@ export async function generateDataset(
     { ordered: false }
   );
 
+  await ClientOrganizationModel.insertMany(
+    tenants.map((t) => ({
+      _id: clientOrgIdForTenant(String(t._id)),
+      tenantId: String(t._id),
+      companyName: t.name,
+      gstin: syntheticGstinForTenant(String(t._id)),
+      f12OverwriteByGuidVerified: false
+    })),
+    { ordered: false }
+  );
+
   await insertInBatches(VendorMasterModel, vendors, (v, i) => ({
     _id: v._id,
     tenantId: v.tenantId,
@@ -92,6 +123,7 @@ export async function generateDataset(
   await insertInBatches(InvoiceModel, invoices, (inv, i) => ({
     _id: inv._id,
     tenantId: inv.tenantId,
+    clientOrgId: clientOrgIdForTenant(inv.tenantId),
     workloadTier: "standard",
     sourceType: "harness-bulk",
     sourceKey: `harness-bulk-${scale.seed ?? 42}`,

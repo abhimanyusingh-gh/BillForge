@@ -4,12 +4,20 @@ jest.mock("../../models/invoice/Invoice.js", () => ({
   }
 }));
 
+jest.mock("../../models/integration/ClientOrganization.js", () => ({
+  ClientOrganizationModel: {
+    exists: jest.fn(async () => ({ _id: "client-org-1" }))
+  }
+}));
+
 jest.mock("../../utils/logger.js", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
   getCorrelationId: jest.fn(() => "corr-test-001"),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   runWithLogContext: jest.fn((_id, cb) => cb())
 }));
+
+const VALID_CLIENT_ORG_ID = "507f1f77bcf86cd799439011";
 
 import type { IngestionService } from "@/services/ingestion/ingestionService.ts";
 import { defaultAuth, findHandler, findSecondHandler, mockRequest, mockResponse, createMockFileStore } from "@/routes/testHelpers.ts";
@@ -21,6 +29,10 @@ beforeEach(async () => {
 
   jest.mock("../../models/invoice/Invoice.js", () => ({
     InvoiceModel: { create: jest.fn(async () => ({ _id: "inv-1" })) }
+  }));
+
+  jest.mock("../../models/integration/ClientOrganization.js", () => ({
+    ClientOrganizationModel: { exists: jest.fn(async () => ({ _id: "client-org-1" })) }
   }));
 
   jest.mock("../../utils/logger.js", () => ({
@@ -158,11 +170,24 @@ describe("jobs routes", () => {
       ];
       const res = mockResponse();
 
-      await findSecondHandler(router, "post", "/jobs/upload")(mockRequest({ authContext: defaultAuth, files }), res, jest.fn());
+      await findSecondHandler(router, "post", "/jobs/upload")(mockRequest({ authContext: defaultAuth, files, body: { clientOrgId: VALID_CLIENT_ORG_ID } }), res, jest.fn());
 
       expect(res.statusCode).toBe(201);
       expect((res.jsonBody as { count: number }).count).toBe(2);
       expect(fileStore.putObject).toHaveBeenCalledTimes(2);
+    });
+
+    it("returns 400 when clientOrgId is missing", async () => {
+      const fileStore = createMockFileStore();
+      const router = createJobsRouter(createMockIngestionService(), undefined, fileStore);
+      const pdfBuffer = Buffer.from("%PDF-1.4 test");
+      const res = mockResponse();
+      await findSecondHandler(router, "post", "/jobs/upload")(
+        mockRequest({ authContext: defaultAuth, files: [{ originalname: "a.pdf", buffer: pdfBuffer, mimetype: "application/pdf" }] }),
+        res, jest.fn()
+      );
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as { message: string }).message).toContain("clientOrgId");
     });
 
     it("returns 400 when file store is not configured", async () => {
@@ -205,7 +230,7 @@ describe("jobs routes", () => {
 
       for (let i = 0; i < 3; i++) {
         await findSecondHandler(router, "post", "/jobs/upload")(
-          mockRequest({ authContext: defaultAuth, files: [{ originalname: `f${i}.pdf`, buffer: Buffer.from(`%PDF-1.4 d${i}`), mimetype: "application/pdf" }] }),
+          mockRequest({ authContext: defaultAuth, files: [{ originalname: `f${i}.pdf`, buffer: Buffer.from(`%PDF-1.4 d${i}`), mimetype: "application/pdf" }], body: { clientOrgId: VALID_CLIENT_ORG_ID } }),
           mockResponse(), jest.fn()
         );
       }
@@ -227,7 +252,7 @@ describe("jobs routes", () => {
         mockRequest({ authContext: defaultAuth, files: [
           { originalname: "a.pdf", buffer: pdfBuffer, mimetype: "application/pdf" },
           { originalname: "b.pdf", buffer: pdfBuffer, mimetype: "application/pdf" }
-        ] }),
+        ], body: { clientOrgId: VALID_CLIENT_ORG_ID } }),
         res, jest.fn()
       );
       expect(res.statusCode).toBe(201);
@@ -246,7 +271,7 @@ describe("jobs routes", () => {
       const res = mockResponse();
 
       await findHandler(router, "post", "/jobs/upload/by-keys")(
-        mockRequest({ authContext: defaultAuth, body: { keys } }),
+        mockRequest({ authContext: defaultAuth, body: { keys, clientOrgId: VALID_CLIENT_ORG_ID } }),
         res, jest.fn()
       );
 
@@ -294,7 +319,7 @@ describe("jobs routes", () => {
 
       const res = mockResponse();
       await findHandler(router, "post", "/jobs/upload/by-keys")(
-        mockRequest({ authContext: defaultAuth, body: { keys: [`uploads/${defaultAuth.tenantId}/a.pdf`] } }),
+        mockRequest({ authContext: defaultAuth, body: { keys: [`uploads/${defaultAuth.tenantId}/a.pdf`], clientOrgId: VALID_CLIENT_ORG_ID } }),
         res, jest.fn()
       );
       expect(res.statusCode).toBe(201);
@@ -314,7 +339,7 @@ describe("jobs routes", () => {
       await findHandler(router, "post", "/jobs/ingest")(mockRequest({ authContext: defaultAuth }), mockResponse(), jest.fn());
 
       await findSecondHandler(router, "post", "/jobs/upload")(
-        mockRequest({ authContext: defaultAuth, files: [{ originalname: "f.pdf", buffer: Buffer.from("%PDF-1.4 d"), mimetype: "application/pdf" }] }),
+        mockRequest({ authContext: defaultAuth, files: [{ originalname: "f.pdf", buffer: Buffer.from("%PDF-1.4 d"), mimetype: "application/pdf" }], body: { clientOrgId: VALID_CLIENT_ORG_ID } }),
         mockResponse(), jest.fn()
       );
 

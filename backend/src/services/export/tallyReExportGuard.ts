@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
-import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
+import type { ClientOrganization } from "@/models/integration/ClientOrganization.js";
 import { TALLY_ACTION, type TallyAction } from "@/services/export/tallyExporter/xml.js";
 
 interface VoucherGuidInputs {
@@ -65,18 +65,21 @@ export function computeVoucherGuid(inputs: VoucherGuidInputs): string {
   return createHash("sha256").update(payload).digest("hex");
 }
 
+export function resolveBuyerStateName(clientOrganization: ClientOrganization): string | null {
+  return clientOrganization.stateName ?? null;
+}
+
 export async function resolveReExportDecision(params: {
   tenantId: string;
   invoiceId: string;
   currentExportVersion: number;
+  clientOrganization: ClientOrganization;
 }): Promise<ReExportDecision> {
-  const { tenantId, invoiceId, currentExportVersion } = params;
+  const { tenantId, invoiceId, currentExportVersion, clientOrganization } = params;
   const nextExportVersion = currentExportVersion + 1;
   const action: TallyAction = currentExportVersion === 0 ? TALLY_ACTION.CREATE : TALLY_ACTION.ALTER;
 
-  const company = await TenantTallyCompanyModel.findOne({ tenantId }).lean();
-
-  if (action === TALLY_ACTION.ALTER && !company?.f12OverwriteByGuidVerified) {
+  if (action === TALLY_ACTION.ALTER && !clientOrganization.f12OverwriteByGuidVerified) {
     throw new F12OverwriteNotVerifiedError(tenantId);
   }
 
@@ -85,7 +88,7 @@ export async function resolveReExportDecision(params: {
     action,
     priorExportVersion: currentExportVersion,
     nextExportVersion,
-    buyerStateName: company?.stateName ?? null
+    buyerStateName: resolveBuyerStateName(clientOrganization)
   };
 }
 

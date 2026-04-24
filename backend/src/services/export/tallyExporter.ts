@@ -25,7 +25,7 @@ import {
   stageInFlightExportVersion
 } from "@/services/export/tallyReExportGuard.js";
 import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
-import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 
 export {
   buildTallyBatchImportXml,
@@ -75,14 +75,6 @@ export class TallyExporter implements AccountingExporter {
       ? await this.resolveEffectiveConfig(tenantId)
       : this.config;
 
-    if (tenantId) {
-      const company = await TenantTallyCompanyModel.findOne({ tenantId }).lean();
-      logger.info("tally.export.detected_version", {
-        tenantId,
-        detectedVersion: company?.detectedVersion ?? null
-      });
-    }
-
     for (const invoice of invoices) {
       const invoiceId = toUUID(String(invoice._id));
 
@@ -99,13 +91,29 @@ export class TallyExporter implements AccountingExporter {
           continue;
         }
 
-        const decision = tenantId
-          ? await resolveReExportDecision({
-              tenantId,
+        let decision;
+        if (tenantId) {
+          const clientOrganization = await ClientOrganizationModel.findById(invoice.clientOrgId).lean();
+          if (!clientOrganization) {
+            results.push({
               invoiceId,
-              currentExportVersion: invoice.exportVersion ?? 0
-            })
-          : undefined;
+              success: false,
+              error: `ClientOrganization ${String(invoice.clientOrgId)} not found for invoice.`
+            });
+            continue;
+          }
+          logger.info("tally.export.detected_version", {
+            tenantId,
+            clientOrgId: String(invoice.clientOrgId),
+            detectedVersion: clientOrganization.detectedVersion ?? null
+          });
+          decision = await resolveReExportDecision({
+            tenantId,
+            invoiceId,
+            currentExportVersion: invoice.exportVersion ?? 0,
+            clientOrganization
+          });
+        }
 
         if (decision) {
           await stageInFlightExportVersion({

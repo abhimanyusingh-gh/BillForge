@@ -5,7 +5,9 @@ import multer from "multer";
 import type { IngestionService } from "@/services/ingestion/ingestionService.js";
 import type { EmailSimulationService } from "@/services/platform/emailSimulationService.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
+import { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { logger } from "@/utils/logger.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
@@ -20,6 +22,28 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_UPLOAD_FILE_SIZE_BYTES, files: MAX_UPLOAD_FILE_COUNT }
 });
+
+async function resolveClientOrgIdOrReject(
+  tenantId: string,
+  rawClientOrgId: unknown,
+  res: import("express").Response
+): Promise<Types.ObjectId | null> {
+  if (typeof rawClientOrgId !== "string" || rawClientOrgId.length === 0) {
+    res.status(400).json({ message: "clientOrgId is required." });
+    return null;
+  }
+  if (!Types.ObjectId.isValid(rawClientOrgId)) {
+    res.status(400).json({ message: "clientOrgId is not a valid ObjectId." });
+    return null;
+  }
+  const clientOrgObjectId = new Types.ObjectId(rawClientOrgId);
+  const exists = await ClientOrganizationModel.exists({ _id: clientOrgObjectId, tenantId });
+  if (!exists) {
+    res.status(404).json({ message: "clientOrgId not found for this tenant." });
+    return null;
+  }
+  return clientOrgObjectId;
+}
 
 function matchesMagicBytes(filename: string, buffer: Buffer): boolean {
   const ext = filename.slice(filename.lastIndexOf(".")).toLowerCase();
@@ -127,6 +151,13 @@ export function createJobsRouter(
         return;
       }
 
+      const clientOrgId = await resolveClientOrgIdOrReject(
+        context.tenantId,
+        (req.body as Record<string, unknown>)?.clientOrgId,
+        res
+      );
+      if (!clientOrgId) return;
+
       const uploaded: string[] = [];
       let newlyCreated = 0;
       for (const file of files) {
@@ -146,6 +177,7 @@ export function createJobsRouter(
         try {
           await InvoiceModel.create({
             tenantId: context.tenantId,
+            clientOrgId,
             workloadTier: "standard",
             sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
             sourceKey: `s3-upload-${context.tenantId}`,
@@ -210,6 +242,13 @@ export function createJobsRouter(
         return;
       }
 
+      const clientOrgId = await resolveClientOrgIdOrReject(
+        context.tenantId,
+        (req.body as Record<string, unknown>)?.clientOrgId,
+        res
+      );
+      if (!clientOrgId) return;
+
       const uploaded: string[] = [];
       let newlyCreated = 0;
 
@@ -222,6 +261,7 @@ export function createJobsRouter(
         try {
           await InvoiceModel.create({
             tenantId: context.tenantId,
+            clientOrgId,
             workloadTier: "standard",
             sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
             sourceKey: `s3-upload-${context.tenantId}`,
