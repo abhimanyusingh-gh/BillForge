@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { ActionRequiredTrigger } from "@/features/invoices/ActionRequiredTrigger";
 
 interface WorkspaceTopNavProps {
   userEmail: string;
@@ -6,9 +7,10 @@ interface WorkspaceTopNavProps {
   onChangePassword: () => void;
   counts: { total: number; approved: number; pending: number; failed: number };
   themeToggle?: React.ReactNode;
+  onSelectActionInvoice?: (invoiceId: string) => void;
 }
 
-export function WorkspaceTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle }: WorkspaceTopNavProps) {
+export function WorkspaceTopNav({ userEmail, onLogout, onChangePassword, counts, themeToggle, onSelectActionInvoice }: WorkspaceTopNavProps) {
   const avatarLabel = useMemo(() => {
     const trimmed = userEmail.trim();
     if (!trimmed) {
@@ -37,6 +39,7 @@ export function WorkspaceTopNav({ userEmail, onLogout, onChangePassword, counts,
       </div>
 
       <div className="tenant-top-nav-right">
+        <ActionRequiredTrigger onSelectInvoice={onSelectActionInvoice} />
         {themeToggle ?? null}
         <div className="tenant-avatar" aria-label={`Signed in as ${userEmail}`} title={userEmail}>
           {avatarLabel}
