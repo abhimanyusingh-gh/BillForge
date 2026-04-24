@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import { TenantSidebar, SIDEBAR_ITEM_ID } from "@/features/workspace/TenantSidebar";
 
@@ -92,17 +93,26 @@ describe("TenantSidebar", () => {
     expect(within(invoicesBtn).queryByText("0")).toBeNull();
   });
 
-  it("supports keyboard activation (Enter) on a focused backed item", () => {
+  it("supports keyboard activation (Enter) on a focused backed item", async () => {
+    const user = userEvent.setup();
     const { props } = renderSidebar();
     const dashBtn = screen.getByRole("button", { name: /^Dashboard/ });
     dashBtn.focus();
     expect(dashBtn).toHaveFocus();
-    fireEvent.keyDown(dashBtn, { key: "Enter", code: "Enter" });
-    fireEvent.click(dashBtn);
+    await user.keyboard("{Enter}");
     expect(props.onTabChange).toHaveBeenCalledWith("overview");
   });
 
-  it("exports a stable SIDEBAR_ITEM_ID enum covering all 8 items", () => {
-    expect(Object.keys(SIDEBAR_ITEM_ID)).toHaveLength(8);
+  it("exports a stable SIDEBAR_ITEM_ID enum in the PRD-defined order (drift-guard)", () => {
+    expect(Object.values(SIDEBAR_ITEM_ID)).toEqual([
+      "dashboard",
+      "inbox",
+      "invoices",
+      "vendors",
+      "payments",
+      "reconciliation",
+      "exports",
+      "settings"
+    ]);
   });
 });

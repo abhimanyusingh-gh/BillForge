@@ -75,7 +75,8 @@ export function TenantSidebar({
                 className={isActive ? "tenant-sidebar-link tenant-sidebar-link-active" : "tenant-sidebar-link"}
                 aria-current={isActive ? "page" : undefined}
                 aria-disabled={isDisabled || undefined}
-                disabled={isDisabled}
+                disabled={isDisabled && !isPlaceholder}
+                tabIndex={isPlaceholder ? -1 : undefined}
                 data-item-id={item.id}
                 onClick={() => {
                   if (!isDisabled && item.tab !== null) {
