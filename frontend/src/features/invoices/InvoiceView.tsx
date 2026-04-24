@@ -53,6 +53,7 @@ import { InvoiceDetailPanel } from "@/components/invoice/InvoiceDetailPanel";
 import { RiskDot, RISK_SEVERITY, type RiskSeverity } from "@/components/compliance/RiskDot";
 import { InvoicePopup } from "@/components/invoice/InvoicePopup";
 import { GlCodeDropdown } from "@/components/compliance/GlCodeDropdown";
+import { ActionHintBadge } from "@/components/invoice/ActionHintBadge";
 
 function formatTaxSummary(invoice: { parsed?: { gst?: { cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number }; currency?: string } }): string {
   const gst = invoice.parsed?.gst;
@@ -1225,20 +1226,21 @@ export function InvoiceView({
               <table>
                 <thead>
                   <tr>
-                    <th><input type="checkbox" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
+                    <th><input type="checkbox" aria-label="Select all visible invoices" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
                     {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["tax", "Tax"], ["glCode", "GL Code"], ["tds", "TDS"], ["signals", "Signals"], ["confidence", "Score"], ["status", "Status"], ["approvedBy", "Approved By"], ["received", "Received"]] as const).map(([key, label]) => (
                       <th
                         key={key}
                         className="sortable-th"
+                        aria-sort={sortColumn === key ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                         style={columnWidths[key] ? { width: columnWidths[key], position: "relative" } : { position: "relative" }}
                         onClick={() => { if (sortColumn === key) { setSortDirection((d) => d === "asc" ? "desc" : "asc"); } else { setSortColumn(key); setSortDirection("asc"); } }}
                       >
                         {label}
-                        {sortColumn === key ? <span className="sort-indicator">{sortDirection === "asc" ? " \u25B2" : " \u25BC"}</span> : null}
+                        {sortColumn === key ? <span className="sort-indicator" aria-hidden="true">{sortDirection === "asc" ? " \u25B2" : " \u25BC"}</span> : null}
                         <span className="col-resize-handle" onMouseDown={(e) => handleColumnResize(key, e)} />
                       </th>
                     ))}
-                    <th></th>
+                    <th aria-label="Row actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -1256,6 +1258,7 @@ export function InvoiceView({
                         <td>
                           <input
                             type="checkbox"
+                            aria-label={`Select invoice ${invoice.attachmentName}`}
                             checked={selectedIds.includes(invoice._id)}
                             disabled={!isInvoiceSelectable(invoice)}
                             onChange={() => toggleSelection(invoice)}
@@ -1266,13 +1269,13 @@ export function InvoiceView({
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "attachmentName" ? (
                             <>
                               <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              <button type="button" className="field-save-button" aria-label="Save file name" onClick={() => void handleSaveListCell()}>&#10003;</button>
                             </>
                           ) : (
                             <>
                               <button type="button" className="file-label" onClick={(event) => { event.stopPropagation(); setPopupInvoiceId(invoice._id); }}>{invoice.attachmentName}</button>
                               {canEditCell && (
-                                <button type="button" className="row-action-button file-rename-button" title="Rename" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
+                                <button type="button" className="row-action-button file-rename-button" title="Rename" aria-label={`Rename file ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
                                   <span className="material-symbols-outlined">edit</span>
                                 </button>
                               )}
@@ -1283,13 +1286,13 @@ export function InvoiceView({
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName" ? (
                             <>
                               <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              <button type="button" className="field-save-button" aria-label="Save vendor" onClick={() => void handleSaveListCell()}>&#10003;</button>
                             </>
                           ) : (
                             <>
                               <span className="extracted-value-display">{invoice.parsed?.vendorName ?? "-"}</span>
                               {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit vendor" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
+                                <button type="button" className="row-action-button field-edit-button" title="Edit vendor" aria-label={`Edit vendor on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
                                   <span className="material-symbols-outlined">edit</span>
                                 </button>
                               )}
@@ -1300,13 +1303,13 @@ export function InvoiceView({
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceNumber" ? (
                             <>
                               <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              <button type="button" className="field-save-button" aria-label="Save invoice number" onClick={() => void handleSaveListCell()}>&#10003;</button>
                             </>
                           ) : (
                             <>
                               <span className="extracted-value-display">{invoice.parsed?.invoiceNumber ?? "-"}</span>
                               {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit invoice number" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
+                                <button type="button" className="row-action-button field-edit-button" title="Edit invoice number" aria-label={`Edit invoice number on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
                                   <span className="material-symbols-outlined">edit</span>
                                 </button>
                               )}
@@ -1317,13 +1320,13 @@ export function InvoiceView({
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceDate" ? (
                             <>
                               <input className="extracted-value-input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              <button type="button" className="field-save-button" aria-label="Save invoice date" onClick={() => void handleSaveListCell()}>&#10003;</button>
                             </>
                           ) : (
                             <>
                               <span className="extracted-value-display">{invoice.parsed?.invoiceDate ?? "-"}</span>
                               {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit date" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); const raw = invoice.parsed?.invoiceDate ?? ""; const d = raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw) : null; setEditListValue(d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : raw); }}>
+                                <button type="button" className="row-action-button field-edit-button" title="Edit date" aria-label={`Edit invoice date on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); const raw = invoice.parsed?.invoiceDate ?? ""; const d = raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw) : null; setEditListValue(d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : raw); }}>
                                   <span className="material-symbols-outlined">edit</span>
                                 </button>
                               )}
@@ -1338,13 +1341,13 @@ export function InvoiceView({
                           {editingListCell?.invoiceId === invoice._id && editingListCell.field === "totalAmountMinor" ? (
                             <>
                               <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" onClick={() => void handleSaveListCell()}>&#10003;</button>
+                              <button type="button" className="field-save-button" aria-label="Save amount" onClick={() => void handleSaveListCell()}>&#10003;</button>
                             </>
                           ) : (
                             <>
                               <span className="extracted-value-display">{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
                               {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit amount" onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
+                                <button type="button" className="row-action-button field-edit-button" title="Edit amount" aria-label={`Edit amount on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
                                   <span className="material-symbols-outlined">edit</span>
                                 </button>
                               )}
@@ -1374,6 +1377,7 @@ export function InvoiceView({
                                   type="button"
                                   className="row-action-button field-edit-button"
                                   title="Edit GL code"
+                                  aria-label={`Edit GL code on ${invoice.attachmentName}`}
                                   onClick={() => setGlCodeEditingInvoiceId(invoice._id)}
                                 >
                                   <span className="material-symbols-outlined">edit</span>
@@ -1429,23 +1433,24 @@ export function InvoiceView({
                             });
                             const ingesting = ingestingIds.has(invoice._id);
                             return (
-                              <>
+                              <div className="row-actions-cell">
+                                <ActionHintBadge invoice={invoice} />
                                 {actions.includes("approve") && !ingesting && (
-                                  <button type="button" className="row-action-button row-action-approve" title="Approve" onClick={() => void handleApproveSingle(invoice._id)}>
-                                    <span className="material-symbols-outlined">check_circle</span>
+                                  <button type="button" className="row-action-button row-action-approve" title="Approve" aria-label={`Approve invoice ${invoice.attachmentName}`} onClick={() => void handleApproveSingle(invoice._id)}>
+                                    <span className="material-symbols-outlined" aria-hidden="true">check_circle</span>
                                   </button>
                                 )}
                                 {actions.includes("reingest") && !ingesting && (
-                                  <button type="button" className="row-action-button row-action-retry" title="Reingest" onClick={() => void handleRetrySingle(invoice._id)}>
-                                    <span className="material-symbols-outlined">replay</span>
+                                  <button type="button" className="row-action-button row-action-retry" title="Reingest" aria-label={`Reingest invoice ${invoice.attachmentName}`} onClick={() => void handleRetrySingle(invoice._id)}>
+                                    <span className="material-symbols-outlined" aria-hidden="true">replay</span>
                                   </button>
                                 )}
                                 {actions.includes("delete") && !ingesting && (
-                                  <button type="button" className="row-action-button" title="Delete" onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
-                                    <span className="material-symbols-outlined">delete</span>
+                                  <button type="button" className="row-action-button" title="Delete" aria-label={`Delete invoice ${invoice.attachmentName}`} onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
+                                    <span className="material-symbols-outlined" aria-hidden="true">delete</span>
                                   </button>
                                 )}
-                              </>
+                              </div>
                             );
                           })()}
                         </td>

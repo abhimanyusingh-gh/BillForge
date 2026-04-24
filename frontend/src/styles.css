@@ -1329,6 +1329,13 @@ tr:hover {
   background: rgba(19, 77, 140, 0.08);
 }
 
+.row-actions-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
 .row-action-button {
   background: none;
   border: none;
@@ -2944,6 +2951,10 @@ pre {
   cursor: pointer;
   padding: 0.2rem;
   line-height: 1;
+}
+
+.toast-dismiss-icon {
+  font-size: 1rem;
 }
 
 @keyframes toast-slide-in {
