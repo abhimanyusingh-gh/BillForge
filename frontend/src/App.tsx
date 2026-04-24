@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
@@ -9,7 +10,9 @@ import { PlatformUsageOverviewSection } from "@/features/platform-admin/Platform
 import { PlatformAnalyticsDashboard } from "@/features/platform-admin/PlatformAnalyticsDashboard";
 import { WorkspaceTopNav } from "@/features/workspace/WorkspaceTopNav";
 import { WorkspaceTabBar } from "@/features/workspace/WorkspaceTabBar";
-import { TenantSidebar } from "@/features/workspace/TenantSidebar";
+import { AppShell } from "@/features/workspace/AppShell";
+import { useTabHashRouting } from "@/features/workspace/useTabHashRouting";
+import type { TenantViewTab } from "@/types";
 import { TenantConfigTab } from "@/features/tenant-admin/TenantConfigTab";
 import { InvoiceView } from "@/features/invoices/InvoiceView";
 import { ExportHistoryDashboard } from "@/features/exports/ExportHistoryDashboard";
@@ -197,9 +200,9 @@ export function App() {
     </button>
   );
 
-  return (
-    <div className={isPlatformAdmin ? "layout layout-platform" : "layout"}>
-      {isPlatformAdmin ? (
+  if (isPlatformAdmin) {
+    return (
+      <div className="layout layout-platform">
         <PlatformAdminTopNav
           userEmail={session.user.email}
           onLogout={handleLogout}
@@ -207,23 +210,85 @@ export function App() {
           counts={{ tenants: platformStats.tenants, failedDocuments: platformStats.failedDocuments }}
           themeToggle={themeToggle}
         />
-      ) : (
-        <WorkspaceTopNav
-          userEmail={session.user.email}
-          onLogout={handleLogout}
-          onChangePassword={() => setShowChangePassword(true)}
-          counts={navCounts}
-          themeToggle={themeToggle}
-          onSelectActionInvoice={(invoiceId) => {
-            window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
-          }}
-        />
-      )}
+        <section className="controls">
+          {activeTab === "dashboard" && (
+            <>
+              <PlatformOnboardSection
+                form={platformOnboardForm}
+                collapsed={platformOnboardCollapsed}
+                onToggle={() => setPlatformOnboardCollapsed((value) => !value)}
+                onChange={setPlatformOnboardForm}
+                onSubmit={() => { void handlePlatformOnboardTenantAdmin(); }}
+                helpText="Create a new tenant organization and its first admin user. The admin will receive a temporary password."
+              />
+              {platformOnboardResult && (
+                <div className="tenant-created-success">
+                  <strong>Tenant created.</strong> Temporary password for <code>{platformOnboardResult.adminEmail}</code>: <code>{platformOnboardResult.tempPassword}</code>
+                  <button type="button" className="app-button app-button-secondary tenant-created-dismiss" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
+                </div>
+              )}
+              <PlatformAnalyticsDashboard usage={platformUsage} />
+              <PlatformUsageOverviewSection
+                usage={platformUsage}
+                selectedTenantId={selectedPlatformTenantId}
+                collapsed={platformUsageCollapsed}
+                onToggle={() => setPlatformUsageCollapsed((value) => !value)}
+                onRefresh={() => { void loadPlatformUsage(); }}
+                onSelectTenant={setSelectedPlatformTenantId}
+                onToggleEnabled={(tenantId, enabled) => { void handleToggleTenantEnabled(tenantId, enabled); }}
+              />
+              <PlatformActivityMonitor
+                selectedTenant={selectedPlatformTenant}
+                collapsed={platformActivityCollapsed}
+                onToggle={() => setPlatformActivityCollapsed((value) => !value)}
+                onRefresh={() => { void loadPlatformUsage(); }}
+              />
+            </>
+          )}
+        </section>
+        <div role="alert" aria-live="assertive">
+          {error && <p className="error">{error}</p>}
+        </div>
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+      </div>
+    );
+  }
 
-      {!isPlatformAdmin && <WorkspaceTabBar activeTab={activeTab} canViewTenantConfig={canViewConfig} canViewConnections={canViewConnections} onTabChange={setActiveTab} />}
+  const topNav = (
+    <WorkspaceTopNav
+      userEmail={session.user.email}
+      onLogout={handleLogout}
+      onChangePassword={() => setShowChangePassword(true)}
+      counts={navCounts}
+      themeToggle={themeToggle}
+      onSelectActionInvoice={(invoiceId) => {
+        window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
+      }}
+    />
+  );
 
-      <section className="controls">
-        {requiresTenantSetup && !isPlatformAdmin && canManageUsers && (
+  const showSubNav = canViewConnections && (activeTab === "config" || activeTab === "connections");
+  const subNav = showSubNav ? (
+    <WorkspaceTabBar
+      activeTab={activeTab}
+      canViewTenantConfig={canViewConfig}
+      canViewConnections={canViewConnections}
+      onTabChange={setActiveTab}
+    />
+  ) : null;
+
+  return (
+    <div className="layout">
+      <TenantAppShell
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        canViewTenantConfig={canViewConfig}
+        canViewConnections={canViewConnections}
+        invoiceActionRequiredCount={navCounts.failed}
+        topNav={topNav}
+        subNav={subNav}
+      >
+        {requiresTenantSetup && canManageUsers && (
           <div className="editor-card">
             <div className="editor-header">
               <h3>Tenant Onboarding</h3>
@@ -242,13 +307,32 @@ export function App() {
           </div>
         )}
 
-        {requiresTenantSetup && !isPlatformAdmin && !canManageUsers && (
+        {requiresTenantSetup && !canManageUsers && (
           <EmptyState icon="hourglass_top" heading="Tenant setup in progress" description="Your tenant is being set up. Please contact your tenant administrator to complete the setup." />
         )}
 
-        {activeTab === "exports" && !isPlatformAdmin && <ExportHistoryDashboard />}
+        {activeTab === "overview" && <OverviewDashboard />}
 
-        {activeTab === "config" && canViewConfig && !isPlatformAdmin && (
+        {activeTab === "dashboard" && (
+          <InvoiceView
+            tenantId={session.tenant.id}
+            userId={session.user.id}
+            userEmail={session.user.email}
+            canViewAllInvoices={canViewAllInvoices}
+            requiresTenantSetup={requiresTenantSetup}
+            tenantMode={session.tenant.mode}
+            capabilities={caps}
+            tenantUsers={canManageUsers ? tenantUsers : undefined}
+            onGmailStatusRefresh={() => void loadGmailConnectionStatus()}
+            onNavCountsChange={setNavCounts}
+            onSessionExpired={handleLogout}
+            addToast={addToast}
+          />
+        )}
+
+        {activeTab === "exports" && <ExportHistoryDashboard />}
+
+        {activeTab === "config" && canViewConfig && (
           <TenantConfigTab
             currentUserId={session.user.id}
             currentUserRole={session.user.role}
@@ -265,7 +349,7 @@ export function App() {
           />
         )}
 
-        {activeTab === "statements" && canViewConnections && !isPlatformAdmin && (
+        {activeTab === "statements" && canViewConnections && (
           <BankStatementsTab
             bankStatements={bankStatements}
             onUploadBankStatement={(file, gstin, gstinLabel) => void handleUploadBankStatement(file, gstin, gstinLabel)}
@@ -273,7 +357,7 @@ export function App() {
           />
         )}
 
-        {activeTab === "connections" && canViewConnections && !isPlatformAdmin && (
+        {activeTab === "connections" && canViewConnections && (
           <BankConnectionsTab
             mailboxes={mailboxes}
             tenantUsers={tenantUsers}
@@ -288,76 +372,40 @@ export function App() {
           />
         )}
 
-        {isPlatformAdmin && activeTab === "dashboard" && (
-          <>
-            <PlatformOnboardSection
-              form={platformOnboardForm}
-              collapsed={platformOnboardCollapsed}
-              onToggle={() => setPlatformOnboardCollapsed((value) => !value)}
-              onChange={setPlatformOnboardForm}
-              onSubmit={() => { void handlePlatformOnboardTenantAdmin(); }}
-              helpText="Create a new tenant organization and its first admin user. The admin will receive a temporary password."
-            />
-            {platformOnboardResult && (
-              <div style={{ background: "#e8f5e9", border: "1px solid #4caf50", borderRadius: 6, padding: "12px 16px", margin: "8px 0 16px" }}>
-                <strong>Tenant created.</strong> Temporary password for <code>{platformOnboardResult.adminEmail}</code>: <code>{platformOnboardResult.tempPassword}</code>
-                <button type="button" style={{ marginLeft: 12 }} className="app-button app-button-secondary" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
-              </div>
-            )}
-            <PlatformAnalyticsDashboard usage={platformUsage} />
-            <PlatformUsageOverviewSection
-              usage={platformUsage}
-              selectedTenantId={selectedPlatformTenantId}
-              collapsed={platformUsageCollapsed}
-              onToggle={() => setPlatformUsageCollapsed((value) => !value)}
-              onRefresh={() => { void loadPlatformUsage(); }}
-              onSelectTenant={setSelectedPlatformTenantId}
-              onToggleEnabled={(tenantId, enabled) => { void handleToggleTenantEnabled(tenantId, enabled); }}
-            />
-            <PlatformActivityMonitor
-              selectedTenant={selectedPlatformTenant}
-              collapsed={platformActivityCollapsed}
-              onToggle={() => setPlatformActivityCollapsed((value) => !value)}
-              onRefresh={() => { void loadPlatformUsage(); }}
-            />
-          </>
-        )}
-      </section>
-
-      <div role="alert" aria-live="assertive">
-        {error && <p className="error">{error}</p>}
-      </div>
-
-      {!isPlatformAdmin && activeTab === "overview" && (
-        <div className="tenant-overview-layout">
-          <TenantSidebar
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            canViewTenantConfig={canViewConfig}
-            canViewConnections={canViewConnections}
-            invoiceActionRequiredCount={navCounts.failed}
-          />
-          <OverviewDashboard />
+        <div role="alert" aria-live="assertive">
+          {error && <p className="error">{error}</p>}
         </div>
-      )}
-
-      {!isPlatformAdmin && activeTab === "dashboard" && (
-        <InvoiceView
-          tenantId={session.tenant.id}
-          userId={session.user.id}
-          userEmail={session.user.email}
-          canViewAllInvoices={canViewAllInvoices}
-          requiresTenantSetup={requiresTenantSetup}
-          tenantMode={session.tenant.mode}
-          capabilities={caps}
-          tenantUsers={canManageUsers ? tenantUsers : undefined}
-          onGmailStatusRefresh={() => void loadGmailConnectionStatus()}
-          onNavCountsChange={setNavCounts}
-          onSessionExpired={handleLogout}
-          addToast={addToast}
-        />
-      )}
+      </TenantAppShell>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
+  );
+}
+
+interface TenantAppShellProps {
+  activeTab: TenantViewTab;
+  onTabChange: (tab: TenantViewTab) => void;
+  canViewTenantConfig: boolean;
+  canViewConnections: boolean;
+  invoiceActionRequiredCount: number;
+  topNav: ReactNode;
+  subNav: ReactNode;
+  children: ReactNode;
+}
+
+function TenantAppShell({ activeTab, onTabChange, canViewTenantConfig, canViewConnections, invoiceActionRequiredCount, topNav, subNav, children }: TenantAppShellProps) {
+  const { migration } = useTabHashRouting({ activeTab, onTabChange });
+  return (
+    <AppShell
+      activeTab={activeTab}
+      onTabChange={onTabChange}
+      canViewTenantConfig={canViewTenantConfig}
+      canViewConnections={canViewConnections}
+      invoiceActionRequiredCount={invoiceActionRequiredCount}
+      topNav={topNav}
+      subNav={subNav}
+      migration={migration}
+    >
+      {children}
+    </AppShell>
   );
 }
