@@ -1,23 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TenantViewTab } from "@/types";
-
-export const TAB_HASH_PATH = {
-  overview: "#/overview",
-  dashboard: "#/invoices",
-  exports: "#/exports",
-  statements: "#/reconciliation",
-  config: "#/settings",
-  connections: "#/connections"
-} as const;
-
-const HASH_TO_TAB: Record<string, TenantViewTab> = {
-  "#/overview": "overview",
-  "#/invoices": "dashboard",
-  "#/exports": "exports",
-  "#/reconciliation": "statements",
-  "#/settings": "config",
-  "#/connections": "connections"
-};
+import { HASH_TO_TAB, LEGACY_QUERY_TABS, TAB_HASH_PATH } from "@/features/workspace/tabHashConfig";
 
 export interface HashRouteMigration {
   oldPath: string;
@@ -38,8 +21,7 @@ function readLegacyQueryTab(): { tab: TenantViewTab; oldPath: string } | null {
   if (!legacy) {
     return null;
   }
-  const tabs: TenantViewTab[] = ["overview", "dashboard", "exports", "statements", "config", "connections"];
-  if ((tabs as string[]).includes(legacy)) {
+  if ((LEGACY_QUERY_TABS as string[]).includes(legacy)) {
     return { tab: legacy as TenantViewTab, oldPath: `?tab=${legacy}` };
   }
   return null;
@@ -52,7 +34,6 @@ interface UseTabHashRoutingOptions {
 
 interface UseTabHashRoutingResult {
   migration: HashRouteMigration | null;
-  dismissMigration: () => void;
 }
 
 export function useTabHashRouting({ activeTab, onTabChange }: UseTabHashRoutingOptions): UseTabHashRoutingResult {
@@ -105,7 +86,5 @@ export function useTabHashRouting({ activeTab, onTabChange }: UseTabHashRoutingO
     return () => window.removeEventListener("hashchange", handler);
   }, [activeTab, onTabChange]);
 
-  const dismissMigration = useCallback(() => setMigration(null), []);
-
-  return { migration, dismissMigration };
+  return { migration };
 }

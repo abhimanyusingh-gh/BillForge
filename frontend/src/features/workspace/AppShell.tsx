@@ -13,7 +13,6 @@ interface AppShellProps {
   topNav: ReactNode;
   subNav?: ReactNode;
   migration: HashRouteMigration | null;
-  onDismissMigration: () => void;
   children: ReactNode;
 }
 
@@ -26,7 +25,6 @@ export function AppShell({
   topNav,
   subNav,
   migration,
-  onDismissMigration,
   children
 }: AppShellProps) {
   return (
@@ -42,11 +40,7 @@ export function AppShell({
       </aside>
       <div className="app-shell-column">
         {migration ? (
-          <UrlMigrationBanner
-            oldPath={migration.oldPath}
-            newPath={migration.newPath}
-            onDismiss={onDismissMigration}
-          />
+          <UrlMigrationBanner oldPath={migration.oldPath} newPath={migration.newPath} />
         ) : null}
         {topNav}
         {subNav}

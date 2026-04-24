@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { act, renderHook } from "@testing-library/react";
-import { useTabHashRouting, TAB_HASH_PATH } from "@/features/workspace/useTabHashRouting";
+import { useTabHashRouting } from "@/features/workspace/useTabHashRouting";
+import { TAB_HASH_PATH, LEGACY_QUERY_TABS } from "@/features/workspace/tabHashConfig";
 
 function setLocation(search: string, hash: string) {
   window.history.replaceState({}, "", `/${search}${hash}`);
@@ -66,16 +67,19 @@ describe("useTabHashRouting", () => {
     expect(onTabChange).toHaveBeenCalledWith("statements");
   });
 
-  it("dismissMigration clears the migration state", () => {
+  it("keeps migration set after mount (banner, not the hook, owns dismissal)", () => {
     setLocation("?tab=exports", "");
-    const { result } = renderHook(() =>
-      useTabHashRouting({ activeTab: "overview", onTabChange: jest.fn() })
+    const { result, rerender } = renderHook(
+      (props: { activeTab: "overview" | "exports" }) =>
+        useTabHashRouting({ activeTab: props.activeTab, onTabChange: jest.fn() }),
+      { initialProps: { activeTab: "overview" } }
     );
     expect(result.current.migration).not.toBeNull();
+    rerender({ activeTab: "exports" });
+    expect(result.current.migration).not.toBeNull();
+  });
 
-    act(() => {
-      result.current.dismissMigration();
-    });
-    expect(result.current.migration).toBeNull();
+  it("LEGACY_QUERY_TABS is derived from TAB_HASH_PATH keys (single source of truth)", () => {
+    expect([...LEGACY_QUERY_TABS].sort()).toEqual(Object.keys(TAB_HASH_PATH).sort());
   });
 });

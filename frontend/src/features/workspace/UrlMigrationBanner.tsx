@@ -1,39 +1,61 @@
 import { useEffect, useMemo, useState } from "react";
 
 const STORAGE_PREFIX = "ledgerbuddy:url-migration-dismissed:";
+const DISMISSAL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 interface UrlMigrationBannerProps {
   oldPath: string;
   newPath: string;
-  onDismiss?: () => void;
+}
+
+interface DismissalRecord {
+  dismissed: boolean;
+  timestamp: number;
 }
 
 function storageKey(oldPath: string, newPath: string): string {
   return `${STORAGE_PREFIX}${oldPath}->${newPath}`;
 }
 
-function readDismissed(key: string): boolean {
+export function readDismissal(key: string, now: number = Date.now()): boolean {
   try {
-    return window.localStorage.getItem(key) === "1";
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return false;
+    }
+    const record = JSON.parse(raw) as Partial<DismissalRecord>;
+    if (!record || record.dismissed !== true || typeof record.timestamp !== "number") {
+      return false;
+    }
+    if (now - record.timestamp > DISMISSAL_TTL_MS) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        /* noop */
+      }
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
 }
 
-function writeDismissed(key: string): void {
+export function writeDismissal(key: string, now: number = Date.now()): void {
   try {
-    window.localStorage.setItem(key, "1");
+    const record: DismissalRecord = { dismissed: true, timestamp: now };
+    window.localStorage.setItem(key, JSON.stringify(record));
   } catch {
-    // intentionally silent — localStorage is a nice-to-have for persistence
+    /* noop */
   }
 }
 
-export function UrlMigrationBanner({ oldPath, newPath, onDismiss }: UrlMigrationBannerProps) {
+export function UrlMigrationBanner({ oldPath, newPath }: UrlMigrationBannerProps) {
   const key = useMemo(() => storageKey(oldPath, newPath), [oldPath, newPath]);
-  const [dismissed, setDismissed] = useState(() => readDismissed(key));
+  const [dismissed, setDismissed] = useState(() => readDismissal(key));
 
   useEffect(() => {
-    setDismissed(readDismissed(key));
+    setDismissed(readDismissal(key));
   }, [key]);
 
   if (dismissed) {
@@ -41,9 +63,11 @@ export function UrlMigrationBanner({ oldPath, newPath, onDismiss }: UrlMigration
   }
 
   const handleDismiss = () => {
-    writeDismissed(key);
+    writeDismissal(key);
     setDismissed(true);
-    onDismiss?.();
+    requestAnimationFrame(() => {
+      document.getElementById("main-content")?.focus();
+    });
   };
 
   return (

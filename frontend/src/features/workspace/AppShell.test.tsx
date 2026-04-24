@@ -15,7 +15,6 @@ function renderShell(overrides: Partial<React.ComponentProps<typeof AppShell>> =
     topNav: <header data-testid="topnav">TopNav</header>,
     subNav: null,
     migration: null,
-    onDismissMigration: jest.fn(),
     children: <div data-testid="page-content">Page</div>,
     ...overrides
   };
@@ -48,15 +47,10 @@ describe("AppShell", () => {
   });
 
   it("renders the URL migration banner when migration prop is provided", () => {
-    const onDismissMigration = jest.fn();
     renderShell({
-      migration: { oldPath: "?tab=dashboard", newPath: "#/invoices" },
-      onDismissMigration
+      migration: { oldPath: "?tab=dashboard", newPath: "#/invoices" }
     });
     expect(screen.getByRole("status")).toHaveTextContent("#/invoices");
-
-    fireEvent.click(screen.getByRole("button", { name: /dismiss url migration/i }));
-    expect(onDismissMigration).toHaveBeenCalledTimes(1);
   });
 
   it("does not render the banner when migration is null", () => {

@@ -628,6 +628,19 @@ select:focus {
   flex-shrink: 0;
 }
 
+.tenant-created-success {
+  background: var(--badge-accent-soft-bg);
+  border: 1px solid var(--chart-emerald);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0 1rem;
+  color: var(--ink);
+}
+
+.tenant-created-dismiss {
+  margin-left: 0.75rem;
+}
+
 .app-button {
   border-radius: 0.5rem;
   cursor: pointer;

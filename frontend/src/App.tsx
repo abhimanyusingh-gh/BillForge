@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
@@ -11,6 +12,7 @@ import { WorkspaceTopNav } from "@/features/workspace/WorkspaceTopNav";
 import { WorkspaceTabBar } from "@/features/workspace/WorkspaceTabBar";
 import { AppShell } from "@/features/workspace/AppShell";
 import { useTabHashRouting } from "@/features/workspace/useTabHashRouting";
+import type { TenantViewTab } from "@/types";
 import { TenantConfigTab } from "@/features/tenant-admin/TenantConfigTab";
 import { InvoiceView } from "@/features/invoices/InvoiceView";
 import { ExportHistoryDashboard } from "@/features/exports/ExportHistoryDashboard";
@@ -90,8 +92,6 @@ export function App() {
     loadPlatformUsage,
     loadBankStatements
   } = workspace;
-
-  const { migration, dismissMigration } = useTabHashRouting({ activeTab, onTabChange: setActiveTab });
 
   if (authLoading) {
     return (
@@ -222,9 +222,9 @@ export function App() {
                 helpText="Create a new tenant organization and its first admin user. The admin will receive a temporary password."
               />
               {platformOnboardResult && (
-                <div style={{ background: "#e8f5e9", border: "1px solid #4caf50", borderRadius: 6, padding: "12px 16px", margin: "8px 0 16px" }}>
+                <div className="tenant-created-success">
                   <strong>Tenant created.</strong> Temporary password for <code>{platformOnboardResult.adminEmail}</code>: <code>{platformOnboardResult.tempPassword}</code>
-                  <button type="button" style={{ marginLeft: 12 }} className="app-button app-button-secondary" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
+                  <button type="button" className="app-button app-button-secondary tenant-created-dismiss" onClick={() => setPlatformOnboardResult(null)}>Dismiss</button>
                 </div>
               )}
               <PlatformAnalyticsDashboard usage={platformUsage} />
@@ -279,7 +279,7 @@ export function App() {
 
   return (
     <div className="layout">
-      <AppShell
+      <TenantAppShell
         activeTab={activeTab}
         onTabChange={setActiveTab}
         canViewTenantConfig={canViewConfig}
@@ -287,8 +287,6 @@ export function App() {
         invoiceActionRequiredCount={navCounts.failed}
         topNav={topNav}
         subNav={subNav}
-        migration={migration}
-        onDismissMigration={dismissMigration}
       >
         {requiresTenantSetup && canManageUsers && (
           <div className="editor-card">
@@ -377,8 +375,37 @@ export function App() {
         <div role="alert" aria-live="assertive">
           {error && <p className="error">{error}</p>}
         </div>
-      </AppShell>
+      </TenantAppShell>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
+  );
+}
+
+interface TenantAppShellProps {
+  activeTab: TenantViewTab;
+  onTabChange: (tab: TenantViewTab) => void;
+  canViewTenantConfig: boolean;
+  canViewConnections: boolean;
+  invoiceActionRequiredCount: number;
+  topNav: ReactNode;
+  subNav: ReactNode;
+  children: ReactNode;
+}
+
+function TenantAppShell({ activeTab, onTabChange, canViewTenantConfig, canViewConnections, invoiceActionRequiredCount, topNav, subNav, children }: TenantAppShellProps) {
+  const { migration } = useTabHashRouting({ activeTab, onTabChange });
+  return (
+    <AppShell
+      activeTab={activeTab}
+      onTabChange={onTabChange}
+      canViewTenantConfig={canViewTenantConfig}
+      canViewConnections={canViewConnections}
+      invoiceActionRequiredCount={invoiceActionRequiredCount}
+      topNav={topNav}
+      subNav={subNav}
+      migration={migration}
+    >
+      {children}
+    </AppShell>
   );
 }
