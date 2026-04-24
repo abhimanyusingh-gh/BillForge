@@ -2,12 +2,14 @@ import { describeHarness } from "@/test-utils";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
 import {
-  commitExportVersionBump,
+  clearInFlightExportVersion,
   computeVoucherGuid,
+  EXPORT_VERSION_CONFLICT_REASON,
   ExportVersionConflictError,
   F12OverwriteNotVerifiedError,
+  promoteExportVersion,
   resolveReExportDecision,
-  rollbackExportVersionBump
+  stageInFlightExportVersion
 } from "@/services/export/tallyReExportGuard.ts";
 import { TALLY_ACTION } from "@/services/export/tallyExporter/xml.ts";
 
@@ -42,7 +44,7 @@ describe("computeVoucherGuid", () => {
   });
 });
 
-describeHarness("resolveReExportDecision + commitExportVersionBump (BE-2)", ({ getHarness }) => {
+describeHarness("resolveReExportDecision + 2-phase staging (BE-2)", ({ getHarness }) => {
   afterEach(async () => {
     await getHarness().reset();
   });
@@ -94,12 +96,12 @@ describeHarness("resolveReExportDecision + commitExportVersionBump (BE-2)", ({ g
     expect(decision.buyerStateName).toBe("Karnataka");
   });
 
-  it("commitExportVersionBump CAS-increments exportVersion when expectedPriorVersion matches", async () => {
+  it("Phase 1 stages inFlightExportVersion to v+1 when exportVersion matches and inFlight is null", async () => {
     const invoice = await InvoiceModel.create({
       tenantId: "tenant-1",
       sourceType: "manual",
-      sourceKey: "k",
-      sourceDocumentId: "d",
+      sourceKey: "k-stage",
+      sourceDocumentId: "d-stage",
       attachmentName: "a.pdf",
       mimeType: "application/pdf",
       receivedAt: new Date(),
@@ -107,17 +109,104 @@ describeHarness("resolveReExportDecision + commitExportVersionBump (BE-2)", ({ g
       exportVersion: 2
     });
 
-    await commitExportVersionBump({ invoiceId: String(invoice._id), expectedPriorVersion: 2 });
+    await stageInFlightExportVersion({ invoiceId: String(invoice._id), expectedPriorVersion: 2 });
     const reloaded = await InvoiceModel.findById(invoice._id).lean();
-    expect(reloaded?.exportVersion).toBe(3);
+    expect(reloaded?.exportVersion).toBe(2);
+    expect(reloaded?.inFlightExportVersion).toBe(3);
   });
 
-  it("commitExportVersionBump throws ExportVersionConflictError when expectedPriorVersion does not match", async () => {
+  it("Phase 3a (promoteExportVersion) bumps exportVersion and clears inFlight atomically", async () => {
     const invoice = await InvoiceModel.create({
       tenantId: "tenant-1",
       sourceType: "manual",
-      sourceKey: "k-conflict",
-      sourceDocumentId: "d-conflict",
+      sourceKey: "k-promote",
+      sourceDocumentId: "d-promote",
+      attachmentName: "a.pdf",
+      mimeType: "application/pdf",
+      receivedAt: new Date(),
+      status: "PARSED",
+      exportVersion: 2,
+      inFlightExportVersion: 3
+    });
+
+    await promoteExportVersion({ invoiceId: String(invoice._id), stagedVersion: 3 });
+    const reloaded = await InvoiceModel.findById(invoice._id).lean();
+    expect(reloaded?.exportVersion).toBe(3);
+    expect(reloaded?.inFlightExportVersion ?? null).toBeNull();
+  });
+
+  it("Phase 3b (clearInFlightExportVersion) clears inFlight without touching exportVersion", async () => {
+    const invoice = await InvoiceModel.create({
+      tenantId: "tenant-1",
+      sourceType: "manual",
+      sourceKey: "k-clear",
+      sourceDocumentId: "d-clear",
+      attachmentName: "a.pdf",
+      mimeType: "application/pdf",
+      receivedAt: new Date(),
+      status: "PARSED",
+      exportVersion: 2,
+      inFlightExportVersion: 3
+    });
+
+    await clearInFlightExportVersion({ invoiceId: String(invoice._id), stagedVersion: 3 });
+    const reloaded = await InvoiceModel.findById(invoice._id).lean();
+    expect(reloaded?.exportVersion).toBe(2);
+    expect(reloaded?.inFlightExportVersion ?? null).toBeNull();
+  });
+
+  it("Phase 1 retry with matching inFlight=v+1 is idempotent (crash recovery)", async () => {
+    const invoice = await InvoiceModel.create({
+      tenantId: "tenant-1",
+      sourceType: "manual",
+      sourceKey: "k-retry",
+      sourceDocumentId: "d-retry",
+      attachmentName: "a.pdf",
+      mimeType: "application/pdf",
+      receivedAt: new Date(),
+      status: "PARSED",
+      exportVersion: 4,
+      inFlightExportVersion: 5
+    });
+
+    await stageInFlightExportVersion({ invoiceId: String(invoice._id), expectedPriorVersion: 4 });
+    const reloaded = await InvoiceModel.findById(invoice._id).lean();
+    expect(reloaded?.exportVersion).toBe(4);
+    expect(reloaded?.inFlightExportVersion).toBe(5);
+  });
+
+  it("Phase 1 throws IN_FLIGHT_MISMATCH when an inFlight of a different version exists", async () => {
+    const invoice = await InvoiceModel.create({
+      tenantId: "tenant-1",
+      sourceType: "manual",
+      sourceKey: "k-inflight-diff",
+      sourceDocumentId: "d-inflight-diff",
+      attachmentName: "a.pdf",
+      mimeType: "application/pdf",
+      receivedAt: new Date(),
+      status: "PARSED",
+      exportVersion: 2,
+      inFlightExportVersion: 7
+    });
+
+    await expect(
+      stageInFlightExportVersion({ invoiceId: String(invoice._id), expectedPriorVersion: 2 })
+    ).rejects.toMatchObject({
+      code: "TALLY_EXPORT_VERSION_CONFLICT",
+      reason: EXPORT_VERSION_CONFLICT_REASON.IN_FLIGHT_MISMATCH
+    });
+
+    const reloaded = await InvoiceModel.findById(invoice._id).lean();
+    expect(reloaded?.exportVersion).toBe(2);
+    expect(reloaded?.inFlightExportVersion).toBe(7);
+  });
+
+  it("Phase 1 throws VERSION_MISMATCH when exportVersion has already been promoted", async () => {
+    const invoice = await InvoiceModel.create({
+      tenantId: "tenant-1",
+      sourceType: "manual",
+      sourceKey: "k-promoted",
+      sourceDocumentId: "d-promoted",
       attachmentName: "a.pdf",
       mimeType: "application/pdf",
       receivedAt: new Date(),
@@ -126,13 +215,18 @@ describeHarness("resolveReExportDecision + commitExportVersionBump (BE-2)", ({ g
     });
 
     await expect(
-      commitExportVersionBump({ invoiceId: String(invoice._id), expectedPriorVersion: 3 })
-    ).rejects.toBeInstanceOf(ExportVersionConflictError);
+      stageInFlightExportVersion({ invoiceId: String(invoice._id), expectedPriorVersion: 3 })
+    ).rejects.toMatchObject({
+      code: "TALLY_EXPORT_VERSION_CONFLICT",
+      reason: EXPORT_VERSION_CONFLICT_REASON.VERSION_MISMATCH
+    });
+
     const reloaded = await InvoiceModel.findById(invoice._id).lean();
     expect(reloaded?.exportVersion).toBe(5);
+    expect(reloaded?.inFlightExportVersion ?? null).toBeNull();
   });
 
-  it("concurrent commitExportVersionBump on same expectedPriorVersion: exactly one succeeds", async () => {
+  it("concurrent Phase 1 attempts on same expectedPriorVersion: both succeed when they converge on v+1", async () => {
     const invoice = await InvoiceModel.create({
       tenantId: "tenant-1",
       sourceType: "manual",
@@ -146,42 +240,39 @@ describeHarness("resolveReExportDecision + commitExportVersionBump (BE-2)", ({ g
     });
 
     const outcomes = await Promise.allSettled([
-      commitExportVersionBump({ invoiceId: String(invoice._id), expectedPriorVersion: 1 }),
-      commitExportVersionBump({ invoiceId: String(invoice._id), expectedPriorVersion: 1 })
+      stageInFlightExportVersion({ invoiceId: String(invoice._id), expectedPriorVersion: 1 }),
+      stageInFlightExportVersion({ invoiceId: String(invoice._id), expectedPriorVersion: 1 })
     ]);
     const fulfilled = outcomes.filter((o) => o.status === "fulfilled");
-    const rejected = outcomes.filter((o) => o.status === "rejected");
-    expect(fulfilled).toHaveLength(1);
-    expect(rejected).toHaveLength(1);
-    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ExportVersionConflictError);
+    expect(fulfilled.length).toBeGreaterThanOrEqual(1);
+
+    const reloaded = await InvoiceModel.findById(invoice._id).lean();
+    expect(reloaded?.exportVersion).toBe(1);
+    expect(reloaded?.inFlightExportVersion).toBe(2);
+  });
+
+  it("Phase 3a throws when inFlight does not match stagedVersion (prevents stale promote)", async () => {
+    const invoice = await InvoiceModel.create({
+      tenantId: "tenant-1",
+      sourceType: "manual",
+      sourceKey: "k-stale",
+      sourceDocumentId: "d-stale",
+      attachmentName: "a.pdf",
+      mimeType: "application/pdf",
+      receivedAt: new Date(),
+      status: "PARSED",
+      exportVersion: 2
+    });
+
+    await expect(
+      promoteExportVersion({ invoiceId: String(invoice._id), stagedVersion: 3 })
+    ).rejects.toBeInstanceOf(ExportVersionConflictError);
 
     const reloaded = await InvoiceModel.findById(invoice._id).lean();
     expect(reloaded?.exportVersion).toBe(2);
   });
 
-  it("rollbackExportVersionBump decrements only when current version matches bumpedVersion", async () => {
-    const invoice = await InvoiceModel.create({
-      tenantId: "tenant-1",
-      sourceType: "manual",
-      sourceKey: "k-rollback",
-      sourceDocumentId: "d-rollback",
-      attachmentName: "a.pdf",
-      mimeType: "application/pdf",
-      receivedAt: new Date(),
-      status: "PARSED",
-      exportVersion: 4
-    });
-
-    await rollbackExportVersionBump({ invoiceId: String(invoice._id), bumpedVersion: 4 });
-    const afterMatch = await InvoiceModel.findById(invoice._id).lean();
-    expect(afterMatch?.exportVersion).toBe(3);
-
-    await rollbackExportVersionBump({ invoiceId: String(invoice._id), bumpedVersion: 99 });
-    const afterNoMatch = await InvoiceModel.findById(invoice._id).lean();
-    expect(afterNoMatch?.exportVersion).toBe(3);
-  });
-
-  it("new invoice defaults exportVersion to 0 (additive, backward-compatible)", async () => {
+  it("new invoice defaults exportVersion to 0 and inFlightExportVersion to null (additive, backward-compatible)", async () => {
     const invoice = await InvoiceModel.create({
       tenantId: "tenant-1",
       sourceType: "manual",
@@ -193,5 +284,6 @@ describeHarness("resolveReExportDecision + commitExportVersionBump (BE-2)", ({ g
       status: "PARSED"
     });
     expect(invoice.exportVersion).toBe(0);
+    expect(invoice.inFlightExportVersion ?? null).toBeNull();
   });
 });

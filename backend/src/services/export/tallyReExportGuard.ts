@@ -27,12 +27,27 @@ export class F12OverwriteNotVerifiedError extends Error {
   }
 }
 
+export const EXPORT_VERSION_CONFLICT_REASON = {
+  VERSION_MISMATCH: "version-mismatch",
+  IN_FLIGHT_MISMATCH: "in-flight-mismatch"
+} as const;
+
+type ExportVersionConflictReason =
+  (typeof EXPORT_VERSION_CONFLICT_REASON)[keyof typeof EXPORT_VERSION_CONFLICT_REASON];
+
 export class ExportVersionConflictError extends Error {
   readonly code = "TALLY_EXPORT_VERSION_CONFLICT";
-  constructor(readonly invoiceId: string, readonly expectedPriorVersion: number) {
+  constructor(
+    readonly invoiceId: string,
+    readonly expectedPriorVersion: number,
+    readonly reason: ExportVersionConflictReason = EXPORT_VERSION_CONFLICT_REASON.VERSION_MISMATCH
+  ) {
     super(
-      `Export version CAS conflict for invoice ${invoiceId}: expected exportVersion=${expectedPriorVersion} ` +
-      "but another exporter advanced it concurrently. Retry with the refreshed invoice state."
+      reason === EXPORT_VERSION_CONFLICT_REASON.IN_FLIGHT_MISMATCH
+        ? `In-flight export conflict for invoice ${invoiceId}: another exporter is staging a different version. ` +
+          "Retry once the prior attempt resolves."
+        : `Export version CAS conflict for invoice ${invoiceId}: expected exportVersion=${expectedPriorVersion} ` +
+          "but another exporter advanced it concurrently. Retry with the refreshed invoice state."
     );
   }
 }
@@ -74,25 +89,66 @@ export async function resolveReExportDecision(params: {
   };
 }
 
-export async function commitExportVersionBump(params: {
+export async function stageInFlightExportVersion(params: {
   invoiceId: string;
   expectedPriorVersion: number;
 }): Promise<void> {
+  const stagedVersion = params.expectedPriorVersion + 1;
   const result = await InvoiceModel.updateOne(
-    { _id: params.invoiceId, exportVersion: params.expectedPriorVersion },
-    { $inc: { exportVersion: 1 } }
+    {
+      _id: params.invoiceId,
+      exportVersion: params.expectedPriorVersion,
+      $or: [
+        { inFlightExportVersion: null },
+        { inFlightExportVersion: { $exists: false } },
+        { inFlightExportVersion: stagedVersion }
+      ]
+    },
+    { $set: { inFlightExportVersion: stagedVersion } }
+  );
+
+  if (result.matchedCount === 1) {
+    return;
+  }
+
+  const current = await InvoiceModel.findById(params.invoiceId).lean();
+  if (!current || current.exportVersion !== params.expectedPriorVersion) {
+    throw new ExportVersionConflictError(
+      params.invoiceId,
+      params.expectedPriorVersion,
+      EXPORT_VERSION_CONFLICT_REASON.VERSION_MISMATCH
+    );
+  }
+  throw new ExportVersionConflictError(
+    params.invoiceId,
+    params.expectedPriorVersion,
+    EXPORT_VERSION_CONFLICT_REASON.IN_FLIGHT_MISMATCH
+  );
+}
+
+export async function promoteExportVersion(params: {
+  invoiceId: string;
+  stagedVersion: number;
+}): Promise<void> {
+  const result = await InvoiceModel.updateOne(
+    { _id: params.invoiceId, inFlightExportVersion: params.stagedVersion },
+    { $set: { exportVersion: params.stagedVersion, inFlightExportVersion: null } }
   );
   if (result.matchedCount === 0) {
-    throw new ExportVersionConflictError(params.invoiceId, params.expectedPriorVersion);
+    throw new ExportVersionConflictError(
+      params.invoiceId,
+      params.stagedVersion - 1,
+      EXPORT_VERSION_CONFLICT_REASON.IN_FLIGHT_MISMATCH
+    );
   }
 }
 
-export async function rollbackExportVersionBump(params: {
+export async function clearInFlightExportVersion(params: {
   invoiceId: string;
-  bumpedVersion: number;
+  stagedVersion: number;
 }): Promise<void> {
   await InvoiceModel.updateOne(
-    { _id: params.invoiceId, exportVersion: params.bumpedVersion },
-    { $inc: { exportVersion: -1 } }
+    { _id: params.invoiceId, inFlightExportVersion: params.stagedVersion },
+    { $set: { inFlightExportVersion: null } }
   );
 }

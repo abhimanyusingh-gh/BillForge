@@ -19,9 +19,10 @@ import type {
 import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
 import { buildTallyExportConfig } from "@/services/export/tenantExportConfigResolver.js";
 import {
-  commitExportVersionBump,
+  clearInFlightExportVersion,
+  promoteExportVersion,
   resolveReExportDecision,
-  rollbackExportVersionBump
+  stageInFlightExportVersion
 } from "@/services/export/tallyReExportGuard.js";
 import type { ReExportDecision } from "@/services/export/tallyReExportGuard.js";
 import { TenantTallyCompanyModel } from "@/models/integration/TenantTallyCompany.js";
@@ -107,7 +108,7 @@ export class TallyExporter implements AccountingExporter {
           : undefined;
 
         if (decision) {
-          await commitExportVersionBump({
+          await stageInFlightExportVersion({
             invoiceId: String(invoice._id),
             expectedPriorVersion: decision.priorExportVersion
           });
@@ -127,14 +128,14 @@ export class TallyExporter implements AccountingExporter {
           summary = parseTallyImportResponse(String(response.data ?? ""));
         } catch (postError) {
           if (decision) {
-            await rollbackExportVersionBump({
+            await clearInFlightExportVersion({
               invoiceId: String(invoice._id),
-              bumpedVersion: decision.nextExportVersion
-            }).catch((rollbackErr) => {
-              logger.error("tally.export.rollback.failed", {
+              stagedVersion: decision.nextExportVersion
+            }).catch((clearErr) => {
+              logger.error("tally.export.inflight.clear_failed", {
                 invoiceId,
-                bumpedVersion: decision.nextExportVersion,
-                error: (rollbackErr as Error).message
+                stagedVersion: decision.nextExportVersion,
+                error: (clearErr as Error).message
               });
             });
           }
@@ -143,14 +144,14 @@ export class TallyExporter implements AccountingExporter {
 
         if (!isSuccessfulImport(summary)) {
           if (decision) {
-            await rollbackExportVersionBump({
+            await clearInFlightExportVersion({
               invoiceId: String(invoice._id),
-              bumpedVersion: decision.nextExportVersion
-            }).catch((rollbackErr) => {
-              logger.error("tally.export.rollback.failed", {
+              stagedVersion: decision.nextExportVersion
+            }).catch((clearErr) => {
+              logger.error("tally.export.inflight.clear_failed", {
                 invoiceId,
-                bumpedVersion: decision.nextExportVersion,
-                error: (rollbackErr as Error).message
+                stagedVersion: decision.nextExportVersion,
+                error: (clearErr as Error).message
               });
             });
           }
@@ -162,6 +163,13 @@ export class TallyExporter implements AccountingExporter {
             error: detail
           });
           continue;
+        }
+
+        if (decision) {
+          await promoteExportVersion({
+            invoiceId: String(invoice._id),
+            stagedVersion: decision.nextExportVersion
+          });
         }
 
         logger.info("tally.export.invoice.success", { invoiceId, reference: summary.lastVchId ?? null });
