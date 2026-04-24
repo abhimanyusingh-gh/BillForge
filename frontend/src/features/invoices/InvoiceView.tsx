@@ -478,6 +478,12 @@ export function InvoiceView({
     return { gridTemplateColumns: `${listPanelPercent}% 6px 1fr` };
   }, [detailsPanelVisible, listPanelPercent]);
 
+  const [shortcutAnnouncement, setShortcutAnnouncement] = useState("");
+  const announceShortcut = useCallback((message: string) => {
+    setShortcutAnnouncement("");
+    requestAnimationFrame(() => setShortcutAnnouncement(message));
+  }, []);
+
   useKeyboardShortcuts({
     enabled: !popupInvoiceId && !confirmDialog && !showShortcutsHelp,
     onMoveDown: () => {
@@ -489,6 +495,7 @@ export function InvoiceView({
         requestAnimationFrame(() => {
           document.querySelector(`[data-invoice-id="${next._id}"]`)?.scrollIntoView({ block: "nearest" });
         });
+        announceShortcut(`Focused invoice ${next.attachmentName}`);
       }
     },
     onMoveUp: () => {
@@ -500,16 +507,34 @@ export function InvoiceView({
         requestAnimationFrame(() => {
           document.querySelector(`[data-invoice-id="${prev._id}"]`)?.scrollIntoView({ block: "nearest" });
         });
+        announceShortcut(`Focused invoice ${prev.attachmentName}`);
       }
     },
-    onToggleSelect: () => {
+    onToggleExpand: () => {
       if (!activeId) return;
-      const inv = filteredInvoices.find((i) => i._id === activeId);
-      if (inv) toggleSelection(inv);
+      const willExpand = !isRiskSignalsExpanded(activeId);
+      toggleRiskSignalsExpanded(activeId);
+      announceShortcut(willExpand ? "Expanded risk signals" : "Collapsed risk signals");
     },
     onOpenDetail: () => { if (activeId) setPopupInvoiceId(activeId); },
-    onApprove: () => { if (selectedApprovableIds.length > 0) void handleApprove(); },
-    onExport: () => { if (selectedExportableIds.length > 0) handleExport(); },
+    onApprove: () => {
+      if (!activeId) return;
+      const inv = filteredInvoices.find((i) => i._id === activeId);
+      if (!inv || !isInvoiceApprovable(inv) || !canApproveInvoices) return;
+      announceShortcut(`Approving invoice ${inv.attachmentName}`);
+      void handleApproveSingle(activeId).then((ok) => {
+        announceShortcut(ok ? `Approved invoice ${inv.attachmentName}` : `Failed to approve invoice ${inv.attachmentName}`);
+      });
+    },
+    onExport: () => {
+      if (!activeId) return;
+      const inv = filteredInvoices.find((i) => i._id === activeId);
+      if (!inv || !isInvoiceExportable(inv) || !canExportToTally) return;
+      announceShortcut(`Exporting invoice ${inv.attachmentName}`);
+      void handleExportSingle(activeId).then((ok) => {
+        announceShortcut(ok ? `Exported invoice ${inv.attachmentName}` : `Failed to export invoice ${inv.attachmentName}`);
+      });
+    },
     onEscape: () => {
       if (selectedIds.length > 0) { clearSelection(); return; }
       if (detailsPanelVisible) { setDetailsPanelVisible(false); }
@@ -706,20 +731,75 @@ export function InvoiceView({
     });
   }
 
-  async function handleApproveSingle(invoiceId: string) {
+  async function handleApproveSingle(invoiceId: string): Promise<boolean> {
     if (!canApproveInvoices) {
       addToast("error", "You do not have permission to approve invoices.");
-      return;
+      return false;
     }
     try {
       const response = await approveInvoices([invoiceId], userEmail);
       if (response.modifiedCount === 0) {
         addToast("info", "Invoice was not eligible for approval.");
+        await loadInvoices();
+        return false;
       }
       await loadInvoices();
+      return true;
     } catch (approveError) {
       addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
+      return false;
     }
+  }
+
+  async function exportInvoices(ids: string[], mode: "single" | "bulk"): Promise<boolean> {
+    try {
+      setActionLoading("export");
+      const fileResult = await generateTallyXmlFile(ids);
+      if (!fileResult.batchId) {
+        const msg = mode === "single"
+          ? "Export failed — invoice may have invalid amounts or is already exported."
+          : "Export failed — invoices may have invalid amounts or are already exported.";
+        addToast("error", msg);
+        if (mode === "bulk") clearSelection();
+        await loadInvoices();
+        return false;
+      }
+      const blob = await downloadTallyXmlFile(fileResult.batchId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileResult.filename ?? "tally-import.xml";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      if (mode === "bulk") {
+        const exportedIds = ids.filter(
+          (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
+        );
+        removeFromSelection(exportedIds);
+      }
+      addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
+      await loadInvoices();
+      if (mode === "bulk" && fileResult.skippedCount > 0) {
+        addToast("info", `${fileResult.skippedCount} invoice(s) skipped (already exported or missing fields).`);
+      }
+      return true;
+    } catch (downloadError) {
+      addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
+      await loadInvoices();
+      return false;
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleExportSingle(invoiceId: string): Promise<boolean> {
+    if (!canExportToTally) {
+      addToast("error", "You do not have permission to export invoices.");
+      return false;
+    }
+    return exportInvoices([invoiceId], "single");
   }
 
   async function handleWorkflowApproveSingle(invoiceId: string) {
@@ -854,39 +934,7 @@ export function InvoiceView({
       addToast("error", "Deselect non-approved invoices before exporting.");
       return;
     }
-    try {
-      setActionLoading("export");
-      const fileResult = await generateTallyXmlFile(selectedExportableIds);
-      if (!fileResult.batchId) {
-        addToast("error", "Export failed — invoices may have invalid amounts or are already exported.");
-        clearSelection();
-        await loadInvoices();
-        return;
-      }
-      const blob = await downloadTallyXmlFile(fileResult.batchId);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileResult.filename ?? "tally-import.xml";
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-      const exportedIds = selectedExportableIds.filter(
-        (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
-      );
-      removeFromSelection(exportedIds);
-      addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
-      await loadInvoices();
-      if (fileResult.skippedCount > 0) {
-        addToast("info", `${fileResult.skippedCount} invoice(s) skipped (already exported or missing fields).`);
-      }
-    } catch (downloadError) {
-      addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
-      await loadInvoices();
-    } finally {
-      setActionLoading(null);
-    }
+    await exportInvoices(selectedExportableIds, "bulk");
   }
 
   async function uploadFiles(files: File[]) {
@@ -1607,6 +1655,9 @@ export function InvoiceView({
         onCancel={() => setConfirmDialog(null)}
       />
       <KeyboardShortcutsOverlay open={showShortcutsHelp} onClose={() => setShowShortcutsHelp(false)} />
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="shortcut-announcer">
+        {shortcutAnnouncement}
+      </div>
 
       {popupInvoice ? (
         <InvoicePopup

@@ -2499,6 +2499,65 @@ pre {
   cursor: pointer;
 }
 
+.shortcuts-help-card {
+  max-width: 25rem;
+}
+
+.shortcuts-help-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shortcuts-help-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  gap: 0.75rem;
+}
+
+.shortcuts-help-row:last-child {
+  border-bottom: none;
+}
+
+.shortcuts-help-keys {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.shortcuts-help-kbd {
+  background: var(--bg-main);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.shortcuts-help-desc {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .popup-meta {
   margin: 0.6rem 0 0;
 }
