@@ -64,7 +64,7 @@ afterEach(() => {
 });
 
 describe("features/invoices/PreExportValidationPanel — 4-state contract", () => {
-  it("renders the loading state while validating", () => {
+  it("renders the loading state via retry flow", () => {
     render(
       <PreExportValidationPanel
         open
@@ -72,9 +72,11 @@ describe("features/invoices/PreExportValidationPanel — 4-state contract", () =
         onCancel={() => {}}
         onConfirm={() => {}}
         onSelectInvoice={() => {}}
-        loadingMs={500}
+        retryLoadingMs={500}
+        initialError
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
     const body = screen.getByTestId("pre-export-body");
     expect(body.dataset.view).toBe(PRE_EXPORT_VIEW.Loading);
     expect(screen.getByTestId("pre-export-loading")).toBeInTheDocument();
@@ -88,13 +90,9 @@ describe("features/invoices/PreExportValidationPanel — 4-state contract", () =
         onCancel={() => {}}
         onConfirm={() => {}}
         onSelectInvoice={() => {}}
-        loadingMs={0}
         initialError
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(1);
-    });
     expect(screen.getByTestId("pre-export-error")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
@@ -107,12 +105,8 @@ describe("features/invoices/PreExportValidationPanel — 4-state contract", () =
         onCancel={() => {}}
         onConfirm={() => {}}
         onSelectInvoice={() => {}}
-        loadingMs={10}
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(15);
-    });
     expect(screen.getByTestId("pre-export-empty")).toHaveTextContent(/ready to export 1 invoice/i);
     expect(screen.getByTestId("pre-export-confirm")).toBeInTheDocument();
   });
@@ -140,12 +134,8 @@ describe("features/invoices/PreExportValidationPanel — 4-state contract", () =
         onCancel={() => {}}
         onConfirm={() => {}}
         onSelectInvoice={() => {}}
-        loadingMs={10}
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(15);
-    });
     const body = screen.getByTestId("pre-export-body");
     expect(body.dataset.view).toBe(PRE_EXPORT_VIEW.Data);
     expect(screen.getByTestId("pre-export-summary")).toHaveTextContent(/2 of 3 invoices/);
@@ -173,13 +163,9 @@ describe("features/invoices/PreExportValidationPanel — user actions", () => {
         onCancel={onCancel}
         onConfirm={() => {}}
         onSelectInvoice={onSelectInvoice}
-        loadingMs={10}
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(15);
-    });
-    fireEvent.click(screen.getByTestId("pre-export-fix-now"));
+    fireEvent.click(screen.getByTestId("pre-export-fix-now-gstin-1"));
     expect(onSelectInvoice).toHaveBeenCalledWith("gstin-1");
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
@@ -194,12 +180,8 @@ describe("features/invoices/PreExportValidationPanel — user actions", () => {
         onCancel={onCancel}
         onConfirm={onConfirm}
         onSelectInvoice={() => {}}
-        loadingMs={10}
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(15);
-    });
     fireEvent.click(screen.getByTestId("pre-export-export-anyway"));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onCancel).not.toHaveBeenCalled();
@@ -214,12 +196,8 @@ describe("features/invoices/PreExportValidationPanel — user actions", () => {
         onCancel={() => {}}
         onConfirm={onConfirm}
         onSelectInvoice={() => {}}
-        loadingMs={10}
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(15);
-    });
     fireEvent.click(screen.getByTestId("pre-export-confirm"));
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
@@ -234,12 +212,8 @@ describe("features/invoices/PreExportValidationPanel — user actions", () => {
         onCancel={onCancel}
         onConfirm={onConfirm}
         onSelectInvoice={() => {}}
-        loadingMs={10}
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(15);
-    });
     fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
@@ -254,13 +228,9 @@ describe("features/invoices/PreExportValidationPanel — user actions", () => {
         onCancel={onCancel}
         onConfirm={() => {}}
         onSelectInvoice={() => {}}
-        loadingMs={10}
       />
     );
-    act(() => {
-      jest.advanceTimersByTime(15);
-    });
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onCancel).toHaveBeenCalled();
   });
 });

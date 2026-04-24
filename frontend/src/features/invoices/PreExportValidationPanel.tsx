@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, BADGE_SIZE } from "@/components/ds/Badge";
 import { Button, BUTTON_VARIANT, BUTTON_SIZE } from "@/components/ds/Button";
 import { SlideOverPanel } from "@/components/ds/SlideOverPanel";
-import { tokens } from "@/components/ds/tokens";
 import type { Invoice } from "@/types";
 import {
   buildPreExportFailureGroups,
@@ -27,11 +26,11 @@ interface PreExportValidationPanelProps {
   onConfirm: () => void;
   onSelectInvoice: (invoiceId: string) => void;
   panelId?: string;
-  loadingMs?: number;
+  retryLoadingMs?: number;
   initialError?: boolean;
 }
 
-const DEFAULT_LOADING_MS = 220;
+const DEFAULT_RETRY_LOADING_MS = 220;
 
 function resolveView(args: {
   isLoading: boolean;
@@ -45,26 +44,13 @@ function resolveView(args: {
 }
 
 function SkeletonRow() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        height: "2.5rem",
-        borderRadius: tokens.radius.sm,
-        background: tokens.color.bg.main,
-        border: `1px solid ${tokens.color.line}`,
-        marginBottom: tokens.space.s2
-      }}
-    />
-  );
+  return <div aria-hidden="true" className="pre-export-skeleton-row" />;
 }
 
 function LoadingState() {
   return (
     <div data-testid="pre-export-loading" aria-busy="true" aria-live="polite">
-      <p style={{ margin: `0 0 ${tokens.space.s3}`, color: tokens.color.ink.soft }}>
-        Validating invoices…
-      </p>
+      <p className="pre-export-loading-label">Validating invoices…</p>
       <SkeletonRow />
       <SkeletonRow />
       <SkeletonRow />
@@ -74,22 +60,8 @@ function LoadingState() {
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div
-      data-testid="pre-export-error"
-      role="alert"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: tokens.space.s3,
-        padding: tokens.space.s4,
-        border: `1px solid ${tokens.color.line}`,
-        borderRadius: tokens.radius.sm,
-        background: tokens.color.bg.main
-      }}
-    >
-      <p style={{ margin: 0, fontWeight: tokens.font.weight.semibold }}>
-        Validation failed to run.
-      </p>
+    <div data-testid="pre-export-error" role="alert" className="pre-export-error">
+      <p className="pre-export-error-title">Validation failed to run.</p>
       <Button variant={BUTTON_VARIANT.secondary} size={BUTTON_SIZE.sm} onClick={onRetry}>
         Retry
       </Button>
@@ -99,35 +71,14 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyState({ count }: { count: number }) {
   return (
-    <div
-      data-testid="pre-export-empty"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: `${tokens.space.s6} ${tokens.space.s4}`,
-        textAlign: "center",
-        color: tokens.color.ink.soft
-      }}
-    >
-      <span
-        className="material-symbols-outlined"
-        aria-hidden="true"
-        style={{
-          fontSize: "2.25rem",
-          color: tokens.color.status.approved,
-          marginBottom: tokens.space.s3
-        }}
-      >
+    <div data-testid="pre-export-empty" className="pre-export-empty">
+      <span className="material-symbols-outlined pre-export-empty-icon" aria-hidden="true">
         task_alt
       </span>
-      <p style={{ margin: 0, fontWeight: tokens.font.weight.semibold, color: tokens.color.ink.base }}>
+      <p className="pre-export-empty-title">
         Ready to export {count} invoice{count === 1 ? "" : "s"}
       </p>
-      <p style={{ margin: `${tokens.space.s2} 0 0`, fontSize: tokens.font.size.sm }}>
-        No validation issues detected.
-      </p>
+      <p className="pre-export-empty-detail">No validation issues detected.</p>
     </div>
   );
 }
@@ -145,36 +96,23 @@ function FailureRow({
     <div
       data-testid="pre-export-failure"
       data-invoice-id={failure.invoiceId}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: tokens.space.s3,
-        padding: `${tokens.space.s2} ${tokens.space.s3}`,
-        marginBottom: tokens.space.s2,
-        border: `1px solid ${tokens.color.line}`,
-        borderRadius: tokens.radius.sm,
-        background: tokens.color.bg.panel,
-        color: tokens.color.ink.base
-      }}
+      className="pre-export-row"
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: tokens.space.s1, minWidth: 0 }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: tokens.space.s2 }}>
+      <div className="pre-export-row-main">
+        <span className="pre-export-row-heading">
           <Badge tone={tone} size={BADGE_SIZE.sm}>
             {failure.invoiceNumber || "—"}
           </Badge>
-          <span style={{ fontWeight: tokens.font.weight.semibold }}>
+          <span className="pre-export-row-vendor">
             {failure.vendorName || "Unknown vendor"}
           </span>
         </span>
-        <span style={{ fontSize: tokens.font.size.sm, color: tokens.color.ink.soft }}>
-          {failure.detail}
-        </span>
+        <span className="pre-export-row-detail">{failure.detail}</span>
       </div>
       <Button
         variant={BUTTON_VARIANT.secondary}
         size={BUTTON_SIZE.sm}
-        data-testid="pre-export-fix-now"
+        data-testid={`pre-export-fix-now-${failure.invoiceId}`}
         onClick={() => onFixNow(failure.invoiceId)}
       >
         Fix now
@@ -194,19 +132,10 @@ function FailureGroupSection({
     <section
       data-testid="pre-export-group"
       data-reason={group.reason}
-      style={{ marginBottom: tokens.space.s4 }}
+      className="pre-export-group"
     >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: tokens.space.s2,
-          marginBottom: tokens.space.s2
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: tokens.font.size.md, fontWeight: tokens.font.weight.semibold }}>
-          {group.label}
-        </h3>
+      <header className="pre-export-group-header">
+        <h3 className="pre-export-group-title">{group.label}</h3>
         <Badge tone={group.tone} size={BADGE_SIZE.sm}>
           {group.failures.length}
         </Badge>
@@ -230,19 +159,27 @@ export function PreExportValidationPanel({
   onConfirm,
   onSelectInvoice,
   panelId,
-  loadingMs = DEFAULT_LOADING_MS,
+  retryLoadingMs = DEFAULT_RETRY_LOADING_MS,
   initialError = false
 }: PreExportValidationPanelProps) {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(initialError);
+  const retryTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setIsError(initialError);
-    setIsLoading(true);
-    const timer = window.setTimeout(() => setIsLoading(false), loadingMs);
-    return () => window.clearTimeout(timer);
-  }, [open, invoices, loadingMs, initialError]);
+    setIsLoading(false);
+  }, [open, invoices, initialError]);
+
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current !== null) {
+        window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const groups = useMemo(() => buildPreExportFailureGroups(invoices), [invoices]);
   const failureCount = totalPreExportFailures(groups);
@@ -254,9 +191,15 @@ export function PreExportValidationPanel({
   };
 
   const handleRetry = () => {
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+    }
     setIsError(false);
     setIsLoading(true);
-    window.setTimeout(() => setIsLoading(false), loadingMs);
+    retryTimerRef.current = window.setTimeout(() => {
+      setIsLoading(false);
+      retryTimerRef.current = null;
+    }, retryLoadingMs);
   };
 
   const footer =
@@ -307,10 +250,7 @@ export function PreExportValidationPanel({
         {view === PRE_EXPORT_VIEW.Empty ? <EmptyState count={invoices.length} /> : null}
         {view === PRE_EXPORT_VIEW.Data ? (
           <>
-            <p
-              data-testid="pre-export-summary"
-              style={{ margin: `0 0 ${tokens.space.s3}`, color: tokens.color.ink.soft }}
-            >
+            <p data-testid="pre-export-summary" className="pre-export-summary">
               {failureCount} of {invoices.length} invoice{invoices.length === 1 ? "" : "s"} have
               validation issues.
             </p>

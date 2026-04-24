@@ -433,9 +433,14 @@ export function InvoiceView({
     [selectedInvoices]
   );
 
-  const selectedExportableIds = useMemo(
-    () => selectedInvoices.filter((invoice) => isInvoiceExportable(invoice)).map((invoice) => invoice._id),
+  const selectedExportableInvoices = useMemo(
+    () => selectedInvoices.filter((invoice) => isInvoiceExportable(invoice)),
     [selectedInvoices]
+  );
+
+  const selectedExportableIds = useMemo(
+    () => selectedExportableInvoices.map((invoice) => invoice._id),
+    [selectedExportableInvoices]
   );
 
   const selectedRetryableIds = useMemo(
