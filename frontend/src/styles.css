@@ -3994,6 +3994,118 @@ pre {
   text-align: center;
 }
 
+.pre-export-skeleton-row {
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  border: 1px solid var(--line);
+  margin-bottom: var(--sp-2);
+}
+
+.pre-export-loading-label {
+  margin: 0 0 var(--sp-3);
+  color: var(--ink-soft);
+}
+
+.pre-export-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+}
+
+.pre-export-error-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.pre-export-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.pre-export-empty-icon {
+  font-size: 2.25rem;
+  color: var(--status-approved);
+  margin-bottom: var(--sp-3);
+}
+
+.pre-export-empty-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.pre-export-empty-detail {
+  margin: var(--sp-2) 0 0;
+  font-size: 0.82rem;
+}
+
+.pre-export-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--ink);
+}
+
+.pre-export-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.pre-export-row-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.pre-export-row-vendor {
+  font-weight: 600;
+}
+
+.pre-export-row-detail {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.pre-export-group {
+  margin-bottom: var(--sp-4);
+}
+
+.pre-export-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.pre-export-group-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.pre-export-summary {
+  margin: 0 0 var(--sp-3);
+  color: var(--ink-soft);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

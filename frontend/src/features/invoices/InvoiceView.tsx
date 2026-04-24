@@ -54,6 +54,7 @@ import { RiskDot, RISK_SEVERITY, type RiskSeverity } from "@/components/complian
 import { InvoicePopup } from "@/components/invoice/InvoicePopup";
 import { GlCodeDropdown } from "@/components/compliance/GlCodeDropdown";
 import { ActionHintBadge } from "@/components/invoice/ActionHintBadge";
+import { PreExportValidationPanel } from "@/features/invoices/PreExportValidationPanel";
 
 function formatTaxSummary(invoice: { parsed?: { gst?: { cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number }; currency?: string } }): string {
   const gst = invoice.parsed?.gst;
@@ -204,6 +205,8 @@ export function InvoiceView({
   const sseLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; confirmLabel: string; destructive: boolean; onConfirm: () => void } | null>(null);
+  const [preExportModalOpen, setPreExportModalOpen] = useState(false);
+  const [pendingExport, setPendingExport] = useState<{ ids: string[]; mode: "single" | "bulk" } | null>(null);
   const [allStatusCounts, setAllStatusCounts] = useState<Record<string, number>>({});
   const canApproveInvoices = capabilities.canApproveInvoices === true;
   const canEditInvoiceFields = capabilities.canEditInvoiceFields === true;
@@ -430,9 +433,14 @@ export function InvoiceView({
     [selectedInvoices]
   );
 
-  const selectedExportableIds = useMemo(
-    () => selectedInvoices.filter((invoice) => isInvoiceExportable(invoice)).map((invoice) => invoice._id),
+  const selectedExportableInvoices = useMemo(
+    () => selectedInvoices.filter((invoice) => isInvoiceExportable(invoice)),
     [selectedInvoices]
+  );
+
+  const selectedExportableIds = useMemo(
+    () => selectedExportableInvoices.map((invoice) => invoice._id),
+    [selectedExportableInvoices]
   );
 
   const selectedRetryableIds = useMemo(
@@ -799,7 +807,9 @@ export function InvoiceView({
       addToast("error", "You do not have permission to export invoices.");
       return false;
     }
-    return exportInvoices([invoiceId], "single");
+    setPendingExport({ ids: [invoiceId], mode: "single" });
+    setPreExportModalOpen(true);
+    return true;
   }
 
   async function handleWorkflowApproveSingle(invoiceId: string) {
@@ -921,7 +931,7 @@ export function InvoiceView({
     }
   }
 
-  async function handleExport() {
+  function handleExport() {
     if (!canExportToTally) {
       addToast("error", "You do not have permission to export invoices.");
       return;
@@ -934,7 +944,14 @@ export function InvoiceView({
       addToast("error", "Deselect non-approved invoices before exporting.");
       return;
     }
-    await exportInvoices(selectedExportableIds, "bulk");
+    setPendingExport({ ids: selectedExportableIds, mode: "bulk" });
+    setPreExportModalOpen(true);
+  }
+
+  async function executeExport() {
+    const pending = pendingExport;
+    if (!pending || pending.ids.length === 0) return;
+    await exportInvoices(pending.ids, pending.mode);
   }
 
   async function uploadFiles(files: File[]) {
@@ -1684,6 +1701,25 @@ export function InvoiceView({
           resolvePreviewUrl={(page) => getInvoicePreviewUrl(popupInvoice._id, page)}
         />
       ) : null}
+      <PreExportValidationPanel
+        open={preExportModalOpen}
+        invoices={
+          pendingExport
+            ? invoices.filter((invoice) => pendingExport.ids.includes(invoice._id) && isInvoiceExportable(invoice))
+            : []
+        }
+        onCancel={() => {
+          setPreExportModalOpen(false);
+          setPendingExport(null);
+        }}
+        onConfirm={() => {
+          setPreExportModalOpen(false);
+          void executeExport().finally(() => setPendingExport(null));
+        }}
+        onSelectInvoice={(invoiceId) => {
+          window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
+        }}
+      />
     </>
   );
 }
