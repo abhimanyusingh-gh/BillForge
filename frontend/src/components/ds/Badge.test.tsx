@@ -53,4 +53,9 @@ describe("ds/Badge", () => {
     const { container } = render(<Badge className="x-test">Tag</Badge>);
     expect(container.querySelector(".x-test")).not.toBeNull();
   });
+
+  it("renders the title prop as a title attribute on the root element", () => {
+    render(<Badge title="Ready to export">Ready to export</Badge>);
+    expect(screen.getByText("Ready to export")).toHaveAttribute("title", "Ready to export");
+  });
 });

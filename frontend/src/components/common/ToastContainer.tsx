@@ -55,7 +55,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         aria-label="Dismiss notification"
         onClick={() => setExiting(true)}
       >
-        <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "1rem" }}>close</span>
+        <span className="material-symbols-outlined toast-dismiss-icon" aria-hidden="true">close</span>
       </button>
     </div>
   );

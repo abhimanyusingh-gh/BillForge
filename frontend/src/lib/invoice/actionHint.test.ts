@@ -70,21 +70,57 @@ describe("getActionHint", () => {
     expect(getActionHint(invoice)?.kind).toBe(ACTION_HINT_KIND.Ready);
   });
 
-  it("returns Blocked when a critical risk signal is open (via summary)", () => {
+  it("returns Blocked when a critical risk signal is open", () => {
     const invoice: Invoice = {
       ...baseInvoice,
       status: "PARSED",
-      complianceSummary: {
-        tdsSection: null,
-        glCode: null,
-        riskSignalCount: 1,
-        riskSignalMaxSeverity: "critical"
+      compliance: {
+        riskSignals: [
+          {
+            code: "X",
+            category: "compliance",
+            severity: "critical",
+            status: "open",
+            message: "test",
+            confidencePenalty: 0,
+            resolvedBy: null,
+            resolvedAt: null
+          }
+        ]
       }
     };
     expect(getActionHint(invoice)).toEqual({
       kind: ACTION_HINT_KIND.Blocked,
       text: "Critical risk signal open"
     });
+  });
+
+  it("does not flag Blocked when the critical risk signal is dismissed even if summary reports critical max severity", () => {
+    const invoice: Invoice = {
+      ...baseInvoice,
+      status: "PARSED",
+      complianceSummary: {
+        tdsSection: null,
+        glCode: null,
+        riskSignalCount: 0,
+        riskSignalMaxSeverity: "critical"
+      },
+      compliance: {
+        riskSignals: [
+          {
+            code: "X",
+            category: "compliance",
+            severity: "critical",
+            status: "dismissed",
+            message: "test",
+            confidencePenalty: 0,
+            resolvedBy: "user",
+            resolvedAt: "2026-02-19T00:00:00.000Z"
+          }
+        ]
+      }
+    };
+    expect(getActionHint(invoice)?.kind).toBe(ACTION_HINT_KIND.Ready);
   });
 
   it("returns Pending with step label for AWAITING_APPROVAL", () => {

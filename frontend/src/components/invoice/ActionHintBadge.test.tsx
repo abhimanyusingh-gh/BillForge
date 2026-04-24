@@ -75,12 +75,4 @@ describe("ActionHintBadge", () => {
       "action-hint-ready"
     );
   });
-
-  it("exposes the hint text via the badge title for tooltip access", () => {
-    render(<ActionHintBadge invoice={{ ...baseInvoice, status: "APPROVED" }} />);
-    expect(screen.getByText("Ready to export").closest(".action-hint-badge")).toHaveAttribute(
-      "title",
-      "Ready to export"
-    );
-  });
 });

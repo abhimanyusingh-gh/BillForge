@@ -25,8 +25,6 @@ function hasMissingCustomerGstinOnInr(invoice: Invoice): boolean {
 }
 
 function hasOpenCriticalRiskSignal(invoice: Invoice): boolean {
-  const summaryMax = invoice.complianceSummary?.riskSignalMaxSeverity;
-  if (summaryMax === "critical") return true;
   const signals = invoice.compliance?.riskSignals;
   if (!signals) return false;
   return signals.some((s) => s.status === "open" && s.severity === "critical");
