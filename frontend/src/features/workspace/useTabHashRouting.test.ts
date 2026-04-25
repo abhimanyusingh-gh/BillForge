@@ -82,4 +82,23 @@ describe("useTabHashRouting", () => {
   it("LEGACY_QUERY_TABS is derived from TAB_HASH_PATH keys (single source of truth)", () => {
     expect([...LEGACY_QUERY_TABS].sort()).toEqual(Object.keys(TAB_HASH_PATH).sort());
   });
+
+  it("does NOT rewrite the hash or call onTabChange when on a standalone route (#/triage)", () => {
+    setLocation("", "#/triage");
+    const onTabChange = jest.fn();
+    renderHook(() => useTabHashRouting({ activeTab: "overview", onTabChange }));
+    expect(window.location.hash).toBe("#/triage");
+    expect(onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("preserves the standalone hash when activeTab changes (no overwrite)", () => {
+    setLocation("", "#/triage");
+    const { rerender } = renderHook(
+      (props: { activeTab: "overview" | "dashboard" }) =>
+        useTabHashRouting({ activeTab: props.activeTab, onTabChange: jest.fn() }),
+      { initialProps: { activeTab: "overview" } }
+    );
+    rerender({ activeTab: "dashboard" });
+    expect(window.location.hash).toBe("#/triage");
+  });
 });

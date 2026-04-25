@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { TenantViewTab } from "@/types";
-import { HASH_TO_TAB, LEGACY_QUERY_TABS, TAB_HASH_PATH } from "@/features/workspace/tabHashConfig";
+import {
+  HASH_TO_TAB,
+  LEGACY_QUERY_TABS,
+  TAB_HASH_PATH,
+  readStandaloneHashRoute
+} from "@/features/workspace/tabHashConfig";
 
 export interface HashRouteMigration {
   oldPath: string;
@@ -62,11 +67,19 @@ export function useTabHashRouting({ activeTab, onTabChange }: UseTabHashRoutingO
         return;
       }
 
+      if (readStandaloneHashRoute(window.location.hash)) {
+        return;
+      }
+
       const fromHash = readHashTab();
       if (fromHash && fromHash !== activeTab) {
         onTabChange(fromHash);
         return;
       }
+    }
+
+    if (readStandaloneHashRoute(window.location.hash)) {
+      return;
     }
 
     const expected = TAB_HASH_PATH[activeTab];
@@ -77,6 +90,9 @@ export function useTabHashRouting({ activeTab, onTabChange }: UseTabHashRoutingO
 
   useEffect(() => {
     const handler = () => {
+      if (readStandaloneHashRoute(window.location.hash)) {
+        return;
+      }
       const next = readHashTab();
       if (next && next !== activeTab) {
         onTabChange(next);

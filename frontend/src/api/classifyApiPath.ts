@@ -31,7 +31,29 @@ export const REALM_SCOPED_PATH_PREFIXES = [
 ] as const;
 
 export const REALM_SCOPED_PATH_BYPASS_PREFIXES = [
-  "/compliance/admin"
+  "/compliance/admin",
+  // Triage list (#166): the ONE accounting-leaf list query that legitimately
+  // filters by tenantId WITHOUT clientOrgId — these invoices have
+  // clientOrgId: null because mailbox routing couldn't decide their realm.
+  // Documented exception per #156.
+  "/invoices/triage"
+] as const;
+
+// Triage mutations (#166): assign-client-org / reject sit under /invoices/:id/
+// but operate on invoices with clientOrgId: null. They MUST NOT have
+// `?clientOrgId=` injected by the interceptor (operator may have no active
+// realm picked while triaging). Suffix-based bypass keeps the existing
+// prefix matcher untouched for everything else.
+//
+// WARNING: any new sub-path ending with one of these suffixes UNDER a
+// realm-scoped prefix (e.g. `/invoices/:id/some-feature/reject`) will
+// silently inherit the bypass and skip clientOrgId injection. Do NOT reuse
+// these suffixes for non-bypass routes. If a new route legitimately needs
+// to end with `/reject` or `/assign-client-org` AND must remain realm-scoped,
+// add a counter-rule here before adding the route.
+export const REALM_SCOPED_PATH_BYPASS_SUFFIXES = [
+  "/assign-client-org",
+  "/reject"
 ] as const;
 
 export const TENANT_SCOPED_PATH_PREFIXES = [
@@ -62,6 +84,15 @@ function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
 
+function matchesSuffixUnderRealmScoped(path: string, suffix: string): boolean {
+  if (!path.endsWith(suffix)) return false;
+  const head = path.slice(0, path.length - suffix.length);
+  for (const prefix of REALM_SCOPED_PATH_PREFIXES) {
+    if (matchesPrefix(head, prefix)) return true;
+  }
+  return false;
+}
+
 /**
  * Single source of truth for routing API paths into the {tenantId, clientOrgId}
  * composite-key access boundary. Both the bypass list and the realm-scoped list
@@ -75,6 +106,9 @@ export function classifyApiPath(path: string): RealmScope {
   const normalized = stripQueryString(path);
   for (const bypass of REALM_SCOPED_PATH_BYPASS_PREFIXES) {
     if (matchesPrefix(normalized, bypass)) return "tenant-scoped";
+  }
+  for (const suffix of REALM_SCOPED_PATH_BYPASS_SUFFIXES) {
+    if (matchesSuffixUnderRealmScoped(normalized, suffix)) return "tenant-scoped";
   }
   for (const prefix of REALM_SCOPED_PATH_PREFIXES) {
     if (matchesPrefix(normalized, prefix)) return "realm-scoped";
