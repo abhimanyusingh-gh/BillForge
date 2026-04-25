@@ -1,0 +1,126 @@
+/**
+ * @jest-environment jsdom
+ */
+import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { ClientOrgMultiPicker } from "@/features/admin/mailboxes/ClientOrgMultiPicker";
+
+const ORGS = [
+  { id: "org-1", companyName: "Sharma Textiles" },
+  { id: "org-2", companyName: "Bose Steel" },
+  { id: "org-3", companyName: "Acme Industries" }
+];
+
+describe("features/admin/mailboxes/ClientOrgMultiPicker", () => {
+  it("renders the loading state when isLoading=true", () => {
+    render(
+      <ClientOrgMultiPicker
+        clientOrgs={undefined}
+        isLoading
+        isError={false}
+        onRetry={jest.fn()}
+        selectedIds={[]}
+        onChange={jest.fn()}
+      />
+    );
+    expect(screen.getByTestId("client-org-multi-picker-loading")).toBeInTheDocument();
+    expect(screen.queryByTestId("client-org-multi-picker-list")).not.toBeInTheDocument();
+  });
+
+  it("renders the error state with a retry button", () => {
+    const onRetry = jest.fn();
+    render(
+      <ClientOrgMultiPicker
+        clientOrgs={undefined}
+        isLoading={false}
+        isError
+        onRetry={onRetry}
+        selectedIds={[]}
+        onChange={jest.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  it("sorts options ascending by companyName and toggles selection by id", () => {
+    const onChange = jest.fn();
+    render(
+      <ClientOrgMultiPicker
+        clientOrgs={ORGS}
+        isLoading={false}
+        isError={false}
+        onRetry={jest.fn()}
+        selectedIds={["org-2"]}
+        onChange={onChange}
+      />
+    );
+    const options = screen.getAllByRole("option");
+    expect(options.map((node) => node.textContent)).toEqual([
+      "Acme Industries",
+      "Bose Steel",
+      "Sharma Textiles"
+    ]);
+
+    // Adding an unselected org appends it.
+    fireEvent.click(screen.getByTestId("client-org-multi-picker-checkbox-org-1"));
+    expect(onChange).toHaveBeenLastCalledWith(["org-2", "org-1"]);
+
+    // Toggling an already-selected org removes it.
+    fireEvent.click(screen.getByTestId("client-org-multi-picker-checkbox-org-2"));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it("filters by case-insensitive substring on companyName", () => {
+    render(
+      <ClientOrgMultiPicker
+        clientOrgs={ORGS}
+        isLoading={false}
+        isError={false}
+        onRetry={jest.fn()}
+        selectedIds={[]}
+        onChange={jest.fn()}
+      />
+    );
+    fireEvent.change(screen.getByTestId("client-org-multi-picker-input"), {
+      target: { value: "STEEL" }
+    });
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent("Bose Steel");
+  });
+
+  it("renders selected chips and emits onChange when chip remove is clicked", () => {
+    const onChange = jest.fn();
+    render(
+      <ClientOrgMultiPicker
+        clientOrgs={ORGS}
+        isLoading={false}
+        isError={false}
+        onRetry={jest.fn()}
+        selectedIds={["org-1", "org-2"]}
+        onChange={onChange}
+      />
+    );
+    expect(screen.getByTestId("client-org-multi-picker-chip-org-1")).toBeInTheDocument();
+    expect(screen.getByTestId("client-org-multi-picker-chip-org-2")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("client-org-multi-picker-chip-remove-org-1"));
+    expect(onChange).toHaveBeenCalledWith(["org-2"]);
+  });
+
+  it("flags chips for ids that are no longer in the tenant's clientOrgs as orphans", () => {
+    render(
+      <ClientOrgMultiPicker
+        clientOrgs={ORGS}
+        isLoading={false}
+        isError={false}
+        onRetry={jest.fn()}
+        selectedIds={["org-99"]}
+        onChange={jest.fn()}
+      />
+    );
+    const chip = screen.getByTestId("client-org-multi-picker-chip-org-99");
+    expect(chip).toHaveAttribute("data-orphan", "true");
+    expect(chip).toHaveTextContent(/removed/i);
+  });
+});
