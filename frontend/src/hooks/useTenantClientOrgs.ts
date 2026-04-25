@@ -32,7 +32,7 @@ export function useTenantClientOrgs(options?: { enabled?: boolean }): UseTenantC
     queryKey: TENANT_CLIENT_ORGS_QUERY_KEY,
     queryFn: fetchTenantClientOrgs,
     enabled,
-    staleTime: 60_000
+    staleTime: 0
   });
   return {
     clientOrgs: query.data,
