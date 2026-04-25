@@ -16,7 +16,7 @@ import "@/models/compliance/TdsRateTable.js";
 
 const MINOR_FIELD_VALIDATOR_MIGRATION = "minor_field_jsonschema_validators_v1";
 
-export interface ConnectOptions {
+interface ConnectOptions {
   skipBootstrap?: boolean;
 }
 

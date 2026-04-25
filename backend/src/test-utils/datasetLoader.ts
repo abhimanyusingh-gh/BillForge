@@ -6,46 +6,28 @@
  * p95 < 200ms, payment recording p95 < 500ms (NFR-001/002 in
  * `docs/accounting-payments/IMPLEMENTATION-PLAN-v4.3.md`).
  *
- * Two modes:
- *
- * 1. **Generate** — `generateDataset({ tenants, vendorsPerTenant, invoicesPerVendor })`
- *    streams fixtures via `buildFixtures({ persist: true })` at the
- *    caller-specified scale. Uses `insertMany` batching (not `.create`)
- *    so large loads finish in seconds.
- *
- * 2. **Load from JSON** — `loadDatasetFromFile(path)` reads a previously
- *    exported dataset (produced by `dumpDataset()`) and bulk-inserts.
- *    Kept for the perf suite which does not want to re-synthesise the
- *    same dataset on every run.
- *
- * Why not commit the JSON:
- *    A 10_000-invoice dataset is ~30 MB. We keep the loader in the
- *    repo; CI regenerates it on demand. Run
- *    `yarn workspace ledgerbuddy-backend run tsx src/test-utils/datasetLoader.ts dump <path>`
- *    to produce one locally.
+ * `generateDataset({ tenants, vendorsPerTenant, invoicesPerVendor })`
+ * streams fixtures via `buildFixtures({ persist: true })` at the
+ * caller-specified scale. Uses `insertMany` batching (not `.create`)
+ * so large loads finish in seconds.
  */
 
-import { writeFileSync, readFileSync } from "node:fs";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { ONBOARDING_STATUS, TENANT_MODE } from "@/types/onboarding.js";
-import {
-  buildFixtures,
-  FIXTURE_NOW,
-  type FixtureSet
-} from "./fixtures.js";
+import { buildFixtures, FIXTURE_NOW } from "./fixtures.js";
 
-export interface DatasetScale {
+interface DatasetScale {
   tenants: number;
   vendorsPerTenant: number;
   invoicesPerVendor: number;
   seed?: number;
 }
 
-export interface DatasetLoadResult {
+interface DatasetLoadResult {
   tenantCount: number;
   vendorCount: number;
   invoiceCount: number;
@@ -136,42 +118,6 @@ export async function generateDataset(
     invoiceCount: invoices.length,
     elapsedMs: Date.now() - start
   };
-}
-
-/**
- * Dump a built fixture set to a JSON file. Used for producing the
- * perf-suite dataset on demand — output is intentionally not committed
- * to the repo.
- */
-export function dumpDataset(set: FixtureSet, path: string): void {
-  const serialisable = {
-    tenants: set.tenants.map((t) => ({ _id: t._id.toHexString(), name: t.name })),
-    clientOrgs: set.clientOrgs.map((c) => ({
-      _id: c._id.toHexString(),
-      tenantId: c.tenantId,
-      gstin: c.gstin
-    })),
-    vendors: set.vendors.map((v) => ({
-      _id: v._id.toHexString(),
-      clientOrgId: v.clientOrgId.toHexString(),
-      name: v.name,
-      gstin: v.gstin,
-      pan: v.pan
-    })),
-    invoices: set.invoices.map((i) => ({
-      _id: i._id.toHexString(),
-      clientOrgId: i.clientOrgId.toHexString(),
-      vendorName: i.vendorName,
-      totalAmountMinor: i.totalAmountMinor,
-      invoiceNumber: i.invoiceNumber
-    }))
-  };
-  writeFileSync(path, JSON.stringify(serialisable));
-}
-
-/** Counterpart to `dumpDataset`. Returns the raw JSON, not a FixtureSet. */
-export function loadDatasetFromFile(path: string): unknown {
-  return JSON.parse(readFileSync(path, "utf8"));
 }
 
 // --- internals ---

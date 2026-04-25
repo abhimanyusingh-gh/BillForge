@@ -12,12 +12,9 @@
  */
 
 import mongoose from "mongoose";
-import {
-  buildFixtures,
-  describeHarness,
-  generateDataset,
-  isDockerAvailable
-} from "./index.js";
+import { describeHarness, isDockerAvailable } from "./mongoTestHarness.js";
+import { buildFixtures } from "./fixtures.js";
+import { generateDataset } from "./datasetLoader.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 

@@ -1,6 +1,11 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 import { GSTIN_FORMAT } from "@/constants/indianCompliance.js";
 
+/**
+ * Consumed via `jest.requireActual(...).TALLY_VERSION` in tally test mocks
+ * (knip can't see through requireActual — keep @public tag).
+ * @public
+ */
 export const TALLY_VERSION = {
   ERP9: "erp9",
   Prime: "prime",

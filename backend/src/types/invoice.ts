@@ -39,11 +39,6 @@ export const TriageRejectReasons = Object.values(TRIAGE_REJECT_REASON);
 
 export type TriageRejectReason = (typeof TRIAGE_REJECT_REASON)[keyof typeof TRIAGE_REJECT_REASON];
 
-export interface InvoiceRejectReason {
-  code: TriageRejectReason;
-  notes?: string;
-}
-
 export const INVOICE_FIELD_KEY = {
   INVOICE_NUMBER: "invoiceNumber",
   VENDOR_NAME: "vendorName",

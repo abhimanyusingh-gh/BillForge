@@ -61,18 +61,18 @@ function deterministicObjectId(key: string): Types.ObjectId {
   return new Types.ObjectId(hex);
 }
 
-export interface FixtureTenant {
+interface FixtureTenant {
   _id: Types.ObjectId;
   name: string;
 }
 
-export interface FixtureClientOrg {
+interface FixtureClientOrg {
   _id: Types.ObjectId;
   tenantId: string;
   gstin: string;
 }
 
-export interface FixtureVendor {
+interface FixtureVendor {
   _id: Types.ObjectId;
   clientOrgId: Types.ObjectId;
   name: string;
@@ -80,7 +80,7 @@ export interface FixtureVendor {
   pan: string | null;
 }
 
-export interface FixtureInvoice {
+interface FixtureInvoice {
   _id: Types.ObjectId;
   clientOrgId: Types.ObjectId;
   vendorName: string;
@@ -88,7 +88,7 @@ export interface FixtureInvoice {
   invoiceNumber: string;
 }
 
-export interface FixtureOptions {
+interface FixtureOptions {
   /** Number of tenants (default 1). */
   tenants?: number;
   /** Vendors per tenant (default 3). */
@@ -105,7 +105,7 @@ export interface FixtureOptions {
   persist?: boolean;
 }
 
-export interface FixtureSet {
+interface FixtureSet {
   tenants: FixtureTenant[];
   clientOrgs: FixtureClientOrg[];
   vendors: FixtureVendor[];
