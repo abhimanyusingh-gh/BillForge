@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { ACTIVE_CLIENT_ORG_CHANGE_EVENT } from "@/hooks/useActiveClientOrg";
 
 export const ADMIN_CLIENT_ORG_QUERY_PARAM = "clientOrgId";
 
-const ADMIN_CLIENT_ORG_CHANGE_EVENT = "ledgerbuddy:admin-client-org-filter-change";
+export const ADMIN_CLIENT_ORG_CHANGE_EVENT = "ledgerbuddy:admin-client-org-filter-change";
 
 const OBJECT_ID_REGEX = /^[a-f0-9]{24}$/i;
 
@@ -26,7 +27,9 @@ function writeToUrl(id: string | null) {
     "",
     `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`
   );
+  // Notify both layers — admin/app-shell intentionally share the URL key (#162). Single dispatch leaves the other layer stale until popstate. Will be replaced by store subscriptions when #173 lands.
   window.dispatchEvent(new CustomEvent(ADMIN_CLIENT_ORG_CHANGE_EVENT));
+  window.dispatchEvent(new CustomEvent(ACTIVE_CLIENT_ORG_CHANGE_EVENT));
 }
 
 export interface UseAdminClientOrgFilterResult {

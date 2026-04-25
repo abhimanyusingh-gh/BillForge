@@ -2,7 +2,12 @@
  * @jest-environment jsdom
  */
 import { act, renderHook } from "@testing-library/react";
-import { useAdminClientOrgFilter, ADMIN_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useAdminClientOrgFilter";
+import {
+  useAdminClientOrgFilter,
+  ADMIN_CLIENT_ORG_QUERY_PARAM,
+  ADMIN_CLIENT_ORG_CHANGE_EVENT
+} from "@/hooks/useAdminClientOrgFilter";
+import { ACTIVE_CLIENT_ORG_CHANGE_EVENT } from "@/hooks/useActiveClientOrg";
 
 const ORG_VALID = "65a1b2c3d4e5f6a7b8c9d0e1";
 
@@ -55,6 +60,18 @@ describe("useAdminClientOrgFilter", () => {
     expect(params.get("tab")).toBe("overview");
     expect(params.get("foo")).toBe("bar");
     expect(params.get(ADMIN_CLIENT_ORG_QUERY_PARAM)).toBe(ORG_VALID);
+  });
+
+  it("dispatches BOTH the admin filter event and the active-client-org event so both layers stay in sync (#162; interim until #173)", () => {
+    const dispatchSpy = jest.spyOn(window, "dispatchEvent");
+    const { result } = renderHook(() => useAdminClientOrgFilter());
+    act(() => result.current.setClientOrgId(ORG_VALID));
+    const types = dispatchSpy.mock.calls.map((call) => (call[0] as Event).type);
+    expect(types).toEqual(expect.arrayContaining([
+      ADMIN_CLIENT_ORG_CHANGE_EVENT,
+      ACTIVE_CLIENT_ORG_CHANGE_EVENT
+    ]));
+    dispatchSpy.mockRestore();
   });
 
   it("reacts to popstate events (browser back/forward navigation)", () => {
