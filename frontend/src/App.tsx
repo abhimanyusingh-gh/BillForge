@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
@@ -20,12 +20,27 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
 import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";
 import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
+import { TriagePage } from "@/features/triage/TriagePage";
+import { readStandaloneHashRoute, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/common/ToastContainer";
+
+function useStandaloneHashRoute(): StandaloneHashRoute | null {
+  const [route, setRoute] = useState<StandaloneHashRoute | null>(() =>
+    typeof window === "undefined" ? null : readStandaloneHashRoute(window.location.hash)
+  );
+  useEffect(() => {
+    const handler = () => setRoute(readStandaloneHashRoute(window.location.hash));
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+  return route;
+}
 
 export function App() {
   const { toasts, addToast, removeToast } = useToast();
   const { theme, toggleTheme } = useTheme();
+  const standaloneRoute = useStandaloneHashRoute();
   const workspace = useTenantWorkspace({ addToast });
 
   const {
@@ -312,9 +327,11 @@ export function App() {
           <EmptyState icon="hourglass_top" heading="Tenant setup in progress" description="Your tenant is being set up. Please contact your tenant administrator to complete the setup." />
         )}
 
-        {activeTab === "overview" && <OverviewDashboard />}
+        {standaloneRoute === "triage" && <TriagePage />}
 
-        {activeTab === "dashboard" && (
+        {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}
+
+        {!standaloneRoute && activeTab === "dashboard" && (
           <InvoiceView
             tenantId={session.tenant.id}
             userId={session.user.id}
@@ -331,9 +348,9 @@ export function App() {
           />
         )}
 
-        {activeTab === "exports" && <ExportHistoryDashboard />}
+        {!standaloneRoute && activeTab === "exports" && <ExportHistoryDashboard />}
 
-        {activeTab === "config" && canViewConfig && (
+        {!standaloneRoute && activeTab === "config" && canViewConfig && (
           <TenantConfigTab
             currentUserId={session.user.id}
             currentUserRole={session.user.role}
@@ -350,7 +367,7 @@ export function App() {
           />
         )}
 
-        {activeTab === "statements" && canViewConnections && (
+        {!standaloneRoute && activeTab === "statements" && canViewConnections && (
           <BankStatementsTab
             bankStatements={bankStatements}
             onUploadBankStatement={(file, gstin, gstinLabel) => void handleUploadBankStatement(file, gstin, gstinLabel)}
@@ -358,7 +375,7 @@ export function App() {
           />
         )}
 
-        {activeTab === "connections" && canViewConnections && (
+        {!standaloneRoute && activeTab === "connections" && canViewConnections && (
           <BankConnectionsTab
             mailboxes={mailboxes}
             tenantUsers={tenantUsers}

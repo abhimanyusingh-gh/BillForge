@@ -18,3 +18,16 @@ export const HASH_TO_TAB: Record<string, TenantViewTab> = Object.entries(TAB_HAS
 );
 
 export const LEGACY_QUERY_TABS = Object.keys(TAB_HASH_PATH) as TenantViewTab[];
+
+export const STANDALONE_HASH_PATH = {
+  triage: "#/triage"
+} as const;
+
+export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;
+
+export function readStandaloneHashRoute(hash: string): StandaloneHashRoute | null {
+  for (const [route, path] of Object.entries(STANDALONE_HASH_PATH)) {
+    if (hash === path) return route as StandaloneHashRoute;
+  }
+  return null;
+}
