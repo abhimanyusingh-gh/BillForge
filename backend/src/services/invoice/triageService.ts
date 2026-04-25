@@ -10,7 +10,7 @@ import {
 import { findClientOrgIdByIdForTenant } from "@/services/auth/tenantScope.js";
 import { HttpError } from "@/errors/HttpError.js";
 
-export interface TriageInvoiceDto {
+interface TriageInvoiceDto {
   _id: string;
   tenantId: string;
   invoiceNumber: string | null;
@@ -25,7 +25,7 @@ export interface TriageInvoiceDto {
   status: typeof INVOICE_STATUS.PENDING_TRIAGE;
 }
 
-export interface TriageListResult {
+interface TriageListResult {
   items: TriageInvoiceDto[];
   total: number;
 }

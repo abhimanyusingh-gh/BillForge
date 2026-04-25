@@ -44,7 +44,7 @@ import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js
  * `clientOrgId` (or `clientOrgIds`) as required but is absent from
  * this registry.
  */
-export type ClientOrgDependentEntry = {
+type ClientOrgDependentEntry = {
   /** Stable label exposed to FE via the linked-counts breakdown. */
   label: string;
   /** Mongoose model whose rows are scoped by `tenantId` + `clientOrgId`. */
@@ -103,9 +103,9 @@ export const NON_REQUIRED_REGISTERED_MODELS: ReadonlyArray<string> = [
   TdsSectionMappingModel.modelName
 ] as const;
 
-export type ClientOrgDependentLabel = (typeof CLIENT_ORG_DEPENDENT_MODELS)[number]["label"];
+type ClientOrgDependentLabel = (typeof CLIENT_ORG_DEPENDENT_MODELS)[number]["label"];
 
-export type ClientOrgLinkedCounts = Record<ClientOrgDependentLabel, number>;
+type ClientOrgLinkedCounts = Record<ClientOrgDependentLabel, number>;
 
 /**
  * Run one tenant-scoped count per registered dependent. Returns the
