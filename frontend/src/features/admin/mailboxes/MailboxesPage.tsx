@@ -7,6 +7,10 @@ import {
   MAILBOX_ASSIGNMENTS_QUERY_KEY,
   useMailboxAssignments
 } from "@/hooks/useMailboxAssignments";
+import {
+  recentIngestionsQueryKey,
+  useRecentIngestionCounts
+} from "@/hooks/useRecentIngestions";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import {
   createMailboxAssignment,
@@ -21,6 +25,9 @@ import {
   type MailboxFormValues
 } from "@/features/admin/mailboxes/MailboxFormPanel";
 import { MailboxesTable } from "@/features/admin/mailboxes/MailboxesTable";
+import { RecentIngestionsDrawer } from "@/features/admin/mailboxes/RecentIngestionsDrawer";
+
+const RECENT_INGESTIONS_WINDOW_DAYS = 30;
 
 export const MAILBOXES_PAGE_VIEW = {
   Loading: "loading",
@@ -53,6 +60,7 @@ export function MailboxesPage() {
   const [formState, setFormState] = useState<FormState>(INITIAL_FORM_STATE);
   const [deleteTarget, setDeleteTarget] = useState<MailboxAssignment | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [drawerTarget, setDrawerTarget] = useState<MailboxAssignment | null>(null);
 
   const invalidateList = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: MAILBOX_ASSIGNMENTS_QUERY_KEY });
@@ -108,14 +116,23 @@ export function MailboxesPage() {
     return MAILBOXES_PAGE_VIEW.Data;
   })();
 
-  const ingestionCounts = useMemo<Record<string, number | undefined>>(() => {
-    // Backend ingestion-count column is sourced from
-    // `recentIngestions(days: 30)` per assignment in a follow-up wave;
-    // for now we render the placeholder em-dash. Stub kept here so the
-    // table contract matches the brief and follow-up can wire data in
-    // without a second prop drill.
-    return {};
-  }, []);
+  const assignmentIds = useMemo(
+    () => (query.data ?? []).map((a) => a._id),
+    [query.data]
+  );
+  const { countsById: ingestionCounts } = useRecentIngestionCounts({
+    assignmentIds,
+    days: RECENT_INGESTIONS_WINDOW_DAYS
+  });
+
+  const retryIngestionCount = useCallback(
+    (assignmentId: string) => {
+      void queryClient.invalidateQueries({
+        queryKey: recentIngestionsQueryKey(assignmentId, RECENT_INGESTIONS_WINDOW_DAYS, 1)
+      });
+    },
+    [queryClient]
+  );
 
   const openAddForm = useCallback(() => {
     setFormState({ open: true, mode: MAILBOX_FORM_MODE.Add, target: null, errorMessage: null });
@@ -211,8 +228,18 @@ export function MailboxesPage() {
             setDeleteError(null);
             setDeleteTarget(target);
           }}
+          onViewRecent={(target) => setDrawerTarget(target)}
+          onRetryCount={retryIngestionCount}
         />
       ) : null}
+
+      <RecentIngestionsDrawer
+        open={drawerTarget !== null}
+        assignmentId={drawerTarget?._id ?? null}
+        mailboxEmail={drawerTarget?.email ?? null}
+        clientOrgs={tenantClientOrgs.clientOrgs}
+        onClose={() => setDrawerTarget(null)}
+      />
 
       <MailboxFormPanel
         open={formState.open}
