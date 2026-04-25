@@ -63,8 +63,23 @@ describe("components/workspace/ActiveRealmBadge", () => {
     const cta = screen.getByTestId("select-client-cta");
     expect(cta.tagName).toBe("BUTTON");
     expect(cta).toHaveTextContent("Select a client");
+    expect(cta).not.toBeDisabled();
+    expect(cta).toHaveAttribute("aria-disabled", "false");
     fireEvent.click(cta);
     expect(onOpenSwitcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the 'Select a client' CTA disabled when no onOpenSwitcher handler is provided", () => {
+    // Until #152 wires the realm switcher, render disabled instead of a silent no-op.
+    render(<ActiveRealmBadge clientOrgs={[]} />);
+    const cta = screen.getByTestId("select-client-cta");
+    expect(cta.tagName).toBe("BUTTON");
+    expect(cta).toBeDisabled();
+    expect(cta).toHaveAttribute("aria-disabled", "true");
+    expect(cta).toHaveAttribute("title", "Realm switcher coming soon");
+    // Clicking a disabled button is a no-op — nothing to assert on the handler
+    // (there is none); just verify the click doesn't throw.
+    fireEvent.click(cta);
   });
 
   it("renders a loading state while clientOrgs is undefined and a realm is active", () => {

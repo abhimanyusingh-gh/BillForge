@@ -57,12 +57,19 @@ export function ActiveRealmBadge({ clientOrgs, onOpenSwitcher }: ActiveRealmBadg
   }, [activeClientOrgId, clientOrgs]);
 
   if (activeClientOrgId === null) {
+    // Until #152 wires the realm switcher, the CTA is a no-op. Render it
+    // as a disabled button (aria-disabled, no click handler) so the user
+    // gets accurate affordance instead of a silent dead button.
+    const switcherReady = typeof onOpenSwitcher === "function";
     return (
       <button
         type="button"
         className="workspace-hierarchy-badge workspace-hierarchy-badge-realm-empty"
         // TODO(#152): open realm switcher; fall through to onboarding (#150) when no orgs exist.
-        onClick={onOpenSwitcher}
+        onClick={switcherReady ? onOpenSwitcher : undefined}
+        disabled={!switcherReady}
+        aria-disabled={!switcherReady}
+        title={switcherReady ? undefined : "Realm switcher coming soon"}
         data-testid="select-client-cta"
         aria-label="Select a client"
       >

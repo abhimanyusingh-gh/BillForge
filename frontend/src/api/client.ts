@@ -1,46 +1,25 @@
 import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
 import { readActiveClientOrgId, ACTIVE_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useActiveClientOrg";
+import { isRealmScopedPath } from "@/api/classifyApiPath";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
 
-export const REALM_SCOPED_PATH_PREFIXES = [
-  "/invoices",
-  "/vendors",
-  "/payments",
-  "/exports",
-  "/bank-statements",
-  "/bank-accounts",
-  "/bank/accounts",
-  "/compliance"
-] as const;
-
-export const REALM_SCOPED_PATH_BYPASS_PREFIXES = [
-  "/compliance/admin"
-] as const;
+export {
+  REALM_SCOPED_PATH_PREFIXES,
+  REALM_SCOPED_PATH_BYPASS_PREFIXES,
+  TENANT_SCOPED_PATH_PREFIXES,
+  classifyApiPath,
+  isRealmScopedPath
+} from "@/api/classifyApiPath";
+export type { RealmScope } from "@/api/classifyApiPath";
 
 export class MissingActiveClientOrgError extends Error {
   constructor(public readonly requestPath: string) {
     super(`Missing active clientOrgId for realm-scoped request: ${requestPath}`);
     this.name = "MissingActiveClientOrgError";
   }
-}
-
-function stripQueryString(path: string): string {
-  const idx = path.indexOf("?");
-  return idx === -1 ? path : path.slice(0, idx);
-}
-
-export function isRealmScopedPath(path: string): boolean {
-  const normalized = stripQueryString(path);
-  for (const bypass of REALM_SCOPED_PATH_BYPASS_PREFIXES) {
-    if (normalized.startsWith(bypass)) return false;
-  }
-  for (const prefix of REALM_SCOPED_PATH_PREFIXES) {
-    if (normalized === prefix || normalized.startsWith(`${prefix}/`)) return true;
-  }
-  return false;
 }
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
