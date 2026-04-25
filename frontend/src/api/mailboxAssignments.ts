@@ -1,14 +1,5 @@
 import { apiClient } from "@/api/client";
 
-export const MAILBOX_ASSIGNMENT_STATUS = {
-  Connected: "connected",
-  RequiresReauth: "requires_reauth",
-  Disconnected: "disconnected"
-} as const;
-
-export type MailboxAssignmentStatus =
-  (typeof MAILBOX_ASSIGNMENT_STATUS)[keyof typeof MAILBOX_ASSIGNMENT_STATUS];
-
 export interface MailboxAssignmentPollingConfig {
   enabled: boolean;
   intervalHours: number;
@@ -29,13 +20,13 @@ export interface MailboxAssignment {
   updatedAt: string | null;
 }
 
-export interface CreateMailboxAssignmentPayload {
+interface CreateMailboxAssignmentPayload {
   integrationId: string;
   clientOrgIds: string[];
   assignedTo?: string;
 }
 
-export interface UpdateMailboxAssignmentPayload {
+interface UpdateMailboxAssignmentPayload {
   clientOrgIds?: string[];
   assignedTo?: string;
 }

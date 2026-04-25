@@ -29,7 +29,7 @@ export const MAILBOXES_PAGE_VIEW = {
   Data: "data"
 } as const;
 
-export type MailboxesPageView = typeof MAILBOXES_PAGE_VIEW[keyof typeof MAILBOXES_PAGE_VIEW];
+type MailboxesPageView = typeof MAILBOXES_PAGE_VIEW[keyof typeof MAILBOXES_PAGE_VIEW];
 
 interface FormState {
   open: boolean;

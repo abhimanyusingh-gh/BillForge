@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from "react";
 import { Badge, Button } from "@/components/ds";
 import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 
-export interface ClientOrgMultiPickerProps {
+interface ClientOrgMultiPickerProps {
   clientOrgs: ClientOrgOption[] | undefined;
   isLoading: boolean;
   isError: boolean;
