@@ -76,16 +76,14 @@ export class TdsCalculationService {
     return { section: null, confidence: TDS_CONFIDENCE.LOW };
   }
 
-  // lookupRate queries the global TdsRateTable (no tenant scoping) and
-  // resolves tenant-level compliance config overrides. Neither is an
-  // accounting leaf, so no clientOrgId parameter is required.
   async lookupRate(
     section: string,
     panCategory: string | null,
-    tenantId?: string
+    tenantId?: string,
+    clientOrgId?: Types.ObjectId
   ): Promise<TdsRateLookup | null> {
-    if (tenantId) {
-      const tenantConfig = await resolveTdsRatesConfig(tenantId);
+    if (tenantId && clientOrgId) {
+      const tenantConfig = await resolveTdsRatesConfig(tenantId, clientOrgId);
       if (tenantConfig && tenantConfig.tdsRates && tenantConfig.tdsRates.length > 0) {
         const entry = tenantConfig.tdsRates.find((r: { section: string }) => r.section === section);
         if (entry) {
@@ -176,7 +174,7 @@ export class TdsCalculationService {
       ));
     }
 
-    const rateLookup = await this.lookupRate(detection.section, panCategory, tenantId);
+    const rateLookup = await this.lookupRate(detection.section, panCategory, tenantId, clientOrgId);
     if (!rateLookup) {
       return {
         tds: {

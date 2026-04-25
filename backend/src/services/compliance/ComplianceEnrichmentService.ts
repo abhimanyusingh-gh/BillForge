@@ -3,9 +3,9 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import type { UUID } from "@/types/uuid.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
-import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
+import type { ClientComplianceConfigFields } from "@/models/integration/ClientComplianceConfig.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
 import { emptyComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
@@ -59,7 +59,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     vendorFingerprint: string,
     context?: ComplianceEnrichContext
   ): Promise<ComplianceResult> {
-    const config = await resolveTenantComplianceConfig(tenantId as UUID);
+    const config = await resolveTenantComplianceConfig(tenantId as UUID, clientOrgId);
     const anyEnabled = config?.complianceEnabled ||
       config?.tdsEnabled ||
       config?.riskSignalsEnabled ||
@@ -76,7 +76,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     await this.enrichVendorMaster(invoice, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
     await this.enrichGlCode(invoice, config, tenantId, clientOrgId, vendorFingerprint, context, result, processingIssues);
     await this.enrichCostCenter(tenantId, clientOrgId, vendorFingerprint, result, processingIssues);
-    await this.enrichTcs(invoice, tenantId, result);
+    await this.enrichTcs(invoice, tenantId, clientOrgId, result);
     await this.enrichTds(invoice, config, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
     this.enrichIrn(invoice, config, result, riskSignals, processingIssues);
     await this.enrichMsme(invoice, config, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
@@ -102,7 +102,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private enrichPan(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[],
@@ -178,7 +178,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichGlCode(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     tenantId: string,
     clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
@@ -219,10 +219,10 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
   private async enrichTcs(
     invoice: ParsedInvoiceData,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     result: ComplianceResult
   ): Promise<void> {
-    // TenantTcsConfig is keyed on tenantId only (not an accounting leaf).
-    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    const tcsConfig = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
     if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && invoice.totalAmountMinor && invoice.totalAmountMinor > 0) {
       const tcsAmount = Math.floor(invoice.totalAmountMinor * tcsConfig.ratePercent / 100);
       result.tcs = {
@@ -235,7 +235,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichTds(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     tenantId: string,
     clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
@@ -266,7 +266,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private enrichIrn(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[]
@@ -287,7 +287,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichMsme(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     tenantId: string,
     clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
@@ -331,7 +331,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
           if (vendor && vendor.emailDomains && vendor.emailDomains.length > 0) {
             const knownDomains = new Set(vendor.emailDomains.map((d: string) => d.toLowerCase()));
             if (!knownDomains.has(domain)) {
-              const freemailDomains = await this.resolveFreemailDomains(tenantId);
+              const freemailDomains = await this.resolveFreemailDomains(tenantId, clientOrgId);
               if (freemailDomains.has(domain) && vendor.emailDomains.some((d: string) => !freemailDomains.has(d.toLowerCase()))) {
                 riskSignals.push(createRiskSignal(
                   RISK_SIGNAL_CODE.SENDER_FREEMAIL,
@@ -366,9 +366,9 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     }
   }
 
-  private async resolveFreemailDomains(tenantId: string): Promise<Set<string>> {
+  private async resolveFreemailDomains(tenantId: string, clientOrgId: Types.ObjectId): Promise<Set<string>> {
     const systemDefaults = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com"];
-    const config = await resolveFreemailConfig(tenantId);
+    const config = await resolveFreemailConfig(tenantId, clientOrgId);
     const additional = config?.additionalFreemailDomains;
     if (additional && additional.length > 0) {
       return new Set([...systemDefaults, ...additional.map(d => d.toLowerCase())]);

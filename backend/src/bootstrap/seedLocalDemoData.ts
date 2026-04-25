@@ -111,7 +111,16 @@ export async function seedLocalDemoData(
   if (demoTenant) {
     const mahirUser = await UserModel.findOne({ email: "mahir.n@globalhealthx.co" }).lean();
     if (mahirUser) {
-      await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
+      const demoClientOrg = await ClientOrganizationModel.findOne({ tenantId: DEMO_TENANT_ID })
+        .select("_id")
+        .lean();
+      if (!demoClientOrg) {
+        throw new Error(
+          "Demo tenant seed: no ClientOrganization exists for the demo tenant. " +
+            "Per locked decision, the seed does not auto-create one — onboard a ClientOrg first."
+        );
+      }
+      await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrg._id, String(mahirUser._id));
       if (env.LOCAL_DEMO_INVOICES) {
         await seedDemoInvoices(DEMO_TENANT_ID, { fileStore: options.fileStore });
       }

@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const tdsRateEntrySchema = new Schema(
   {
@@ -13,9 +14,10 @@ const tdsRateEntrySchema = new Schema(
   { _id: false }
 );
 
-const tenantComplianceConfigSchema = new Schema(
+const clientComplianceConfigSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     complianceEnabled: { type: Boolean, default: false },
     autoSuggestGlCodes: { type: Boolean, default: true },
     autoDetectTds: { type: Boolean, default: true },
@@ -62,12 +64,17 @@ const tenantComplianceConfigSchema = new Schema(
   { timestamps: true }
 );
 
-tenantComplianceConfigSchema.index({ tenantId: 1 }, { unique: true });
+clientComplianceConfigSchema.index({ tenantId: 1, clientOrgId: 1 }, { unique: true });
 
-type TenantComplianceConfig = InferSchemaType<typeof tenantComplianceConfigSchema>;
+clientComplianceConfigSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
-export interface TenantComplianceConfigFields {
+type ClientComplianceConfig = InferSchemaType<typeof clientComplianceConfigSchema>;
+
+export interface ClientComplianceConfigFields {
   tenantId: string;
+  clientOrgId: import("mongoose").Types.ObjectId;
   complianceEnabled?: boolean;
   autoSuggestGlCodes?: boolean;
   autoDetectTds?: boolean;
@@ -120,4 +127,4 @@ export interface TenantComplianceConfigFields {
   reconciliationWeightDateProximity?: number;
 }
 
-export const TenantComplianceConfigModel = model<TenantComplianceConfig>("TenantComplianceConfig", tenantComplianceConfigSchema);
+export const ClientComplianceConfigModel = model<ClientComplianceConfig>("ClientComplianceConfig", clientComplianceConfigSchema);

@@ -48,7 +48,7 @@ jest.mock("@/models/core/TenantUserRole.ts", () => {
     TenantUserRoleModel: { findOne: jest.fn() }
   };
 });
-jest.mock("@/models/integration/TenantTcsConfig.ts");
+jest.mock("@/models/integration/ClientTcsConfig.ts");
 
 const mockUnmatch = jest.fn();
 const mockManualMatch = jest.fn();

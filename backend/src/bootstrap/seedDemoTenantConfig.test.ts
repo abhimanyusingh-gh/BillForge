@@ -1,14 +1,6 @@
-/**
- * Tests for the demo-tenant config seed.
- *
- * We mock every Mongoose model as an in-memory store so we can assert the final
- * seeded state without spinning up Mongo. The mocks are intentionally narrow —
- * only the methods the seed helper calls are implemented.
- */
+import { Types } from "mongoose";
 
 type Store<T extends Record<string, unknown>> = T[];
-
-/* ------------------------------------------------------------------ stores */
 
 const roleStore: Store<{
   tenantId: string;
@@ -23,8 +15,6 @@ let notificationStore: Array<Record<string, unknown>> = [];
 let exportStore: Array<Record<string, unknown>> = [];
 let vendorStore: Array<Record<string, unknown>> = [];
 let workflowStore: Array<Record<string, unknown>> = [];
-
-/* ------------------------------------------------------------------ helpers */
 
 function applyUpdate(target: Record<string, unknown>, update: Record<string, unknown>): void {
   const set = (update.$set as Record<string, unknown>) ?? update;
@@ -46,7 +36,7 @@ function upsertInto<T extends Record<string, unknown>>(
   update: Record<string, unknown>
 ): T {
   let entry = store.find((row) =>
-    Object.entries(query).every(([k, v]) => row[k] === v)
+    Object.entries(query).every(([k, v]) => String(row[k]) === String(v))
   );
   if (!entry) {
     entry = { ...query } as T;
@@ -55,8 +45,6 @@ function upsertInto<T extends Record<string, unknown>>(
   applyUpdate(entry as Record<string, unknown>, update);
   return entry;
 }
-
-/* ------------------------------------------------------------------ mocks */
 
 jest.mock("@/models/core/TenantUserRole.js", () => ({
   TenantAssignableRoles: ["TENANT_ADMIN", "ap_clerk", "senior_accountant", "ca", "audit_clerk"],
@@ -89,24 +77,24 @@ jest.mock("@/models/core/User.js", () => ({
   }
 }));
 
-jest.mock("@/models/integration/TenantComplianceConfig.js", () => ({
-  TenantComplianceConfigModel: {
+jest.mock("@/models/integration/ClientComplianceConfig.js", () => ({
+  ClientComplianceConfigModel: {
     findOneAndUpdate: jest.fn(async (q: Record<string, unknown>, u: Record<string, unknown>) =>
       upsertInto(complianceStore, q, u)
     )
   }
 }));
 
-jest.mock("@/models/integration/TenantTcsConfig.js", () => ({
-  TenantTcsConfigModel: {
+jest.mock("@/models/integration/ClientTcsConfig.js", () => ({
+  ClientTcsConfigModel: {
     findOneAndUpdate: jest.fn(async (q: Record<string, unknown>, u: Record<string, unknown>) =>
       upsertInto(tcsStore, q, u)
     )
   }
 }));
 
-jest.mock("@/models/integration/TenantNotificationConfig.js", () => ({
-  TenantNotificationConfigModel: {
+jest.mock("@/models/integration/ClientNotificationConfig.js", () => ({
+  ClientNotificationConfigModel: {
     findOneAndUpdate: jest.fn(async (q: Record<string, unknown>, u: Record<string, unknown>) =>
       upsertInto(notificationStore, q, u)
     )
@@ -114,8 +102,8 @@ jest.mock("@/models/integration/TenantNotificationConfig.js", () => ({
   NOTIFICATION_RECIPIENT_TYPES: ["integration_creator", "all_tenant_admins", "specific_user"]
 }));
 
-jest.mock("@/models/integration/TenantExportConfig.js", () => ({
-  TenantExportConfigModel: {
+jest.mock("@/models/integration/ClientExportConfig.js", () => ({
+  ClientExportConfigModel: {
     findOneAndUpdate: jest.fn(async (q: Record<string, unknown>, u: Record<string, unknown>) =>
       upsertInto(exportStore, q, u)
     )
@@ -140,11 +128,10 @@ jest.mock("@/services/invoice/approvalWorkflowService.js", () => {
   return { ApprovalWorkflowService: MockApprovalWorkflowService };
 });
 
-/* ------------------------------------------------------------------ imports */
-
 import { seedDemoTenantConfig } from "./seedDemoTenantConfig.js";
 
 const TENANT_ID = "65f0000000000000000000c3";
+const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000d4");
 const MAHIR_USER_ID = "mahir-user-id";
 
 function seedRoleRows() {
@@ -170,8 +157,8 @@ beforeEach(() => {
 
 describe("seedDemoTenantConfig", () => {
   it("is idempotent: re-running produces the same single-row state with no duplicates", async () => {
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
 
     expect(complianceStore).toHaveLength(1);
     expect(tcsStore).toHaveLength(1);
@@ -181,8 +168,17 @@ describe("seedDemoTenantConfig", () => {
     expect(workflowStore).toHaveLength(1);
   });
 
+  it("persists clientOrgId on every config row", async () => {
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
+
+    expect(String(complianceStore[0].clientOrgId)).toBe(String(CLIENT_ORG_ID));
+    expect(String(tcsStore[0].clientOrgId)).toBe(String(CLIENT_ORG_ID));
+    expect(String(notificationStore[0].clientOrgId)).toBe(String(CLIENT_ORG_ID));
+    expect(String(exportStore[0].clientOrgId)).toBe(String(CLIENT_ORG_ID));
+  });
+
   it("persists an approval workflow with 4 steps and correct condition types on each", async () => {
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
 
     const wf = workflowStore[0];
     expect(wf.enabled).toBe(true);
@@ -211,7 +207,7 @@ describe("seedDemoTenantConfig", () => {
   });
 
   it("sets TenantUserRole.capabilities.approvalLimitMinor per role", async () => {
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
 
     const limits = Object.fromEntries(
       roleStore.map((r) => [r.role, (r.capabilities as Record<string, unknown>).approvalLimitMinor])
@@ -225,8 +221,8 @@ describe("seedDemoTenantConfig", () => {
   });
 
   it("seeds TCS history with exactly 2 entries, fully overwritten on re-run", async () => {
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
 
     const tcs = tcsStore[0];
     const history = tcs.history as Array<Record<string, unknown>>;
@@ -242,7 +238,7 @@ describe("seedDemoTenantConfig", () => {
   });
 
   it("persists Acme Contractors LLP vendor with agreedPaymentDays: 45 unchanged", async () => {
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
 
     const acme = vendorStore.find((v) => v.name === "Acme Contractors LLP");
     expect(acme).toBeDefined();
@@ -254,7 +250,7 @@ describe("seedDemoTenantConfig", () => {
   });
 
   it("seeds compliance config with complianceEnabled: true and the demo field set", async () => {
-    await seedDemoTenantConfig(TENANT_ID, MAHIR_USER_ID);
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
 
     const config = complianceStore[0];
     expect(config.complianceEnabled).toBe(true);

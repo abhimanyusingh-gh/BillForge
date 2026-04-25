@@ -3,7 +3,7 @@ import type { ParsedInvoiceData, InvoiceCompliance } from "@/types/invoice.js";
 import { assessInvoiceConfidence, type ConfidenceTenantConfig } from "@/services/invoice/confidenceAssessment.js";
 import { RiskSignalEvaluator } from "@/services/compliance/RiskSignalEvaluator.js";
 import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineContextKeys.js";
-import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
+import type { ClientComplianceConfigFields } from "@/models/integration/ClientComplianceConfig.js";
 
 export class AssessConfidenceStep implements PipelineStep {
   readonly name = "assess-confidence";
@@ -13,7 +13,7 @@ export class AssessConfidenceStep implements PipelineStep {
     const ocrConfidence = ctx.store.get<number>("invoice.ocrConfidence");
     const compliance = ctx.store.get<InvoiceCompliance>(POST_ENGINE_CTX.COMPLIANCE);
 
-    const tenantConfig = ctx.store.get<TenantComplianceConfigFields>(POST_ENGINE_CTX.TENANT_COMPLIANCE_CONFIG) ?? null;
+    const tenantConfig = ctx.store.get<ClientComplianceConfigFields>(POST_ENGINE_CTX.TENANT_COMPLIANCE_CONFIG) ?? null;
 
     const penaltyCap = tenantConfig?.riskSignalPenaltyCap;
     const penalty = compliance?.riskSignals?.length

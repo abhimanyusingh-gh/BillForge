@@ -2,7 +2,7 @@ import type { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransaction } from "@/models/bank/BankTransaction.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
 import { type UUID, toUUID } from "@/types/uuid.js";
@@ -133,11 +133,10 @@ export class ReconciliationService {
     const statement = await BankStatementModel.findOne({ _id: statementId, tenantId, clientOrgId }).lean();
     const statementGstin = statement?.gstin ?? undefined;
 
-    // TenantTcsConfig is keyed on tenantId only (not an accounting leaf).
-    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    const tcsConfig = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
     const tcsRatePercent = tcsConfig?.enabled ? (tcsConfig.ratePercent ?? 0) : 0;
 
-    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const tenantConfig = await resolveTenantComplianceConfig(tenantId, clientOrgId);
     const autoMatchThreshold = tenantConfig?.reconciliationAutoMatchThreshold ?? DEFAULT_AUTO_MATCH_THRESHOLD;
     const suggestThreshold = tenantConfig?.reconciliationSuggestThreshold ?? DEFAULT_SUGGEST_THRESHOLD;
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
@@ -274,7 +273,7 @@ export class ReconciliationService {
     tcsRatePercent: number = 0,
     gstin?: string
   ): Promise<MatchCandidate[]> {
-    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const tenantConfig = await resolveTenantComplianceConfig(tenantId, clientOrgId);
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
     const weights = resolveWeights(tenantConfig);
     const invoices = await this.batchFetchCandidateInvoices(tenantId, clientOrgId, [txn], tcsRatePercent, gstin, tolerance);

@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import type { FieldVerifier } from "@/core/interfaces/FieldVerifier.js";
 import type { OcrBlock, OcrPageImage, OcrProvider, OcrResult } from "@/core/interfaces/OcrProvider.js";
 import type { DocumentMimeType } from "@/types/mime.js";
@@ -55,7 +56,7 @@ import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types
 import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
 import type { UUID } from "@/types/uuid.js";
 import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
-import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
+import type { ClientComplianceConfigFields } from "@/models/integration/ClientComplianceConfig.js";
 
 interface ExtractionPipelineInput {
   tenantId: UUID;
@@ -133,7 +134,9 @@ export class InvoiceExtractionPipeline {
 
     const [template, tenantComplianceConfig] = await Promise.all([
       this.templateStore.findByFingerprint(input.tenantId, fingerprint.key),
-      resolveTenantComplianceConfig(input.tenantId)
+      input.clientOrgId
+        ? resolveTenantComplianceConfig(input.tenantId, input.clientOrgId instanceof Types.ObjectId ? input.clientOrgId : new Types.ObjectId(input.clientOrgId))
+        : Promise.resolve(null)
     ]);
     const tenantLearningMode = this.extractLearningMode(tenantComplianceConfig);
     metadata.vendorTemplateMatched = template ? "true" : "false";
@@ -247,7 +250,7 @@ export class InvoiceExtractionPipeline {
     return postEngineResult.output;
   }
 
-  private extractLearningMode(config: TenantComplianceConfigFields | null): LearningMode {
+  private extractLearningMode(config: ClientComplianceConfigFields | null): LearningMode {
     return config?.learningMode ?? this.defaultLearningMode;
   }
 

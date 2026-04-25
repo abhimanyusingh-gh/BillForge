@@ -9,8 +9,8 @@ import {
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import { BankTransactionModel } from "@/models/bank/BankTransaction.ts";
 import { BankStatementModel } from "@/models/bank/BankStatement.ts";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.ts";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.ts";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.ts";
+import { ClientComplianceConfigModel } from "@/models/integration/ClientComplianceConfig.ts";
 import { toUUID } from "@/types/uuid.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
@@ -20,8 +20,8 @@ const CLIENT_ORG_ID = new Types.ObjectId("0123456789abcdef01234567");
 jest.mock("@/models/invoice/Invoice.ts");
 jest.mock("@/models/bank/BankTransaction.ts");
 jest.mock("@/models/bank/BankStatement.ts");
-jest.mock("@/models/integration/TenantTcsConfig.ts");
-jest.mock("@/models/integration/TenantComplianceConfig.ts");
+jest.mock("@/models/integration/ClientTcsConfig.ts");
+jest.mock("@/models/integration/ClientComplianceConfig.ts");
 
 import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
 
@@ -188,8 +188,8 @@ describe("ReconciliationService", () => {
   beforeEach(() => {
     service = new ReconciliationService();
     jest.clearAllMocks();
-    (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
-    (TenantComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    (ClientComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
     mockResolveTenantComplianceConfig.mockResolvedValue(null);
   });
 
@@ -383,6 +383,7 @@ describe("ReconciliationService", () => {
   it("applies tenant-specific scoring weights from compliance config", async () => {
     const customWeightConfig = {
       tenantId: "t1",
+      clientOrgId: CLIENT_ORG_ID,
       reconciliationWeightExactAmount: 70,
       reconciliationWeightCloseAmount: 5,
       reconciliationWeightInvoiceNumber: 0,

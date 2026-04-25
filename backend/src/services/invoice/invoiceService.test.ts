@@ -1,6 +1,6 @@
 jest.mock("../../models/invoice/Invoice.js");
 jest.mock("../../models/compliance/GlCodeMaster.js");
-jest.mock("../../models/integration/TenantTcsConfig.js");
+jest.mock("../../models/integration/ClientTcsConfig.js");
 jest.mock("../../utils/logger.js", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }));
@@ -16,7 +16,7 @@ jest.mock("../compliance/TdsCalculationService.js", () => ({
 import { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { InvoiceService } from "@/services/invoice/invoiceService.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { toUUID } from "@/types/uuid.js";
@@ -131,7 +131,7 @@ describe("InvoiceService.listInvoices — comma-separated status filter", () => 
 describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({
+    (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({
       lean: jest.fn().mockResolvedValue(null)
     });
   });

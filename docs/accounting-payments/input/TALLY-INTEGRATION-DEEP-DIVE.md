@@ -406,7 +406,7 @@ Response:
 </COLLECTION>
 ```
 
-Use the `<GUID>` as the tenant-to-Tally-company binding. Persist it on `TenantExportConfig`; if at next session the returned company GUID differs, flag the tenant — the user has switched / renamed the company and all ledger mappings are suspect.
+Use the `<GUID>` as the tenant-to-Tally-company binding. Persist it on `ClientExportConfig`; if at next session the returned company GUID differs, flag the tenant — the user has switched / renamed the company and all ledger mappings are suspect.
 
 ---
 
@@ -626,7 +626,7 @@ Example outstanding-bills query:
 | `Bill ‐ Allocation totals do not match.` | `BILLALLOCATIONS` sum ≠ party entry amount | Client bug; enforce sum invariant. |
 | `Date is not within the financial period.` | `DATE` or `EFFECTIVEDATE` outside open accounting period | Block export client-side; surface to user ("open the FY in Tally first"). |
 | `Currency 'USD' does not exist.` | Foreign currency not defined in Tally | Pre-create currency or coerce to base. |
-| `Parent Group 'X' does not exist.` | Custom chart of accounts doesn't have `Sundry Creditors` | Rare; fall back to user-mapped parent from TenantExportConfig. |
+| `Parent Group 'X' does not exist.` | Custom chart of accounts doesn't have `Sundry Creditors` | Rare; fall back to user-mapped parent from ClientExportConfig. |
 | `Could not set value for GSTIN` | Invalid GSTIN length/format | Validate 15-char regex before send. |
 | `No entries in voucher.` | All ledger entries were rejected (commonly cascading from ledger-not-found) | Re-synthesise after fixing root cause. |
 | `Object does not exist.` | Object query target missing | Treat as 404. |
@@ -715,7 +715,7 @@ company "ACME"                  Receive "TallyPrime Server
                                                                 - tallyAlterId (cursor)
                                                                 - GSTIN, state, PAN
 
-                                Query TDS/GST/bank      --->    Populate TenantExportConfig
+                                Query TDS/GST/bank      --->    Populate ClientExportConfig
                                 ledger shortlist                suggestion box
 
                                 Set lastFullSyncAt =

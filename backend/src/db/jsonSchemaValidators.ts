@@ -64,7 +64,7 @@ export const MINOR_FIELD_REGISTRY: readonly CollectionValidatorSpec[] = [
     groups: [{ prefix: "capabilities", fields: ["approvalLimitMinor"], nullable: true }]
   },
   {
-    modelName: "TenantComplianceConfig",
+    modelName: "ClientComplianceConfig",
     groups: [
       {
         prefix: "",

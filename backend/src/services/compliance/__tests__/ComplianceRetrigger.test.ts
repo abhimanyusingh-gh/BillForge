@@ -199,7 +199,7 @@ describe("Compliance Retrigger", () => {
         { section: "194J", rateIndividual: 750, rateCompany: 750, rateNoPan: 2000, threshold: 0, active: true }
       ]);
 
-      const result = await tdsService.lookupRate("194J", "P", "tenant-1");
+      const result = await tdsService.lookupRate("194J", "P", "tenant-1", CLIENT_ORG_ID);
       expect(result).not.toBeNull();
       expect(result!.rateBps).toBe(750);
       expect(TdsRateTableModel.findOne).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe("Compliance Retrigger", () => {
         { section: "194J", rateIndividual: 1000, rateCompany: 1000, rateNoPan: 2000, threshold: 0, active: false }
       ]);
 
-      const result = await tdsService.lookupRate("194J", "P", "tenant-1");
+      const result = await tdsService.lookupRate("194J", "P", "tenant-1", CLIENT_ORG_ID);
       expect(result).toBeNull();
       expect(TdsRateTableModel.findOne).not.toHaveBeenCalled();
     });

@@ -247,7 +247,7 @@ export interface RiskSignalDefinition {
   category: string;
 }
 
-export interface TenantComplianceConfig {
+export interface ClientComplianceConfig {
   complianceEnabled: boolean;
   autoSuggestGlCodes: boolean;
   autoDetectTds: boolean;

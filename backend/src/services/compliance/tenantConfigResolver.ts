@@ -1,13 +1,15 @@
-import { TenantComplianceConfigModel, type TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
+import type { Types } from "mongoose";
+import { ClientComplianceConfigModel, type ClientComplianceConfigFields } from "@/models/integration/ClientComplianceConfig.js";
 import type { UUID } from "@/types/uuid.js";
 
 export async function resolveTenantComplianceConfig(
-  tenantId: UUID
-): Promise<TenantComplianceConfigFields | null> {
+  tenantId: UUID,
+  clientOrgId: Types.ObjectId
+): Promise<ClientComplianceConfigFields | null> {
   try {
-    const doc = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
+    const doc = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId }).lean();
     if (!doc) return null;
-    return doc as unknown as TenantComplianceConfigFields;
+    return doc as unknown as ClientComplianceConfigFields;
   } catch {
     return null;
   }
@@ -18,9 +20,10 @@ interface FreemailConfig {
 }
 
 export async function resolveFreemailConfig(
-  tenantId: string
+  tenantId: string,
+  clientOrgId: Types.ObjectId
 ): Promise<FreemailConfig | null> {
-  const doc = await TenantComplianceConfigModel.findOne({ tenantId })
+  const doc = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId })
     .select({ additionalFreemailDomains: 1 })
     .lean();
   if (!doc) return null;
@@ -32,9 +35,10 @@ interface LearningModeConfig {
 }
 
 export async function resolveLearningModeConfig(
-  tenantId: string
+  tenantId: string,
+  clientOrgId: Types.ObjectId
 ): Promise<LearningModeConfig | null> {
-  const doc = await TenantComplianceConfigModel.findOne({ tenantId })
+  const doc = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId })
     .select({ learningMode: 1 })
     .lean();
   if (!doc) return null;
@@ -46,9 +50,11 @@ interface DefaultCurrencyConfig {
 }
 
 export async function resolveDefaultCurrencyConfig(
-  tenantId: string
+  tenantId: string,
+  clientOrgId: Types.ObjectId | undefined
 ): Promise<DefaultCurrencyConfig | null> {
-  const doc = await TenantComplianceConfigModel.findOne({ tenantId })
+  if (!clientOrgId) return null;
+  const doc = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId })
     .select({ defaultCurrency: 1 })
     .lean();
   if (!doc) return null;
@@ -56,13 +62,14 @@ export async function resolveDefaultCurrencyConfig(
 }
 
 interface TdsRatesConfig {
-  tdsRates?: TenantComplianceConfigFields["tdsRates"];
+  tdsRates?: ClientComplianceConfigFields["tdsRates"];
 }
 
 export async function resolveTdsRatesConfig(
-  tenantId: string
+  tenantId: string,
+  clientOrgId: Types.ObjectId
 ): Promise<TdsRatesConfig | null> {
-  const doc = await TenantComplianceConfigModel.findOne({ tenantId })
+  const doc = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId })
     .select({ tdsRates: 1 })
     .lean();
   if (!doc) return null;
@@ -74,9 +81,10 @@ interface ApprovalLimitConfig {
 }
 
 export async function resolveApprovalLimitConfig(
-  tenantId: string
+  tenantId: string,
+  clientOrgId: Types.ObjectId
 ): Promise<ApprovalLimitConfig | null> {
-  const doc = await TenantComplianceConfigModel.findOne({ tenantId })
+  const doc = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId })
     .select({ approvalLimitOverrides: 1 })
     .lean();
   if (!doc) return null;

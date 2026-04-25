@@ -14,7 +14,7 @@ import { buildCorrectionHint, type ExtractionLearningStore } from "@/ai/extracto
 import type { ExtractionMappingService } from "@/ai/extractors/invoice/learning/extractionMappingService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import {
   InvoiceUpdateError,
   sanitizeParsedData,
@@ -569,7 +569,7 @@ export async function retriggerTdsAndTcs(
   }
 
   try {
-    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    const tcsConfig = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
     if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && parsed.totalAmountMinor && parsed.totalAmountMinor > 0) {
       const tcsAmount = Math.floor(parsed.totalAmountMinor * tcsConfig.ratePercent / 100);
       compliance.tcs = {

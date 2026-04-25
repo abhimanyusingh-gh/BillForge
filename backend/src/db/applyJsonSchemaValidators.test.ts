@@ -10,7 +10,7 @@ import "@/models/invoice/Invoice.js";
 import "@/models/bank/BankAccount.js";
 import "@/models/bank/BankTransaction.js";
 import "@/models/core/TenantUserRole.js";
-import "@/models/integration/TenantComplianceConfig.js";
+import "@/models/integration/ClientComplianceConfig.js";
 import "@/models/compliance/TdsRateTable.js";
 
 type CommandArg = {

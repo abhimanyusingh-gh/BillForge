@@ -1,10 +1,11 @@
 import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
-import { TenantNotificationConfigModel, NOTIFICATION_RECIPIENT_TYPES } from "@/models/integration/TenantNotificationConfig.js";
+import { ClientNotificationConfigModel, NOTIFICATION_RECIPIENT_TYPES } from "@/models/integration/ClientNotificationConfig.js";
 import { MailboxNotificationEventModel } from "@/models/integration/MailboxNotificationEvent.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 
 const VALID_RECIPIENT_TYPES = new Set<string>(NOTIFICATION_RECIPIENT_TYPES);
 
@@ -20,14 +21,16 @@ export function createNotificationConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/notification-config", requireCap("canManageConnections"), async (req, res, next) => {
+  router.get("/admin/notification-config", requireActiveClientOrg, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
-      const config = await TenantNotificationConfigModel.findOne({ tenantId }).lean();
+      const clientOrgId = req.activeClientOrgId!;
+      const config = await ClientNotificationConfigModel.findOne({ tenantId, clientOrgId }).lean();
 
       if (!config) {
-        const created = await TenantNotificationConfigModel.create({
+        const created = await ClientNotificationConfigModel.create({
           tenantId,
+          clientOrgId,
           ...DEFAULTS,
           updatedBy: getAuth(req).email || getAuth(req).userId
         });
@@ -41,9 +44,10 @@ export function createNotificationConfigRouter() {
     }
   });
 
-  router.patch("/admin/notification-config", requireCap("canManageConnections"), async (req, res, next) => {
+  router.patch("/admin/notification-config", requireActiveClientOrg, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
+      const clientOrgId = req.activeClientOrgId!;
       const update: Record<string, unknown> = {};
 
       if (typeof req.body.mailboxReauthEnabled === "boolean") {
@@ -82,9 +86,9 @@ export function createNotificationConfigRouter() {
 
       update.updatedBy = getAuth(req).email || getAuth(req).userId;
 
-      const config = await TenantNotificationConfigModel.findOneAndUpdate(
-        { tenantId },
-        { $set: update },
+      const config = await ClientNotificationConfigModel.findOneAndUpdate(
+        { tenantId, clientOrgId },
+        { $set: update, $setOnInsert: { tenantId, clientOrgId } },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
 

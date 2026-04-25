@@ -6,37 +6,49 @@ jest.mock("../../auth/requireCapability.js", () => ({
   requireCap: () => (_req: unknown, _res: unknown, next: Function) => next()
 }));
 
+jest.mock("../../auth/activeClientOrg.js", () => ({
+  requireActiveClientOrg: (_req: unknown, _res: unknown, next: Function) => next()
+}));
+
 let configStore: Record<string, Record<string, unknown>> = {};
 
-jest.mock("../../models/integration/TenantNotificationConfig.js", () => {
+function configKey(query: { tenantId: unknown; clientOrgId?: unknown }): string {
+  return `${String(query.tenantId)}::${String(query.clientOrgId)}`;
+}
+
+jest.mock("../../models/integration/ClientNotificationConfig.js", () => {
   const toObject = (doc: Record<string, unknown>) => ({ ...doc });
 
   return {
     NOTIFICATION_RECIPIENT_TYPES: ["integration_creator", "all_tenant_admins", "specific_user"],
-    TenantNotificationConfigModel: {
-      findOne: jest.fn((query: { tenantId: string }) => ({
-        lean: async () => configStore[query.tenantId] ?? null
+    ClientNotificationConfigModel: {
+      findOne: jest.fn((query: { tenantId: string; clientOrgId?: unknown }) => ({
+        lean: async () => configStore[configKey(query)] ?? null
       })),
       create: jest.fn(async (data: Record<string, unknown>) => {
-        configStore[data.tenantId as string] = { ...data };
-        return { toObject: () => toObject(configStore[data.tenantId as string]) };
+        const k = configKey(data as { tenantId: string; clientOrgId?: unknown });
+        configStore[k] = { ...data };
+        return { toObject: () => toObject(configStore[k]) };
       }),
       findOneAndUpdate: jest.fn(async (
-        query: { tenantId: string },
-        update: { $set: Record<string, unknown> }
+        query: { tenantId: string; clientOrgId?: unknown },
+        update: { $set: Record<string, unknown>; $setOnInsert?: Record<string, unknown> }
       ) => {
-        if (!configStore[query.tenantId]) {
-          configStore[query.tenantId] = {
+        const k = configKey(query);
+        if (!configStore[k]) {
+          configStore[k] = {
             tenantId: query.tenantId,
+            clientOrgId: query.clientOrgId,
             mailboxReauthEnabled: true,
             escalationEnabled: true,
             inAppEnabled: false,
             primaryRecipientType: "integration_creator",
-            specificRecipientUserId: null
+            specificRecipientUserId: null,
+            ...(update.$setOnInsert ?? {})
           };
         }
-        Object.assign(configStore[query.tenantId], update.$set);
-        return { toObject: () => toObject(configStore[query.tenantId]) };
+        Object.assign(configStore[k], update.$set);
+        return { toObject: () => toObject(configStore[k]) };
       })
     }
   };
@@ -71,7 +83,12 @@ jest.mock("../../models/core/TenantUserRole.js", () => ({
   }
 }));
 
+import { Types } from "mongoose";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
+
+const ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000c1");
+const authedReq = (overrides: Record<string, unknown> = {}) =>
+  mockRequest({ authContext: defaultAuth, activeClientOrgId: ACTIVE_CLIENT_ORG_ID, ...overrides });
 
 let createNotificationConfigRouter: typeof import("./notificationConfig.ts").createNotificationConfigRouter;
 
@@ -102,7 +119,7 @@ describe("notification config routes", () => {
       const handler = findHandler(router, "get", "/admin/notification-config");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, nextFn);
+      await handler(authedReq(), res, nextFn);
 
       const body = res.jsonBody as Record<string, unknown>;
       expect(body.tenantId).toBe("tenant-a");
@@ -114,8 +131,9 @@ describe("notification config routes", () => {
     });
 
     it("returns existing config", async () => {
-      configStore["tenant-a"] = {
+      configStore[`tenant-a::${ACTIVE_CLIENT_ORG_ID.toHexString()}`] = {
         tenantId: "tenant-a",
+        clientOrgId: ACTIVE_CLIENT_ORG_ID,
         mailboxReauthEnabled: false,
         escalationEnabled: true,
         primaryRecipientType: "all_tenant_admins"
@@ -125,7 +143,7 @@ describe("notification config routes", () => {
       const handler = findHandler(router, "get", "/admin/notification-config");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, nextFn);
+      await handler(authedReq(), res, nextFn);
 
       const body = res.jsonBody as Record<string, unknown>;
       expect(body.mailboxReauthEnabled).toBe(false);
@@ -143,7 +161,7 @@ describe("notification config routes", () => {
       const handler = findHandler(router, "patch", "/admin/notification-config");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body }), res, nextFn);
+      await handler(authedReq({ body }), res, nextFn);
 
       expect((res.jsonBody as Record<string, unknown>)[field]).toBe(expected);
     });
@@ -157,7 +175,7 @@ describe("notification config routes", () => {
       const handler = findHandler(router, "patch", "/admin/notification-config");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth, body }), res, nextFn);
+      await handler(authedReq({ body }), res, nextFn);
 
       expect(res.statusCode).toBe(400);
       expect((res.jsonBody as Record<string, unknown>).message).toContain(messageSubstring);
@@ -169,9 +187,7 @@ describe("notification config routes", () => {
       const res = mockResponse();
 
       await handler(
-        mockRequest({
-          authContext: defaultAuth,
-          body: { primaryRecipientType: "specific_user", specificRecipientUserId: "user-42" }
+        authedReq({ body: { primaryRecipientType: "specific_user", specificRecipientUserId: "user-42" }
         }),
         res,
         nextFn
@@ -188,7 +204,7 @@ describe("notification config routes", () => {
       const res = mockResponse();
 
       await handler(
-        mockRequest({ authContext: defaultAuth, body: { mailboxReauthEnabled: true } }),
+        authedReq({ body: { mailboxReauthEnabled: true } }),
         res,
         nextFn
       );
@@ -204,7 +220,7 @@ describe("notification config routes", () => {
       const handler = findHandler(router, "get", "/admin/notifications/log");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, nextFn);
+      await handler(authedReq(), res, nextFn);
 
       const body = res.jsonBody as { items: unknown[]; page: number; limit: number; total: number };
       expect(body.items).toEqual([]);
@@ -243,7 +259,7 @@ describe("notification config routes", () => {
       const handler = findHandler(router, "get", "/admin/notifications/log");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, nextFn);
+      await handler(authedReq(), res, nextFn);
 
       const body = res.jsonBody as { items: Record<string, unknown>[]; total: number };
       expect(body.items).toHaveLength(2);
@@ -260,7 +276,7 @@ describe("notification config routes", () => {
       const res = mockResponse();
 
       await handler(
-        mockRequest({ authContext: defaultAuth, query: { page: "2", limit: "5" } }),
+        authedReq({ query: { page: "2", limit: "5" } }),
         res,
         nextFn
       );

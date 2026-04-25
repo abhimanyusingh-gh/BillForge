@@ -27,7 +27,7 @@ export async function generateCsvExport(
   let headerOverrides: Record<string, string> | undefined;
 
   if (!cols && tenantId) {
-    const tenantCsvConfig = await buildCsvExportConfig(tenantId);
+    const tenantCsvConfig = await buildCsvExportConfig(tenantId, undefined);
     if (tenantCsvConfig.columns && tenantCsvConfig.columns.length > 0) {
       cols = tenantCsvConfig.columns.map(c => c.key);
       headerOverrides = Object.fromEntries(tenantCsvConfig.columns.map(c => [c.key, c.label]));
@@ -38,7 +38,7 @@ export async function generateCsvExport(
 
   let tenantDefaultCurrency = "INR";
   if (tenantId) {
-    const currencyConfig = await resolveDefaultCurrencyConfig(tenantId);
+    const currencyConfig = await resolveDefaultCurrencyConfig(tenantId, undefined);
     if (currencyConfig?.defaultCurrency) tenantDefaultCurrency = currencyConfig.defaultCurrency;
   }
 

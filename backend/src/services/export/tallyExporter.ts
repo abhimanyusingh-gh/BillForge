@@ -222,7 +222,7 @@ export class TallyExporter implements AccountingExporter {
   }
 
   private async resolveEffectiveConfig(tenantId: string): Promise<TallyExporterConfig> {
-    const resolved = await buildTallyExportConfig(tenantId, {
+    const resolved = await buildTallyExportConfig(tenantId, undefined, {
       companyName: this.config.companyName,
       purchaseLedgerName: this.config.purchaseLedgerName,
       gstLedgers: this.config.gstLedgers,

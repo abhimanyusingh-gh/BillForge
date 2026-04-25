@@ -1,4 +1,5 @@
-import { TenantExportConfigModel } from "@/models/integration/TenantExportConfig.ts";
+import { Types } from "mongoose";
+import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.ts";
 import { buildTallyExportConfig, buildCsvExportConfig } from "@/services/export/tenantExportConfigResolver.ts";
 
 jest.mock("@/config/env.js", () => ({
@@ -13,6 +14,8 @@ jest.mock("@/config/env.js", () => ({
     TALLY_TCS_LEDGER: "Env TCS"
   }
 }));
+
+const CLIENT_ORG_ID = new Types.ObjectId();
 
 describe("buildTallyExportConfig", () => {
   afterEach(() => {
@@ -33,9 +36,10 @@ describe("buildTallyExportConfig", () => {
   };
 
   it("returns tenant config when tenant has overrides", async () => {
-    jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
+    jest.spyOn(ClientExportConfigModel, "findOne").mockReturnValue({
       lean: jest.fn().mockResolvedValue({
         tenantId: "tenant-a",
+        clientOrgId: CLIENT_ORG_ID,
         tallyCompanyName: "TenantCompany",
         tallyPurchaseLedger: "TenantPurchase",
         tallyCgstLedger: "Tenant CGST",
@@ -44,7 +48,7 @@ describe("buildTallyExportConfig", () => {
       })
     } as never);
 
-    const result = await buildTallyExportConfig("tenant-a", systemDefaults);
+    const result = await buildTallyExportConfig("tenant-a", CLIENT_ORG_ID, systemDefaults);
 
     expect(result.companyName).toBe("TenantCompany");
     expect(result.purchaseLedgerName).toBe("TenantPurchase");
@@ -54,11 +58,11 @@ describe("buildTallyExportConfig", () => {
   });
 
   it("falls back to system defaults when no tenant config exists", async () => {
-    jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
+    jest.spyOn(ClientExportConfigModel, "findOne").mockReturnValue({
       lean: jest.fn().mockResolvedValue(null)
     } as never);
 
-    const result = await buildTallyExportConfig("tenant-b", systemDefaults);
+    const result = await buildTallyExportConfig("tenant-b", CLIENT_ORG_ID, systemDefaults);
 
     expect(result.companyName).toBe("SystemCompany");
     expect(result.purchaseLedgerName).toBe("SystemPurchase");
@@ -68,11 +72,11 @@ describe("buildTallyExportConfig", () => {
   });
 
   it("falls back to env vars when system defaults are missing", async () => {
-    jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
+    jest.spyOn(ClientExportConfigModel, "findOne").mockReturnValue({
       lean: jest.fn().mockResolvedValue(null)
     } as never);
 
-    const result = await buildTallyExportConfig("tenant-c", {
+    const result = await buildTallyExportConfig("tenant-c", CLIENT_ORG_ID, {
       companyName: "",
       purchaseLedgerName: "",
       gstLedgers: undefined as never,
@@ -88,18 +92,26 @@ describe("buildTallyExportConfig", () => {
   });
 
   it("tenant tds/tcs ledger overrides system defaults", async () => {
-    jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
+    jest.spyOn(ClientExportConfigModel, "findOne").mockReturnValue({
       lean: jest.fn().mockResolvedValue({
         tenantId: "tenant-d",
+        clientOrgId: CLIENT_ORG_ID,
         tallyTdsLedger: "Custom TDS",
         tallyTcsLedger: "Custom TCS"
       })
     } as never);
 
-    const result = await buildTallyExportConfig("tenant-d", systemDefaults);
+    const result = await buildTallyExportConfig("tenant-d", CLIENT_ORG_ID, systemDefaults);
 
     expect(result.tdsLedgerPrefix).toBe("Custom TDS");
     expect(result.tcsLedgerName).toBe("Custom TCS");
+  });
+
+  it("skips per-tenant lookup when clientOrgId is undefined", async () => {
+    const spy = jest.spyOn(ClientExportConfigModel, "findOne");
+    const result = await buildTallyExportConfig("tenant-e", undefined, systemDefaults);
+    expect(spy).not.toHaveBeenCalled();
+    expect(result.companyName).toBe("SystemCompany");
   });
 });
 
@@ -112,11 +124,11 @@ describe("buildCsvExportConfig", () => {
     ["no tenant config exists", null],
     ["tenant config has empty csvColumns", { tenantId: "tenant-a", csvColumns: [] }],
   ])("returns undefined columns when %s", async (_label, docValue) => {
-    jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
+    jest.spyOn(ClientExportConfigModel, "findOne").mockReturnValue({
       lean: jest.fn().mockResolvedValue(docValue)
     } as never);
 
-    const result = await buildCsvExportConfig("tenant-a");
+    const result = await buildCsvExportConfig("tenant-a", CLIENT_ORG_ID);
     expect(result.columns).toBeUndefined();
   });
 
@@ -126,11 +138,18 @@ describe("buildCsvExportConfig", () => {
       { key: "vendorName", label: "Vendor" },
       { key: "total", label: "Amount" }
     ];
-    jest.spyOn(TenantExportConfigModel, "findOne").mockReturnValue({
-      lean: jest.fn().mockResolvedValue({ tenantId: "tenant-b", csvColumns: tenantCols })
+    jest.spyOn(ClientExportConfigModel, "findOne").mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ tenantId: "tenant-b", clientOrgId: CLIENT_ORG_ID, csvColumns: tenantCols })
     } as never);
 
-    const result = await buildCsvExportConfig("tenant-b");
+    const result = await buildCsvExportConfig("tenant-b", CLIENT_ORG_ID);
     expect(result.columns).toEqual(tenantCols);
+  });
+
+  it("returns undefined when clientOrgId is missing", async () => {
+    const spy = jest.spyOn(ClientExportConfigModel, "findOne");
+    const result = await buildCsvExportConfig("tenant-x", undefined);
+    expect(result.columns).toBeUndefined();
+    expect(spy).not.toHaveBeenCalled();
   });
 });

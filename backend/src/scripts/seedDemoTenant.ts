@@ -2,6 +2,7 @@ import { connectToDatabase, disconnectFromDatabase } from "@/db/connect.js";
 import { logger } from "@/utils/logger.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { UserModel } from "@/models/core/User.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
 import { seedDemoInvoices } from "@/bootstrap/seedDemoInvoices.js";
 import { resolveFileStore } from "@/core/dependencies.js";
@@ -30,7 +31,17 @@ async function run() {
     );
   }
 
-  await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
+  const demoClientOrg = await ClientOrganizationModel.findOne({ tenantId: DEMO_TENANT_ID })
+    .select("_id")
+    .lean();
+  if (!demoClientOrg) {
+    throw new Error(
+      `Demo tenant '${DEMO_TENANT_NAME}' has no ClientOrganization. ` +
+        "Per locked decision, the seed does not auto-create one — onboard a ClientOrg first."
+    );
+  }
+
+  await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrg._id, String(mahirUser._id));
 
   if (env.LOCAL_DEMO_INVOICES) {
     // Wire a FileStore so preview PNGs from the baked fixtures land in the

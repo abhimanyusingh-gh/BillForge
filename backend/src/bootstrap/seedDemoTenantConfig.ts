@@ -1,9 +1,10 @@
+import type { Types } from "mongoose";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { UserModel } from "@/models/core/User.js";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
-import { TenantNotificationConfigModel } from "@/models/integration/TenantNotificationConfig.js";
-import { TenantExportConfigModel } from "@/models/integration/TenantExportConfig.js";
+import { ClientComplianceConfigModel } from "@/models/integration/ClientComplianceConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
+import { ClientNotificationConfigModel } from "@/models/integration/ClientNotificationConfig.js";
+import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
@@ -11,8 +12,6 @@ import { logger } from "@/utils/logger.js";
 
 const SEED_UPDATED_BY = "seed:demo-tenant";
 
-// Copied from routes/compliance/tenantComplianceConfig.ts (DEFAULT_TDS_SECTIONS). Kept as a
-// local constant to avoid importing from the HTTP route module into a bootstrap helper.
 const DEFAULT_TDS_SECTIONS = [
   { section: "194C", description: "Contractor payments", rateIndividual: 100, rateCompany: 200, rateNoPan: 2000, threshold: 3000000, active: true },
   { section: "194J", description: "Professional/Technical fees", rateIndividual: 1000, rateCompany: 1000, rateNoPan: 2000, threshold: 3000000, active: true },
@@ -43,15 +42,11 @@ function buildDemoTdsRates() {
   });
 }
 
-/**
- * Minimal slug: lowercase, collapse non-alphanumeric runs to "-", trim leading/trailing "-".
- * Used for deriving a deterministic `vendorFingerprint` from a vendor name.
- */
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-async function seedComplianceConfig(tenantId: string): Promise<void> {
+async function seedComplianceConfig(tenantId: string, clientOrgId: Types.ObjectId): Promise<void> {
   const activeSignals = [
     RISK_SIGNAL_CODE.TOTAL_AMOUNT_ABOVE_EXPECTED,
     RISK_SIGNAL_CODE.DUE_DATE_TOO_FAR,
@@ -65,11 +60,12 @@ async function seedComplianceConfig(tenantId: string): Promise<void> {
     RISK_SIGNAL_CODE.SENDER_FREEMAIL
   ];
 
-  await TenantComplianceConfigModel.findOneAndUpdate(
-    { tenantId },
+  await ClientComplianceConfigModel.findOneAndUpdate(
+    { tenantId, clientOrgId },
     {
       $set: {
         tenantId,
+        clientOrgId,
         complianceEnabled: true,
         autoSuggestGlCodes: true,
         autoDetectTds: true,
@@ -116,7 +112,7 @@ async function seedComplianceConfig(tenantId: string): Promise<void> {
   );
 }
 
-async function seedTcsConfig(tenantId: string, mahirUserId: string): Promise<void> {
+async function seedTcsConfig(tenantId: string, clientOrgId: Types.ObjectId, mahirUserId: string): Promise<void> {
   const history = [
     {
       previousRate: 0.075,
@@ -138,11 +134,12 @@ async function seedTcsConfig(tenantId: string, mahirUserId: string): Promise<voi
     }
   ];
 
-  await TenantTcsConfigModel.findOneAndUpdate(
-    { tenantId },
+  await ClientTcsConfigModel.findOneAndUpdate(
+    { tenantId, clientOrgId },
     {
       $set: {
         tenantId,
+        clientOrgId,
         ratePercent: 0.1,
         effectiveFrom: new Date("2026-04-01T00:00:00Z"),
         enabled: true,
@@ -155,12 +152,13 @@ async function seedTcsConfig(tenantId: string, mahirUserId: string): Promise<voi
   );
 }
 
-async function seedNotificationConfig(tenantId: string, mahirUserId: string): Promise<void> {
-  await TenantNotificationConfigModel.findOneAndUpdate(
-    { tenantId },
+async function seedNotificationConfig(tenantId: string, clientOrgId: Types.ObjectId, mahirUserId: string): Promise<void> {
+  await ClientNotificationConfigModel.findOneAndUpdate(
+    { tenantId, clientOrgId },
     {
       $set: {
         tenantId,
+        clientOrgId,
         mailboxReauthEnabled: true,
         escalationEnabled: true,
         inAppEnabled: true,
@@ -173,7 +171,7 @@ async function seedNotificationConfig(tenantId: string, mahirUserId: string): Pr
   );
 }
 
-async function seedExportConfig(tenantId: string): Promise<void> {
+async function seedExportConfig(tenantId: string, clientOrgId: Types.ObjectId): Promise<void> {
   const csvColumns = [
     { key: "invoiceNumber", label: "Invoice #" },
     { key: "vendorName", label: "Vendor" },
@@ -182,7 +180,7 @@ async function seedExportConfig(tenantId: string): Promise<void> {
     { key: "currency", label: "CCY" },
     { key: "glCode", label: "GL" },
     { key: "tdsSection", label: "TDS Sec" },
-    { key: "tdsAmount", label: "TDS \u20B9" },
+    { key: "tdsAmount", label: "TDS ₹" },
     { key: "cgst", label: "CGST" },
     { key: "sgst", label: "SGST" },
     { key: "igst", label: "IGST" },
@@ -190,11 +188,12 @@ async function seedExportConfig(tenantId: string): Promise<void> {
     { key: "gstin", label: "GSTIN" }
   ];
 
-  await TenantExportConfigModel.findOneAndUpdate(
-    { tenantId },
+  await ClientExportConfigModel.findOneAndUpdate(
+    { tenantId, clientOrgId },
     {
       $set: {
         tenantId,
+        clientOrgId,
         tallyCompanyName: "Neelam and Associates",
         tallyPurchaseLedger: "Purchases A/c",
         tallyCgstLedger: "CGST Input",
@@ -372,14 +371,16 @@ async function seedApprovalWorkflow(
 /**
  * Seed configuration-only state for the demo tenant (Neelam and Associates).
  *
- * Idempotent: every write uses upsert / updateMany semantics so re-running leaves
- * the tenant in an identical state.
- *
- * Order matters — approval workflow is last because `saveWorkflowConfig` can
- * reference user ids (e.g. CFO/escalation targets) that must exist first.
+ * Caller must supply `clientOrgId` of the tenant's primary ClientOrganization —
+ * per locked decision, no placeholder ClientOrg is auto-created. The tenant
+ * must onboard at least one ClientOrg before this seed runs.
  */
-export async function seedDemoTenantConfig(tenantId: string, mahirUserId: string): Promise<void> {
-  logger.info("demo.seed.start", { tenantId });
+export async function seedDemoTenantConfig(
+  tenantId: string,
+  clientOrgId: Types.ObjectId,
+  mahirUserId: string
+): Promise<void> {
+  logger.info("demo.seed.start", { tenantId, clientOrgId: String(clientOrgId) });
 
   const cfoUser = await UserModel.findOne({ email: "mahir-cfo@neelam.test" }).lean();
   if (!cfoUser) {
@@ -390,13 +391,13 @@ export async function seedDemoTenantConfig(tenantId: string, mahirUserId: string
   }
   const cfoUserId = String(cfoUser._id);
 
-  await seedComplianceConfig(tenantId);
-  await seedTcsConfig(tenantId, mahirUserId);
-  await seedNotificationConfig(tenantId, mahirUserId);
-  await seedExportConfig(tenantId);
+  await seedComplianceConfig(tenantId, clientOrgId);
+  await seedTcsConfig(tenantId, clientOrgId, mahirUserId);
+  await seedNotificationConfig(tenantId, clientOrgId, mahirUserId);
+  await seedExportConfig(tenantId, clientOrgId);
   await seedVendorMasters(tenantId);
   await seedApprovalLimits(tenantId);
   await seedApprovalWorkflow(tenantId, mahirUserId, cfoUserId);
 
-  logger.info("demo.seed.complete", { tenantId });
+  logger.info("demo.seed.complete", { tenantId, clientOrgId: String(clientOrgId) });
 }

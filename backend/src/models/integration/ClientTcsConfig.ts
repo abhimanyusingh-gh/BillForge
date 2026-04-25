@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const tcsRateChangeSchema = new Schema(
   {
@@ -13,9 +14,10 @@ const tcsRateChangeSchema = new Schema(
   { _id: false }
 );
 
-const tenantTcsConfigSchema = new Schema(
+const clientTcsConfigSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     ratePercent: { type: Number, required: true, default: 0 },
     effectiveFrom: { type: Date, required: true, default: () => new Date() },
     updatedBy: { type: String, required: true, default: "" },
@@ -30,8 +32,12 @@ const tenantTcsConfigSchema = new Schema(
   { timestamps: true }
 );
 
-tenantTcsConfigSchema.index({ tenantId: 1 }, { unique: true });
+clientTcsConfigSchema.index({ tenantId: 1, clientOrgId: 1 }, { unique: true });
 
-type TenantTcsConfig = InferSchemaType<typeof tenantTcsConfigSchema>;
+clientTcsConfigSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
-export const TenantTcsConfigModel = model<TenantTcsConfig>("TenantTcsConfig", tenantTcsConfigSchema);
+type ClientTcsConfig = InferSchemaType<typeof clientTcsConfigSchema>;
+
+export const ClientTcsConfigModel = model<ClientTcsConfig>("ClientTcsConfig", clientTcsConfigSchema);
