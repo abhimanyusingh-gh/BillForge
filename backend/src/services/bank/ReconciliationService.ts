@@ -6,7 +6,7 @@ import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
 import { type UUID, toUUID } from "@/types/uuid.js";
-import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveClientComplianceConfig } from "@/services/compliance/clientConfigResolver.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
@@ -136,7 +136,7 @@ export class ReconciliationService {
     const tcsConfig = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
     const tcsRatePercent = tcsConfig?.enabled ? (tcsConfig.ratePercent ?? 0) : 0;
 
-    const tenantConfig = await resolveTenantComplianceConfig(tenantId, clientOrgId);
+    const tenantConfig = await resolveClientComplianceConfig(tenantId, clientOrgId);
     const autoMatchThreshold = tenantConfig?.reconciliationAutoMatchThreshold ?? DEFAULT_AUTO_MATCH_THRESHOLD;
     const suggestThreshold = tenantConfig?.reconciliationSuggestThreshold ?? DEFAULT_SUGGEST_THRESHOLD;
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
@@ -273,7 +273,7 @@ export class ReconciliationService {
     tcsRatePercent: number = 0,
     gstin?: string
   ): Promise<MatchCandidate[]> {
-    const tenantConfig = await resolveTenantComplianceConfig(tenantId, clientOrgId);
+    const tenantConfig = await resolveClientComplianceConfig(tenantId, clientOrgId);
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
     const weights = resolveWeights(tenantConfig);
     const invoices = await this.batchFetchCandidateInvoices(tenantId, clientOrgId, [txn], tcsRatePercent, gstin, tolerance);

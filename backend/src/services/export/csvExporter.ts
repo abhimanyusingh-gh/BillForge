@@ -2,8 +2,8 @@ import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { minorUnitsToMajorString } from "@/utils/currency.js";
 import { isRecord } from "@/utils/validation.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
-import { buildCsvExportConfig } from "@/services/export/tenantExportConfigResolver.js";
-import { resolveDefaultCurrencyConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { buildCsvExportConfig } from "@/services/export/clientExportConfigResolver.js";
+import { resolveDefaultCurrencyConfig } from "@/services/compliance/clientConfigResolver.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",

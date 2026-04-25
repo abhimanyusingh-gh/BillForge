@@ -55,7 +55,7 @@ import { EXTRACTION_SOURCE, type ExtractionSource } from "@/core/engine/extracti
 import { PIPELINE_ERROR_CODE, type PipelineErrorCode } from "@/core/engine/types.js";
 import { LEARNING_MODE, type LearningMode } from "@/types/pipeline.js";
 import type { UUID } from "@/types/uuid.js";
-import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveClientComplianceConfig } from "@/services/compliance/clientConfigResolver.js";
 import type { ClientComplianceConfigFields } from "@/models/integration/ClientComplianceConfig.js";
 
 interface ExtractionPipelineInput {
@@ -132,15 +132,15 @@ export class InvoiceExtractionPipeline {
     metadata.layoutSignature = fingerprint.layoutSignature;
     metadata.vendorContentHash = fingerprint.hash;
 
-    const [template, tenantComplianceConfig] = await Promise.all([
+    const [template, clientComplianceConfig] = await Promise.all([
       this.templateStore.findByFingerprint(input.tenantId, fingerprint.key),
       input.clientOrgId
-        ? resolveTenantComplianceConfig(input.tenantId, input.clientOrgId instanceof Types.ObjectId ? input.clientOrgId : new Types.ObjectId(input.clientOrgId))
+        ? resolveClientComplianceConfig(input.tenantId, input.clientOrgId instanceof Types.ObjectId ? input.clientOrgId : new Types.ObjectId(input.clientOrgId))
         : Promise.resolve(null)
     ]);
-    const tenantLearningMode = this.extractLearningMode(tenantComplianceConfig);
+    const clientLearningMode = this.extractLearningMode(clientComplianceConfig);
     metadata.vendorTemplateMatched = template ? "true" : "false";
-    metadata.learningMode = tenantLearningMode;
+    metadata.learningMode = clientLearningMode;
 
     const preOcrLanguage = detectInvoiceLanguageBeforeOcr(input);
     const preOcrLanguageHint = resolvePreOcrLanguageHint(preOcrLanguage, input.mimeType);
@@ -170,8 +170,8 @@ export class InvoiceExtractionPipeline {
     if (template) {
       pipelineCtx.store.set(INVOICE_CTX.VENDOR_TEMPLATE, template);
     }
-    if (tenantComplianceConfig) {
-      pipelineCtx.store.set(POST_ENGINE_CTX.TENANT_COMPLIANCE_CONFIG, tenantComplianceConfig);
+    if (clientComplianceConfig) {
+      pipelineCtx.store.set(POST_ENGINE_CTX.CLIENT_COMPLIANCE_CONFIG, clientComplianceConfig);
     }
 
     return pipelineCtx;

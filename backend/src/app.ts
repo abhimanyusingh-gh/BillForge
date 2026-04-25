@@ -21,9 +21,9 @@ import { createApprovalWorkflowRouter } from "@/routes/invoice/approvalWorkflow.
 import { createGlCodesRouter } from "@/routes/compliance/glCodes.js";
 import { createTdsRatesRouter } from "@/routes/compliance/tdsRates.js";
 import { createVendorsRouter } from "@/routes/compliance/vendors.js";
-import { createTenantComplianceConfigRouter } from "@/routes/compliance/tenantComplianceConfig.js";
+import { createClientComplianceConfigRouter } from "@/routes/compliance/clientComplianceConfig.js";
 import { createCsvExportRouter } from "@/routes/export/csvExport.js";
-import { createTenantExportConfigRouter } from "@/routes/export/tenantExportConfig.js";
+import { createClientExportConfigRouter } from "@/routes/export/clientExportConfig.js";
 import { createBankStatementsRouter } from "@/routes/bank/bankStatements.js";
 import { createTcsConfigRouter } from "@/routes/compliance/tcsConfig.js";
 import { createNotificationConfigRouter } from "@/routes/tenant/notificationConfig.js";
@@ -122,10 +122,10 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createGlCodesRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createVendorsRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTenantComplianceConfigRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createClientComplianceConfigRouter());
   app.use("/api", createTdsRatesRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createCsvExportRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTenantExportConfigRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createClientExportConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTcsConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createNotificationConfigRouter());

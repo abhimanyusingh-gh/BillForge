@@ -134,7 +134,7 @@ function validateNewFields(body: Record<string, unknown>): { update: Record<stri
   return { update: result.data as Record<string, unknown> };
 }
 
-export function createTenantComplianceConfigRouter() {
+export function createClientComplianceConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 

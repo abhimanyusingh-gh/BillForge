@@ -9,7 +9,7 @@ import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
 import { emptyComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
-import { resolveTenantComplianceConfig, resolveFreemailConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveClientComplianceConfig, resolveFreemailConfig } from "@/services/compliance/clientConfigResolver.js";
 import { PanValidationService } from "@/services/compliance/PanValidationService.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
@@ -59,7 +59,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     vendorFingerprint: string,
     context?: ComplianceEnrichContext
   ): Promise<ComplianceResult> {
-    const config = await resolveTenantComplianceConfig(tenantId as UUID, clientOrgId);
+    const config = await resolveClientComplianceConfig(tenantId as UUID, clientOrgId);
     const anyEnabled = config?.complianceEnabled ||
       config?.tdsEnabled ||
       config?.riskSignalsEnabled ||

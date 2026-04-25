@@ -1,12 +1,12 @@
 import { Types } from "mongoose";
 import {
-  resolveTenantComplianceConfig,
+  resolveClientComplianceConfig,
   resolveFreemailConfig,
   resolveLearningModeConfig,
   resolveDefaultCurrencyConfig,
   resolveTdsRatesConfig,
   resolveApprovalLimitConfig
-} from "@/services/compliance/tenantConfigResolver";
+} from "@/services/compliance/clientConfigResolver";
 import { ClientComplianceConfigModel } from "@/models/integration/ClientComplianceConfig";
 import { toUUID } from "@/types/uuid";
 
@@ -23,7 +23,7 @@ function mockFindOne(doc: Record<string, unknown> | null) {
   });
 }
 
-describe("resolveTenantComplianceConfig", () => {
+describe("resolveClientComplianceConfig", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -31,7 +31,7 @@ describe("resolveTenantComplianceConfig", () => {
   it("returns null when no config exists for tenant + clientOrg", async () => {
     mockFindOne(null);
 
-    const result = await resolveTenantComplianceConfig(toUUID("tenant-1"), CLIENT_ORG_ID);
+    const result = await resolveClientComplianceConfig(toUUID("tenant-1"), CLIENT_ORG_ID);
 
     expect(result).toBeNull();
     expect(ClientComplianceConfigModel.findOne).toHaveBeenCalledWith({ tenantId: "tenant-1", clientOrgId: CLIENT_ORG_ID });
@@ -55,7 +55,7 @@ describe("resolveTenantComplianceConfig", () => {
     };
     mockFindOne(doc);
 
-    const result = await resolveTenantComplianceConfig(toUUID("tenant-1"), CLIENT_ORG_ID);
+    const result = await resolveClientComplianceConfig(toUUID("tenant-1"), CLIENT_ORG_ID);
 
     expect(result).not.toBeNull();
     expect(result!.tenantId).toBe("tenant-1");
@@ -76,7 +76,7 @@ describe("resolveTenantComplianceConfig", () => {
     };
     mockFindOne(doc);
 
-    const result = await resolveTenantComplianceConfig(toUUID("tenant-2"), CLIENT_ORG_ID);
+    const result = await resolveClientComplianceConfig(toUUID("tenant-2"), CLIENT_ORG_ID);
 
     expect(result).not.toBeNull();
     expect(result!.maxInvoiceTotalMinor).toBeUndefined();

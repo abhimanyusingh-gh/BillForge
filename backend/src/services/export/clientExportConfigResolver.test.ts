@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.ts";
-import { buildTallyExportConfig, buildCsvExportConfig } from "@/services/export/tenantExportConfigResolver.ts";
+import { buildTallyExportConfig, buildCsvExportConfig } from "@/services/export/clientExportConfigResolver.ts";
 
 jest.mock("@/config/env.js", () => ({
   env: {

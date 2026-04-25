@@ -60,7 +60,7 @@ const ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000c1");
 const authedReq = (overrides: Record<string, unknown> = {}) =>
   mockRequest({ authContext: defaultAuth, activeClientOrgId: ACTIVE_CLIENT_ORG_ID, ...overrides });
 
-let createTenantComplianceConfigRouter: typeof import("./tenantComplianceConfig.ts").createTenantComplianceConfigRouter;
+let createClientComplianceConfigRouter: typeof import("./clientComplianceConfig.ts").createClientComplianceConfigRouter;
 
 const nextFn = jest.fn();
 
@@ -77,14 +77,14 @@ beforeEach(async () => {
   (ClientComplianceConfigModel as unknown as { _resetStore: () => void })._resetStore();
   nextFn.mockClear();
 
-  const mod = await import("./tenantComplianceConfig.ts");
-  createTenantComplianceConfigRouter = mod.createTenantComplianceConfigRouter;
+  const mod = await import("./clientComplianceConfig.ts");
+  createClientComplianceConfigRouter = mod.createClientComplianceConfigRouter;
 });
 
 describe("compliance config routes", () => {
   describe("GET /admin/compliance-config", () => {
     it("returns default config when none exists", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "get", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -100,7 +100,7 @@ describe("compliance config routes", () => {
     });
 
     it("returns saved config when it exists", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const getHandler = findHandler(router, "get", "/admin/compliance-config");
       const putHandler = findHandler(router, "put", "/admin/compliance-config");
 
@@ -123,7 +123,7 @@ describe("compliance config routes", () => {
 
   describe("PUT /admin/compliance-config", () => {
     it("saves and returns updated config", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -145,7 +145,7 @@ describe("compliance config routes", () => {
     });
 
     it("validates TDS rate range (0-10000 bps)", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -173,7 +173,7 @@ describe("compliance config routes", () => {
     });
 
     it("validates TDS section format", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -200,7 +200,7 @@ describe("compliance config routes", () => {
     });
 
     it("rejects duplicate TDS sections", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -225,7 +225,7 @@ describe("compliance config routes", () => {
     });
 
     it("rejects invalid panValidationLevel", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -240,7 +240,7 @@ describe("compliance config routes", () => {
     });
 
     it("rejects unknown risk signal codes", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -255,7 +255,7 @@ describe("compliance config routes", () => {
     });
 
     it("accepts valid complete config update", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -288,7 +288,7 @@ describe("compliance config routes", () => {
     });
 
     it("auto-sets complianceEnabled=true when any feature toggle is enabled", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -303,7 +303,7 @@ describe("compliance config routes", () => {
     });
 
     it("auto-sets complianceEnabled=false when all feature toggles are disabled", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
 
       const enableRes = mockResponse();
@@ -324,7 +324,7 @@ describe("compliance config routes", () => {
     });
 
     it("keeps complianceEnabled=true when disabling one toggle but others remain on", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
 
       const enableRes = mockResponse();
@@ -344,7 +344,7 @@ describe("compliance config routes", () => {
     });
 
     it("validates negative threshold is rejected", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -373,7 +373,7 @@ describe("compliance config routes", () => {
 
   describe("PUT /admin/compliance-config — new configurable fields", () => {
     it("accepts all new numeric fields with valid values", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -423,7 +423,7 @@ describe("compliance config routes", () => {
     });
 
     it("accepts requiredFields array", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -442,7 +442,7 @@ describe("compliance config routes", () => {
     });
 
     it("accepts confidencePenaltyOverrides map", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -483,7 +483,7 @@ describe("compliance config routes", () => {
       ["invoiceDateWindowDays above 7300", { invoiceDateWindowDays: 8000 }, "invoiceDateWindowDays"],
       ["reconciliationAutoMatchThreshold above 100", { reconciliationAutoMatchThreshold: 200 }, "reconciliationAutoMatchThreshold"],
     ])("rejects %s", async (_label, body, messageSubstring) => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -496,7 +496,7 @@ describe("compliance config routes", () => {
     });
 
     it("does not persist new fields when omitted", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -519,7 +519,7 @@ describe("compliance config routes", () => {
       ["ocrWeight=1", "ocrWeight", 1],
       ["maxInvoiceTotalMinor=0", "maxInvoiceTotalMinor", 0],
     ])("accepts boundary value %s", async (_label, field, value) => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -534,7 +534,7 @@ describe("compliance config routes", () => {
     });
 
     it("mixes new fields with existing config fields", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -569,7 +569,7 @@ describe("compliance config routes", () => {
       ["msmePaymentOverdueDays above 365", { msmePaymentOverdueDays: 400 }, "msmePaymentOverdueDays"],
       ["riskSignalPenaltyCap above 100", { riskSignalPenaltyCap: 150 }, "riskSignalPenaltyCap"],
     ])("rejects %s", async (_label, body, messageSubstring) => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -584,7 +584,7 @@ describe("compliance config routes", () => {
 
   describe("PUT /admin/compliance-config — approval limit overrides", () => {
     it("accepts valid approvalLimitOverrides map", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -612,7 +612,7 @@ describe("compliance config routes", () => {
       ["negative approval limit override", -100],
       ["non-integer approval limit override", 99.5],
     ])("rejects %s", async (_label, value) => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -630,7 +630,7 @@ describe("compliance config routes", () => {
 
   describe("PUT /admin/compliance-config — additional freemail domains", () => {
     it("accepts valid additional freemail domains", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -651,7 +651,7 @@ describe("compliance config routes", () => {
       ["invalid domain format", ["not a domain"]],
       ["empty string in freemail domains", [""]],
     ])("rejects %s", async (_label, additionalFreemailDomains) => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -667,7 +667,7 @@ describe("compliance config routes", () => {
 
   describe("PUT /admin/compliance-config — learning mode", () => {
     it.each([["active"], ["assistive"]])("accepts valid learning mode '%s'", async (learningMode) => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -682,7 +682,7 @@ describe("compliance config routes", () => {
     });
 
     it("rejects invalid learning mode", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -698,7 +698,7 @@ describe("compliance config routes", () => {
 
   describe("PUT /admin/compliance-config — ocrWeight + completenessWeight sum validation", () => {
     it("rejects when both weights are provided and do not sum to 1.0", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -713,7 +713,7 @@ describe("compliance config routes", () => {
     });
 
     it("accepts when both weights sum to 1.0", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -730,7 +730,7 @@ describe("compliance config routes", () => {
     });
 
     it("allows ocrWeight alone without completenessWeight", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -745,7 +745,7 @@ describe("compliance config routes", () => {
     });
 
     it("allows completenessWeight alone without ocrWeight", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "put", "/admin/compliance-config");
       const res = mockResponse();
 
@@ -762,7 +762,7 @@ describe("compliance config routes", () => {
 
   describe("GET /compliance/tds-sections", () => {
     it("returns default TDS sections", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "get", "/compliance/tds-sections");
       const res = mockResponse();
 
@@ -781,7 +781,7 @@ describe("compliance config routes", () => {
 
   describe("GET /compliance/risk-signals", () => {
     it("returns available risk signals", async () => {
-      const router = createTenantComplianceConfigRouter();
+      const router = createClientComplianceConfigRouter();
       const handler = findHandler(router, "get", "/compliance/risk-signals");
       const res = mockResponse();
 

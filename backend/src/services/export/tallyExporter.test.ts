@@ -30,7 +30,7 @@ jest.mock("@/services/export/tallyReExportGuard.ts", () => ({
   EXPORT_VERSION_CONFLICT_REASON: jest.requireActual("@/services/export/tallyReExportGuard.ts").EXPORT_VERSION_CONFLICT_REASON
 }));
 
-jest.mock("@/services/export/tenantExportConfigResolver.ts", () => ({
+jest.mock("@/services/export/clientExportConfigResolver.ts", () => ({
   __esModule: true,
   buildTallyExportConfig: (...args: unknown[]) => buildTallyExportConfigMock(...args),
   buildCsvExportConfig: jest.fn()

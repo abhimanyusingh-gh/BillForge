@@ -32,7 +32,7 @@ function validateCsvColumns(columns: unknown): string | null {
   return null;
 }
 
-export function createTenantExportConfigRouter() {
+export function createClientExportConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 

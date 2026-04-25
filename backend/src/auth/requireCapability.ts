@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Types } from "mongoose";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
-import { resolveApprovalLimitConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveApprovalLimitConfig } from "@/services/compliance/clientConfigResolver.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { getRoleDefaults, mergeCapabilitiesWithDefaults, applyApprovalLimitOverrides, type UserCapabilities } from "@/auth/personaDefaults.js";
 

@@ -23,11 +23,11 @@ jest.mock("@/models/bank/BankStatement.ts");
 jest.mock("@/models/integration/ClientTcsConfig.ts");
 jest.mock("@/models/integration/ClientComplianceConfig.ts");
 
-import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveClientComplianceConfig } from "@/services/compliance/clientConfigResolver.js";
 
-jest.mock("@/services/compliance/tenantConfigResolver.js");
+jest.mock("@/services/compliance/clientConfigResolver.js");
 
-const mockResolveTenantComplianceConfig = resolveTenantComplianceConfig as jest.MockedFunction<typeof resolveTenantComplianceConfig>;
+const mockResolveClientComplianceConfig = resolveClientComplianceConfig as jest.MockedFunction<typeof resolveClientComplianceConfig>;
 
 const DEFAULT_WEIGHTS = {
   exactAmount: 50,
@@ -190,7 +190,7 @@ describe("ReconciliationService", () => {
     jest.clearAllMocks();
     (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
     (ClientComplianceConfigModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
-    mockResolveTenantComplianceConfig.mockResolvedValue(null);
+    mockResolveClientComplianceConfig.mockResolvedValue(null);
   });
 
   it("auto-matches when amount exactly equals netPayable", async () => {
@@ -390,7 +390,7 @@ describe("ReconciliationService", () => {
       reconciliationWeightVendorName: 0,
       reconciliationWeightDateProximity: 0
     };
-    mockResolveTenantComplianceConfig.mockResolvedValue(customWeightConfig);
+    mockResolveClientComplianceConfig.mockResolvedValue(customWeightConfig);
 
     const invoice = makeInvoice();
     (InvoiceModel.find as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue([invoice]) });

@@ -17,7 +17,7 @@ import type {
   VoucherPayloadInput
 } from "@/services/export/tallyExporter/xml.js";
 import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
-import { buildTallyExportConfig } from "@/services/export/tenantExportConfigResolver.js";
+import { buildTallyExportConfig } from "@/services/export/clientExportConfigResolver.js";
 import {
   clearInFlightExportVersion,
   promoteExportVersion,

@@ -2,14 +2,14 @@ import { Types } from "mongoose";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable";
-import { resolveTdsRatesConfig } from "@/services/compliance/tenantConfigResolver";
+import { resolveTdsRatesConfig } from "@/services/compliance/clientConfigResolver";
 import type { ParsedInvoiceData } from "@/types/invoice";
 
 const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000d3");
 
 jest.mock("../../../models/compliance/TdsSectionMapping");
 jest.mock("../../../models/compliance/TdsRateTable");
-jest.mock("@/services/compliance/tenantConfigResolver", () => ({
+jest.mock("@/services/compliance/clientConfigResolver", () => ({
   resolveTdsRatesConfig: jest.fn()
 }));
 

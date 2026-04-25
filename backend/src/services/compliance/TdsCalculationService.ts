@@ -2,7 +2,7 @@ import type { Types } from "mongoose";
 import { PAN_FORMAT, derivePanCategory } from "@/constants/indianCompliance.js";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
-import { resolveTdsRatesConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveTdsRatesConfig } from "@/services/compliance/clientConfigResolver.js";
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";

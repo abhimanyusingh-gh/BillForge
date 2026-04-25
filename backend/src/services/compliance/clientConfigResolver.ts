@@ -2,7 +2,7 @@ import type { Types } from "mongoose";
 import { ClientComplianceConfigModel, type ClientComplianceConfigFields } from "@/models/integration/ClientComplianceConfig.js";
 import type { UUID } from "@/types/uuid.js";
 
-export async function resolveTenantComplianceConfig(
+export async function resolveClientComplianceConfig(
   tenantId: UUID,
   clientOrgId: Types.ObjectId
 ): Promise<ClientComplianceConfigFields | null> {

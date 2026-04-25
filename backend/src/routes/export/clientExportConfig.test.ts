@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { createTenantExportConfigRouter } from "@/routes/export/tenantExportConfig.ts";
+import { createClientExportConfigRouter } from "@/routes/export/clientExportConfig.ts";
 import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.ts";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 
@@ -7,7 +7,7 @@ const ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000c1");
 const authedReq = (overrides: Record<string, unknown> = {}) =>
   mockRequest({ authContext: defaultAuth, activeClientOrgId: ACTIVE_CLIENT_ORG_ID, ...overrides });
 
-describe("tenantExportConfig routes", () => {
+describe("clientExportConfig routes", () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -18,7 +18,7 @@ describe("tenantExportConfig routes", () => {
         lean: jest.fn().mockResolvedValue(null)
       } as never);
 
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "get", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -42,7 +42,7 @@ describe("tenantExportConfig routes", () => {
         lean: jest.fn().mockResolvedValue(existing)
       } as never);
 
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "get", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -57,7 +57,7 @@ describe("tenantExportConfig routes", () => {
     });
 
     it("returns 403 when tenantId does not match auth context", async () => {
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "get", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -80,7 +80,7 @@ describe("tenantExportConfig routes", () => {
       };
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -101,7 +101,7 @@ describe("tenantExportConfig routes", () => {
     });
 
     it("validates csvColumns entries", async () => {
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -126,7 +126,7 @@ describe("tenantExportConfig routes", () => {
       };
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -147,7 +147,7 @@ describe("tenantExportConfig routes", () => {
       };
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -173,7 +173,7 @@ describe("tenantExportConfig routes", () => {
       };
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -194,7 +194,7 @@ describe("tenantExportConfig routes", () => {
     });
 
     it("returns 400 when no valid fields provided", async () => {
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -210,7 +210,7 @@ describe("tenantExportConfig routes", () => {
     });
 
     it("returns 403 when tenantId does not match auth context", async () => {
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
 
@@ -229,7 +229,7 @@ describe("tenantExportConfig routes", () => {
       const thrownError = new Error("MongoDB failure");
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockRejectedValue(thrownError as never);
 
-      const router = createTenantExportConfigRouter();
+      const router = createClientExportConfigRouter();
       const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
       const res = mockResponse();
       const next = jest.fn();
