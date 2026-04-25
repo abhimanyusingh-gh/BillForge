@@ -87,6 +87,29 @@ describe("api/client classifier", () => {
       expect(classifyApiPath("/compliance/admin/anything")).toBe("tenant-scoped");
       expect(isRealmScopedPath("/compliance/admin")).toBe(false);
     });
+
+    describe("triage bypass (#166) — invoices with clientOrgId: null", () => {
+      it("classifies the triage list /invoices/triage as tenant-scoped", () => {
+        expect(classifyApiPath("/invoices/triage")).toBe("tenant-scoped");
+        expect(classifyApiPath("/invoices/triage?status=PENDING_TRIAGE")).toBe("tenant-scoped");
+        expect(isRealmScopedPath("/invoices/triage")).toBe(false);
+      });
+
+      it("classifies /invoices/:id/assign-client-org as tenant-scoped", () => {
+        expect(classifyApiPath("/invoices/abc-123/assign-client-org")).toBe("tenant-scoped");
+        expect(isRealmScopedPath("/invoices/abc-123/assign-client-org")).toBe(false);
+      });
+
+      it("classifies /invoices/:id/reject as tenant-scoped", () => {
+        expect(classifyApiPath("/invoices/abc-123/reject")).toBe("tenant-scoped");
+        expect(isRealmScopedPath("/invoices/abc-123/reject")).toBe(false);
+      });
+
+      it("does not bypass realm-scoping for unrelated suffix matches outside realm-scoped trees", () => {
+        // The suffix-bypass only applies to paths that ALSO sit under a realm-scoped prefix.
+        expect(classifyApiPath("/somewhere-else/reject")).toBe("unknown");
+      });
+    });
   });
 
   describe("edge case: bypass-vs-allow asymmetry (the original bug)", () => {
