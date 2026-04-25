@@ -2,10 +2,7 @@ import { Types } from "mongoose";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { HttpError } from "@/errors/HttpError.js";
 import { GSTIN_FORMAT } from "@/constants/indianCompliance.js";
-import {
-  countClientOrgDependents,
-  type ClientOrgLinkedCounts
-} from "@/services/tenant/clientOrgDependents.js";
+import { countClientOrgDependents } from "@/services/tenant/clientOrgDependents.js";
 
 /**
  * Admin CRUD service for `ClientOrganization` (#174). Tenant-scoped:
@@ -206,5 +203,3 @@ export class ClientOrgsAdminService {
     );
   }
 }
-
-export type { ClientOrgLinkedCounts };

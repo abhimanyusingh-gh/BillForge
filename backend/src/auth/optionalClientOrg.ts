@@ -26,7 +26,7 @@ import { getAuth } from "@/types/auth.js";
 export const OPTIONAL_CLIENT_ORG_ERROR_CODE = "invalid_client_org_id";
 export const OPTIONAL_CLIENT_ORG_ERROR_MESSAGE = "clientOrgId does not belong to this tenant";
 
-export type ResolveOptionalClientOrgIdResult =
+type ResolveOptionalClientOrgIdResult =
   | { valid: true; clientOrgId: Types.ObjectId | null }
   | { valid: false; error: string; message: string };
 

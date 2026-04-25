@@ -38,7 +38,7 @@ interface AnalyticsOverview {
 
 const AGG_OPTIONS = { allowDiskUse: true };
 
-export interface GetOverviewOptions {
+interface GetOverviewOptions {
   approverId?: string;
   // admin analytics: optional clientOrgId, see #162
   clientOrgId?: Types.ObjectId | null;

@@ -17,7 +17,7 @@ export const CLIENT_ORG_ID_SOURCE = {
   NONE: "none"
 } as const;
 
-export type ClientOrgIdSource = typeof CLIENT_ORG_ID_SOURCE[keyof typeof CLIENT_ORG_ID_SOURCE];
+type ClientOrgIdSource = typeof CLIENT_ORG_ID_SOURCE[keyof typeof CLIENT_ORG_ID_SOURCE];
 
 interface ExtractedClientOrgId {
   raw: string;
