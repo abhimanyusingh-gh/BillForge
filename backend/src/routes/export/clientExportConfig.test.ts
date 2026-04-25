@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { Types } from "mongoose";
 import { createClientExportConfigRouter } from "@/routes/export/clientExportConfig.ts";
 import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.ts";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
 
-const ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000c1");
+// Build an ObjectId from the first 24 hex chars of a fresh UUIDv4 — gives a
+// unique value per test run without re-using a hardcoded fixture id.
+const ACTIVE_CLIENT_ORG_ID = new Types.ObjectId(randomUUID().replace(/-/g, "").slice(0, 24));
 const authedReq = (overrides: Record<string, unknown> = {}) =>
   mockRequest({ authContext: defaultAuth, activeClientOrgId: ACTIVE_CLIENT_ORG_ID, ...overrides });
 

@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
+import { findClientOrgIdsByGstinForTenant } from "@/services/auth/tenantScope.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 
 /**
@@ -56,17 +56,16 @@ export async function resolveClientOrgForIngestion(
     : "";
 
   if (customerGstin.length > 0) {
-    const matches = await ClientOrganizationModel.find({
-      tenantId: assignment.tenantId,
-      _id: { $in: assignment.clientOrgIds },
-      gstin: customerGstin
-    })
-      .select({ _id: 1 })
-      .lean();
+    // Shared (tenantId, _id ∈ ids, gstin) primitive — see tenantScope.ts.
+    const matches = await findClientOrgIdsByGstinForTenant(
+      assignment.tenantId,
+      assignment.clientOrgIds,
+      customerGstin
+    );
 
     if (matches.length === 1) {
       return {
-        clientOrgId: matches[0]._id as Types.ObjectId,
+        clientOrgId: matches[0],
         triage: false,
         reason: "gstin_match"
       };

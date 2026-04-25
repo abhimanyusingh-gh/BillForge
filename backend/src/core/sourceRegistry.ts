@@ -1,7 +1,6 @@
 import { EmailIngestionFacade } from "@/core/facades/EmailIngestionFacade.js";
 import type { IngestionSource } from "@/core/interfaces/IngestionSource.js";
 import type { IngestionSourceManifest } from "@/core/runtimeManifest.js";
-import { FolderIngestionSource } from "@/sources/FolderIngestionSource.js";
 import type { GmailMailboxBoundary } from "@/core/boundaries/GmailMailboxBoundary.js";
 
 interface SourceRegistryOptions {
@@ -57,20 +56,9 @@ export function buildIngestionSources(
     }
 
     if (sourceManifest.type === "folder") {
-      if (!sourceManifest.folderPath) {
-        throw new Error("Folder source selected but FOLDER_SOURCE_PATH is missing.");
-      }
-
-      sources.push(
-        new FolderIngestionSource({
-          key: sourceManifest.key,
-          tenantId: sourceManifest.tenantId,
-          workloadTier: sourceManifest.workloadTier,
-          folderPath: sourceManifest.folderPath,
-          recursive: sourceManifest.recursive
-        })
+      throw new Error(
+        "Folder ingestion source is no longer supported. Only upload (s3-upload) and email streams are wired in this build."
       );
-      continue;
     }
 
     throw new Error("Unsupported ingestion source. Add an IngestionSource implementation to support it.");

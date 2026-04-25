@@ -72,6 +72,30 @@ export async function findClientOrgIdByIdForTenant(
 }
 
 /**
+ * Filter a tenant-owned `clientOrgIds[]` candidate set down to those whose
+ * `ClientOrganization.gstin` matches `gstin` (case-insensitive — caller
+ * upper-cases). Shared lookup primitive for ingestion-side resolvers
+ * (#159 mailbox triage) and any future GSTIN-based reconciliation; keeps
+ * the `(tenantId, _id ∈ ids, gstin)` query in one place rather than
+ * scattering `find({ tenantId, gstin })` patterns across services.
+ */
+export async function findClientOrgIdsByGstinForTenant(
+  tenantId: string,
+  candidateIds: Types.ObjectId[],
+  gstin: string
+): Promise<Types.ObjectId[]> {
+  if (candidateIds.length === 0 || gstin.length === 0) return [];
+  const docs = await ClientOrganizationModel.find({
+    tenantId,
+    _id: { $in: candidateIds },
+    gstin
+  })
+    .select("_id")
+    .lean();
+  return docs.map((d) => d._id);
+}
+
+/**
  * Pre-save invariant: every accounting-leaf document must carry a
  * `clientOrgId` whose referenced `ClientOrganization.tenantId` matches
  * the document's own `tenantId`. Triage invoices (`PENDING_TRIAGE` +

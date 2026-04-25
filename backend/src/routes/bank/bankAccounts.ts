@@ -29,7 +29,9 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
             status: a.status,
             aaAddress: a.aaAddress,
             displayName: a.displayName,
+            accountNumber: a.accountNumber,
             bankName: a.bankName,
+            ifsc: a.ifsc,
             maskedAccNumber: a.maskedAccNumber,
             balanceMinor: a.balanceMinor,
             currency: a.currency,
@@ -53,9 +55,24 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
         const { tenantId, userId } = getAuth(req);
         const aaAddress = typeof req.body?.aaAddress === "string" ? req.body.aaAddress.trim() : "";
         const displayName = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
+        const accountNumber = typeof req.body?.accountNumber === "string" ? req.body.accountNumber.trim() : "";
+        const bankName = typeof req.body?.bankName === "string" ? req.body.bankName.trim() : "";
+        const ifsc = typeof req.body?.ifsc === "string" ? req.body.ifsc.trim().toUpperCase() : "";
 
         if (!aaAddress) {
           res.status(400).json({ message: "aaAddress is required." });
+          return;
+        }
+        if (!accountNumber) {
+          res.status(400).json({ message: "accountNumber is required." });
+          return;
+        }
+        if (!bankName) {
+          res.status(400).json({ message: "bankName is required." });
+          return;
+        }
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+          res.status(400).json({ message: "ifsc must be 11-char format (4 letters + 0 + 6 alphanumerics)." });
           return;
         }
 
@@ -65,6 +82,9 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
           createdByUserId: userId,
           aaAddress,
           displayName: displayName || aaAddress,
+          accountNumber,
+          bankName,
+          ifsc,
           status: BANK_ACCOUNT_STATUS.PENDING_CONSENT
         });
 
