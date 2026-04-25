@@ -81,8 +81,6 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     this.enrichIrn(invoice, config, result, riskSignals, processingIssues);
     await this.enrichMsme(invoice, config, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
     await this.enrichEmailSender(tenantId, clientOrgId, vendorFingerprint, context, riskSignals, processingIssues);
-    // clientOrgId is threaded through; DuplicateInvoiceDetector itself
-    // is converted in sub-PR 4 (invoice services scope).
     await this.enrichDuplicateDetection(invoice, tenantId, clientOrgId, context, riskSignals, processingIssues);
 
     if (config.riskSignalsEnabled === false) {
@@ -381,18 +379,15 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
   private async enrichDuplicateDetection(
     invoice: ParsedInvoiceData,
     tenantId: string,
-    _clientOrgId: Types.ObjectId,
+    clientOrgId: Types.ObjectId,
     context: ComplianceEnrichContext | undefined,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[]
   ): Promise<void> {
     try {
-      // DuplicateInvoiceDetector queries Invoice (accounting leaf) but
-      // conversion is deferred to sub-PR 4 (invoice services). clientOrgId
-      // is threaded through to this method and will be forwarded once
-      // DuplicateInvoiceDetector.check() accepts it.
       const dupSignals = await this.duplicateDetector.check(
         tenantId,
+        clientOrgId,
         invoice.vendorName,
         invoice.invoiceNumber,
         context?.contentHash,

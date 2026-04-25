@@ -18,7 +18,9 @@ import { NoopFieldVerifier } from "@/ai/verifiers/NoopFieldVerifier.js";
 import { MongoVendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.js";
 import { buildFailureData, buildSuccessData, isDuplicateKeyError, upsertFromPending } from "@/services/ingestion/persistence.js";
 import { persistFieldArtifacts } from "@/services/ingestion/artifacts.js";
+import { resolveClientOrgForIngestion, type MailboxAssignmentLike } from "@/services/ingestion/resolveClientOrg.js";
 import { INGESTION_FILE_RESULT, type IngestionFileResult } from "@/types/ingestion.js";
+import type { ParsedInvoiceData } from "@/types/invoice.js";
 const MAX_FILE_PROCESSING_CONCURRENCY = env.INGESTION_CONCURRENCY;
 
 interface IngestionRunSummary {
@@ -45,6 +47,16 @@ interface IngestionServiceOptions {
   }) => Promise<void> | void;
   pipeline?: InvoiceExtractionPipeline;
   fileStore?: FileStore;
+  /**
+   * Per-file mailbox-assignment lookup used by the poller-path resolver
+   * (#159). Gmail poller + folder-watcher emit files with
+   * `clientOrgId: null`; when this hook is provided the service threads
+   * the matching assignment's `clientOrgIds` through
+   * `resolveClientOrgForIngestion` after extraction (so parsed
+   * `customerGstin` is available). Returning `null` keeps the file in
+   * the PENDING_TRIAGE bucket.
+   */
+  mailboxAssignmentResolver?: (file: IngestedFile) => Promise<MailboxAssignmentLike | null>;
 }
 
 interface RunOnceRuntimeOptions {
@@ -56,6 +68,7 @@ export class IngestionService {
   private readonly afterFileProcessed?: IngestionServiceOptions["afterFileProcessed"];
   private readonly pipeline: InvoiceExtractionPipeline;
   private readonly fileStore?: FileStore;
+  private readonly mailboxAssignmentResolver?: IngestionServiceOptions["mailboxAssignmentResolver"];
   private pauseRequested = false;
 
   constructor(
@@ -65,6 +78,7 @@ export class IngestionService {
   ) {
     this.afterFileProcessed = options?.afterFileProcessed;
     this.fileStore = options?.fileStore;
+    this.mailboxAssignmentResolver = options?.mailboxAssignmentResolver;
     this.pipeline =
       options?.pipeline ??
       new InvoiceExtractionPipeline({ ocrProvider: this.ocrProvider, fieldVerifier: new NoopFieldVerifier(), templateStore: new MongoVendorTemplateStore() });
@@ -230,6 +244,13 @@ export class IngestionService {
       return files;
     }
 
+    // Per #156: accounting-leaf read filtered by (tenantId, sourceKey).
+    // sourceDocumentId is unique per (tenantId, sourceKey) by design
+    // (folder-relative path / S3 object key) so we do not need to pivot
+    // on clientOrgId here — a single tenant's folder/S3 sources cannot
+    // repeat sourceDocumentId across client-orgs. Triage-state rows
+    // (clientOrgId: null) are correctly included because this filter
+    // does not constrain clientOrgId.
     const existingDocs = await InvoiceModel.find({
       sourceType: source.type,
       tenantId: effectiveTenantId,
@@ -255,18 +276,33 @@ export class IngestionService {
       : undefined;
 
     if (gmailMessageId) {
+      // Gmail message-id is globally unique within a mailbox, so tenantId
+      // alone de-dupes even when the incoming file has clientOrgId: null
+      // (triage) and the existing row had resolved to a specific
+      // clientOrgId. We do not filter by clientOrgId to avoid missing
+      // a dup when the same message is re-polled during mailbox
+      // reassignment.
       const msgDup = await InvoiceModel.findOne({ tenantId: file.tenantId, gmailMessageId }).lean();
       if (msgDup) return { result: INGESTION_FILE_RESULT.DUPLICATE };
     }
 
-    const pendingDoc = await InvoiceModel.findOne({
+    // Pending-lookup and content-duplicate checks stay scoped by
+    // (tenantId, sourceDocumentId) — sourceDocumentId is tenant-unique.
+    // We include clientOrgId when the file already has one, so a
+    // subsequent triage-upgrade re-poll finds its own pending row.
+    const pendingFilter: Record<string, unknown> = {
       tenantId: file.tenantId,
       sourceDocumentId: file.sourceDocumentId,
       status: INVOICE_STATUS.PENDING
-    }).select({ contentHash: 1 }).lean();
+    };
+    if (file.clientOrgId !== null && file.clientOrgId !== undefined) {
+      pendingFilter.clientOrgId = file.clientOrgId;
+    }
+    const pendingDoc = await InvoiceModel.findOne(pendingFilter).select({ contentHash: 1 }).lean();
     const contentDuplicate = pendingDoc?.contentHash
       ? await InvoiceModel.findOne({
           tenantId: file.tenantId,
+          ...(file.clientOrgId ? { clientOrgId: file.clientOrgId } : {}),
           contentHash: pendingDoc.contentHash,
           sourceDocumentId: { $ne: file.sourceDocumentId },
           status: { $ne: INVOICE_STATUS.PENDING }
@@ -279,11 +315,51 @@ export class IngestionService {
     try {
       const extraction = await this.pipeline.extract({
         tenantId: file.tenantId,
+        clientOrgId: file.clientOrgId,
         sourceKey: file.sourceKey,
         attachmentName: file.attachmentName,
         fileBuffer: file.buffer,
         mimeType: normalizedMimeType,
       });
+
+      // Per #159: resolve PENDING_TRIAGE files now that we have parsed
+      // customerGstin. Gmail poller + folder-watcher emit
+      // clientOrgId: null; when a mailbox-assignment resolver is wired,
+      // run the 3-tier resolver (gstin-match → single-candidate → keep
+      // triage) and upgrade `file.clientOrgId` before persistence.
+      if (file.clientOrgId === null && this.mailboxAssignmentResolver) {
+        try {
+          const assignment = await this.mailboxAssignmentResolver(file);
+          if (assignment) {
+            const parsed = (extraction.parseResult.parsed ?? {}) as ParsedInvoiceData;
+            const resolution = await resolveClientOrgForIngestion(parsed, assignment);
+            if (resolution.clientOrgId) {
+              file.clientOrgId = String(resolution.clientOrgId);
+              logger.info("ingestion.client_org.resolved", {
+                tenantId: file.tenantId,
+                clientOrgId: file.clientOrgId,
+                reason: resolution.reason,
+                sourceKey: file.sourceKey,
+                sourceDocumentId: file.sourceDocumentId
+              });
+            } else {
+              logger.info("ingestion.client_org.triage", {
+                tenantId: file.tenantId,
+                reason: resolution.reason,
+                sourceKey: file.sourceKey,
+                sourceDocumentId: file.sourceDocumentId
+              });
+            }
+          }
+        } catch (resolveError) {
+          logger.warn("ingestion.client_org.resolve_failed", {
+            tenantId: file.tenantId,
+            sourceKey: file.sourceKey,
+            sourceDocumentId: file.sourceDocumentId,
+            error: resolveError instanceof Error ? resolveError.message : String(resolveError)
+          });
+        }
+      }
 
       const ocrBlocks = extraction.ocrBlocks;
       const artifactResults = await persistFieldArtifacts({

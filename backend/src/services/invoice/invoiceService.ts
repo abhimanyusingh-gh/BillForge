@@ -99,6 +99,10 @@ export class InvoiceService {
   }
 
   async listInvoices(params: ListInvoicesParams) {
+    // tenant-wide analytics — deferred per #162. The invoice list +
+    // facet counts aggregate across all client-orgs of a tenant for the
+    // dashboard view; per-leaf (tenantId, clientOrgId) filtering lands
+    // with the analytics cut-over.
     const baseQuery: Record<string, unknown> = { tenantId: params.tenantId };
 
     const query: Record<string, unknown> = { ...baseQuery };
@@ -191,24 +195,24 @@ export class InvoiceService {
     return result;
   }
 
-  async getInvoiceById(id: string, tenantId: UUID) {
+  async getInvoiceById(id: string, tenantId: UUID, clientOrgId: Types.ObjectId) {
     if (!Types.ObjectId.isValid(id)) return null;
-    const invoice = await InvoiceModel.findOne({ _id: id, tenantId }).lean();
+    const invoice = await InvoiceModel.findOne({ _id: id, tenantId, clientOrgId }).lean();
     return invoice ? sanitizeForApi(invoice) : null;
   }
 
-  async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, authContext: AuthenticatedRequestContext) {
+  async approveInvoices(ids: string[], approvedBy = env.DEFAULT_APPROVER, clientOrgId: Types.ObjectId, authContext: AuthenticatedRequestContext) {
     const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
     if (validIds.length === 0) return { modifiedCount: 0, failedCount: 0 };
 
     if (this.workflowService) {
       const workflowEnabled = await this.workflowService.isWorkflowEnabled(authContext.tenantId);
-      if (workflowEnabled) return this.approveWithWorkflow(validIds, authContext);
+      if (workflowEnabled) return this.approveWithWorkflow(validIds, clientOrgId, authContext);
     }
 
     const now = new Date();
     const result = await InvoiceModel.updateMany(
-      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } },
+      { _id: { $in: validIds }, tenantId: authContext.tenantId, clientOrgId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } },
       {
         $set: {
           status: INVOICE_STATUS.APPROVED,
@@ -220,12 +224,12 @@ export class InvoiceService {
     return { modifiedCount: result.modifiedCount, failedCount: 0 };
   }
 
-  private async approveWithWorkflow(validIds: Types.ObjectId[], authContext: AuthenticatedRequestContext): Promise<{ modifiedCount: number; failedCount: number }> {
+  private async approveWithWorkflow(validIds: Types.ObjectId[], clientOrgId: Types.ObjectId, authContext: AuthenticatedRequestContext): Promise<{ modifiedCount: number; failedCount: number }> {
     let advanced = 0;
     let failed = 0;
     for (const id of validIds) {
       const invoiceId = String(id);
-      const invoice = await InvoiceModel.findOne({ _id: id, tenantId: authContext.tenantId }).lean();
+      const invoice = await InvoiceModel.findOne({ _id: id, tenantId: authContext.tenantId, clientOrgId }).lean();
       if (!invoice) continue;
 
       if (invoice.status === INVOICE_STATUS.PARSED || invoice.status === INVOICE_STATUS.NEEDS_REVIEW) {
@@ -233,7 +237,7 @@ export class InvoiceService {
         if (!initiated) {
           const now = new Date();
           await InvoiceModel.updateOne(
-            { _id: id, tenantId: authContext.tenantId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } },
+            { _id: id, tenantId: authContext.tenantId, clientOrgId, status: { $in: [INVOICE_STATUS.PARSED, INVOICE_STATUS.NEEDS_REVIEW] } },
             {
               $set: { status: INVOICE_STATUS.APPROVED, approval: { approvedBy: authContext.email, approvedAt: now, userId: authContext.userId, email: authContext.email, role: authContext.role } },
               $push: { processingIssues: `Approved: ${now.toISOString()} by ${authContext.email} (${authContext.userId})` }
@@ -265,23 +269,23 @@ export class InvoiceService {
     return { modifiedCount: advanced, failedCount: failed };
   }
 
-  async retryInvoices(ids: string[], authContext: AuthenticatedRequestContext) {
+  async retryInvoices(ids: string[], clientOrgId: Types.ObjectId, authContext: AuthenticatedRequestContext) {
     const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
     if (validIds.length === 0) return 0;
 
     const now = new Date();
     const result = await InvoiceModel.updateMany(
-      { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $in: [INVOICE_STATUS.PENDING, INVOICE_STATUS.FAILED_OCR, INVOICE_STATUS.FAILED_PARSE, INVOICE_STATUS.NEEDS_REVIEW, INVOICE_STATUS.PARSED] } },
+      { _id: { $in: validIds }, tenantId: authContext.tenantId, clientOrgId, status: { $in: [INVOICE_STATUS.PENDING, INVOICE_STATUS.FAILED_OCR, INVOICE_STATUS.FAILED_PARSE, INVOICE_STATUS.NEEDS_REVIEW, INVOICE_STATUS.PARSED] } },
       { $set: { status: INVOICE_STATUS.PENDING }, $push: { processingIssues: { $each: [`Retry requested: ${now.toISOString()} by ${authContext.email}`] } } }
     );
     return result.modifiedCount;
   }
 
-  async deleteInvoices(ids: string[], authContext: AuthenticatedRequestContext) {
+  async deleteInvoices(ids: string[], clientOrgId: Types.ObjectId, authContext: AuthenticatedRequestContext) {
     const validIds = ids.filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
     if (validIds.length === 0) return 0;
 
-    const filter = { _id: { $in: validIds }, tenantId: authContext.tenantId, status: { $ne: INVOICE_STATUS.EXPORTED } };
+    const filter = { _id: { $in: validIds }, tenantId: authContext.tenantId, clientOrgId, status: { $ne: INVOICE_STATUS.EXPORTED } };
 
     let storageKeys: string[] = [];
     if (this.fileStore) {
@@ -310,13 +314,14 @@ export class InvoiceService {
     id: string,
     input: UpdateParsedFieldInput,
     updatedBy = env.DEFAULT_APPROVER,
-    tenantId: UUID
+    tenantId: UUID,
+    clientOrgId: Types.ObjectId
   ) {
     if (!Types.ObjectId.isValid(id)) throw new InvoiceUpdateError("Invalid invoice id.", 400);
     if (!EDITABLE_PARSED_FIELDS.some((f) => Object.prototype.hasOwnProperty.call(input, f)))
       throw new InvoiceUpdateError("At least one editable parsed field must be provided.", 400);
 
-    const invoice = await InvoiceModel.findOne({ _id: id, tenantId });
+    const invoice = await InvoiceModel.findOne({ _id: id, tenantId, clientOrgId });
     if (!invoice) throw new InvoiceUpdateError("Invoice not found.", 404);
     if (invoice.status === INVOICE_STATUS.EXPORTED) throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
 
@@ -355,12 +360,12 @@ export class InvoiceService {
     return sanitizeForApi(invoice.toObject());
   }
 
-  async renameAttachmentName(id: string, attachmentName: string, tenantId: UUID) {
+  async renameAttachmentName(id: string, attachmentName: string, tenantId: UUID, clientOrgId: Types.ObjectId) {
     if (!Types.ObjectId.isValid(id)) throw new InvoiceUpdateError("Invalid invoice id.", 400);
     const trimmed = attachmentName.trim();
     if (!trimmed) throw new InvoiceUpdateError("Attachment name cannot be empty.", 400);
 
-    const invoice = await InvoiceModel.findOne({ _id: id, tenantId });
+    const invoice = await InvoiceModel.findOne({ _id: id, tenantId, clientOrgId });
     if (!invoice) throw new InvoiceUpdateError("Invoice not found.", 404);
     if (invoice.status === INVOICE_STATUS.EXPORTED) throw new InvoiceUpdateError("Cannot modify an exported invoice.", 403);
 
@@ -369,10 +374,10 @@ export class InvoiceService {
     return sanitizeForApi(invoice.toObject());
   }
 
-  async retriggerCompliance(invoiceId: string, tenantId: UUID, newGlCode: string, newGlName: string) {
+  async retriggerCompliance(invoiceId: string, tenantId: UUID, clientOrgId: Types.ObjectId, newGlCode: string, newGlName: string) {
     if (!Types.ObjectId.isValid(invoiceId)) throw new InvoiceUpdateError("Invalid invoice id.", 400);
 
-    const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId });
+    const invoice = await InvoiceModel.findOne({ _id: invoiceId, tenantId, clientOrgId });
     if (!invoice) throw new InvoiceUpdateError("Invoice not found.", 404);
     if (invoice.status === INVOICE_STATUS.EXPORTED) throw new InvoiceUpdateError("Cannot retrigger compliance on an exported invoice.", 403);
 

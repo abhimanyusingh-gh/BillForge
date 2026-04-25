@@ -5,6 +5,15 @@ const VALID_GSTIN_A = "29ABCDE1234F1Z5";
 const VALID_GSTIN_B = "07AABCC1234D1ZA";
 
 describeHarness("ClientOrganization model (ISSUE-155)", ({ getHarness }) => {
+  beforeAll(async () => {
+    // Force index build on the harness's mongoose connection. Without this,
+    // when this suite runs after another harness suite (mongoose's global
+    // singleton has been disconnected and reconnected to a fresh container),
+    // the unique {tenantId, gstin} index is not auto-rebuilt, causing the
+    // duplicate-rejection assertion to flake.
+    await ClientOrganizationModel.syncIndexes();
+  });
+
   afterEach(async () => {
     await getHarness().reset();
   });

@@ -22,6 +22,7 @@ import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { toUUID } from "@/types/uuid.js";
 
 const TENANT_ID = toUUID("65f0000000000000000000b1");
+const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000e1");
 
 function makeAuth(overrides: Partial<AuthenticatedRequestContext> = {}): AuthenticatedRequestContext {
   return {
@@ -47,7 +48,7 @@ describe("InvoiceService.retryInvoices", () => {
     const updateManyMock = jest.spyOn(InvoiceModel, "updateMany").mockResolvedValue({ modifiedCount: 0 } as never);
     const service = new InvoiceService();
 
-    const count = await service.retryInvoices([], makeAuth());
+    const count = await service.retryInvoices([], CLIENT_ORG_ID, makeAuth());
 
     expect(count).toBe(0);
     expect(updateManyMock).not.toHaveBeenCalled();
@@ -57,7 +58,7 @@ describe("InvoiceService.retryInvoices", () => {
     const updateManyMock = jest.spyOn(InvoiceModel, "updateMany").mockResolvedValue({ modifiedCount: 0 } as never);
     const service = new InvoiceService();
 
-    const count = await service.retryInvoices(["not-an-object-id"], makeAuth());
+    const count = await service.retryInvoices(["not-an-object-id"], CLIENT_ORG_ID, makeAuth());
 
     expect(count).toBe(0);
     expect(updateManyMock).not.toHaveBeenCalled();
@@ -135,7 +136,6 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
     });
   });
 
-  const CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000e1");
 
   function makeInvoiceDoc(status = "PARSED") {
     return {
@@ -161,7 +161,7 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
     });
 
     const service = new InvoiceService();
-    await service.retriggerCompliance(invoiceId, TENANT_ID, "GL001", "Professional Fees");
+    await service.retriggerCompliance(invoiceId, TENANT_ID, CLIENT_ORG_ID, "GL001", "Professional Fees");
 
     expect(GlCodeMasterModel.findOne).toHaveBeenCalledWith({
       tenantId: TENANT_ID,
@@ -181,7 +181,7 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
     });
 
     const service = new InvoiceService();
-    await service.retriggerCompliance(invoiceId, TENANT_ID, "GL999", "Unknown GL");
+    await service.retriggerCompliance(invoiceId, TENANT_ID, CLIENT_ORG_ID, "GL999", "Unknown GL");
 
     expect(GlCodeMasterModel.findOne).toHaveBeenCalledWith({
       tenantId: TENANT_ID,
@@ -194,7 +194,7 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
 
   it("throws InvoiceUpdateError with 400 for invalid invoiceId", async () => {
     const service = new InvoiceService();
-    await expect(service.retriggerCompliance("not-an-id", TENANT_ID, "GL001", "Fees")).rejects.toMatchObject({
+    await expect(service.retriggerCompliance("not-an-id", TENANT_ID, CLIENT_ORG_ID, "GL001", "Fees")).rejects.toMatchObject({
       statusCode: 400
     });
   });
@@ -202,7 +202,7 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
   it("throws InvoiceUpdateError with 404 when invoice is not found", async () => {
     jest.spyOn(InvoiceModel, "findOne").mockResolvedValue(null as never);
     const service = new InvoiceService();
-    await expect(service.retriggerCompliance(makeObjectId(), TENANT_ID, "GL001", "Fees")).rejects.toMatchObject({
+    await expect(service.retriggerCompliance(makeObjectId(), TENANT_ID, CLIENT_ORG_ID, "GL001", "Fees")).rejects.toMatchObject({
       statusCode: 404
     });
   });
@@ -211,7 +211,7 @@ describe("InvoiceService.retriggerCompliance — GL category lookup", () => {
     const mockInvoice = makeInvoiceDoc("EXPORTED");
     jest.spyOn(InvoiceModel, "findOne").mockResolvedValue(mockInvoice as never);
     const service = new InvoiceService();
-    await expect(service.retriggerCompliance(makeObjectId(), TENANT_ID, "GL001", "Fees")).rejects.toMatchObject({
+    await expect(service.retriggerCompliance(makeObjectId(), TENANT_ID, CLIENT_ORG_ID, "GL001", "Fees")).rejects.toMatchObject({
       statusCode: 403
     });
   });

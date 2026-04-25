@@ -67,6 +67,7 @@ function buildDeps(overrides?: {
 
 const defaultInput = {
   tenantId: "tenant-1" as import("@/types/uuid.js").UUID,
+  clientOrgId: null,
   sourceKey: "mailbox-a",
   attachmentName: "invoice.pdf",
   fileBuffer: Buffer.from("sample-content"),

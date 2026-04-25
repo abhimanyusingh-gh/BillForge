@@ -367,6 +367,9 @@ async function bake(): Promise<void> {
 
       const extraction = await pipeline!.extract({
         tenantId: toUUID("demo-bake"),
+        // Demo fixture bakery is tenant-wide; compliance enrichment is
+        // a no-op here so triage-mode null clientOrgId is fine.
+        clientOrgId: null,
         sourceKey: "demo-bake",
         attachmentName: file,
         fileBuffer,

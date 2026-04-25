@@ -9,6 +9,12 @@ import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineCont
 /**
  * Stage 13: Enriches the parsed data with compliance information (TDS, PAN, risk signals).
  * Only executes if a ComplianceEnricher was provided. Mirrors `runCompliance()` in the pipeline.
+ *
+ * Post-#156/#159: `clientOrgId` is carried on `PipelineInput` by the
+ * ingestion path (sub-PR 4). PENDING_TRIAGE invoices skip compliance
+ * enrichment entirely — the pipeline caller should not invoke this step
+ * for triage rows. When clientOrgId is absent here it's a logic bug;
+ * we log and skip rather than fan out across tenant client-orgs.
  */
 export class EnrichComplianceStep implements PipelineStep {
   readonly name = "enrich-compliance";
@@ -24,13 +30,9 @@ export class EnrichComplianceStep implements PipelineStep {
     const tenantId = toUUID(ctx.input.tenantId);
     const vendorFingerprint = ctx.metadata.vendorFingerprint ?? "";
     const contentHash = ctx.metadata.vendorContentHash ?? "";
-    // Post hierarchy-pivot: compliance enricher is scoped per client-org.
-    // The pipeline input gains a `clientOrgId` (sub-PR 4: ingestion). Until
-    // that lands, skip enrichment if clientOrgId is missing rather than
-    // fan out across all client-orgs of the tenant.
-    const clientOrgIdRaw = (ctx.input as { clientOrgId?: Types.ObjectId | string }).clientOrgId;
+    const clientOrgIdRaw = ctx.input.clientOrgId;
     if (!clientOrgIdRaw) {
-      logger.info("compliance.enrich.skipped.no_client_org", { tenantId });
+      logger.warn("compliance.enrich.skipped.no_client_org", { tenantId });
       return {};
     }
     const clientOrgId = typeof clientOrgIdRaw === "string"
