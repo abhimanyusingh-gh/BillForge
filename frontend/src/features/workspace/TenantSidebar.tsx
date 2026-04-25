@@ -54,8 +54,16 @@ interface TenantSidebarProps {
   onStandaloneRouteChange: (route: StandaloneHashRoute) => void;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
-  invoiceActionRequiredCount?: number;
+  // null = unknown (no active realm yet — pre-onboarding); 0 = empty queue.
+  // The sidebar hides the badge in BOTH cases (matches the triage badge
+  // hide-at-zero convention) so users do not misread "no realm selected"
+  // as "queue is empty".
+  invoiceActionRequiredCount?: number | null;
   triageCount?: number;
+}
+
+function badgeAriaLabel(label: string, count: number, suffix: string): string {
+  return count > 0 ? `${label}, ${count} ${suffix}` : label;
 }
 
 function isItemAllowed(item: SidebarItemConfig, canViewTenantConfig: boolean, canViewConnections: boolean): boolean {
@@ -92,6 +100,7 @@ export function TenantSidebar({
   invoiceActionRequiredCount = 0,
   triageCount = 0
 }: TenantSidebarProps) {
+  const invoiceCount = invoiceActionRequiredCount ?? 0;
   return (
     <nav className="tenant-sidebar" aria-label="Primary">
       <ul className="tenant-sidebar-list">
@@ -100,8 +109,13 @@ export function TenantSidebar({
           const isPlaceholder = item.target.kind === SIDEBAR_TARGET_KIND.Placeholder;
           const isDisabled = !allowed || isPlaceholder;
           const isActive = !isDisabled && isItemActive(item, activeTab, activeStandaloneRoute);
-          const showInvoiceBadge = item.id === SIDEBAR_ITEM_ID.Invoices && invoiceActionRequiredCount > 0;
+          const showInvoiceBadge = item.id === SIDEBAR_ITEM_ID.Invoices && invoiceCount > 0;
           const showTriageBadge = item.id === SIDEBAR_ITEM_ID.Triage && triageCount > 0;
+          const ariaLabel = item.id === SIDEBAR_ITEM_ID.Invoices
+            ? badgeAriaLabel(item.label, invoiceCount, "action required")
+            : item.id === SIDEBAR_ITEM_ID.Triage
+              ? badgeAriaLabel(item.label, triageCount, "awaiting")
+              : undefined;
 
           return (
             <li key={item.id} className="tenant-sidebar-item">
@@ -110,6 +124,7 @@ export function TenantSidebar({
                 className={isActive ? "tenant-sidebar-link tenant-sidebar-link-active" : "tenant-sidebar-link"}
                 aria-current={isActive ? "page" : undefined}
                 aria-disabled={isDisabled || undefined}
+                aria-label={ariaLabel}
                 disabled={isDisabled && !isPlaceholder}
                 tabIndex={isPlaceholder ? -1 : undefined}
                 data-item-id={item.id}
@@ -127,8 +142,8 @@ export function TenantSidebar({
                 </span>
                 <span className="tenant-sidebar-label">{item.label}</span>
                 {showInvoiceBadge ? (
-                  <Badge tone="danger" size="sm" title={`${invoiceActionRequiredCount} action required`}>
-                    {invoiceActionRequiredCount}
+                  <Badge tone="danger" size="sm" title={`${invoiceCount} action required`}>
+                    {invoiceCount}
                   </Badge>
                 ) : null}
                 {showTriageBadge ? (

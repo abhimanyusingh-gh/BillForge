@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { fetchInvoices } from "@/api";
+import { useScopedQuery } from "@/lib/query/useScopedQuery";
+import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
 import {
   buildActionQueue,
   totalActionCount,
@@ -9,7 +10,7 @@ import {
 
 const ACTION_QUEUE_PAGE_SIZE = 500;
 const ACTION_QUEUE_STALE_MS = 15_000;
-const ACTION_QUEUE_QUERY_KEY = ["invoices", "action-required"] as const;
+export const ACTION_QUEUE_QUERY_KEY = ["invoices", "action-required"] as const;
 
 interface UseActionRequiredQueueResult {
   groups: ActionQueueGroup[];
@@ -18,11 +19,14 @@ interface UseActionRequiredQueueResult {
   totalAvailable: number;
   isLoading: boolean;
   isError: boolean;
+  isRealmActive: boolean;
   refetch: () => Promise<unknown>;
 }
 
 export function useActionRequiredQueue(): UseActionRequiredQueueResult {
-  const query = useQuery({
+  const { activeClientOrgId } = useActiveClientOrg();
+  const isRealmActive = activeClientOrgId !== null;
+  const query = useScopedQuery({
     queryKey: ACTION_QUEUE_QUERY_KEY,
     queryFn: () => fetchInvoices(undefined, undefined, undefined, 1, ACTION_QUEUE_PAGE_SIZE),
     staleTime: ACTION_QUEUE_STALE_MS
@@ -38,8 +42,9 @@ export function useActionRequiredQueue(): UseActionRequiredQueueResult {
     totalCount: totalActionCount(groups),
     scannedCount: query.data?.items.length ?? 0,
     totalAvailable: query.data?.total ?? 0,
-    isLoading: query.isPending,
+    isLoading: query.isPending && isRealmActive,
     isError: query.isError,
+    isRealmActive,
     refetch: query.refetch
   };
 }
