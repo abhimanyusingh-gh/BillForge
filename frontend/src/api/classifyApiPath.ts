@@ -3,6 +3,11 @@
  * boundary. Pure function — no side effects, no axios/window access — so it
  * can be unit-tested standalone (the rest of `client.ts` pulls in `import.meta`
  * which Jest's CJS runtime can't parse).
+ *
+ * Hand-maintained: the realm-scoped allow-list mirrors the BE routes wrapped
+ * in `requireActiveClientOrg`. CI guard `backend/scripts/check-realm-scoped-paths.sh`
+ * diffs this file against BE middleware registrations and fails the build on
+ * drift. Long-term replacement (BE-driven code-gen) tracked in #170.
  */
 
 export const REALM_SCOPED_PATH_PREFIXES = [
@@ -13,7 +18,16 @@ export const REALM_SCOPED_PATH_PREFIXES = [
   "/bank-statements",
   "/bank-accounts",
   "/bank/accounts",
-  "/compliance"
+  "/compliance",
+  // Composite-key endpoints that live under otherwise-tenant-scoped trees.
+  // Listed before the broader `/admin` and `/tenant` tenant-scoped prefixes
+  // so the realm-scoped check fires first.
+  "/admin/notification-config",
+  "/admin/compliance-config",
+  "/admin/tcs-config",
+  "/admin/gl-codes",
+  "/admin/approval-limits",
+  "/admin/approval-workflow"
 ] as const;
 
 export const REALM_SCOPED_PATH_BYPASS_PREFIXES = [

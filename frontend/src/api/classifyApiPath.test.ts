@@ -30,7 +30,18 @@ describe("api/client classifier", () => {
       "/bank/accounts/abc/refresh",
       "/compliance",
       "/compliance/risk-signals",
-      "/compliance/tds-rates"
+      "/compliance/tds-rates",
+      // Composite-key endpoints under otherwise-tenant-scoped trees:
+      "/admin/notification-config",
+      "/admin/compliance-config",
+      "/admin/tcs-config",
+      "/admin/tcs-config/roles",
+      "/admin/tcs-config/history",
+      "/admin/gl-codes",
+      "/admin/gl-codes/import-csv",
+      "/admin/gl-codes/SOMECODE",
+      "/admin/approval-limits",
+      "/admin/approval-workflow"
     ];
 
     test.each(realmScoped)("classifies %s as realm-scoped", (path) => {
@@ -48,7 +59,6 @@ describe("api/client classifier", () => {
     const tenantScoped = [
       "/admin/users",
       "/admin/users/u-1/role",
-      "/admin/approval-workflow",
       "/admin/mailboxes",
       "/auth/token",
       "/auth/change-password",

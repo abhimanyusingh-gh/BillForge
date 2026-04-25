@@ -4,12 +4,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useScopedQuery, useScopedMutation } from "@/lib/query/useScopedQuery";
+import { useScopedQuery } from "@/lib/query/useScopedQuery";
 import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 
 function reset() {
   window.history.replaceState({}, "", "/");
   window.localStorage.clear();
+  window.sessionStorage.clear();
 }
 
 function makeWrapper() {
@@ -83,50 +84,5 @@ describe("lib/query/useScopedQuery", () => {
     );
     await waitFor(() => expect(result.current.data).toBe("ctx-org"));
     expect(queryFn).toHaveBeenCalledWith({ activeClientOrgId: "ctx-org" });
-  });
-});
-
-describe("lib/query/useScopedMutation", () => {
-  beforeEach(reset);
-  afterEach(reset);
-
-  it("rejects when no clientOrgId is active", async () => {
-    const { wrapper } = makeWrapper();
-    const mutationFn = jest.fn();
-    const { result } = renderHook(
-      () =>
-        useScopedMutation<string, Error, void>({
-          mutationFn: (ctx) => {
-            mutationFn(ctx);
-            return Promise.resolve("nope");
-          }
-        }),
-      { wrapper }
-    );
-
-    await act(async () => {
-      await expect(result.current.mutateAsync()).rejects.toThrow(/No active clientOrgId/);
-    });
-    expect(mutationFn).not.toHaveBeenCalled();
-  });
-
-  it("invokes the mutationFn with the active context when a realm is set", async () => {
-    const { wrapper } = makeWrapper();
-    setActiveClientOrgId("mut-org");
-    const mutationFn = jest.fn((ctx, vars: { x: number }) =>
-      Promise.resolve(`${ctx.activeClientOrgId}:${vars.x}`)
-    );
-    const { result } = renderHook(
-      () =>
-        useScopedMutation<string, Error, { x: number }>({
-          mutationFn
-        }),
-      { wrapper }
-    );
-    await act(async () => {
-      const out = await result.current.mutateAsync({ x: 7 });
-      expect(out).toBe("mut-org:7");
-    });
-    expect(mutationFn).toHaveBeenCalledWith({ activeClientOrgId: "mut-org" }, { x: 7 });
   });
 });

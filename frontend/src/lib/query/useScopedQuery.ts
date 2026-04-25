@@ -1,9 +1,6 @@
 import {
-  useMutation,
   useQuery,
   type QueryKey,
-  type UseMutationOptions,
-  type UseMutationResult,
   type UseQueryOptions,
   type UseQueryResult
 } from "@tanstack/react-query";
@@ -28,9 +25,13 @@ export function useScopedQuery<TData, TError = Error>(
   options: UseScopedQueryOptions<TData, TError>
 ): UseQueryResult<TData, TError> {
   const { activeClientOrgId } = useActiveClientOrg();
-  const { queryKey, queryFn, enabled = true, ...rest } = options;
+  const { queryKey, queryFn, enabled = true, gcTime, ...rest } = options;
+  const isInactive = activeClientOrgId === null;
   return useQuery<TData, TError, TData, QueryKey>({
     ...rest,
+    // NIT A: when inactive, drop the query from the cache immediately so devtools
+    // aren't cluttered with `["clientOrg", null, ...]` slots.
+    gcTime: isInactive ? 0 : gcTime,
     queryKey: [SCOPED_QUERY_NAMESPACE, activeClientOrgId, ...queryKey],
     queryFn: () => {
       if (activeClientOrgId === null) {
@@ -38,27 +39,6 @@ export function useScopedQuery<TData, TError = Error>(
       }
       return queryFn({ activeClientOrgId });
     },
-    enabled: enabled && activeClientOrgId !== null
-  });
-}
-
-export interface UseScopedMutationOptions<TData, TError, TVariables>
-  extends Omit<UseMutationOptions<TData, TError, TVariables>, "mutationFn"> {
-  mutationFn: (ctx: ScopedQueryContext, variables: TVariables) => Promise<TData>;
-}
-
-export function useScopedMutation<TData, TError = Error, TVariables = void>(
-  options: UseScopedMutationOptions<TData, TError, TVariables>
-): UseMutationResult<TData, TError, TVariables> {
-  const { activeClientOrgId } = useActiveClientOrg();
-  const { mutationFn, ...rest } = options;
-  return useMutation<TData, TError, TVariables>({
-    ...rest,
-    mutationFn: (variables) => {
-      if (activeClientOrgId === null) {
-        return Promise.reject(new Error("No active clientOrgId — useScopedMutation cannot run"));
-      }
-      return mutationFn({ activeClientOrgId }, variables);
-    }
+    enabled: enabled && !isInactive
   });
 }

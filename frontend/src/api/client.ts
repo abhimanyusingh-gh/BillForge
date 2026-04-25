@@ -2,6 +2,7 @@ import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
 import { readActiveClientOrgId, ACTIVE_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useActiveClientOrg";
 import { isRealmScopedPath } from "@/api/classifyApiPath";
+import { MissingActiveClientOrgError } from "@/api/errors";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
@@ -14,13 +15,7 @@ export {
   isRealmScopedPath
 } from "@/api/classifyApiPath";
 export type { RealmScope } from "@/api/classifyApiPath";
-
-export class MissingActiveClientOrgError extends Error {
-  constructor(public readonly requestPath: string) {
-    super(`Missing active clientOrgId for realm-scoped request: ${requestPath}`);
-    this.name = "MissingActiveClientOrgError";
-  }
-}
+export { MissingActiveClientOrgError } from "@/api/errors";
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
@@ -36,7 +31,11 @@ apiClient.interceptors.request.use((config) => {
   if (isRealmScopedPath(requestPath)) {
     const activeClientOrgId = readActiveClientOrgId();
     if (!activeClientOrgId) {
-      throw new MissingActiveClientOrgError(requestPath);
+      // Use Promise.reject so the error propagates through axios's .catch
+      // chain (and react-query's queryFn) cleanly, rather than synchronously
+      // throwing — which can surface as an unhandled rejection on direct
+      // axios calls outside of react-query.
+      return Promise.reject(new MissingActiveClientOrgError(requestPath));
     }
     config.params = { ...(config.params ?? {}), [ACTIVE_CLIENT_ORG_QUERY_PARAM]: activeClientOrgId };
   }

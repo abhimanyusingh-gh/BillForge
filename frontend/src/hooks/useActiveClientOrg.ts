@@ -11,8 +11,12 @@ function readActiveClientOrgIdFromUrl(): string | null {
   return value && value.length > 0 ? value : null;
 }
 
+// Persistence backed by sessionStorage (per-tab) instead of localStorage so a
+// CA can open Client A in one tab and Client B in another without realm
+// cross-contamination — closing the tab forgets the active realm and a new
+// tab starts fresh.
 function readActiveClientOrgIdFromStorage(): string | null {
-  const value = window.localStorage.getItem(ACTIVE_CLIENT_ORG_STORAGE_KEY);
+  const value = window.sessionStorage.getItem(ACTIVE_CLIENT_ORG_STORAGE_KEY);
   return value && value.length > 0 ? value : null;
 }
 
@@ -37,9 +41,9 @@ function writeActiveClientOrgIdToUrl(id: string | null) {
 
 function writeActiveClientOrgIdToStorage(id: string | null) {
   if (id === null) {
-    window.localStorage.removeItem(ACTIVE_CLIENT_ORG_STORAGE_KEY);
+    window.sessionStorage.removeItem(ACTIVE_CLIENT_ORG_STORAGE_KEY);
   } else {
-    window.localStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, id);
+    window.sessionStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, id);
   }
 }
 
@@ -58,16 +62,16 @@ export function useActiveClientOrg(): UseActiveClientOrgResult {
   const [activeClientOrgId, setLocalState] = useState<string | null>(() => readActiveClientOrgId());
 
   useEffect(() => {
+    // sessionStorage is per-tab and does not fire the cross-tab `storage`
+    // event, so we only listen for in-tab signals.
     const sync = () => setLocalState(readActiveClientOrgId());
     window.addEventListener(ACTIVE_CLIENT_ORG_CHANGE_EVENT, sync);
     window.addEventListener("popstate", sync);
     window.addEventListener("hashchange", sync);
-    window.addEventListener("storage", sync);
     return () => {
       window.removeEventListener(ACTIVE_CLIENT_ORG_CHANGE_EVENT, sync);
       window.removeEventListener("popstate", sync);
       window.removeEventListener("hashchange", sync);
-      window.removeEventListener("storage", sync);
     };
   }, []);
 

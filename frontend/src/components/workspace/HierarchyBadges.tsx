@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
 
 export interface ClientOrgOption {
@@ -16,7 +16,10 @@ interface TenantBadgeProps {
  * of the {tenantId, clientOrgId} composite-key hierarchy.
  */
 export function TenantBadge({ tenantName }: TenantBadgeProps) {
-  const label = tenantName.trim().length > 0 ? tenantName : "—";
+  // NIT B: when the tenant name is missing/whitespace, render an explicit
+  // "Unknown tenant" placeholder so the data-quality issue surfaces instead
+  // of being masked by a single em-dash.
+  const label = tenantName.trim().length > 0 ? tenantName : "Unknown tenant";
   return (
     <span
       className="workspace-hierarchy-badge workspace-hierarchy-badge-tenant"
@@ -48,13 +51,27 @@ interface ActiveRealmBadgeProps {
  * (TODO: wire to realm switcher in #152, fall through to onboarding #150 if empty).
  */
 export function ActiveRealmBadge({ clientOrgs, onOpenSwitcher }: ActiveRealmBadgeProps) {
-  const { activeClientOrgId } = useActiveClientOrg();
+  const { activeClientOrgId, setActiveClientOrg } = useActiveClientOrg();
 
   const activeName = useMemo(() => {
     if (!activeClientOrgId || !clientOrgs) return null;
     const match = clientOrgs.find((org) => org.id === activeClientOrgId);
     return match?.companyName ?? null;
   }, [activeClientOrgId, clientOrgs]);
+
+  // Stale-id stuck-state: a persisted activeClientOrgId may point at a
+  // ClientOrganization that has since been deleted/revoked. Once the list
+  // has loaded and we can confirm there is no match, clear the stale id so
+  // every realm-scoped request stops 400ing and the user falls through to
+  // the "Select a client" CTA.
+  useEffect(() => {
+    if (activeClientOrgId === null) return;
+    if (!clientOrgs) return;
+    const stillExists = clientOrgs.some((org) => org.id === activeClientOrgId);
+    if (!stillExists) {
+      setActiveClientOrg(null);
+    }
+  }, [activeClientOrgId, clientOrgs, setActiveClientOrg]);
 
   if (activeClientOrgId === null) {
     // Until #152 wires the realm switcher, the CTA is a no-op. Render it

@@ -13,6 +13,7 @@ import {
 function clearActiveRealm() {
   window.history.replaceState({}, "", "/");
   window.localStorage.clear();
+  window.sessionStorage.clear();
 }
 
 describe("components/workspace/TenantBadge", () => {
@@ -24,9 +25,10 @@ describe("components/workspace/TenantBadge", () => {
     expect(badge).toHaveAttribute("aria-label", "Tenant Mahir & Co.");
   });
 
-  it("falls back to em-dash placeholder when tenant name is blank", () => {
+  it("renders an explicit 'Unknown tenant' placeholder when the tenant name is blank", () => {
+    // Whitespace-only fallback would mask the data-quality issue — surface it.
     render(<TenantBadge tenantName="   " />);
-    expect(screen.getByTestId("tenant-badge")).toHaveTextContent("—");
+    expect(screen.getByTestId("tenant-badge")).toHaveTextContent("Unknown tenant");
   });
 
   it("uses className-driven styling (no inline styles)", () => {
@@ -90,14 +92,20 @@ describe("components/workspace/ActiveRealmBadge", () => {
     expect(badge).toHaveTextContent("Loading");
   });
 
-  it("falls back to the raw clientOrgId when no matching org is in the list", () => {
-    setActiveClientOrgId("org-missing");
+  it("auto-clears a stale activeClientOrgId when the loaded list has no match", async () => {
+    // Boot with a persisted id that points at a deleted/revoked clientOrg.
+    // Once `clientOrgs` loads and we can confirm the id has no match, the
+    // badge should clear the stale id and fall through to the CTA branch
+    // instead of leaving the user stuck with every realm-scoped call 400ing.
+    setActiveClientOrgId("org-deleted");
     render(<ActiveRealmBadge clientOrgs={[{ id: "org-1", companyName: "Sharma" }]} />);
-    expect(screen.getByTestId("active-realm-badge")).toHaveTextContent("org-missing");
+    // Effect fires after first render — assert via findBy* so we wait.
+    await screen.findByTestId("select-client-cta");
+    expect(screen.queryByTestId("active-realm-badge")).not.toBeInTheDocument();
   });
 
-  it("reads the active id from the URL query parameter (URL > localStorage)", () => {
-    window.localStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, "from-storage");
+  it("reads the active id from the URL query parameter (URL > sessionStorage)", () => {
+    window.sessionStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, "from-storage");
     window.history.replaceState({}, "", `/?${ACTIVE_CLIENT_ORG_QUERY_PARAM}=from-url`);
     render(
       <ActiveRealmBadge
@@ -110,13 +118,23 @@ describe("components/workspace/ActiveRealmBadge", () => {
     expect(screen.getByTestId("active-realm-badge")).toHaveTextContent("URL-driven Co.");
   });
 
-  it("falls back to localStorage when the URL has no active id", () => {
-    window.localStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, "from-storage");
+  it("falls back to sessionStorage when the URL has no active id", () => {
+    window.sessionStorage.setItem(ACTIVE_CLIENT_ORG_STORAGE_KEY, "from-storage");
     render(
       <ActiveRealmBadge
         clientOrgs={[{ id: "from-storage", companyName: "Storage-driven Co." }]}
       />
     );
     expect(screen.getByTestId("active-realm-badge")).toHaveTextContent("Storage-driven Co.");
+  });
+
+  it("does not auto-clear while clientOrgs is still loading (undefined)", () => {
+    // While the list is still being fetched, we have no signal whether the
+    // active id is stale — leave it alone so the loading badge can render.
+    setActiveClientOrgId("org-pending");
+    render(<ActiveRealmBadge clientOrgs={undefined} />);
+    const badge = screen.getByTestId("active-realm-badge");
+    expect(badge).toHaveAttribute("data-loading", "true");
+    expect(window.sessionStorage.getItem(ACTIVE_CLIENT_ORG_STORAGE_KEY)).toBe("org-pending");
   });
 });
