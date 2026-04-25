@@ -93,20 +93,8 @@ const result = await generateDataset({
 console.log(`loaded ${result.invoiceCount} invoices in ${result.elapsedMs} ms`);
 ```
 
-Large datasets are **not** committed. To produce a JSON dump locally:
-
-```ts
-import { buildFixtures, dumpDataset } from "@/test-utils";
-const set = await buildFixtures({
-  tenants: 10,
-  vendorsPerTenant: 50,
-  invoicesPerVendor: 200
-});
-dumpDataset(set, "/tmp/ledgerbuddy-perf-dataset.json");
-```
-
-Then `loadDatasetFromFile("/tmp/...")` in the perf suite. The file is
-~30 MB per 10 k invoices.
+Large datasets are **not** committed — `generateDataset()` rebuilds them
+in-memory per perf run.
 
 ## File map
 
@@ -114,7 +102,7 @@ Then `loadDatasetFromFile("/tmp/...")` in the perf suite. The file is
 | --------------------------- | ---------------------------------------------------- |
 | `mongoTestHarness.ts`       | `startMongoHarness()` + `describeHarness()` Jest integration, Docker probe, replica-set boot |
 | `fixtures.ts`               | `buildFixtures()` deterministic tenant/vendor/invoice generator (reuses existing mongoose models — no schema duplication) |
-| `datasetLoader.ts`          | `generateDataset()` / `dumpDataset()` / `loadDatasetFromFile()` for INFRA-3 perf benchmarks |
+| `datasetLoader.ts`          | `generateDataset()` for INFRA-3 perf benchmarks      |
 | `index.ts`                  | Barrel re-export                                     |
 | `mongoTestHarness.test.ts`  | Dual-layer self-test (pure helpers + containerised)  |
 
