@@ -1,11 +1,38 @@
+import { readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import mongoose, { Types } from "mongoose";
 import { describeHarness } from "@/test-utils";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { TenantMailboxAssignmentModel } from "@/models/integration/TenantMailboxAssignment.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
 import { ClientOrgsAdminService } from "@/services/tenant/clientOrgsAdminService.js";
-import { CLIENT_ORG_DEPENDENT_MODELS } from "@/services/tenant/clientOrgDependents.js";
+import {
+  CLIENT_ORG_DEPENDENT_MODELS,
+  NON_REQUIRED_REGISTERED_MODELS
+} from "@/services/tenant/clientOrgDependents.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
+
+const MODELS_ROOT = join(__dirname, "..", "..", "models");
+const TEST_FILE_SUFFIXES = [".test.ts", ".test.js"] as const;
+const INDEX_FILES = ["index.ts", "index.js"] as const;
+
+function listModelFiles(root: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(root)) {
+    const full = join(root, entry);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      out.push(...listModelFiles(full));
+      continue;
+    }
+    if (!entry.endsWith(".ts") && !entry.endsWith(".js")) continue;
+    if (TEST_FILE_SUFFIXES.some((suffix) => entry.endsWith(suffix))) continue;
+    if (INDEX_FILES.includes(entry as (typeof INDEX_FILES)[number])) continue;
+    out.push(full);
+  }
+  return out;
+}
 
 const GSTIN_A = "29ABCDE1234F1Z5";
 const GSTIN_B = "07AABCC1234D1ZA";
@@ -137,6 +164,41 @@ describeHarness("ClientOrgsAdminService (#174)", ({ getHarness }) => {
       expect(reread?.archivedAt).toBeInstanceOf(Date);
     });
 
+    it("soft-archives when per-org TdsSectionMapping overrides exist (global defaults are not counted)", async () => {
+      const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
+      await TdsSectionMappingModel.create({
+        tenantId: null,
+        clientOrgId: null,
+        glCategory: "Professional",
+        panCategory: "I",
+        tdsSection: "194J",
+        priority: 0
+      });
+      await TdsSectionMappingModel.create({
+        tenantId: TENANT_A,
+        clientOrgId: a._id,
+        glCategory: "Professional",
+        panCategory: "I",
+        tdsSection: "194J",
+        priority: 10
+      });
+      await TdsSectionMappingModel.create({
+        tenantId: TENANT_A,
+        clientOrgId: a._id,
+        glCategory: "Rent",
+        panCategory: "I",
+        tdsSection: "194I",
+        priority: 10
+      });
+
+      const result = await service.deleteOrArchive({ tenantId: TENANT_A, clientOrgId: a._id.toString() });
+      expect(result.status).toBe("archived");
+      expect(result.linkedCounts.tdsSectionMappings).toBe(2);
+
+      const reread = await ClientOrganizationModel.findById(a._id).lean();
+      expect(reread?.archivedAt).toBeInstanceOf(Date);
+    });
+
     it("soft-archives when a mailbox-assignment references the org", async () => {
       const a = await ClientOrganizationModel.create({ tenantId: TENANT_A, gstin: GSTIN_A, companyName: "ACME" });
       await TenantMailboxAssignmentModel.create({
@@ -187,14 +249,29 @@ describeHarness("ClientOrgsAdminService (#174)", ({ getHarness }) => {
      * `CLIENT_ORG_DEPENDENT_MODELS`. Otherwise hard-delete will silently
      * orphan rows that then violate `validateClientOrgTenantInvariant`.
      *
-     * We rely on the fact that the registry imports every dependent
-     * model file at module-load — so by the time this test runs,
-     * Mongoose has registered every dependent. We then sweep
-     * `mongoose.modelNames()` and assert the set is a subset of the
-     * registry.
+     * Robustness: rather than relying on the registry transitively
+     * importing every dependent model file at module-load (which
+     * silently breaks when a contributor adds a new model and forgets
+     * to register it AND no other test imports it), we walk
+     * `backend/src/models/**` ourselves and dynamically import every
+     * model file before introspecting `mongoose.modelNames()`.
      */
+    beforeAll(async () => {
+      const files = listModelFiles(MODELS_ROOT);
+      await Promise.all(
+        files.map(async (file) => {
+          try {
+            await import(file);
+          } catch (error) {
+            throw new Error(
+              `Failed to dynamic-import model file ${file} for drift detection: ${(error as Error).message}`
+            );
+          }
+        })
+      );
+    });
+
     it("registers every required clientOrgId/clientOrgIds model loaded in mongoose", () => {
-      // Touch the registry to ensure every dependent file is module-loaded.
       expect(CLIENT_ORG_DEPENDENT_MODELS.length).toBeGreaterThan(0);
 
       const registeredNames = new Set(
@@ -214,10 +291,41 @@ describeHarness("ClientOrgsAdminService (#174)", ({ getHarness }) => {
           !!arrayPath && Boolean((arrayPath as unknown as { isRequired?: boolean }).isRequired);
 
         if (!singleRequired && !arrayRequired) continue;
-        if (!registeredNames.has(name)) missing.push(name);
+        if (!registeredNames.has(name)) {
+          missing.push(
+            `Model "${name}" has required clientOrgId but is missing from CLIENT_ORG_DEPENDENT_MODELS — add it to backend/src/services/tenant/clientOrgDependents.ts`
+          );
+        }
       }
 
       expect(missing).toEqual([]);
+    });
+
+    /**
+     * Guard the non-required allowlist: each model named in
+     * `NON_REQUIRED_REGISTERED_MODELS` must (a) actually be registered
+     * with Mongoose and (b) have a non-required `clientOrgId` /
+     * `clientOrgIds` path. If a contributor flips the schema to
+     * `required: true`, this test fires and the non-required entry
+     * should either be removed from the allowlist (now covered by the
+     * required-path drift assertion above) or reverted.
+     */
+    it("non-required allowlist entries stay non-required in their schemas", () => {
+      for (const name of NON_REQUIRED_REGISTERED_MODELS) {
+        expect(mongoose.modelNames()).toContain(name);
+        const schema = mongoose.model(name).schema;
+        const singlePath = schema.path("clientOrgId");
+        const arrayPath = schema.path("clientOrgIds");
+        const singleRequired =
+          !!singlePath && Boolean((singlePath as unknown as { isRequired?: boolean }).isRequired);
+        const arrayRequired =
+          !!arrayPath && Boolean((arrayPath as unknown as { isRequired?: boolean }).isRequired);
+        expect({ name, singleRequired, arrayRequired }).toEqual({
+          name,
+          singleRequired: false,
+          arrayRequired: false
+        });
+      }
     });
 
     /**
