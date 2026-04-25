@@ -2,7 +2,6 @@ import { Router } from "express";
 import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { getAuth } from "@/types/auth.js";
 
 const VALID_CSV_COLUMN_KEYS = new Set([
@@ -32,17 +31,17 @@ function validateCsvColumns(columns: unknown): string | null {
   return null;
 }
 
+// `mergeParams: true` lets this router read `:tenantId` and `:clientOrgId`
+// from the parent nested mount in app.ts. Tenant-vs-auth match and
+// clientOrg ownership are enforced by `requireMatchingTenantIdParam` and
+// `requirePathClientOrgOwnership` mounted on the parent router.
 export function createClientExportConfigRouter() {
-  const router = Router();
+  const router = Router({ mergeParams: true });
   router.use(requireAuth);
 
-  router.get("/tenant/:tenantId/export-config", requireActiveClientOrg, requireCap("canExportToTally"), async (req, res, next) => {
+  router.get("/export-config", requireCap("canExportToTally"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
-      if (auth.tenantId !== req.params.tenantId) {
-        res.status(403).json({ message: "Access denied to this tenant." });
-        return;
-      }
       const clientOrgId = req.activeClientOrgId!;
 
       const config = await ClientExportConfigModel.findOne({ tenantId: auth.tenantId, clientOrgId }).lean();
@@ -50,13 +49,9 @@ export function createClientExportConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.patch("/tenant/:tenantId/export-config", requireActiveClientOrg, requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.patch("/export-config", requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
-      if (auth.tenantId !== req.params.tenantId) {
-        res.status(403).json({ message: "Access denied to this tenant." });
-        return;
-      }
       const clientOrgId = req.activeClientOrgId!;
 
       const update: Record<string, unknown> = {};

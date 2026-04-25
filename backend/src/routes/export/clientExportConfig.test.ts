@@ -15,14 +15,14 @@ describe("clientExportConfig routes", () => {
     jest.restoreAllMocks();
   });
 
-  describe("GET /tenant/:tenantId/export-config", () => {
+  describe("GET /export-config", () => {
     it("returns empty object when no config exists", async () => {
       jest.spyOn(ClientExportConfigModel, "findOne").mockReturnValue({
         lean: jest.fn().mockResolvedValue(null)
       } as never);
 
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "get", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "get", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -46,7 +46,7 @@ describe("clientExportConfig routes", () => {
       } as never);
 
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "get", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "get", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -59,22 +59,9 @@ describe("clientExportConfig routes", () => {
       expect(res.jsonBody).toEqual(existing);
     });
 
-    it("returns 403 when tenantId does not match auth context", async () => {
-      const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "get", "/tenant/:tenantId/export-config");
-      const res = mockResponse();
-
-      await handler(
-        authedReq({ params: { tenantId: "other-tenant" } }),
-        res,
-        jest.fn()
-      );
-
-      expect(res.statusCode).toBe(403);
-    });
   });
 
-  describe("PATCH /tenant/:tenantId/export-config", () => {
+  describe("PATCH /export-config", () => {
     it("upserts config with valid tally fields", async () => {
       const saved = {
         tenantId: "tenant-a",
@@ -84,7 +71,7 @@ describe("clientExportConfig routes", () => {
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "patch", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -105,7 +92,7 @@ describe("clientExportConfig routes", () => {
 
     it("validates csvColumns entries", async () => {
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "patch", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -130,7 +117,7 @@ describe("clientExportConfig routes", () => {
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "patch", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -151,7 +138,7 @@ describe("clientExportConfig routes", () => {
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "patch", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -177,7 +164,7 @@ describe("clientExportConfig routes", () => {
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockResolvedValue(saved as never);
 
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "patch", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -198,7 +185,7 @@ describe("clientExportConfig routes", () => {
 
     it("returns 400 when no valid fields provided", async () => {
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "patch", "/export-config");
       const res = mockResponse();
 
       await handler(
@@ -212,28 +199,12 @@ describe("clientExportConfig routes", () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it("returns 403 when tenantId does not match auth context", async () => {
-      const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
-      const res = mockResponse();
-
-      await handler(
-        authedReq({ params: { tenantId: "other-tenant" },
-          body: { tallyCompanyName: "Hijack" }
-        }),
-        res,
-        jest.fn()
-      );
-
-      expect(res.statusCode).toBe(403);
-    });
-
     it("calls next with error when findOneAndUpdate throws", async () => {
       const thrownError = new Error("MongoDB failure");
       jest.spyOn(ClientExportConfigModel, "findOneAndUpdate").mockRejectedValue(thrownError as never);
 
       const router = createClientExportConfigRouter();
-      const handler = findHandler(router, "patch", "/tenant/:tenantId/export-config");
+      const handler = findHandler(router, "patch", "/export-config");
       const res = mockResponse();
       const next = jest.fn();
 
