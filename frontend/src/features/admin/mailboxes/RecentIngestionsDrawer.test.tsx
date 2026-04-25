@@ -198,4 +198,13 @@ describe("features/admin/mailboxes/RecentIngestionsDrawer — 4-state contract",
     renderDrawer({ assignmentId: null });
     expect(fetchMailboxRecentIngestions).not.toHaveBeenCalled();
   });
+
+  it("renders the multi-mailbox overlap caveat footnote (#181) in every view", async () => {
+    fetchMailboxRecentIngestions.mockImplementation(() => new Promise(() => {}));
+    renderDrawer();
+    const footnote = screen.getByTestId("recent-ingestions-footnote");
+    expect(footnote).toHaveTextContent(
+      /counts may overlap if the same client organization is mapped to multiple mailboxes \(#181\)\./i
+    );
+  });
 });

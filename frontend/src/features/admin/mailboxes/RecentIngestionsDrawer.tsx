@@ -146,6 +146,13 @@ export function RecentIngestionsDrawer({
             </ul>
           </>
         ) : null}
+
+        <p
+          className="recent-ingestions-drawer-footnote"
+          data-testid="recent-ingestions-footnote"
+        >
+          Counts may overlap if the same client organization is mapped to multiple mailboxes (#181).
+        </p>
       </div>
     </SlideOverPanel>
   );

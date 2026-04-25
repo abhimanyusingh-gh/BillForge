@@ -4935,6 +4935,13 @@ pre {
   margin-left: auto;
 }
 
+.recent-ingestions-drawer-footnote {
+  margin-top: var(--sp-4);
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
 .mailboxes-form {
   display: flex;
   flex-direction: column;
