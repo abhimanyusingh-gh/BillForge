@@ -120,8 +120,17 @@ jest.mock("@/models/compliance/VendorMaster.js", () => ({
 
 jest.mock("@/services/invoice/approvalWorkflowService.js", () => {
   class MockApprovalWorkflowService {
-    async saveWorkflowConfig(tenantId: string, config: Record<string, unknown>, userId: string) {
-      const entry = upsertInto(workflowStore, { tenantId }, { $set: { ...config, updatedBy: userId, tenantId } });
+    async saveWorkflowConfig(
+      tenantId: string,
+      clientOrgId: Types.ObjectId,
+      config: Record<string, unknown>,
+      userId: string
+    ) {
+      const entry = upsertInto(
+        workflowStore,
+        { tenantId, clientOrgId },
+        { $set: { ...config, updatedBy: userId, tenantId, clientOrgId } }
+      );
       return entry;
     }
   }

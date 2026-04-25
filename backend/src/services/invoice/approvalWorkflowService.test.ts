@@ -23,9 +23,11 @@ import { HttpError } from "@/errors/HttpError.js";
 import { ApprovalWorkflowService } from "@/services/invoice/approvalWorkflowService.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { toUUID } from "@/types/uuid.js";
+import { Types } from "mongoose";
 
 const TENANT_ID = toUUID("tenant-001");
 const USER_ID = toUUID("user-001");
+const CLIENT_ORG_ID = new Types.ObjectId();
 const WORKFLOW_ID = "workflow-001";
 const INVOICE_ID = "invoice-001";
 
@@ -497,7 +499,7 @@ describe("ApprovalWorkflowService", () => {
       const savedDoc = makeWorkflowDoc({ mode: "simple", steps: [{ order: 1, name: "Team member approval", approverType: "any_member", rule: "any" }, { order: 2, name: "Manager review", approverType: "role", approverRole: "TENANT_ADMIN", rule: "any" }] });
       (ApprovalWorkflowModel.findOneAndUpdate as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(savedDoc) });
 
-      const result = await service.saveWorkflowConfig(TENANT_ID, config, USER_ID);
+      const result = await service.saveWorkflowConfig(TENANT_ID, CLIENT_ORG_ID, config, USER_ID);
       const call = (ApprovalWorkflowModel.findOneAndUpdate as jest.Mock).mock.calls[0];
       const passedSteps = call[1].steps;
       expect(passedSteps).toHaveLength(2);
@@ -518,7 +520,7 @@ describe("ApprovalWorkflowService", () => {
       const savedDoc = makeWorkflowDoc({ mode: "advanced", steps: advancedSteps });
       (ApprovalWorkflowModel.findOneAndUpdate as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(savedDoc) });
 
-      await service.saveWorkflowConfig(TENANT_ID, config, USER_ID);
+      await service.saveWorkflowConfig(TENANT_ID, CLIENT_ORG_ID, config, USER_ID);
       const call = (ApprovalWorkflowModel.findOneAndUpdate as jest.Mock).mock.calls[0];
       expect(call[1].steps).toBe(advancedSteps);
     });
@@ -534,10 +536,10 @@ describe("ApprovalWorkflowService", () => {
       (ApprovalWorkflowModel.findOneAndUpdate as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(savedDoc) });
       (InvoiceModel.updateMany as jest.Mock).mockResolvedValue({ modifiedCount: 3 });
 
-      await service.saveWorkflowConfig(TENANT_ID, config, USER_ID);
+      await service.saveWorkflowConfig(TENANT_ID, CLIENT_ORG_ID, config, USER_ID);
 
       expect(InvoiceModel.updateMany).toHaveBeenCalledWith(
-        { tenantId: TENANT_ID, status: INVOICE_STATUS.AWAITING_APPROVAL },
+        { tenantId: TENANT_ID, clientOrgId: CLIENT_ORG_ID, status: INVOICE_STATUS.AWAITING_APPROVAL },
         expect.objectContaining({
           $set: { status: INVOICE_STATUS.NEEDS_REVIEW },
           $unset: { workflowState: "" },
@@ -556,7 +558,7 @@ describe("ApprovalWorkflowService", () => {
       const savedDoc = makeWorkflowDoc({ enabled: true });
       (ApprovalWorkflowModel.findOneAndUpdate as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(savedDoc) });
 
-      await service.saveWorkflowConfig(TENANT_ID, config, USER_ID);
+      await service.saveWorkflowConfig(TENANT_ID, CLIENT_ORG_ID, config, USER_ID);
       expect(InvoiceModel.updateMany).not.toHaveBeenCalled();
     });
 
@@ -570,7 +572,7 @@ describe("ApprovalWorkflowService", () => {
       const savedDoc = makeWorkflowDoc({ simpleConfig: undefined, steps: undefined });
       (ApprovalWorkflowModel.findOneAndUpdate as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(savedDoc) });
 
-      const result = await service.saveWorkflowConfig(TENANT_ID, config, USER_ID);
+      const result = await service.saveWorkflowConfig(TENANT_ID, CLIENT_ORG_ID, config, USER_ID);
       expect(result.simpleConfig.requireManagerReview).toBe(false);
       expect(result.simpleConfig.requireFinalSignoff).toBe(false);
       expect(result.steps).toEqual([]);
@@ -588,7 +590,7 @@ describe("ApprovalWorkflowService", () => {
       (InvoiceModel.updateMany as jest.Mock).mockResolvedValue({ modifiedCount: 0 });
 
       const { logger } = jest.requireMock("../../utils/logger.js");
-      await service.saveWorkflowConfig(TENANT_ID, config, USER_ID);
+      await service.saveWorkflowConfig(TENANT_ID, CLIENT_ORG_ID, config, USER_ID);
       expect(logger.info).not.toHaveBeenCalledWith("workflow.disabled.invoices_reverted", expect.anything());
     });
   });

@@ -406,7 +406,7 @@ Response:
 </COLLECTION>
 ```
 
-Use the `<GUID>` as the tenant-to-Tally-company binding. Persist it on `ClientExportConfig`; if at next session the returned company GUID differs, flag the tenant — the user has switched / renamed the company and all ledger mappings are suspect.
+Use the `<GUID>` as the ClientOrganization-to-Tally-company binding (post-hierarchy-pivot, Tally companies map 1:1 to ClientOrganizations under a tenant). Persist it on `ClientExportConfig` keyed by `{tenantId, clientOrgId}`; if at next session the returned company GUID differs, flag the realm — the user has switched / renamed the company and all ledger mappings for that ClientOrganization are suspect.
 
 ---
 
@@ -726,7 +726,7 @@ User clicks "Done"
 Cache policy:
 - Ledger list refresh **TTL: 24h** OR on manual user action OR on export precheck miss.
 - Company identity: verify GUID on every session start; mismatch → block exports + alert.
-- AlterID cursor persisted per-collection per-tenant.
+- AlterID cursor persisted per-collection per `{tenantId, clientOrgId}` (one cursor per ClientOrganization realm — Tally companies map 1:1 to ClientOrganizations post-hierarchy-pivot).
 
 ### 9.2 Pre-export vendor-existence check
 
@@ -780,8 +780,8 @@ Round-trip budget:
 **Algorithm** (uses AlterID cursor):
 
 ```
-lastLedgerAlterId   = TenantSyncState.lastLedgerAlterId   // per tenant
-lastVoucherAlterId  = TenantSyncState.lastVoucherAlterId
+lastLedgerAlterId   = ClientOrgSyncState.lastLedgerAlterId   // per {tenantId, clientOrgId}
+lastVoucherAlterId  = ClientOrgSyncState.lastVoucherAlterId
 
 QUERY Collection "Ledger" WHERE Parent="Sundry Creditors" 
                            AND  BelongsTo=Yes 

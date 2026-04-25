@@ -314,12 +314,14 @@ async function seedApprovalLimits(tenantId: string): Promise<void> {
 
 async function seedApprovalWorkflow(
   tenantId: string,
+  clientOrgId: Types.ObjectId,
   mahirUserId: string,
   cfoUserId: string
 ): Promise<void> {
   const service = new ApprovalWorkflowService();
   await service.saveWorkflowConfig(
     tenantId,
+    clientOrgId,
     {
       enabled: true,
       mode: "advanced",
@@ -397,7 +399,7 @@ export async function seedDemoTenantConfig(
   await seedExportConfig(tenantId, clientOrgId);
   await seedVendorMasters(tenantId);
   await seedApprovalLimits(tenantId);
-  await seedApprovalWorkflow(tenantId, mahirUserId, cfoUserId);
+  await seedApprovalWorkflow(tenantId, clientOrgId, mahirUserId, cfoUserId);
 
   logger.info("demo.seed.complete", { tenantId, clientOrgId: String(clientOrgId) });
 }

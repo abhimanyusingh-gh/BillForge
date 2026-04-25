@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { toUUID } from "@/types/uuid.js";
 
@@ -9,6 +10,8 @@ export const defaultAuth = {
   role: "TENANT_ADMIN",
   isPlatformAdmin: false
 };
+
+export const DEFAULT_ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000aa");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function findHandler(router: any, method: string, path: string): Function {
@@ -42,6 +45,7 @@ export function mockRequest(overrides: Record<string, unknown> = {}) {
     query: {},
     params: {},
     body: {},
+    activeClientOrgId: DEFAULT_ACTIVE_CLIENT_ORG_ID,
     on(event: string, cb: Function) {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(cb);

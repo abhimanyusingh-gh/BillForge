@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { ApprovalWorkflowModel, WORKFLOW_STATUS, WORKFLOW_STEP_ACTION, type WorkflowStatus, type WorkflowStepAction } from "@/models/invoice/ApprovalWorkflow.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { TenantAssignableRoles, TenantUserRoleModel, normalizeTenantRole } from "@/models/core/TenantUserRole.js";
@@ -99,18 +100,23 @@ export class ApprovalWorkflowService {
     };
   }
 
-  async saveWorkflowConfig(tenantId: string, config: WorkflowConfig, userId: string): Promise<WorkflowConfig> {
+  async saveWorkflowConfig(
+    tenantId: string,
+    clientOrgId: Types.ObjectId,
+    config: WorkflowConfig,
+    userId: string
+  ): Promise<WorkflowConfig> {
     const steps = config.mode === "simple" ? this.buildSimpleSteps(config.simpleConfig) : config.steps;
 
     const doc = await ApprovalWorkflowModel.findOneAndUpdate(
-      { tenantId },
-      { tenantId, enabled: config.enabled, mode: config.mode, simpleConfig: config.simpleConfig, steps, updatedBy: userId },
+      { tenantId, clientOrgId },
+      { tenantId, clientOrgId, enabled: config.enabled, mode: config.mode, simpleConfig: config.simpleConfig, steps, updatedBy: userId },
       { upsert: true, new: true }
     ).lean();
 
     if (config.enabled === false) {
       const result = await InvoiceModel.updateMany(
-        { tenantId, status: INVOICE_STATUS.AWAITING_APPROVAL },
+        { tenantId, clientOrgId, status: INVOICE_STATUS.AWAITING_APPROVAL },
         {
           $set: { status: INVOICE_STATUS.NEEDS_REVIEW },
           $unset: { workflowState: "" },
@@ -118,7 +124,11 @@ export class ApprovalWorkflowService {
         }
       );
       if (result.modifiedCount > 0) {
-        logger.info("workflow.disabled.invoices_reverted", { tenantId, count: result.modifiedCount });
+        logger.info("workflow.disabled.invoices_reverted", {
+          tenantId,
+          clientOrgId: String(clientOrgId),
+          count: result.modifiedCount
+        });
       }
     }
 

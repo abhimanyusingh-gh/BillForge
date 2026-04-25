@@ -158,11 +158,13 @@ export function createApprovalWorkflowRouter(workflowService: ApprovalWorkflowSe
         }
       }
 
+      const activeClientOrgId = req.activeClientOrgId!;
       const previousConfig = await workflowService.getWorkflowConfig(context.tenantId);
       const newConfig = { enabled, mode, simpleConfig, steps };
 
       const result = await workflowService.saveWorkflowConfig(
         context.tenantId,
+        activeClientOrgId,
         newConfig,
         context.userId
       );
