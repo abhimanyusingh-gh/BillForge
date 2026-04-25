@@ -4,14 +4,14 @@ import { Router } from "express";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { generateCsvExport } from "@/services/export/csvExporter.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 
+// `mergeParams: true` lets this router read `:tenantId` and `:clientOrgId`
+// from the parent nested mount in app.ts.
 export function createCsvExportRouter() {
-  const router = Router();
+  const router = Router({ mergeParams: true });
   router.use(requireAuth);
-  router.use(requireActiveClientOrg);
 
   router.post("/exports/csv", requireCap("canExportToCsv"), async (req, res, next) => {
     try {
