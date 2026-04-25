@@ -130,7 +130,7 @@ describe("features/admin/mailboxes/RecentIngestionsDrawer — 4-state contract",
           {
             _id: "inv-2",
             clientOrgId: "org-2",
-            status: "TRIAGE",
+            status: "PENDING_TRIAGE",
             attachmentName: null,
             receivedAt: null,
             createdAt: null,
@@ -153,6 +153,10 @@ describe("features/admin/mailboxes/RecentIngestionsDrawer — 4-state contract",
     expect(screen.getByTestId("recent-ingestions-summary")).toHaveTextContent(
       /2 ingestions in the last 30 days/i
     );
+    expect(screen.getByTestId("recent-ingestions-row-inv-1")).toHaveTextContent("Processed");
+    expect(screen.getByTestId("recent-ingestions-row-inv-1")).not.toHaveTextContent("PARSED");
+    expect(screen.getByTestId("recent-ingestions-row-inv-2")).toHaveTextContent("Triage");
+    expect(screen.getByTestId("recent-ingestions-row-inv-2")).not.toHaveTextContent("PENDING_TRIAGE");
   });
 
   it("shows the truncation banner when total > items length", async () => {

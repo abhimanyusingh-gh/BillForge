@@ -3,6 +3,7 @@ import { Badge, Button, Spinner } from "@/components/ds";
 import { SlideOverPanel } from "@/components/ds/SlideOverPanel";
 import { useRecentIngestions } from "@/hooks/useRecentIngestions";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
+import { getInvoiceStatusPresentation } from "@/features/admin/mailboxes/recentIngestionStatus";
 import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 import type { MailboxRecentIngestionItem } from "@/api/mailboxAssignments";
 
@@ -173,8 +174,8 @@ function RecentIngestionRow({
       </div>
       <div className="recent-ingestions-drawer-row-meta">
         {item.status ? (
-          <Badge tone="neutral" size="sm">
-            {item.status}
+          <Badge tone={getInvoiceStatusPresentation(item.status).tone} size="sm">
+            {getInvoiceStatusPresentation(item.status).label}
           </Badge>
         ) : null}
         {clientOrgName ? (
