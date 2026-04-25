@@ -56,7 +56,7 @@ export function setActiveClientOrgId(id: string | null) {
   window.dispatchEvent(new CustomEvent(ADMIN_CLIENT_ORG_CHANGE_EVENT));
 }
 
-export interface UseActiveClientOrgResult {
+interface UseActiveClientOrgResult {
   activeClientOrgId: string | null;
   setActiveClientOrg: (id: string | null) => void;
 }

@@ -32,7 +32,7 @@ function writeToUrl(id: string | null) {
   window.dispatchEvent(new CustomEvent(ACTIVE_CLIENT_ORG_CHANGE_EVENT));
 }
 
-export interface UseAdminClientOrgFilterResult {
+interface UseAdminClientOrgFilterResult {
   clientOrgId: string | null;
   setClientOrgId: (id: string | null) => void;
 }

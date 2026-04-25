@@ -7,7 +7,7 @@ export const TRIAGE_REJECT_REASON = {
 
 export type TriageRejectReason = typeof TRIAGE_REJECT_REASON[keyof typeof TRIAGE_REJECT_REASON];
 
-export interface TriageRejectReasonOption {
+interface TriageRejectReasonOption {
   value: TriageRejectReason;
   label: string;
   requiresFreeText: boolean;

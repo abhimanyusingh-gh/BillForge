@@ -7,16 +7,6 @@ import { MissingActiveClientOrgError } from "@/api/errors";
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
 
-export {
-  REALM_SCOPED_PATH_PREFIXES,
-  REALM_SCOPED_PATH_BYPASS_PREFIXES,
-  TENANT_SCOPED_PATH_PREFIXES,
-  classifyApiPath,
-  isRealmScopedPath
-} from "@/api/classifyApiPath";
-export type { RealmScope } from "@/api/classifyApiPath";
-export { MissingActiveClientOrgError } from "@/api/errors";
-
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
 apiClient.interceptors.request.use((config) => {

@@ -4,7 +4,7 @@ import { TenantBadge, ActiveRealmBadge, type ClientOrgOption } from "@/component
 import { RealmSwitcher } from "@/features/workspace/RealmSwitcher";
 import { useTenantClientOrgs } from "@/hooks/useTenantClientOrgs";
 
-export const REALM_SWITCHER_SHORTCUT = {
+const REALM_SWITCHER_SHORTCUT = {
   key: "k",
   withMeta: true
 } as const;

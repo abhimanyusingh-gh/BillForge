@@ -17,9 +17,9 @@ export const BADGE_SIZE = {
   md: "md"
 } as const;
 
-export type BadgeSize = keyof typeof BADGE_SIZE;
+type BadgeSize = keyof typeof BADGE_SIZE;
 
-export interface BadgeProps {
+interface BadgeProps {
   tone?: BadgeTone;
   size?: BadgeSize;
   icon?: string;

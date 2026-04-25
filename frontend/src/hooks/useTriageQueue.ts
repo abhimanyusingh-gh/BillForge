@@ -10,7 +10,7 @@ import {
 // because the mailbox couldn't decide which realm they belong to. Documented
 // exception per #156. We deliberately use plain `useQuery` (NOT `useScopedQuery`)
 // so the request fires regardless of which (if any) realm is active.
-export interface UseTriageQueueResult {
+interface UseTriageQueueResult {
   invoices: TriageInvoice[];
   total: number;
   isLoading: boolean;

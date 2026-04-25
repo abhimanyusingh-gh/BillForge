@@ -8,16 +8,16 @@ export const BUTTON_VARIANT = {
   ghost: "ghost"
 } as const;
 
-export type ButtonVariant = keyof typeof BUTTON_VARIANT;
+type ButtonVariant = keyof typeof BUTTON_VARIANT;
 
 export const BUTTON_SIZE = {
   sm: "sm",
   md: "md"
 } as const;
 
-export type ButtonSize = keyof typeof BUTTON_SIZE;
+type ButtonSize = keyof typeof BUTTON_SIZE;
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
