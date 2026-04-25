@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const csvColumnSchema = new Schema(
   {
@@ -8,9 +9,10 @@ const csvColumnSchema = new Schema(
   { _id: false }
 );
 
-const tenantExportConfigSchema = new Schema(
+const clientExportConfigSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     tallyCompanyName: { type: String },
     tallyPurchaseLedger: { type: String },
     tallyCgstLedger: { type: String },
@@ -24,8 +26,12 @@ const tenantExportConfigSchema = new Schema(
   { timestamps: true }
 );
 
-tenantExportConfigSchema.index({ tenantId: 1 }, { unique: true });
+clientExportConfigSchema.index({ tenantId: 1, clientOrgId: 1 }, { unique: true });
 
-type TenantExportConfig = InferSchemaType<typeof tenantExportConfigSchema>;
+clientExportConfigSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
 
-export const TenantExportConfigModel = model<TenantExportConfig>("TenantExportConfig", tenantExportConfigSchema);
+type ClientExportConfig = InferSchemaType<typeof clientExportConfigSchema>;
+
+export const ClientExportConfigModel = model<ClientExportConfig>("ClientExportConfig", clientExportConfigSchema);

@@ -1,6 +1,7 @@
 import { ApprovalWorkflowModel } from "@/models/invoice/ApprovalWorkflow.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { TenantModel } from "@/models/core/Tenant.js";
+import { findTenantIdsByClientOrgIds } from "@/services/auth/tenantScope.js";
 import { APPROVAL_STEP_TYPE, APPROVER_TYPE, type WorkflowStep, type Workflow } from "@/types/approvalWorkflow.js";
 
 interface StepFinding {
@@ -12,6 +13,7 @@ interface StepFinding {
 
 interface TenantWorkflowHealthResult {
   tenantId: string;
+  clientOrgId: string;
   tenantName: string;
   enabled: boolean;
   mode: string;
@@ -123,17 +125,19 @@ export async function scanWorkflowStep(
 
 export async function scanWorkflowForTenant(
   workflow: Workflow,
+  tenantId: string,
   tenantName: string
 ): Promise<TenantWorkflowHealthResult> {
   const findings: StepFinding[] = [];
 
   for (const step of workflow.steps) {
-    const stepFindings = await scanWorkflowStep(step, workflow.tenantId);
+    const stepFindings = await scanWorkflowStep(step, tenantId);
     findings.push(...stepFindings);
   }
 
   return {
-    tenantId: workflow.tenantId,
+    tenantId,
+    clientOrgId: workflow.clientOrgId,
     tenantName,
     enabled: workflow.enabled,
     mode: workflow.mode,
@@ -144,8 +148,15 @@ export async function scanWorkflowForTenant(
 
 export async function scanAllWorkflows(): Promise<WorkflowHealthReport> {
   const workflows = await ApprovalWorkflowModel.find({}).lean();
-  const tenantIds = workflows.map((w) => w.tenantId);
-  const tenants = await TenantModel.find({ _id: { $in: tenantIds } }, { name: 1 }).lean();
+  // Post hierarchy-pivot: workflows key by `clientOrgId`, tenant is
+  // resolved via `ClientOrganization.tenantId`.
+  const clientOrgIds = workflows.map((w) => w.clientOrgId);
+  const clientOrgToTenant = await findTenantIdsByClientOrgIds(clientOrgIds);
+  const uniqueTenantIds = Array.from(new Set(clientOrgToTenant.values()));
+  const tenants = await TenantModel.find(
+    { _id: { $in: uniqueTenantIds } },
+    { name: 1 }
+  ).lean();
   const tenantNameMap = new Map<string, string>();
   for (const t of tenants) {
     tenantNameMap.set(String(t._id), t.name);
@@ -153,9 +164,16 @@ export async function scanAllWorkflows(): Promise<WorkflowHealthReport> {
 
   const results: TenantWorkflowHealthResult[] = [];
   for (const workflow of workflows) {
-    const tenantName = tenantNameMap.get(workflow.tenantId) ?? "Unknown";
+    const tenantId = clientOrgToTenant.get(String(workflow.clientOrgId)) ?? "";
+    const tenantName = tenantNameMap.get(tenantId) ?? "Unknown";
     const result = await scanWorkflowForTenant(
-      workflow as unknown as Workflow,
+      {
+        clientOrgId: String(workflow.clientOrgId),
+        enabled: workflow.enabled,
+        mode: workflow.mode,
+        steps: workflow.steps as unknown as Workflow["steps"]
+      },
+      tenantId,
       tenantName
     );
     results.push(result);

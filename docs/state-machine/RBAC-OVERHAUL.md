@@ -180,7 +180,7 @@ Legacy `MEMBER/VIEWER` role values are retired and no longer accepted in runtime
 | `routes/tdsRates.ts` | `requireCap("canConfigureTdsMappings")` |
 | `routes/tenantAdmin.ts` | `requireCap("canManageUsers")` |
 | `routes/approvalWorkflow.ts` | `requireCap("canConfigureWorkflow")` |
-| `routes/tenantComplianceConfig.ts` | `requireCap("canConfigureCompliance")` |
+| `routes/clientComplianceConfig.ts` | `requireCap("canConfigureCompliance")` |
 | `routes/costCenters.ts` | `requireCap("canManageCostCenters")` |
 | `routes/complianceReports.ts` | `requireCap("canDownloadComplianceReports")` |
 | `routes/vendorCommunication.ts` | `requireCap("canSendVendorEmails")` |

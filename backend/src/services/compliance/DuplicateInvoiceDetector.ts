@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
@@ -7,6 +8,7 @@ import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 export class DuplicateInvoiceDetector {
   async check(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorName: string | undefined,
     invoiceNumber: string | undefined,
     currentContentHash: string | undefined,
@@ -16,6 +18,7 @@ export class DuplicateInvoiceDetector {
 
     const query: Record<string, unknown> = {
       tenantId,
+      clientOrgId,
       "parsed.vendorName": vendorName,
       "parsed.invoiceNumber": invoiceNumber,
       status: { $ne: INVOICE_STATUS.PENDING }

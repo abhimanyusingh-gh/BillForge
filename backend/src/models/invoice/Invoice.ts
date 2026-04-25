@@ -1,7 +1,8 @@
 import { Schema, model, type InferSchemaType, type HydratedDocument } from "mongoose";
-import { InvoiceStatuses, GL_CODE_SOURCE } from "@/types/invoice.js";
+import { InvoiceStatuses, INVOICE_STATUS, GL_CODE_SOURCE } from "@/types/invoice.js";
 import { ConfidenceTones } from "@/types/confidence.js";
 import { WorkloadTiers } from "@/types/tenant.js";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const ocrBlockSchema = new Schema(
   {
@@ -144,7 +145,28 @@ const invoiceExportSchema = new Schema(
 
 const invoiceSchema = new Schema(
   {
-    tenantId: { type: String, required: true, default: "default" },
+    /**
+     * Owning tenant. Always required — the mailbox assignment / upload
+     * route resolves tenant ownership before the invoice is persisted,
+     * even in PENDING_TRIAGE where `clientOrgId` is deferred. Together
+     * with `clientOrgId` it forms the composite access-control key; see
+     * #156 for the invariant contract.
+     */
+    tenantId: { type: String, required: true },
+    /**
+     * Owning client-org. Conditionally required (#159): null is only
+     * permitted when `status === PENDING_TRIAGE` — the polled-ingestion
+     * triage state in which a human operator assigns the client-org via
+     * UI before the invoice progresses. Every non-triage path must
+     * resolve a `clientOrgId` up-front.
+     */
+    clientOrgId: {
+      type: Schema.Types.ObjectId,
+      ref: "ClientOrganization",
+      required: function (this: { status?: string }) {
+        return this.status !== INVOICE_STATUS.PENDING_TRIAGE;
+      }
+    },
     workloadTier: { type: String, enum: WorkloadTiers, required: true, default: "standard" },
     sourceType: { type: String, required: true },
     sourceKey: { type: String, required: true },
@@ -381,31 +403,52 @@ const invoiceSchema = new Schema(
   }
 );
 
+invoiceSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(
+    this.tenantId,
+    this.clientOrgId,
+    this.status
+  );
+});
+
 invoiceSchema.index(
   {
-    tenantId: 1,
+    clientOrgId: 1,
     sourceType: 1,
     sourceKey: 1,
     sourceDocumentId: 1,
     attachmentName: 1
   },
-  { unique: true }
+  {
+    unique: true,
+    // Triage-state docs carry `clientOrgId: null` (#159) — exclude them
+    // from the uniqueness constraint; once triage assigns the client-org
+    // the doc re-enters the index naturally.
+    partialFilterExpression: { clientOrgId: { $type: "objectId" } }
+  }
 );
 
 invoiceSchema.index(
-  { tenantId: 1, gmailMessageId: 1 },
+  { clientOrgId: 1, gmailMessageId: 1 },
   { unique: true, partialFilterExpression: { gmailMessageId: { $type: "string" } } }
 );
-invoiceSchema.index({ tenantId: 1, "approval.userId": 1 });
-invoiceSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
-invoiceSchema.index({ tenantId: 1, createdAt: 1 });
-invoiceSchema.index({ tenantId: 1, "approval.approvedAt": 1 });
-invoiceSchema.index({ tenantId: 1, "export.exportedAt": 1 });
-invoiceSchema.index({ tenantId: 1, "parsed.vendorName": 1, status: 1 });
-// Compound index for reconciliation candidate fetch: filter by tenant, status, and amount range
-invoiceSchema.index({ tenantId: 1, status: 1, "parsed.totalAmountMinor": 1 });
-// Sparse index for reconciliation GSTIN-filtered candidate fetch
-invoiceSchema.index({ tenantId: 1, "parsed.gst.gstin": 1 }, { sparse: true });
+invoiceSchema.index({ clientOrgId: 1, "approval.userId": 1 });
+invoiceSchema.index({ clientOrgId: 1, status: 1, createdAt: -1 });
+invoiceSchema.index({ clientOrgId: 1, createdAt: 1 });
+invoiceSchema.index({ clientOrgId: 1, "approval.approvedAt": 1 });
+invoiceSchema.index({ clientOrgId: 1, "export.exportedAt": 1 });
+invoiceSchema.index({ clientOrgId: 1, "parsed.vendorName": 1, status: 1 });
+// Reconciliation candidate fetch: filter by client-org, status, amount range.
+invoiceSchema.index({ clientOrgId: 1, status: 1, "parsed.totalAmountMinor": 1 });
+// Sparse GSTIN-filtered index for reconciliation.
+invoiceSchema.index({ clientOrgId: 1, "parsed.gst.gstin": 1 }, { sparse: true });
+// Triage queue index — scans the triage bucket per tenant via the
+// mailbox assignment's own `tenantId`; this index supports "all triage
+// invoices across my client-orgs" by status alone.
+invoiceSchema.index(
+  { status: 1, createdAt: 1 },
+  { partialFilterExpression: { status: INVOICE_STATUS.PENDING_TRIAGE } }
+);
 
 type Invoice = InferSchemaType<typeof invoiceSchema>;
 export type InvoiceDocument = HydratedDocument<Invoice>;

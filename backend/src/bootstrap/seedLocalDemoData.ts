@@ -9,12 +9,58 @@ import type { FileStore } from "@/core/interfaces/FileStore.js";
 import { seedTdsRates } from "@/bootstrap/seedTdsRates.js";
 import { getRoleDefaults } from "@/auth/personaDefaults.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
 import { seedDemoInvoices } from "@/bootstrap/seedDemoInvoices.js";
 import { env } from "@/config/env.js";
 
 interface SeedLocalDemoDataOptions {
   fileStore?: FileStore;
+}
+
+/**
+ * Demo `ClientOrganization` for the Mahir / Neelam and Associates CA-firm
+ * tenant. Mirrors the customer entity on the baked Sprinto invoice
+ * (`INV-FY2526-939`) — Global Innovation Hub Private Limited, Telangana
+ * (state-code prefix `36`).
+ *
+ * Locked decision (#156, 2026-04-24): production tenants do NOT get an
+ * auto-created placeholder ClientOrg; they must onboard via the #150 wizard.
+ * The demo tenant is the explicit exception so the local stack boots with a
+ * fully-wired realm out of the box.
+ */
+export const DEMO_CLIENT_ORG_GSTIN = "36AAKCG4810D1ZV";
+const DEMO_CLIENT_ORG_NAME = "Global Innovation Hub Private Limited";
+const DEMO_CLIENT_ORG_STATE = "Telangana";
+
+/**
+ * Idempotently seeds the demo tenant's `ClientOrganization`. Reuses the
+ * existing doc when a `{ tenantId, gstin }` row already exists. `companyGuid`
+ * + `detectedVersion` are deliberately left null at seed time — both are
+ * populated post-Tally probe in the live flow.
+ */
+export async function seedDemoClientOrganization(
+  tenantId: string
+): Promise<Types.ObjectId> {
+  const doc = await ClientOrganizationModel.findOneAndUpdate(
+    { tenantId, gstin: DEMO_CLIENT_ORG_GSTIN },
+    {
+      $setOnInsert: {
+        tenantId,
+        gstin: DEMO_CLIENT_ORG_GSTIN,
+        companyName: DEMO_CLIENT_ORG_NAME,
+        stateName: DEMO_CLIENT_ORG_STATE,
+        companyGuid: null,
+        f12OverwriteByGuidVerified: false,
+        detectedVersion: null
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  if (!doc) {
+    throw new Error("seedDemoClientOrganization: upsert returned no document");
+  }
+  return doc._id as Types.ObjectId;
 }
 
 export async function seedLocalDemoData(
@@ -92,7 +138,17 @@ export async function seedLocalDemoData(
   await seedTdsRates();
 
   for (const tenant of config.tenants) {
-    await seedDefaultGlCodes(tenant.id);
+    // Seed GL codes for every client-org the tenant owns. A tenant that
+    // hasn't completed onboarding may have zero client-orgs — skip
+    // silently in that case; the codes will be seeded when the first
+    // client-org is created.
+    const clientOrgs = await ClientOrganizationModel.find(
+      { tenantId: tenant.id },
+      { _id: 1 }
+    ).lean();
+    for (const clientOrg of clientOrgs) {
+      await seedDefaultGlCodes(tenant.id, clientOrg._id);
+    }
   }
 
   const DEMO_TENANT_ID = "65f0000000000000000000c3";
@@ -100,9 +156,15 @@ export async function seedLocalDemoData(
   if (demoTenant) {
     const mahirUser = await UserModel.findOne({ email: "mahir.n@globalhealthx.co" }).lean();
     if (mahirUser) {
-      await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
+      // Demo-tenant exception to the "no auto-create ClientOrg" locked
+      // decision — the local stack ships with one realm fully wired so the
+      // baked Sprinto invoice (INV-FY2526-939, customer = Global Innovation
+      // Hub) lands in a coherent {tenantId, clientOrgId} pair.
+      const demoClientOrgId = await seedDemoClientOrganization(DEMO_TENANT_ID);
+      await seedDefaultGlCodes(DEMO_TENANT_ID, demoClientOrgId);
+      await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrgId, String(mahirUser._id));
       if (env.LOCAL_DEMO_INVOICES) {
-        await seedDemoInvoices(DEMO_TENANT_ID, { fileStore: options.fileStore });
+        await seedDemoInvoices(DEMO_TENANT_ID, demoClientOrgId, { fileStore: options.fileStore });
       }
     }
   }

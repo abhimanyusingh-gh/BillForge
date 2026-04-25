@@ -325,7 +325,7 @@ Prime Server is rare (<5% of installs) and supports concurrent request handling 
 | `ExportVersionConflictError: version-mismatch` | Two exporters raced; the other one advanced `exportVersion` first. | Retry with refreshed invoice state. If persistent, investigate duplicate export schedulers. |
 | `ExportVersionConflictError: in-flight-mismatch` | Another exporter is currently staging a different version. | Back off, let the in-flight attempt resolve, retry. |
 | Atlas `documentValidationFailure` events increasing | A code path writing non-integer into an `*Minor` field. | §8. Open engineering ticket with `ns` + `schemaRulesNotSatisfied` payload. |
-| Tally responds with `LASTMID` instead of `LASTVCHID` | Version drift (ERP 9 older response shape). | Confirm `ClientOrganization.detectedVersion` matches the tenant's Tally build (§10). The exporter accepts both — this is a diagnostic signal only. |
+| Tally responds with `LASTMID` instead of `LASTVCHID` | Version drift (ERP 9 older response shape). | Confirm `ClientOrganization.detectedVersion` matches the ClientOrganization's Tally build (§10). The exporter accepts both — this is a diagnostic signal only. |
 | Cannot import vouchers - company is locked | Another Tally user holds the edit lock. | Retry with 30–120s backoff; escalate to customer if lock persists. |
 | `Date is not within the financial period.` | Invoice date outside the FY open in Tally. | Customer must open the FY in Tally; do not retry until confirmed. |
 

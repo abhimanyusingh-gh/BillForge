@@ -20,6 +20,7 @@ import { Types } from "mongoose";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { ONBOARDING_STATUS, TENANT_MODE } from "@/types/onboarding.js";
 
@@ -65,9 +66,15 @@ export interface FixtureTenant {
   name: string;
 }
 
-export interface FixtureVendor {
+export interface FixtureClientOrg {
   _id: Types.ObjectId;
   tenantId: string;
+  gstin: string;
+}
+
+export interface FixtureVendor {
+  _id: Types.ObjectId;
+  clientOrgId: Types.ObjectId;
   name: string;
   gstin: string | null;
   pan: string | null;
@@ -75,7 +82,7 @@ export interface FixtureVendor {
 
 export interface FixtureInvoice {
   _id: Types.ObjectId;
-  tenantId: string;
+  clientOrgId: Types.ObjectId;
   vendorName: string;
   totalAmountMinor: number;
   invoiceNumber: string;
@@ -100,6 +107,7 @@ export interface FixtureOptions {
 
 export interface FixtureSet {
   tenants: FixtureTenant[];
+  clientOrgs: FixtureClientOrg[];
   vendors: FixtureVendor[];
   invoices: FixtureInvoice[];
 }
@@ -130,6 +138,7 @@ export async function buildFixtures(
 
   const rng = makeRng(seed);
   const tenants: FixtureTenant[] = [];
+  const clientOrgs: FixtureClientOrg[] = [];
   const vendors: FixtureVendor[] = [];
   const invoices: FixtureInvoice[] = [];
 
@@ -152,10 +161,30 @@ export async function buildFixtures(
       });
     }
 
+    // Post hierarchy-pivot (#156): every tenant gets a companion
+    // ClientOrganization, and every accounting-leaf row links via
+    // `clientOrgId`. Single-org-per-tenant is the common case for
+    // tests; multi-org coverage goes through `datasetLoader` instead.
+    const clientOrg: FixtureClientOrg = {
+      _id: deterministicObjectId(`clientOrg:${t}`),
+      tenantId: String(tenant._id),
+      gstin: synthGstin(rng)
+    };
+    clientOrgs.push(clientOrg);
+
+    if (persist) {
+      await ClientOrganizationModel.create({
+        _id: clientOrg._id,
+        tenantId: clientOrg.tenantId,
+        gstin: clientOrg.gstin,
+        companyName: `${tenant.name} Pvt Ltd`
+      });
+    }
+
     for (let v = 0; v < vendorsPerTenant; v++) {
       const vendor: FixtureVendor = {
         _id: deterministicObjectId(`vendor:${t}:${v}`),
-        tenantId: String(tenant._id),
+        clientOrgId: clientOrg._id,
         name: `Vendor ${t}-${v}`,
         gstin: synthGstin(rng),
         pan: synthPan(rng)
@@ -165,7 +194,8 @@ export async function buildFixtures(
       if (persist) {
         await VendorMasterModel.create({
           _id: vendor._id,
-          tenantId: vendor.tenantId,
+          tenantId: clientOrg.tenantId,
+          clientOrgId: vendor.clientOrgId,
           vendorFingerprint: `vendor-${t}-${v}`,
           name: vendor.name,
           gstin: vendor.gstin,
@@ -177,11 +207,11 @@ export async function buildFixtures(
 
       for (let i = 0; i < invoicesPerVendor; i++) {
         // Integer minor units — the validator on `parsed.totalAmountMinor`
-        // (Invoice.ts:181) requires `Number.isInteger(value)`.
+        // (Invoice.ts) requires `Number.isInteger(value)`.
         const totalAmountMinor = pickInt(rng, 100_00, 5_000_00);
         const invoice: FixtureInvoice = {
           _id: deterministicObjectId(`invoice:${t}:${v}:${i}`),
-          tenantId: vendor.tenantId,
+          clientOrgId: clientOrg._id,
           vendorName: vendor.name,
           totalAmountMinor,
           invoiceNumber: `INV-${t}-${v}-${i}`
@@ -191,7 +221,8 @@ export async function buildFixtures(
         if (persist) {
           await InvoiceModel.create({
             _id: invoice._id,
-            tenantId: invoice.tenantId,
+            tenantId: clientOrg.tenantId,
+            clientOrgId: invoice.clientOrgId,
             workloadTier: "standard",
             sourceType: "harness",
             sourceKey: `harness-${seed}`,
@@ -215,7 +246,7 @@ export async function buildFixtures(
     }
   }
 
-  return { tenants, vendors, invoices };
+  return { tenants, clientOrgs, vendors, invoices };
 }
 
 /** Synthetic GSTIN — 15 chars, uppercase alphanumeric. Not Luhn-valid. */

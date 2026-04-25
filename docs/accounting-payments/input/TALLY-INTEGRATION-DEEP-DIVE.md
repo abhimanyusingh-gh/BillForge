@@ -406,7 +406,7 @@ Response:
 </COLLECTION>
 ```
 
-Use the `<GUID>` as the tenant-to-Tally-company binding. Persist it on `TenantExportConfig`; if at next session the returned company GUID differs, flag the tenant — the user has switched / renamed the company and all ledger mappings are suspect.
+Use the `<GUID>` as the ClientOrganization-to-Tally-company binding (post-hierarchy-pivot, Tally companies map 1:1 to ClientOrganizations under a tenant). Persist it on `ClientExportConfig` keyed by `{tenantId, clientOrgId}`; if at next session the returned company GUID differs, flag the realm — the user has switched / renamed the company and all ledger mappings for that ClientOrganization are suspect.
 
 ---
 
@@ -626,7 +626,7 @@ Example outstanding-bills query:
 | `Bill ‐ Allocation totals do not match.` | `BILLALLOCATIONS` sum ≠ party entry amount | Client bug; enforce sum invariant. |
 | `Date is not within the financial period.` | `DATE` or `EFFECTIVEDATE` outside open accounting period | Block export client-side; surface to user ("open the FY in Tally first"). |
 | `Currency 'USD' does not exist.` | Foreign currency not defined in Tally | Pre-create currency or coerce to base. |
-| `Parent Group 'X' does not exist.` | Custom chart of accounts doesn't have `Sundry Creditors` | Rare; fall back to user-mapped parent from TenantExportConfig. |
+| `Parent Group 'X' does not exist.` | Custom chart of accounts doesn't have `Sundry Creditors` | Rare; fall back to user-mapped parent from ClientExportConfig. |
 | `Could not set value for GSTIN` | Invalid GSTIN length/format | Validate 15-char regex before send. |
 | `No entries in voucher.` | All ledger entries were rejected (commonly cascading from ledger-not-found) | Re-synthesise after fixing root cause. |
 | `Object does not exist.` | Object query target missing | Treat as 404. |
@@ -715,7 +715,7 @@ company "ACME"                  Receive "TallyPrime Server
                                                                 - tallyAlterId (cursor)
                                                                 - GSTIN, state, PAN
 
-                                Query TDS/GST/bank      --->    Populate TenantExportConfig
+                                Query TDS/GST/bank      --->    Populate ClientExportConfig
                                 ledger shortlist                suggestion box
 
                                 Set lastFullSyncAt =
@@ -726,7 +726,7 @@ User clicks "Done"
 Cache policy:
 - Ledger list refresh **TTL: 24h** OR on manual user action OR on export precheck miss.
 - Company identity: verify GUID on every session start; mismatch → block exports + alert.
-- AlterID cursor persisted per-collection per-tenant.
+- AlterID cursor persisted per-collection per `{tenantId, clientOrgId}` (one cursor per ClientOrganization realm — Tally companies map 1:1 to ClientOrganizations post-hierarchy-pivot).
 
 ### 9.2 Pre-export vendor-existence check
 
@@ -780,8 +780,8 @@ Round-trip budget:
 **Algorithm** (uses AlterID cursor):
 
 ```
-lastLedgerAlterId   = TenantSyncState.lastLedgerAlterId   // per tenant
-lastVoucherAlterId  = TenantSyncState.lastVoucherAlterId
+lastLedgerAlterId   = ClientOrgSyncState.lastLedgerAlterId   // per {tenantId, clientOrgId}
+lastVoucherAlterId  = ClientOrgSyncState.lastVoucherAlterId
 
 QUERY Collection "Ledger" WHERE Parent="Sundry Creditors" 
                            AND  BelongsTo=Yes 

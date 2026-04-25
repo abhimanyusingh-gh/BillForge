@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { TenantExportConfigModel } from "@/models/integration/TenantExportConfig.js";
+import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { getAuth } from "@/types/auth.js";
 
 const VALID_CSV_COLUMN_KEYS = new Set([
@@ -31,30 +32,32 @@ function validateCsvColumns(columns: unknown): string | null {
   return null;
 }
 
-export function createTenantExportConfigRouter() {
+export function createClientExportConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/tenant/:tenantId/export-config", requireCap("canExportToTally"), async (req, res, next) => {
+  router.get("/tenant/:tenantId/export-config", requireActiveClientOrg, requireCap("canExportToTally"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
       if (auth.tenantId !== req.params.tenantId) {
         res.status(403).json({ message: "Access denied to this tenant." });
         return;
       }
+      const clientOrgId = req.activeClientOrgId!;
 
-      const config = await TenantExportConfigModel.findOne({ tenantId: auth.tenantId }).lean();
+      const config = await ClientExportConfigModel.findOne({ tenantId: auth.tenantId, clientOrgId }).lean();
       res.json(config ?? {});
     } catch (error) { next(error); }
   });
 
-  router.patch("/tenant/:tenantId/export-config", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.patch("/tenant/:tenantId/export-config", requireActiveClientOrg, requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
       if (auth.tenantId !== req.params.tenantId) {
         res.status(403).json({ message: "Access denied to this tenant." });
         return;
       }
+      const clientOrgId = req.activeClientOrgId!;
 
       const update: Record<string, unknown> = {};
 
@@ -100,9 +103,9 @@ export function createTenantExportConfigRouter() {
         return;
       }
 
-      const config = await TenantExportConfigModel.findOneAndUpdate(
-        { tenantId: auth.tenantId },
-        { $set: { tenantId: auth.tenantId, ...update } },
+      const config = await ClientExportConfigModel.findOneAndUpdate(
+        { tenantId: auth.tenantId, clientOrgId },
+        { $set: { tenantId: auth.tenantId, clientOrgId, ...update } },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
 

@@ -1,8 +1,10 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
+import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
 
 const vendorTemplateSchema = new Schema(
   {
     tenantId: { type: String, required: true },
+    clientOrgId: { type: Schema.Types.ObjectId, ref: "ClientOrganization", required: true },
     fingerprintKey: { type: String, required: true },
     layoutSignature: { type: String, required: true },
     vendorName: { type: String, required: true },
@@ -16,8 +18,12 @@ const vendorTemplateSchema = new Schema(
   }
 );
 
-vendorTemplateSchema.index({ tenantId: 1, fingerprintKey: 1 }, { unique: true });
-vendorTemplateSchema.index({ tenantId: 1, vendorName: 1 });
+vendorTemplateSchema.pre("save", async function () {
+  await validateClientOrgTenantInvariant(this.tenantId, this.clientOrgId);
+});
+
+vendorTemplateSchema.index({ clientOrgId: 1, fingerprintKey: 1 }, { unique: true });
+vendorTemplateSchema.index({ clientOrgId: 1, vendorName: 1 });
 
 type VendorTemplate = InferSchemaType<typeof vendorTemplateSchema>;
 export const VendorTemplateModel = model<VendorTemplate>("VendorTemplate", vendorTemplateSchema);

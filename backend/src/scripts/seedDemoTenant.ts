@@ -2,8 +2,10 @@ import { connectToDatabase, disconnectFromDatabase } from "@/db/connect.js";
 import { logger } from "@/utils/logger.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { UserModel } from "@/models/core/User.js";
+import { seedDemoClientOrganization, DEMO_CLIENT_ORG_GSTIN } from "@/bootstrap/seedLocalDemoData.js";
 import { seedDemoTenantConfig } from "@/bootstrap/seedDemoTenantConfig.js";
 import { seedDemoInvoices } from "@/bootstrap/seedDemoInvoices.js";
+import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { resolveFileStore } from "@/core/dependencies.js";
 import { loadRuntimeManifest } from "@/core/runtimeManifest.js";
 import { env } from "@/config/env.js";
@@ -30,7 +32,15 @@ async function run() {
     );
   }
 
-  await seedDemoTenantConfig(DEMO_TENANT_ID, String(mahirUser._id));
+  // Demo-tenant exception (#156, 2026-04-24): the local stack auto-creates the
+  // Global Innovation Hub ClientOrg so the baked Sprinto invoice
+  // INV-FY2526-939 lands in a coherent {tenantId, clientOrgId} pair.
+  // Production tenants still onboard via the #150 wizard.
+  const demoClientOrgId = await seedDemoClientOrganization(DEMO_TENANT_ID);
+  await seedDefaultGlCodes(DEMO_TENANT_ID, demoClientOrgId);
+  console.log(`Demo ClientOrg ready: GSTIN ${DEMO_CLIENT_ORG_GSTIN} → ${demoClientOrgId.toString()}.`);
+
+  await seedDemoTenantConfig(DEMO_TENANT_ID, demoClientOrgId, String(mahirUser._id));
 
   if (env.LOCAL_DEMO_INVOICES) {
     // Wire a FileStore so preview PNGs from the baked fixtures land in the
@@ -44,7 +54,7 @@ async function run() {
       });
       fileStore = undefined;
     }
-    await seedDemoInvoices(DEMO_TENANT_ID, { fileStore });
+    await seedDemoInvoices(DEMO_TENANT_ID, demoClientOrgId, { fileStore });
     console.log(`Demo invoices seeded for ${DEMO_TENANT_NAME} (${DEMO_TENANT_ID}).`);
   }
 

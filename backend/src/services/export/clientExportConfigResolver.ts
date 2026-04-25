@@ -1,4 +1,5 @@
-import { TenantExportConfigModel } from "@/models/integration/TenantExportConfig.js";
+import type { Types } from "mongoose";
+import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.js";
 import type { TallyExporterConfig, TallyGstLedgerConfig } from "@/services/export/tallyExporter/xml.js";
 import { env } from "@/config/env.js";
 
@@ -23,9 +24,12 @@ function firstNonEmpty(...values: Array<string | null | undefined>): string {
 
 export async function buildTallyExportConfig(
   tenantId: string,
+  clientOrgId: Types.ObjectId | undefined,
   systemDefaults: Pick<TallyExporterConfig, "companyName" | "purchaseLedgerName" | "gstLedgers" | "tdsLedgerPrefix" | "tcsLedgerName">
 ): Promise<ResolvedTallyConfig> {
-  const tenantConfig = await TenantExportConfigModel.findOne({ tenantId }).lean();
+  const tenantConfig = clientOrgId
+    ? await ClientExportConfigModel.findOne({ tenantId, clientOrgId }).lean()
+    : null;
 
   return {
     companyName: firstNonEmpty(tenantConfig?.tallyCompanyName, systemDefaults.companyName, env.TALLY_COMPANY),
@@ -41,8 +45,12 @@ export async function buildTallyExportConfig(
   };
 }
 
-export async function buildCsvExportConfig(tenantId: string): Promise<ResolvedCsvColumnConfig> {
-  const tenantConfig = await TenantExportConfigModel.findOne({ tenantId }).lean();
+export async function buildCsvExportConfig(
+  tenantId: string,
+  clientOrgId: Types.ObjectId | undefined
+): Promise<ResolvedCsvColumnConfig> {
+  if (!clientOrgId) return { columns: undefined };
+  const tenantConfig = await ClientExportConfigModel.findOne({ tenantId, clientOrgId }).lean();
 
   if (tenantConfig?.csvColumns && tenantConfig.csvColumns.length > 0) {
     return { columns: tenantConfig.csvColumns };

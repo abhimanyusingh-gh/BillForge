@@ -1,7 +1,8 @@
+import type { Types } from "mongoose";
 import { PAN_FORMAT, derivePanCategory } from "@/constants/indianCompliance.js";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable.js";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping.js";
-import { resolveTdsRatesConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveTdsRatesConfig } from "@/services/compliance/clientConfigResolver.js";
 import type { ComplianceTdsResult, ComplianceRiskSignal, ParsedInvoiceData } from "@/types/invoice.js";
 import { TDS_CONFIDENCE, type TdsConfidence } from "@/types/invoice.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
@@ -44,18 +45,21 @@ export class TdsCalculationService {
   async detectSection(
     panCategory: string | null,
     glCategory: string | null,
-    tenantId: string
+    tenantId: string,
+    clientOrgId: Types.ObjectId
   ): Promise<TdsDetectionResult> {
     if (!glCategory) {
       return { section: null, confidence: TDS_CONFIDENCE.LOW };
     }
 
     const effectivePanCategory = panCategory ?? "*";
+    // Tenant-specific overrides first (scoped to the caller's client-org),
+    // then global defaults (tenantId: null + clientOrgId: null rows).
     const queries = [
-      { tenantId, glCategory, panCategory: effectivePanCategory },
-      { tenantId, glCategory, panCategory: "*" },
-      { tenantId: null, glCategory, panCategory: effectivePanCategory },
-      { tenantId: null, glCategory, panCategory: "*" }
+      { tenantId, clientOrgId, glCategory, panCategory: effectivePanCategory },
+      { tenantId, clientOrgId, glCategory, panCategory: "*" },
+      { tenantId: null, clientOrgId: null, glCategory, panCategory: effectivePanCategory },
+      { tenantId: null, clientOrgId: null, glCategory, panCategory: "*" }
     ];
 
     for (const query of queries) {
@@ -75,10 +79,11 @@ export class TdsCalculationService {
   async lookupRate(
     section: string,
     panCategory: string | null,
-    tenantId?: string
+    tenantId?: string,
+    clientOrgId?: Types.ObjectId
   ): Promise<TdsRateLookup | null> {
-    if (tenantId) {
-      const tenantConfig = await resolveTdsRatesConfig(tenantId);
+    if (tenantId && clientOrgId) {
+      const tenantConfig = await resolveTdsRatesConfig(tenantId, clientOrgId);
       if (tenantConfig && tenantConfig.tdsRates && tenantConfig.tdsRates.length > 0) {
         const entry = tenantConfig.tdsRates.find((r: { section: string }) => r.section === section);
         if (entry) {
@@ -136,13 +141,14 @@ export class TdsCalculationService {
   async computeTds(
     invoice: ParsedInvoiceData,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     glCategory: string | null
   ): Promise<TdsCalculationResult> {
     const riskSignals: ComplianceRiskSignal[] = [];
     const panCategory = this.getPanCategory(invoice.pan);
     const panValid = invoice.pan ? PAN_FORMAT.test(invoice.pan.toUpperCase()) : false;
 
-    const detection = await this.detectSection(panCategory, glCategory, tenantId);
+    const detection = await this.detectSection(panCategory, glCategory, tenantId, clientOrgId);
 
     if (!detection.section) {
       return {
@@ -168,7 +174,7 @@ export class TdsCalculationService {
       ));
     }
 
-    const rateLookup = await this.lookupRate(detection.section, panCategory, tenantId);
+    const rateLookup = await this.lookupRate(detection.section, panCategory, tenantId, clientOrgId);
     if (!rateLookup) {
       return {
         tds: {

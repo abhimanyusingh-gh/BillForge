@@ -1,4 +1,4 @@
-jest.mock("@/services/compliance/tenantConfigResolver.js", () => {
+jest.mock("@/services/compliance/clientConfigResolver.js", () => {
   let configStore: Record<string, { defaultCurrency?: string }> = {};
 
   return {
@@ -10,7 +10,7 @@ jest.mock("@/services/compliance/tenantConfigResolver.js", () => {
   };
 });
 
-jest.mock("@/services/export/tenantExportConfigResolver.js", () => ({
+jest.mock("@/services/export/clientExportConfigResolver.js", () => ({
   buildCsvExportConfig: jest.fn(async () => ({ columns: undefined }))
 }));
 
@@ -18,7 +18,7 @@ import { generateCsvExport } from "@/services/export/csvExporter.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 
-const mockResolver = jest.requireMock("@/services/compliance/tenantConfigResolver.js") as {
+const mockResolver = jest.requireMock("@/services/compliance/clientConfigResolver.js") as {
   _setConfig: (id: string, cfg: { defaultCurrency?: string }) => void;
   _resetStore: () => void;
 };

@@ -2,8 +2,8 @@ import type { InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { minorUnitsToMajorString } from "@/utils/currency.js";
 import { isRecord } from "@/utils/validation.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
-import { buildCsvExportConfig } from "@/services/export/tenantExportConfigResolver.js";
-import { resolveDefaultCurrencyConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { buildCsvExportConfig } from "@/services/export/clientExportConfigResolver.js";
+import { resolveDefaultCurrencyConfig } from "@/services/compliance/clientConfigResolver.js";
 
 const DEFAULT_COLUMNS = [
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -27,7 +27,7 @@ export async function generateCsvExport(
   let headerOverrides: Record<string, string> | undefined;
 
   if (!cols && tenantId) {
-    const tenantCsvConfig = await buildCsvExportConfig(tenantId);
+    const tenantCsvConfig = await buildCsvExportConfig(tenantId, undefined);
     if (tenantCsvConfig.columns && tenantCsvConfig.columns.length > 0) {
       cols = tenantCsvConfig.columns.map(c => c.key);
       headerOverrides = Object.fromEntries(tenantCsvConfig.columns.map(c => [c.key, c.label]));
@@ -38,7 +38,7 @@ export async function generateCsvExport(
 
   let tenantDefaultCurrency = "INR";
   if (tenantId) {
-    const currencyConfig = await resolveDefaultCurrencyConfig(tenantId);
+    const currencyConfig = await resolveDefaultCurrencyConfig(tenantId, undefined);
     if (currencyConfig?.defaultCurrency) tenantDefaultCurrency = currencyConfig.defaultCurrency;
   }
 

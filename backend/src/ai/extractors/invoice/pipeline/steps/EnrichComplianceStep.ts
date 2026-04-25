@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import type { PipelineContext, PipelineStep, StepOutput } from "@/core/pipeline/index.js";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceEnricher } from "@/services/compliance/ComplianceEnricher.js";
@@ -8,6 +9,12 @@ import { POST_ENGINE_CTX } from "@/ai/extractors/invoice/pipeline/postEngineCont
 /**
  * Stage 13: Enriches the parsed data with compliance information (TDS, PAN, risk signals).
  * Only executes if a ComplianceEnricher was provided. Mirrors `runCompliance()` in the pipeline.
+ *
+ * Post-#156/#159: `clientOrgId` is carried on `PipelineInput` by the
+ * ingestion path (sub-PR 4). PENDING_TRIAGE invoices skip compliance
+ * enrichment entirely — the pipeline caller should not invoke this step
+ * for triage rows. When clientOrgId is absent here it's a logic bug;
+ * we log and skip rather than fan out across tenant client-orgs.
  */
 export class EnrichComplianceStep implements PipelineStep {
   readonly name = "enrich-compliance";
@@ -23,9 +30,17 @@ export class EnrichComplianceStep implements PipelineStep {
     const tenantId = toUUID(ctx.input.tenantId);
     const vendorFingerprint = ctx.metadata.vendorFingerprint ?? "";
     const contentHash = ctx.metadata.vendorContentHash ?? "";
+    const clientOrgIdRaw = ctx.input.clientOrgId;
+    if (!clientOrgIdRaw) {
+      logger.warn("compliance.enrich.skipped.no_client_org", { tenantId });
+      return {};
+    }
+    const clientOrgId = typeof clientOrgIdRaw === "string"
+      ? new Types.ObjectId(clientOrgIdRaw)
+      : clientOrgIdRaw;
 
     try {
-      const compliance = await this.complianceEnricher.enrich(parsed, tenantId, vendorFingerprint, { contentHash });
+      const compliance = await this.complianceEnricher.enrich(parsed, tenantId, clientOrgId, vendorFingerprint, { contentHash });
       ctx.store.set(POST_ENGINE_CTX.COMPLIANCE, compliance);
     } catch (error) {
       logger.warn("compliance.enrich.failed", {

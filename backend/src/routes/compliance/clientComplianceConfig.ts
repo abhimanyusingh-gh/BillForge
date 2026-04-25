@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { TenantComplianceConfigModel } from "@/models/integration/TenantComplianceConfig.js";
+import { ClientComplianceConfigModel } from "@/models/integration/ClientComplianceConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 const VALID_PAN_LEVELS = new Set(["format", "format_and_checksum", "disabled"]);
@@ -133,18 +134,19 @@ function validateNewFields(body: Record<string, unknown>): { update: Record<stri
   return { update: result.data as Record<string, unknown> };
 }
 
-export function createTenantComplianceConfigRouter() {
+export function createClientComplianceConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.get("/admin/compliance-config", requireActiveClientOrg, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
-      let config = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
+      const clientOrgId = req.activeClientOrgId!;
+      let config = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId }).lean();
 
       if (!config) {
-        const defaults = applyDefaults({ tenantId });
-        const created = await TenantComplianceConfigModel.create(defaults);
+        const defaults = applyDefaults({ tenantId, clientOrgId });
+        const created = await ClientComplianceConfigModel.create(defaults);
         res.json(applyDefaults({ ...created.toObject() }));
         return;
       }
@@ -153,9 +155,10 @@ export function createTenantComplianceConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.put("/admin/compliance-config", requireActiveClientOrg, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
+      const clientOrgId = req.activeClientOrgId!;
       const update: Record<string, unknown> = {};
 
       if (typeof req.body.complianceEnabled === "boolean") update.complianceEnabled = req.body.complianceEnabled;
@@ -226,15 +229,15 @@ export function createTenantComplianceConfigRouter() {
 
       update.updatedBy = req.authContext!.email || req.authContext!.userId;
 
-      const existing = await TenantComplianceConfigModel.findOne({ tenantId }).lean();
+      const existing = await ClientComplianceConfigModel.findOne({ tenantId, clientOrgId }).lean();
       const effectiveTds = update.tdsEnabled !== undefined ? update.tdsEnabled : existing?.tdsEnabled;
       const effectiveRisk = update.riskSignalsEnabled !== undefined ? update.riskSignalsEnabled : existing?.riskSignalsEnabled;
       const effectivePan = update.panValidationEnabled !== undefined ? update.panValidationEnabled : existing?.panValidationEnabled;
       update.complianceEnabled = !!(effectiveTds || effectiveRisk || effectivePan);
 
-      const config = await TenantComplianceConfigModel.findOneAndUpdate(
-        { tenantId },
-        { $set: update },
+      const config = await ClientComplianceConfigModel.findOneAndUpdate(
+        { tenantId, clientOrgId },
+        { $set: update, $setOnInsert: { tenantId, clientOrgId } },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
 

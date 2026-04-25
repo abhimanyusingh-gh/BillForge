@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { CostCenterMasterModel } from "@/models/compliance/CostCenterMaster.js";
 import { VendorCostCenterMappingModel } from "@/models/compliance/VendorCostCenterMapping.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
@@ -10,14 +11,15 @@ interface CostCenterSuggestion {
 export class CostCenterService {
   async suggest(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     glCode: string | null
   ): Promise<CostCenterSuggestion> {
-    const vendorResult = await this.suggestFromVendorHistory(tenantId, vendorFingerprint);
+    const vendorResult = await this.suggestFromVendorHistory(tenantId, clientOrgId, vendorFingerprint);
     if (vendorResult) return vendorResult;
 
     if (glCode) {
-      const glLinked = await this.suggestFromGlLink(tenantId, glCode);
+      const glLinked = await this.suggestFromGlLink(tenantId, clientOrgId, glCode);
       if (glLinked) return glLinked;
     }
 
@@ -28,25 +30,26 @@ export class CostCenterService {
 
   async recordUsage(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     costCenterCode: string,
     costCenterName: string
   ): Promise<void> {
     const now = new Date();
     await VendorCostCenterMappingModel.findOneAndUpdate(
-      { tenantId, vendorFingerprint, costCenterCode },
+      { tenantId, clientOrgId, vendorFingerprint, costCenterCode },
       { $inc: { usageCount: 1 }, $set: { costCenterName, lastUsedAt: now } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     const topMapping = await VendorCostCenterMappingModel
-      .findOne({ tenantId, vendorFingerprint })
+      .findOne({ tenantId, clientOrgId, vendorFingerprint })
       .sort({ usageCount: -1 })
       .lean();
 
     if (topMapping) {
       await VendorMasterModel.updateOne(
-        { tenantId, vendorFingerprint },
+        { tenantId, clientOrgId, vendorFingerprint },
         { $set: { defaultCostCenter: topMapping.costCenterCode } }
       );
     }
@@ -54,10 +57,11 @@ export class CostCenterService {
 
   private async suggestFromVendorHistory(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string
   ): Promise<CostCenterSuggestion | null> {
     const mappings = await VendorCostCenterMappingModel
-      .find({ tenantId, vendorFingerprint })
+      .find({ tenantId, clientOrgId, vendorFingerprint })
       .sort({ usageCount: -1 })
       .limit(1)
       .lean();
@@ -77,10 +81,12 @@ export class CostCenterService {
 
   private async suggestFromGlLink(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     glCode: string
   ): Promise<CostCenterSuggestion | null> {
     const cc = await CostCenterMasterModel.findOne({
       tenantId,
+      clientOrgId,
       linkedGlCodes: glCode,
       isActive: true
     }).lean();

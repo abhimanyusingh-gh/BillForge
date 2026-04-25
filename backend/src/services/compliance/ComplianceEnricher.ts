@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import type {
   InvoiceCompliance,
   ParsedInvoiceData
@@ -24,7 +25,13 @@ export interface ComplianceEnrichContext {
 }
 
 export interface ComplianceEnricher {
-  enrich(invoice: ParsedInvoiceData, tenantId: UUID, vendorFingerprint: string, context?: ComplianceEnrichContext): Promise<ComplianceResult>;
+  enrich(
+    invoice: ParsedInvoiceData,
+    tenantId: UUID,
+    clientOrgId: Types.ObjectId,
+    vendorFingerprint: string,
+    context?: ComplianceEnrichContext
+  ): Promise<ComplianceResult>;
 }
 
 export function emptyComplianceResult(): ComplianceResult {

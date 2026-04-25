@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { logger } from "@/utils/logger.js";
 
@@ -31,12 +32,15 @@ const DEFAULT_GL_CODES: DefaultGlCode[] = [
   { code: "4020", name: "Miscellaneous Expenses", category: "Other", linkedTdsSection: null }
 ];
 
-export async function seedDefaultGlCodes(tenantId: string): Promise<{ created: number; skipped: number }> {
+export async function seedDefaultGlCodes(
+  tenantId: string,
+  clientOrgId: Types.ObjectId
+): Promise<{ created: number; skipped: number }> {
   let created = 0;
   let skipped = 0;
 
   const existingCodes = new Set(
-    (await GlCodeMasterModel.find({ tenantId }, { code: 1 }).lean()).map((d) => d.code)
+    (await GlCodeMasterModel.find({ tenantId, clientOrgId }, { code: 1 }).lean()).map((d) => d.code)
   );
 
   for (const gl of DEFAULT_GL_CODES) {
@@ -48,6 +52,7 @@ export async function seedDefaultGlCodes(tenantId: string): Promise<{ created: n
     try {
       await GlCodeMasterModel.create({
         tenantId,
+        clientOrgId,
         code: gl.code,
         name: gl.name,
         category: gl.category,
@@ -64,7 +69,7 @@ export async function seedDefaultGlCodes(tenantId: string): Promise<{ created: n
     }
   }
 
-  logger.info("gl.seed.complete", { tenantId, created, skipped });
+  logger.info("gl.seed.complete", { tenantId, clientOrgId: String(clientOrgId), created, skipped });
   return { created, skipped };
 }
 

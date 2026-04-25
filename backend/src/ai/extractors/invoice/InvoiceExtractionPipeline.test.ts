@@ -1,5 +1,5 @@
-jest.mock("@/services/compliance/tenantConfigResolver.js", () => ({
-  resolveTenantComplianceConfig: jest.fn(async () => null)
+jest.mock("@/services/compliance/clientConfigResolver.js", () => ({
+  resolveClientComplianceConfig: jest.fn(async () => null)
 }));
 
 import type { FieldVerifier, FieldVerifierInput, FieldVerifierResult } from "@/core/interfaces/FieldVerifier.ts";
@@ -7,7 +7,7 @@ import type { OcrBlock, OcrProvider } from "@/core/interfaces/OcrProvider.ts";
 import { InvoiceExtractionPipeline } from "@/ai/extractors/invoice/InvoiceExtractionPipeline.ts";
 import type { VendorTemplateStore } from "@/ai/extractors/invoice/learning/vendorTemplateStore.ts";
 import { EXTRACTION_SOURCE } from "@/core/engine/extractionSource.ts";
-import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.ts";
+import { resolveClientComplianceConfig } from "@/services/compliance/clientConfigResolver.ts";
 
 function makeBlock(text: string, bboxNormalized: [number, number, number, number], page = 1): OcrBlock {
   return {
@@ -53,6 +53,7 @@ function buildDeps(overrides?: {
   const templateStore: VendorTemplateStore = overrides?.templateStore ?? {
     findByFingerprint: jest.fn(async () => ({
       tenantId: "tenant-1",
+      clientOrgId: "org-1",
       fingerprintKey: "f-1",
       layoutSignature: "layout-a",
       vendorName: "Acme Pvt Ltd",
@@ -67,6 +68,7 @@ function buildDeps(overrides?: {
 
 const defaultInput = {
   tenantId: "tenant-1" as import("@/types/uuid.js").UUID,
+  clientOrgId: "507f1f77bcf86cd799439011",
   sourceKey: "mailbox-a",
   attachmentName: "invoice.pdf",
   fileBuffer: Buffer.from("sample-content"),
@@ -75,7 +77,7 @@ const defaultInput = {
 
 describe("InvoiceExtractionPipeline", () => {
   beforeEach(() => {
-    (resolveTenantComplianceConfig as jest.Mock).mockResolvedValue(null);
+    (resolveClientComplianceConfig as jest.Mock).mockResolvedValue(null);
   });
 
   it("routes LlamaExtract through the same post-engine pipeline as SLM", async () => {
@@ -129,7 +131,7 @@ describe("InvoiceExtractionPipeline", () => {
   });
 
   it("uses default learning mode when tenant config returns null", async () => {
-    (resolveTenantComplianceConfig as jest.Mock).mockResolvedValue(null);
+    (resolveClientComplianceConfig as jest.Mock).mockResolvedValue(null);
 
     const { ocrProvider, fieldVerifier, templateStore } = buildDeps();
 

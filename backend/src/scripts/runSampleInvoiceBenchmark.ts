@@ -373,6 +373,8 @@ async function run(): Promise<void> {
     const mimeType = mimeTypeMap[extname(file).toLowerCase()] ?? DOCUMENT_MIME_TYPE.PDF;
     const extraction = await pipeline.extract({
       tenantId: toUUID("benchmark"),
+      // Benchmark script runs extraction without a client-org context.
+      clientOrgId: null,
       sourceKey: file,
       attachmentName: file,
       fileBuffer,

@@ -4,13 +4,14 @@ import { logger } from "@/utils/logger.js";
 import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
+import { findClientOrgIdsForTenant } from "@/services/auth/tenantScope.js";
 import { applyMinorFieldValidators } from "@/db/applyJsonSchemaValidators.js";
 import { ValidationAction, ValidationLevel } from "@/db/applyJsonSchemaValidators.js";
 import "@/models/invoice/Invoice.js";
 import "@/models/bank/BankAccount.js";
 import "@/models/bank/BankTransaction.js";
 import "@/models/core/TenantUserRole.js";
-import "@/models/integration/TenantComplianceConfig.js";
+import "@/models/integration/ClientComplianceConfig.js";
 import "@/models/compliance/TdsRateTable.js";
 
 const MINOR_FIELD_VALIDATOR_MIGRATION = "minor_field_jsonschema_validators_v1";
@@ -78,11 +79,19 @@ async function doConnect(options: ConnectOptions) {
         let totalSkipped = 0;
         for (const tenant of tenants) {
           const tenantId = String(tenant._id);
-          const existingCount = await GlCodeMasterModel.countDocuments({ tenantId });
-          if (existingCount === 0) {
-            const result = await seedDefaultGlCodes(tenantId);
-            totalCreated += result.created;
-            totalSkipped += result.skipped;
+          // Post hierarchy-pivot: seedDefaultGlCodes is scoped per
+          // client-org. A tenant may have 0..N client-orgs; loop over all.
+          const clientOrgIds = await findClientOrgIdsForTenant(tenantId);
+          for (const clientOrgId of clientOrgIds) {
+            const existingCount = await GlCodeMasterModel.countDocuments({
+              tenantId,
+              clientOrgId
+            });
+            if (existingCount === 0) {
+              const result = await seedDefaultGlCodes(tenantId, clientOrgId);
+              totalCreated += result.created;
+              totalSkipped += result.skipped;
+            }
           }
         }
         if (totalCreated > 0) {

@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { getAuth } from "@/types/auth.js";
 import { DOCUMENT_MIME_TYPE } from "@/types/mime.js";
 import { SORT_DIRECTION, type SortDirection } from "@/types/sorting.js";
@@ -27,6 +28,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { GlCodeSuggestionService } from "@/services/compliance/GlCodeSuggestionService.js";
 import { requireAuth } from "@/auth/requireAuth.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord, isString, validateDateRange } from "@/utils/validation.js";
 
@@ -67,6 +69,7 @@ export function createInvoiceRouter(
 ) {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireActiveClientOrg);
   const runtimeManifest = loadRuntimeManifest();
   const ALLOWED_SORT_COLUMNS = new Set(["file", "vendor", "invoiceNumber", "invoiceDate", "total", "confidence", "status", "received"]);
 
@@ -76,11 +79,11 @@ export function createInvoiceRouter(
     return { userId: authContext.userId, role: authContext.role, capabilities };
   }
 
-  function findFolderSource(invoice: { sourceKey: string; tenantId: string; workloadTier: string }) {
+  function findFolderSource(invoice: { sourceKey: string; workloadTier: string }, tenantId: string) {
     return runtimeManifest.sources.find(
       (s): s is FolderSourceManifest =>
         s.type === INGESTION_SOURCE_TYPE.FOLDER && s.key === invoice.sourceKey &&
-        s.tenantId === invoice.tenantId && s.workloadTier === invoice.workloadTier
+        s.tenantId === tenantId && s.workloadTier === invoice.workloadTier
     );
   }
 
@@ -128,7 +131,7 @@ export function createInvoiceRouter(
 
   router.get("/invoices/:id", wrap(async (req, res) => {
     const authContext = getAuth(req);
-    const invoice = await invoiceService.getInvoiceById(req.params.id, authContext.tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, authContext.tenantId, req.activeClientOrgId!);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
 
     const actor = await buildActionActor(req);
@@ -148,33 +151,33 @@ export function createInvoiceRouter(
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
     const approvedBy = typeof req.body?.approvedBy === "string" ? req.body.approvedBy : undefined;
-    const result = await invoiceService.approveInvoices(ids, approvedBy, getAuth(req));
+    const result = await invoiceService.approveInvoices(ids, approvedBy, req.activeClientOrgId!, getAuth(req));
     res.json(result);
   }));
 
   router.post("/invoices/retry", requireCap("canRetryInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
-    res.json({ modifiedCount: await invoiceService.retryInvoices(ids, getAuth(req)) });
+    res.json({ modifiedCount: await invoiceService.retryInvoices(ids, req.activeClientOrgId!, getAuth(req)) });
   }));
 
   router.post("/invoices/delete", requireCap("canDeleteInvoices"), wrap(async (req, res) => {
     const ids = requireStringIds(req.body);
     if (!ids) { res.status(400).json({ message: "Body 'ids' must include at least one invoice id." }); return; }
-    res.json({ deletedCount: await invoiceService.deleteInvoices(ids, getAuth(req)) });
+    res.json({ deletedCount: await invoiceService.deleteInvoices(ids, req.activeClientOrgId!, getAuth(req)) });
   }));
 
   router.patch("/invoices/:id", requireCap("canEditInvoiceFields"), wrap(async (req, res, next) => {
     try {
       const authContext = getAuth(req);
       if (typeof req.body?.attachmentName === "string") {
-        res.json(await invoiceService.renameAttachmentName(req.params.id, req.body.attachmentName, authContext.tenantId));
+        res.json(await invoiceService.renameAttachmentName(req.params.id, req.body.attachmentName, authContext.tenantId, req.activeClientOrgId!));
         return;
       }
 
       const hasComplianceOverride = req.body?.glCode || typeof req.body?.glCode === "string" || req.body?.tdsSection || req.body?.vendorBankVerified || req.body?.dismissRiskSignal;
       if (hasComplianceOverride) {
-        const invoice = await InvoiceModel.findOne({ _id: req.params.id, tenantId: authContext.tenantId });
+        const invoice = await InvoiceModel.findOne({ _id: req.params.id, tenantId: authContext.tenantId, clientOrgId: req.activeClientOrgId });
         if (!invoice) { res.status(404).json({ message: "Invoice not found." }); return; }
         if (invoice.status === INVOICE_STATUS.EXPORTED) { res.status(403).json({ message: "Cannot modify an exported invoice." }); return; }
 
@@ -187,13 +190,20 @@ export function createInvoiceRouter(
             const glName = typeof req.body.glName === "string" && req.body.glName.trim() ? req.body.glName.trim() : req.body.glCode;
             const glService = new GlCodeSuggestionService();
             const fingerprint = invoice.metadata?.get("vendorFingerprint");
-            if (fingerprint) {
-              await glService.recordUsage(authContext.tenantId, fingerprint, req.body.glCode, glName);
+            // Post hierarchy-pivot: compliance services are scoped per
+            // client-org. Use the invoice's own clientOrgId — it was
+            // validated on ingestion and (after sub-PR 4 lands) will also
+            // be cross-checked against req.activeClientOrgId.
+            const invoiceClientOrgId = (invoice as unknown as { clientOrgId?: Types.ObjectId }).clientOrgId;
+            if (fingerprint && invoiceClientOrgId) {
+              await glService.recordUsage(authContext.tenantId, invoiceClientOrgId, fingerprint, req.body.glCode, glName);
             }
             (compliance as Record<string, unknown>).glCode = { code: req.body.glCode, name: glName, source: GL_CODE_SOURCE.MANUAL, confidence: 100 };
 
             const parsed = invoice.toObject().parsed ?? {};
-            await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, req.body.glCode, req.params.id);
+            if (invoiceClientOrgId) {
+              await retriggerTdsAndTcs(compliance, parsed, authContext.tenantId, invoiceClientOrgId, req.body.glCode, req.params.id);
+            }
           }
         }
 
@@ -238,7 +248,8 @@ export function createInvoiceRouter(
         req.params.id,
         (isRecord(req.body?.parsed) ? req.body.parsed : {}) as UpdateParsedFieldInput,
         typeof req.body?.updatedBy === "string" ? req.body.updatedBy : undefined,
-        authContext.tenantId
+        authContext.tenantId,
+        req.activeClientOrgId!
       ));
     } catch (error) {
       if (error instanceof InvoiceUpdateError) { res.status(error.statusCode).json({ message: error.message }); return; }
@@ -252,7 +263,7 @@ export function createInvoiceRouter(
       const glCode = typeof req.body?.glCode === "string" ? req.body.glCode.trim() : null;
       const glName = typeof req.body?.glName === "string" ? req.body.glName.trim() : glCode;
       if (!glCode) { res.status(400).json({ message: "glCode is required." }); return; }
-      const result = await invoiceService.retriggerCompliance(req.params.id, authContext.tenantId, glCode, glName ?? glCode);
+      const result = await invoiceService.retriggerCompliance(req.params.id, authContext.tenantId, req.activeClientOrgId!, glCode, glName ?? glCode);
       res.json(result);
     } catch (error) {
       if (error instanceof InvoiceUpdateError) { res.status(error.statusCode).json({ message: error.message }); return; }
@@ -261,11 +272,11 @@ export function createInvoiceRouter(
   }));
 
   router.get("/invoices/:id/document", wrap(async (req, res, next) => {
-    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId, req.activeClientOrgId!);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
     if (invoice.sourceType !== INGESTION_SOURCE_TYPE.FOLDER) { res.status(404).json({ message: "Original document is unavailable for this ingestion source." }); return; }
 
-    const folderSource = findFolderSource(invoice);
+    const folderSource = findFolderSource(invoice, getAuth(req).tenantId);
     if (!folderSource) { res.status(404).json({ message: "Folder source configuration not found for this invoice." }); return; }
 
     const filePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
@@ -279,7 +290,7 @@ export function createInvoiceRouter(
   }));
 
   router.get("/invoices/:id/preview", wrap(async (req, res, next) => {
-    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId);
+    const invoice = await invoiceService.getInvoiceById(req.params.id, getAuth(req).tenantId, req.activeClientOrgId!);
     if (!invoice) { res.status(404).json({ message: "Invoice not found" }); return; }
     const page = Math.max(1, Number(req.query.page ?? 1));
     const previewPath = parseMetadataJsonField(invoice.metadata, "previewPageImages", String(page), "1");
@@ -304,7 +315,7 @@ export function createInvoiceRouter(
     }
 
     if (invoice.sourceType === INGESTION_SOURCE_TYPE.FOLDER && invoice.mimeType.startsWith("image/")) {
-      const folderSource = findFolderSource(invoice);
+      const folderSource = findFolderSource(invoice, getAuth(req).tenantId);
       if (folderSource) {
         const imagePath = resolveSourceDocumentPath(folderSource.folderPath, invoice.sourceDocumentId);
         if (imagePath) {

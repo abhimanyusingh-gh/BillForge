@@ -1,8 +1,9 @@
 import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { ActiveTenantRoles, normalizeTenantRole } from "@/models/core/TenantUserRole.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -11,8 +12,14 @@ const VALID_ROLES = new Set<string>(ActiveTenantRoles);
 export function requireTcsModifyAccess(req: Request, res: Response, next: NextFunction): void {
   const tenantId = getAuth(req).tenantId;
   const role = getAuth(req).role;
+  const clientOrgId = req.activeClientOrgId;
 
-  TenantTcsConfigModel.findOne({ tenantId }).lean().then((config) => {
+  if (!clientOrgId) {
+    res.status(400).json({ message: "clientOrgId required.", code: "client_org_required" });
+    return;
+  }
+
+  ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean().then((config) => {
     const allowed = config?.tcsModifyRoles ?? ActiveTenantRoles;
     const normalizedRole = normalizeTenantRole(role);
     if ((allowed as string[]).includes(normalizedRole)) {
@@ -27,12 +34,13 @@ export function createTcsConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/tcs-config", async (req, res, next) => {
+  router.get("/admin/tcs-config", requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
-      let config = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+      const clientOrgId = req.activeClientOrgId!;
+      let config = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
       if (!config) {
-        const created = await TenantTcsConfigModel.create({ tenantId, updatedBy: getAuth(req).email || getAuth(req).userId });
+        const created = await ClientTcsConfigModel.create({ tenantId, clientOrgId, updatedBy: getAuth(req).email || getAuth(req).userId });
         res.json(created.toObject());
         return;
       }
@@ -40,9 +48,10 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/tcs-config", requireTcsModifyAccess, async (req, res, next) => {
+  router.put("/admin/tcs-config", requireActiveClientOrg, requireTcsModifyAccess, async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
+      const clientOrgId = req.activeClientOrgId!;
       const { ratePercent, effectiveFrom, reason, enabled } = req.body;
 
       if (typeof ratePercent !== "number" || ratePercent < 0 || ratePercent > 100) {
@@ -61,7 +70,7 @@ export function createTcsConfigRouter() {
         return;
       }
 
-      const existing = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+      const existing = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
       const previousRate = existing?.ratePercent ?? 0;
       const previousEffectiveFrom = existing?.effectiveFrom ?? effectiveFromDate;
 
@@ -75,10 +84,11 @@ export function createTcsConfigRouter() {
         effectiveFrom: previousEffectiveFrom
       };
 
-      const updated = await TenantTcsConfigModel.findOneAndUpdate(
-        { tenantId },
+      const updated = await ClientTcsConfigModel.findOneAndUpdate(
+        { tenantId, clientOrgId },
         {
           $set: { ratePercent, effectiveFrom: effectiveFromDate, enabled, updatedBy: getAuth(req).email || getAuth(req).userId },
+          $setOnInsert: { tenantId, clientOrgId },
           $push: { history: { $each: [historyEntry], $position: 0, $slice: 1000 } }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -88,9 +98,10 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/tcs-config/roles", requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.put("/admin/tcs-config/roles", requireActiveClientOrg, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
+      const clientOrgId = req.activeClientOrgId!;
       const { tcsModifyRoles } = req.body;
 
       if (!Array.isArray(tcsModifyRoles)) {
@@ -104,9 +115,9 @@ export function createTcsConfigRouter() {
         return;
       }
 
-      const updated = await TenantTcsConfigModel.findOneAndUpdate(
-        { tenantId },
-        { $set: { tcsModifyRoles } },
+      const updated = await ClientTcsConfigModel.findOneAndUpdate(
+        { tenantId, clientOrgId },
+        { $set: { tcsModifyRoles }, $setOnInsert: { tenantId, clientOrgId } },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
 
@@ -114,14 +125,15 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.get("/admin/tcs-config/history", async (req, res, next) => {
+  router.get("/admin/tcs-config/history", requireActiveClientOrg, async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
+      const clientOrgId = req.activeClientOrgId!;
       const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);
       const limit = 20;
       const skip = (page - 1) * limit;
 
-      const config = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+      const config = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
       const history = config?.history ?? [];
       const total = history.length;
       const items = history.slice(skip, skip + limit);

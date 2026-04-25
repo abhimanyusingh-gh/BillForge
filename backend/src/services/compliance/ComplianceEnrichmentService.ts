@@ -1,14 +1,15 @@
+import type { Types } from "mongoose";
 import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { ComplianceRiskSignal } from "@/types/invoice.js";
 import type { UUID } from "@/types/uuid.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
-import type { TenantComplianceConfigFields } from "@/models/integration/TenantComplianceConfig.js";
+import type { ClientComplianceConfigFields } from "@/models/integration/ClientComplianceConfig.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import type { ComplianceEnricher, ComplianceEnrichContext, ComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
 import { emptyComplianceResult } from "@/services/compliance/ComplianceEnricher.js";
-import { resolveTenantComplianceConfig, resolveFreemailConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveClientComplianceConfig, resolveFreemailConfig } from "@/services/compliance/clientConfigResolver.js";
 import { PanValidationService } from "@/services/compliance/PanValidationService.js";
 import { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import { TdsCalculationService } from "@/services/compliance/TdsCalculationService.js";
@@ -54,10 +55,11 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
   async enrich(
     invoice: ParsedInvoiceData,
     tenantId: UUID,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     context?: ComplianceEnrichContext
   ): Promise<ComplianceResult> {
-    const config = await resolveTenantComplianceConfig(tenantId as UUID);
+    const config = await resolveClientComplianceConfig(tenantId as UUID, clientOrgId);
     const anyEnabled = config?.complianceEnabled ||
       config?.tdsEnabled ||
       config?.riskSignalsEnabled ||
@@ -71,15 +73,15 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     const processingIssues: string[] = [];
 
     this.enrichPan(invoice, config, result, riskSignals, processingIssues, tenantId, vendorFingerprint);
-    await this.enrichVendorMaster(invoice, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
-    await this.enrichGlCode(invoice, config, tenantId, vendorFingerprint, context, result, processingIssues);
-    await this.enrichCostCenter(tenantId, vendorFingerprint, result, processingIssues);
-    await this.enrichTcs(invoice, tenantId, result);
-    await this.enrichTds(invoice, config, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
+    await this.enrichVendorMaster(invoice, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
+    await this.enrichGlCode(invoice, config, tenantId, clientOrgId, vendorFingerprint, context, result, processingIssues);
+    await this.enrichCostCenter(tenantId, clientOrgId, vendorFingerprint, result, processingIssues);
+    await this.enrichTcs(invoice, tenantId, clientOrgId, result);
+    await this.enrichTds(invoice, config, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
     this.enrichIrn(invoice, config, result, riskSignals, processingIssues);
-    await this.enrichMsme(invoice, config, tenantId, vendorFingerprint, result, riskSignals, processingIssues);
-    await this.enrichEmailSender(tenantId, vendorFingerprint, context, riskSignals, processingIssues);
-    await this.enrichDuplicateDetection(invoice, tenantId, context, riskSignals, processingIssues);
+    await this.enrichMsme(invoice, config, tenantId, clientOrgId, vendorFingerprint, result, riskSignals, processingIssues);
+    await this.enrichEmailSender(tenantId, clientOrgId, vendorFingerprint, context, riskSignals, processingIssues);
+    await this.enrichDuplicateDetection(invoice, tenantId, clientOrgId, context, riskSignals, processingIssues);
 
     if (config.riskSignalsEnabled === false) {
       result.riskSignals = [];
@@ -89,7 +91,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
     if (processingIssues.length > 0) {
       logger.info("compliance.enrichment.partial", {
-        tenantId, vendorFingerprint,
+        tenantId, clientOrgId: String(clientOrgId), vendorFingerprint,
         issueCount: processingIssues.length,
         signalCount: result.riskSignals?.length ?? 0
       });
@@ -100,7 +102,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private enrichPan(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[],
@@ -125,6 +127,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
   private async enrichVendorMaster(
     invoice: ParsedInvoiceData,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
@@ -134,7 +137,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
       const vendorName = invoice.vendorName ?? "Unknown";
       const emailDomain = undefined;
 
-      await this.vendorMaster.upsertFromInvoice(tenantId, vendorFingerprint, {
+      await this.vendorMaster.upsertFromInvoice(tenantId, clientOrgId, vendorFingerprint, {
         vendorName,
         pan: invoice.pan,
         gstin: invoice.gst?.gstin,
@@ -144,7 +147,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
       });
 
       const bankChange = await this.vendorMaster.detectBankChange(
-        tenantId, vendorFingerprint, invoice.bankAccountNumber, invoice.bankIfsc
+        tenantId, clientOrgId, vendorFingerprint, invoice.bankAccountNumber, invoice.bankIfsc
       );
 
       result.vendorBank = {
@@ -175,8 +178,9 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichGlCode(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     context: ComplianceEnrichContext | undefined,
     result: ComplianceResult,
@@ -185,7 +189,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     try {
       if (config.autoSuggestGlCodes !== false) {
         const slmGlCategory = context?.slmGlCategory;
-        const glSuggestion = await this.glCodeSuggestion.suggest(tenantId, vendorFingerprint, invoice, undefined, slmGlCategory);
+        const glSuggestion = await this.glCodeSuggestion.suggest(tenantId, clientOrgId, vendorFingerprint, invoice, undefined, slmGlCategory);
         result.glCode = glSuggestion.glCode;
       }
     } catch (error) {
@@ -199,12 +203,13 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichCostCenter(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     result: ComplianceResult,
     processingIssues: string[]
   ): Promise<void> {
     try {
-      const ccSuggestion = await this.costCenter.suggest(tenantId, vendorFingerprint, result.glCode?.code ?? null);
+      const ccSuggestion = await this.costCenter.suggest(tenantId, clientOrgId, vendorFingerprint, result.glCode?.code ?? null);
       result.costCenter = ccSuggestion.costCenter;
     } catch (error) {
       processingIssues.push(`Compliance: Cost center suggestion failed — ${error instanceof Error ? error.message : String(error)}`);
@@ -214,9 +219,10 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
   private async enrichTcs(
     invoice: ParsedInvoiceData,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     result: ComplianceResult
   ): Promise<void> {
-    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    const tcsConfig = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
     if (tcsConfig?.enabled && tcsConfig.ratePercent > 0 && invoice.totalAmountMinor && invoice.totalAmountMinor > 0) {
       const tcsAmount = Math.floor(invoice.totalAmountMinor * tcsConfig.ratePercent / 100);
       result.tcs = {
@@ -229,8 +235,9 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichTds(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
@@ -241,10 +248,10 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
         const glCode = result.glCode?.code ?? null;
         let glCategory: string | null = null;
         if (glCode) {
-          const glDoc = await GlCodeMasterModel.findOne({ tenantId, code: glCode, isActive: true }).lean();
+          const glDoc = await GlCodeMasterModel.findOne({ tenantId, clientOrgId, code: glCode, isActive: true }).lean();
           glCategory = glDoc?.category ?? result.glCode?.name ?? null;
         }
-        const tdsResult = await this.tdsCalculation.computeTds(invoice, tenantId, glCategory);
+        const tdsResult = await this.tdsCalculation.computeTds(invoice, tenantId, clientOrgId, glCategory);
         result.tds = tdsResult.tds;
         riskSignals.push(...tdsResult.riskSignals);
       }
@@ -259,7 +266,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private enrichIrn(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[]
@@ -280,8 +287,9 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichMsme(
     invoice: ParsedInvoiceData,
-    config: TenantComplianceConfigFields,
+    config: ClientComplianceConfigFields,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     result: ComplianceResult,
     riskSignals: ComplianceRiskSignal[],
@@ -290,6 +298,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     try {
       const msmeResult = await this.msmeTracking.checkAndUpdate(
         tenantId,
+        clientOrgId,
         vendorFingerprint,
         (invoice as Record<string, unknown>).udyamNumber as string | undefined,
         invoice.invoiceDate,
@@ -307,6 +316,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
 
   private async enrichEmailSender(
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     vendorFingerprint: string,
     context: ComplianceEnrichContext | undefined,
     riskSignals: ComplianceRiskSignal[],
@@ -317,11 +327,11 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
       if (emailFrom) {
         const domain = emailFrom.split("@")[1]?.toLowerCase();
         if (domain) {
-          const vendor = await this.vendorMaster.findByFingerprint(tenantId, vendorFingerprint);
+          const vendor = await this.vendorMaster.findByFingerprint(tenantId, clientOrgId, vendorFingerprint);
           if (vendor && vendor.emailDomains && vendor.emailDomains.length > 0) {
             const knownDomains = new Set(vendor.emailDomains.map((d: string) => d.toLowerCase()));
             if (!knownDomains.has(domain)) {
-              const freemailDomains = await this.resolveFreemailDomains(tenantId);
+              const freemailDomains = await this.resolveFreemailDomains(tenantId, clientOrgId);
               if (freemailDomains.has(domain) && vendor.emailDomains.some((d: string) => !freemailDomains.has(d.toLowerCase()))) {
                 riskSignals.push(createRiskSignal(
                   RISK_SIGNAL_CODE.SENDER_FREEMAIL,
@@ -356,9 +366,9 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     }
   }
 
-  private async resolveFreemailDomains(tenantId: string): Promise<Set<string>> {
+  private async resolveFreemailDomains(tenantId: string, clientOrgId: Types.ObjectId): Promise<Set<string>> {
     const systemDefaults = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com"];
-    const config = await resolveFreemailConfig(tenantId);
+    const config = await resolveFreemailConfig(tenantId, clientOrgId);
     const additional = config?.additionalFreemailDomains;
     if (additional && additional.length > 0) {
       return new Set([...systemDefaults, ...additional.map(d => d.toLowerCase())]);
@@ -369,6 +379,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
   private async enrichDuplicateDetection(
     invoice: ParsedInvoiceData,
     tenantId: string,
+    clientOrgId: Types.ObjectId,
     context: ComplianceEnrichContext | undefined,
     riskSignals: ComplianceRiskSignal[],
     processingIssues: string[]
@@ -376,6 +387,7 @@ export class ComplianceEnrichmentService implements ComplianceEnricher {
     try {
       const dupSignals = await this.duplicateDetector.check(
         tenantId,
+        clientOrgId,
         invoice.vendorName,
         invoice.invoiceNumber,
         context?.contentHash,

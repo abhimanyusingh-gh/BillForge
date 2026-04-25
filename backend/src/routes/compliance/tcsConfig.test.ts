@@ -1,12 +1,17 @@
+import { Types } from "mongoose";
 import { createTcsConfigRouter, requireTcsModifyAccess } from "@/routes/compliance/tcsConfig.ts";
 import { defaultAuth, findHandler, mockRequest, mockResponse } from "@/routes/testHelpers.ts";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.ts";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.ts";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.ts";
 import { requireCap } from "@/auth/requireCapability.ts";
 
-jest.mock("../../models/integration/TenantTcsConfig.ts");
-jest.mock("../../models/integration/TenantComplianceConfig.ts", () => ({
-  TenantComplianceConfigModel: {
+const ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000c1");
+const authedReq = (overrides: Record<string, unknown> = {}) =>
+  mockRequest({ authContext: defaultAuth, activeClientOrgId: ACTIVE_CLIENT_ORG_ID, ...overrides });
+
+jest.mock("../../models/integration/ClientTcsConfig.ts");
+jest.mock("../../models/integration/ClientComplianceConfig.ts", () => ({
+  ClientComplianceConfigModel: {
     findOne: jest.fn(() => ({
       select: jest.fn().mockReturnValue({
         lean: jest.fn().mockResolvedValue(null)
@@ -34,7 +39,7 @@ describe("tcsConfig routes", () => {
 
   describe("GET /admin/tcs-config", () => {
     it("creates and returns default config when none exists", async () => {
-      (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({
+      (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({
         lean: jest.fn().mockResolvedValue(null)
       });
       const created = {
@@ -42,23 +47,23 @@ describe("tcsConfig routes", () => {
         ratePercent: 0,
         toObject: () => ({ tenantId: "tenant-a", ratePercent: 0 })
       };
-      (TenantTcsConfigModel.create as jest.Mock).mockResolvedValue(created);
+      (ClientTcsConfigModel.create as jest.Mock).mockResolvedValue(created);
 
       const router = createTcsConfigRouter();
       const handler = findHandler(router, "get", "/admin/tcs-config");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, jest.fn());
+      await handler(authedReq(), res, jest.fn());
 
-      expect(TenantTcsConfigModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: "tenant-a" })
+      expect(ClientTcsConfigModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: "tenant-a", clientOrgId: ACTIVE_CLIENT_ORG_ID })
       );
       expect(res.statusCode).toBe(200);
     });
 
     it("returns existing config when found", async () => {
       const existing = { tenantId: "tenant-a", ratePercent: 2, enabled: true, history: [] };
-      (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({
+      (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({
         lean: jest.fn().mockResolvedValue(existing)
       });
 
@@ -66,9 +71,9 @@ describe("tcsConfig routes", () => {
       const handler = findHandler(router, "get", "/admin/tcs-config");
       const res = mockResponse();
 
-      await handler(mockRequest({ authContext: defaultAuth }), res, jest.fn());
+      await handler(authedReq(), res, jest.fn());
 
-      expect(TenantTcsConfigModel.create).not.toHaveBeenCalled();
+      expect(ClientTcsConfigModel.create).not.toHaveBeenCalled();
       expect((res.jsonBody as { ratePercent: number }).ratePercent).toBe(2);
     });
   });
@@ -83,7 +88,7 @@ describe("tcsConfig routes", () => {
       const res = mockResponse();
 
       await handler(
-        mockRequest({ authContext: defaultAuth, body: { ratePercent, effectiveFrom: "2026-01-01", enabled: true } }),
+        authedReq({ body: { ratePercent, effectiveFrom: "2026-01-01", enabled: true } }),
         res,
         jest.fn()
       );
@@ -94,7 +99,7 @@ describe("tcsConfig routes", () => {
 
     it("prepends history entry on valid update", async () => {
       const existing = { tenantId: "tenant-a", ratePercent: 1, effectiveFrom: "2025-01-01", enabled: true };
-      (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({
+      (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({
         lean: jest.fn().mockResolvedValue(existing)
       });
       const updatedDoc = {
@@ -103,20 +108,20 @@ describe("tcsConfig routes", () => {
         history: [{ previousRate: 1, newRate: 2 }],
         toObject: () => ({ tenantId: "tenant-a", ratePercent: 2, history: [{ previousRate: 1, newRate: 2 }] })
       };
-      (TenantTcsConfigModel.findOneAndUpdate as jest.Mock).mockResolvedValue(updatedDoc);
+      (ClientTcsConfigModel.findOneAndUpdate as jest.Mock).mockResolvedValue(updatedDoc);
 
       const router = createTcsConfigRouter();
       const handler = findHandler(router, "put", "/admin/tcs-config");
       const res = mockResponse();
 
       await handler(
-        mockRequest({ authContext: defaultAuth, body: { ratePercent: 2, effectiveFrom: "2026-01-01", enabled: true, reason: "Budget change" } }),
+        authedReq({ body: { ratePercent: 2, effectiveFrom: "2026-01-01", enabled: true, reason: "Budget change" } }),
         res,
         jest.fn()
       );
 
-      expect(TenantTcsConfigModel.findOneAndUpdate).toHaveBeenCalledWith(
-        { tenantId: "tenant-a" },
+      expect(ClientTcsConfigModel.findOneAndUpdate).toHaveBeenCalledWith(
+        { tenantId: "tenant-a", clientOrgId: ACTIVE_CLIENT_ORG_ID },
         expect.objectContaining({
           $push: expect.objectContaining({
             history: expect.objectContaining({ $position: 0 })
@@ -141,7 +146,7 @@ describe("tcsConfig routes", () => {
       });
 
       const cap = requireCap("canConfigureCompliance");
-      const req = mockRequest({ authContext: { ...defaultAuth, role: "ap_clerk" } });
+      const req = authedReq({ authContext: { ...defaultAuth, role: "ap_clerk" } });
       const res = mockResponse();
       const next = jest.fn();
 
@@ -163,14 +168,14 @@ describe("tcsConfig routes", () => {
         tcsModifyRoles: ["TENANT_ADMIN"],
         toObject: () => ({ tenantId: "tenant-a", tcsModifyRoles: ["TENANT_ADMIN"] })
       };
-      (TenantTcsConfigModel.findOneAndUpdate as jest.Mock).mockResolvedValue(updatedDoc);
+      (ClientTcsConfigModel.findOneAndUpdate as jest.Mock).mockResolvedValue(updatedDoc);
 
       const router = createTcsConfigRouter();
       const handler = findHandler(router, "put", "/admin/tcs-config/roles");
       const res = mockResponse();
 
       await handler(
-        mockRequest({ authContext: defaultAuth, body: { tcsModifyRoles: ["TENANT_ADMIN"] } }),
+        authedReq({ body: { tcsModifyRoles: ["TENANT_ADMIN"] } }),
         res,
         jest.fn()
       );
@@ -187,11 +192,11 @@ describe("requireTcsModifyAccess", () => {
   });
 
   it("blocks role not in tcsModifyRoles with 403", async () => {
-    (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({
+    (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({
       lean: jest.fn().mockResolvedValue({ tcsModifyRoles: ["TENANT_ADMIN"] })
     });
 
-    const req = mockRequest({ authContext: { ...defaultAuth, role: "ap_clerk" } });
+    const req = authedReq({ authContext: { ...defaultAuth, role: "ap_clerk" } });
     const res = mockResponse();
     const next = jest.fn();
 
@@ -210,11 +215,11 @@ describe("requireTcsModifyAccess", () => {
   });
 
   it("calls next when role is in tcsModifyRoles", async () => {
-    (TenantTcsConfigModel.findOne as jest.Mock).mockReturnValue({
+    (ClientTcsConfigModel.findOne as jest.Mock).mockReturnValue({
       lean: jest.fn().mockResolvedValue({ tcsModifyRoles: ["TENANT_ADMIN", "senior_accountant"] })
     });
 
-    const req = mockRequest({ authContext: { ...defaultAuth, role: "senior_accountant" } });
+    const req = authedReq({ authContext: { ...defaultAuth, role: "senior_accountant" } });
     const res = mockResponse();
     const next = jest.fn();
 

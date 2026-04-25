@@ -14,8 +14,8 @@ jest.mock("../../models/core/TenantUserRole.ts", () => {
     }
   };
 });
-jest.mock("../../models/integration/TenantComplianceConfig.ts", () => ({
-  TenantComplianceConfigModel: {
+jest.mock("../../models/integration/ClientComplianceConfig.ts", () => ({
+  ClientComplianceConfigModel: {
     findOne: jest.fn(() => ({
       select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) })
     }))

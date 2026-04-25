@@ -1,13 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
+import type { Types } from "mongoose";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
-import { resolveApprovalLimitConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveApprovalLimitConfig } from "@/services/compliance/clientConfigResolver.js";
 import type { AuthenticatedRequestContext } from "@/types/auth.js";
 import { getRoleDefaults, mergeCapabilitiesWithDefaults, applyApprovalLimitOverrides, type UserCapabilities } from "@/auth/personaDefaults.js";
 
 const capabilitiesCache = new WeakMap<Request, UserCapabilities>();
 
 async function resolveCapabilitiesForContext(
-  context: Pick<AuthenticatedRequestContext, "tenantId" | "userId" | "role"> | null
+  context: Pick<AuthenticatedRequestContext, "tenantId" | "userId" | "role"> | null,
+  activeClientOrgId: Types.ObjectId | undefined
 ): Promise<UserCapabilities> {
   if (!context) {
     return getRoleDefaults("PLATFORM_ADMIN");
@@ -18,7 +20,9 @@ async function resolveCapabilitiesForContext(
       tenantId: context.tenantId,
       userId: context.userId
     }).lean(),
-    resolveApprovalLimitConfig(context.tenantId)
+    activeClientOrgId
+      ? resolveApprovalLimitConfig(context.tenantId, activeClientOrgId)
+      : Promise.resolve(null)
   ]);
 
   const rawRoleDoc = roleDoc as Record<string, unknown> | null;
@@ -36,7 +40,7 @@ export async function resolveCapabilities(req: Request): Promise<UserCapabilitie
   const cached = capabilitiesCache.get(req);
   if (cached) return cached;
 
-  const capabilities = await resolveCapabilitiesForContext(req.authContext ?? null);
+  const capabilities = await resolveCapabilitiesForContext(req.authContext ?? null, req.activeClientOrgId);
 
   capabilitiesCache.set(req, capabilities);
   return capabilities;

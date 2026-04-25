@@ -8,6 +8,7 @@ import { toUUID } from "@/types/uuid.js";
 function makeInput(overrides: Partial<PipelineInput> = {}): PipelineInput {
   return {
     tenantId: toUUID("t-1"),
+    clientOrgId: null,
     fileName: "invoice.pdf",
     mimeType: "application/pdf",
     fileBuffer: Buffer.from("fake"),

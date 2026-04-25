@@ -7,7 +7,7 @@ import type {
   RiskSignalDefinition,
   TdsRate,
   TdsRateEntry,
-  TenantComplianceConfig
+  ClientComplianceConfig
 } from "@/types";
 
 export interface PlatformTenantUsageSummary {
@@ -89,12 +89,12 @@ export async function fetchTdsRates(): Promise<TdsRate[]> {
   return (await apiClient.get<{ items: TdsRate[] }>("/compliance/tds-rates")).data.items;
 }
 
-export async function fetchComplianceConfig(): Promise<TenantComplianceConfig> {
-  return (await apiClient.get<TenantComplianceConfig>("/admin/compliance-config")).data;
+export async function fetchComplianceConfig(): Promise<ClientComplianceConfig> {
+  return (await apiClient.get<ClientComplianceConfig>("/admin/compliance-config")).data;
 }
 
-export async function saveComplianceConfig(config: Partial<TenantComplianceConfig>): Promise<TenantComplianceConfig> {
-  return (await apiClient.put<TenantComplianceConfig>("/admin/compliance-config", config)).data;
+export async function saveComplianceConfig(config: Partial<ClientComplianceConfig>): Promise<ClientComplianceConfig> {
+  return (await apiClient.put<ClientComplianceConfig>("/admin/compliance-config", config)).data;
 }
 
 export async function fetchDefaultTdsSections(): Promise<TdsRateEntry[]> {

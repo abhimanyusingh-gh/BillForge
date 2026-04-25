@@ -8,7 +8,6 @@ import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { HttpError } from "@/errors/HttpError.js";
 import type { InviteEmailSenderBoundary } from "@/core/boundaries/InviteEmailSenderBoundary.js";
 import type { KeycloakAdminClient } from "@/keycloak/KeycloakAdminClient.js";
-import { seedDefaultGlCodes } from "@/services/compliance/seedGlCodes.js";
 import { ONBOARDING_STATUS, type OnboardingStatus, type TenantMode } from "@/types/onboarding.js";
 import { GMAIL_CONNECTION_STATUS } from "@/types/gmail.js";
 
@@ -105,7 +104,11 @@ export class PlatformAdminService {
       throw new HttpError("Failed to register user in identity provider.", 502, "platform_kc_create_failed");
     }
 
-    await seedDefaultGlCodes(String(tenant._id));
+    // Post hierarchy-pivot: seedDefaultGlCodes now requires a clientOrgId.
+    // Platform admin creates the tenant shell only — GL codes are seeded
+    // once the first ClientOrganization is provisioned in onboarding.
+    // TODO(#156 sub-PR 5): wire GL-code seeding into ClientOrganization
+    // provisioning instead of tenant creation.
 
     return {
       tenantId: String(tenant._id),

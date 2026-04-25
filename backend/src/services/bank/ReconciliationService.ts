@@ -1,11 +1,12 @@
+import type { Types } from "mongoose";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { BankTransactionModel, BANK_TRANSACTION_MATCH_STATUS, type BankTransaction } from "@/models/bank/BankTransaction.js";
-import { TenantTcsConfigModel } from "@/models/integration/TenantTcsConfig.js";
+import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { logger } from "@/utils/logger.js";
 import { isRecord } from "@/utils/validation.js";
 import { type UUID, toUUID } from "@/types/uuid.js";
-import { resolveTenantComplianceConfig } from "@/services/compliance/tenantConfigResolver.js";
+import { resolveClientComplianceConfig } from "@/services/compliance/clientConfigResolver.js";
 import { createRiskSignal } from "@/services/compliance/riskSignalFactory.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
@@ -115,22 +116,27 @@ export function scoreDateProximity(
 }
 
 export class ReconciliationService {
-  async reconcileStatement(tenantId: UUID, statementId: string): Promise<{ matched: number; suggested: number; unmatched: number }> {
+  async reconcileStatement(
+    tenantId: UUID,
+    clientOrgId: Types.ObjectId,
+    statementId: string
+  ): Promise<{ matched: number; suggested: number; unmatched: number }> {
     const transactions = await BankTransactionModel.find({
       tenantId,
+      clientOrgId,
       statementId,
       matchStatus: BANK_TRANSACTION_MATCH_STATUS.UNMATCHED,
       debitMinor: { $gt: 0 }
     }).lean();
 
     const { BankStatementModel } = await import("@/models/bank/BankStatement.js");
-    const statement = await BankStatementModel.findOne({ _id: statementId, tenantId }).lean();
+    const statement = await BankStatementModel.findOne({ _id: statementId, tenantId, clientOrgId }).lean();
     const statementGstin = statement?.gstin ?? undefined;
 
-    const tcsConfig = await TenantTcsConfigModel.findOne({ tenantId }).lean();
+    const tcsConfig = await ClientTcsConfigModel.findOne({ tenantId, clientOrgId }).lean();
     const tcsRatePercent = tcsConfig?.enabled ? (tcsConfig.ratePercent ?? 0) : 0;
 
-    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const tenantConfig = await resolveClientComplianceConfig(tenantId, clientOrgId);
     const autoMatchThreshold = tenantConfig?.reconciliationAutoMatchThreshold ?? DEFAULT_AUTO_MATCH_THRESHOLD;
     const suggestThreshold = tenantConfig?.reconciliationSuggestThreshold ?? DEFAULT_SUGGEST_THRESHOLD;
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
@@ -140,7 +146,7 @@ export class ReconciliationService {
     let suggested = 0;
     let unmatched = 0;
 
-    const allCandidateInvoices = await this.batchFetchCandidateInvoices(tenantId, transactions, tcsRatePercent, statementGstin, tolerance);
+    const allCandidateInvoices = await this.batchFetchCandidateInvoices(tenantId, clientOrgId, transactions, tcsRatePercent, statementGstin, tolerance);
 
     for (const txn of transactions) {
       const candidates = this.scoreMatchCandidates(txn, allCandidateInvoices, tcsRatePercent, tolerance, weights);
@@ -152,11 +158,11 @@ export class ReconciliationService {
 
       const best = candidates[0];
       if (best.score > autoMatchThreshold) {
-        await this.applyMatch(tenantId, String(txn._id), best.invoiceId, best.score);
+        await this.applyMatch(tenantId, clientOrgId, String(txn._id), best.invoiceId, best.score);
         matched++;
       } else if (best.score >= suggestThreshold) {
         await BankTransactionModel.updateOne(
-          { _id: txn._id },
+          { _id: txn._id, tenantId, clientOrgId },
           { $set: { matchedInvoiceId: best.invoiceId, matchConfidence: best.score, matchStatus: BANK_TRANSACTION_MATCH_STATUS.SUGGESTED } }
         );
         suggested++;
@@ -166,16 +172,17 @@ export class ReconciliationService {
     }
 
     await BankStatementModel.updateOne(
-      { _id: statementId },
+      { _id: statementId, tenantId, clientOrgId },
       { $set: { matchedCount: matched, suggestedCount: suggested, unmatchedCount: unmatched } }
     );
 
-    logger.info("reconciliation.complete", { tenantId, statementId, matched, suggested, unmatched });
+    logger.info("reconciliation.complete", { tenantId, clientOrgId: String(clientOrgId), statementId, matched, suggested, unmatched });
     return { matched, suggested, unmatched };
   }
 
   private async batchFetchCandidateInvoices(
     tenantId: UUID,
+    clientOrgId: Types.ObjectId,
     transactions: Pick<BankTransaction, "debitMinor" | "description" | "date">[],
     tcsRatePercent: number,
     gstin?: string,
@@ -197,6 +204,7 @@ export class ReconciliationService {
 
     const invoiceQuery: Record<string, unknown> = {
       tenantId,
+      clientOrgId,
       status: { $nin: [INVOICE_STATUS.EXPORTED] },
       "parsed.totalAmountMinor": { $gte: globalMin, $lte: globalMax }
     };
@@ -260,25 +268,32 @@ export class ReconciliationService {
 
   async findMatchCandidates(
     tenantId: UUID,
+    clientOrgId: Types.ObjectId,
     txn: Pick<BankTransaction, "debitMinor" | "description" | "date">,
     tcsRatePercent: number = 0,
     gstin?: string
   ): Promise<MatchCandidate[]> {
-    const tenantConfig = await resolveTenantComplianceConfig(tenantId);
+    const tenantConfig = await resolveClientComplianceConfig(tenantId, clientOrgId);
     const tolerance = tenantConfig?.reconciliationAmountToleranceMinor ?? DEFAULT_AMOUNT_TOLERANCE_MINOR;
     const weights = resolveWeights(tenantConfig);
-    const invoices = await this.batchFetchCandidateInvoices(tenantId, [txn], tcsRatePercent, gstin, tolerance);
+    const invoices = await this.batchFetchCandidateInvoices(tenantId, clientOrgId, [txn], tcsRatePercent, gstin, tolerance);
     return this.scoreMatchCandidates(txn, invoices, tcsRatePercent, tolerance, weights);
   }
 
-  async applyMatch(tenantId: UUID, transactionId: string, invoiceId: string, confidence: number): Promise<void> {
+  async applyMatch(
+    tenantId: UUID,
+    clientOrgId: Types.ObjectId,
+    transactionId: string,
+    invoiceId: string,
+    confidence: number
+  ): Promise<void> {
     await BankTransactionModel.updateOne(
-      { _id: transactionId },
+      { _id: transactionId, tenantId, clientOrgId },
       { $set: { matchedInvoiceId: invoiceId, matchConfidence: confidence, matchStatus: BANK_TRANSACTION_MATCH_STATUS.MATCHED } }
     );
 
     await InvoiceModel.updateOne(
-      { _id: invoiceId, tenantId },
+      { _id: invoiceId, tenantId, clientOrgId },
       {
         $set: {
           "compliance.reconciliation": {
@@ -301,28 +316,33 @@ export class ReconciliationService {
     );
   }
 
-  async manualMatch(tenantId: UUID, transactionId: string, invoiceId: string): Promise<void> {
-    await this.applyMatch(tenantId, transactionId, invoiceId, 100);
+  async manualMatch(
+    tenantId: UUID,
+    clientOrgId: Types.ObjectId,
+    transactionId: string,
+    invoiceId: string
+  ): Promise<void> {
+    await this.applyMatch(tenantId, clientOrgId, transactionId, invoiceId, 100);
     await BankTransactionModel.updateOne(
-      { _id: transactionId },
+      { _id: transactionId, tenantId, clientOrgId },
       { $set: { matchStatus: BANK_TRANSACTION_MATCH_STATUS.MANUAL } }
     );
   }
 
-  async unmatch(tenantId: UUID, transactionId: string): Promise<void> {
-    const txn = await BankTransactionModel.findOne({ _id: transactionId, tenantId }).lean();
+  async unmatch(tenantId: UUID, clientOrgId: Types.ObjectId, transactionId: string): Promise<void> {
+    const txn = await BankTransactionModel.findOne({ _id: transactionId, tenantId, clientOrgId }).lean();
     if (!txn) return;
 
     const invoiceId = txn.matchedInvoiceId;
 
     await BankTransactionModel.updateOne(
-      { _id: transactionId },
+      { _id: transactionId, tenantId, clientOrgId },
       { $set: { matchedInvoiceId: null, matchConfidence: null, matchStatus: BANK_TRANSACTION_MATCH_STATUS.UNMATCHED } }
     );
 
     if (invoiceId) {
       await InvoiceModel.updateOne(
-        { _id: invoiceId, tenantId },
+        { _id: invoiceId, tenantId, clientOrgId },
         {
           $unset: { "compliance.reconciliation": 1 },
           $pull: { "compliance.riskSignals": { code: RISK_SIGNAL_CODE.BANK_PAYMENT_VERIFIED } } as unknown as Record<string, unknown>

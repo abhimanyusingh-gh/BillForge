@@ -4,7 +4,12 @@ import { ClientOrganizationModel } from "@/models/integration/ClientOrganization
 import { TALLY_ACTION, type TallyAction } from "@/services/export/tallyExporter/xml.js";
 
 interface VoucherGuidInputs {
-  tenantId: string;
+  /**
+   * Opaque client-org ObjectId string (#158). Rooted on `clientOrgId`
+   * (not `tenantId`) so the voucher GUID remains stable across any
+   * GSTIN re-registration on the `ClientOrganization` document.
+   */
+  clientOrgId: string;
   invoiceId: string;
   exportVersion: number;
 }
@@ -19,9 +24,9 @@ export interface ReExportDecision {
 
 export class F12OverwriteNotVerifiedError extends Error {
   readonly code = "TALLY_F12_OVERWRITE_NOT_VERIFIED";
-  constructor(tenantId: string) {
+  constructor(clientOrgId: string) {
     super(
-      `Tally F12 "Overwrite voucher when voucher with same GUID exists" is not verified for tenant ${tenantId}. ` +
+      `Tally F12 "Overwrite voucher when voucher with same GUID exists" is not verified for client-org ${clientOrgId}. ` +
       "Re-export requires ACTION=\"Alter\"; complete the Tally onboarding F12 check before retrying."
     );
   }
@@ -58,7 +63,7 @@ function lengthPrefix(value: string): string {
 
 export function computeVoucherGuid(inputs: VoucherGuidInputs): string {
   const payload = [
-    lengthPrefix(inputs.tenantId),
+    lengthPrefix(inputs.clientOrgId),
     lengthPrefix(inputs.invoiceId),
     String(inputs.exportVersion)
   ].join("|");
@@ -66,22 +71,22 @@ export function computeVoucherGuid(inputs: VoucherGuidInputs): string {
 }
 
 export async function resolveReExportDecision(params: {
-  tenantId: string;
+  clientOrgId: string;
   invoiceId: string;
   currentExportVersion: number;
 }): Promise<ReExportDecision> {
-  const { tenantId, invoiceId, currentExportVersion } = params;
+  const { clientOrgId, invoiceId, currentExportVersion } = params;
   const nextExportVersion = currentExportVersion + 1;
   const action: TallyAction = currentExportVersion === 0 ? TALLY_ACTION.CREATE : TALLY_ACTION.ALTER;
 
-  const company = await ClientOrganizationModel.findOne({ tenantId }).lean();
+  const company = await ClientOrganizationModel.findById(clientOrgId).lean();
 
   if (action === TALLY_ACTION.ALTER && !company?.f12OverwriteByGuidVerified) {
-    throw new F12OverwriteNotVerifiedError(tenantId);
+    throw new F12OverwriteNotVerifiedError(clientOrgId);
   }
 
   return {
-    guid: computeVoucherGuid({ tenantId, invoiceId, exportVersion: nextExportVersion }),
+    guid: computeVoucherGuid({ clientOrgId, invoiceId, exportVersion: nextExportVersion }),
     action,
     priorExportVersion: currentExportVersion,
     nextExportVersion,

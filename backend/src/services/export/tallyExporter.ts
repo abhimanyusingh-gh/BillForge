@@ -17,7 +17,7 @@ import type {
   VoucherPayloadInput
 } from "@/services/export/tallyExporter/xml.js";
 import { resolveInvoiceTotalAmountMinor } from "@/services/export/tallyExporter/amountResolution.js";
-import { buildTallyExportConfig } from "@/services/export/tenantExportConfigResolver.js";
+import { buildTallyExportConfig } from "@/services/export/clientExportConfigResolver.js";
 import {
   clearInFlightExportVersion,
   promoteExportVersion,
@@ -75,10 +75,17 @@ export class TallyExporter implements AccountingExporter {
       ? await this.resolveEffectiveConfig(tenantId)
       : this.config;
 
-    if (tenantId) {
-      const company = await ClientOrganizationModel.findOne({ tenantId }).lean();
+    // Post-hierarchy-pivot: detected-version logging is per-client-org.
+    // Log at most once per distinct client-org in the batch.
+    const loggedClientOrgIds = new Set<string>();
+    for (const invoice of invoices) {
+      if (!invoice.clientOrgId) continue;
+      const key = String(invoice.clientOrgId);
+      if (loggedClientOrgIds.has(key)) continue;
+      loggedClientOrgIds.add(key);
+      const company = await ClientOrganizationModel.findById(key).lean();
       logger.info("tally.export.detected_version", {
-        tenantId,
+        clientOrgId: key,
         detectedVersion: company?.detectedVersion ?? null
       });
     }
@@ -99,9 +106,15 @@ export class TallyExporter implements AccountingExporter {
           continue;
         }
 
-        const decision = tenantId
+        // Post-hierarchy-pivot (#156/#158): the voucher GUID is rooted
+        // on `clientOrgId` rather than `tenantId`, so the decision
+        // resolves off the invoice's own `clientOrgId`. Triage-state
+        // invoices (#159) carry `clientOrgId: null` and are filtered
+        // out of export batches upstream; skip re-export decisions for
+        // any residual null case.
+        const decision = invoice.clientOrgId
           ? await resolveReExportDecision({
-              tenantId,
+              clientOrgId: String(invoice.clientOrgId),
               invoiceId,
               currentExportVersion: invoice.exportVersion ?? 0
             })
@@ -209,7 +222,7 @@ export class TallyExporter implements AccountingExporter {
   }
 
   private async resolveEffectiveConfig(tenantId: string): Promise<TallyExporterConfig> {
-    const resolved = await buildTallyExportConfig(tenantId, {
+    const resolved = await buildTallyExportConfig(tenantId, undefined, {
       companyName: this.config.companyName,
       purchaseLedgerName: this.config.purchaseLedgerName,
       gstLedgers: this.config.gstLedgers,

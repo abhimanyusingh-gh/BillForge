@@ -6,9 +6,9 @@ import {
   fetchAvailableRiskSignals
 } from "@/api/admin";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
-import type { TdsRateEntry, TenantComplianceConfig, RiskSignalDefinition } from "@/types";
+import type { TdsRateEntry, ClientComplianceConfig, RiskSignalDefinition } from "@/types";
 
-const PAN_LEVEL_OPTIONS: Array<{ value: TenantComplianceConfig["panValidationLevel"]; label: string }> = [
+const PAN_LEVEL_OPTIONS: Array<{ value: ClientComplianceConfig["panValidationLevel"]; label: string }> = [
   { value: "format", label: "Format only" },
   { value: "format_and_checksum", label: "Format + Checksum" }
 ];
@@ -39,7 +39,7 @@ interface ComplianceConfigPanelProps {
 }
 
 export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConfigPanelProps) {
-  const [config, setConfig] = useState<TenantComplianceConfig | null>(null);
+  const [config, setConfig] = useState<ClientComplianceConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -50,7 +50,7 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
   const [tdsSuccess, setTdsSuccess] = useState(false);
 
   const [panEnabled, setPanEnabled] = useState(false);
-  const [panLevel, setPanLevel] = useState<TenantComplianceConfig["panValidationLevel"]>("disabled");
+  const [panLevel, setPanLevel] = useState<ClientComplianceConfig["panValidationLevel"]>("disabled");
   const [panSaving, setPanSaving] = useState(false);
   const [panError, setPanError] = useState<string | null>(null);
   const [panSuccess, setPanSuccess] = useState(false);
@@ -480,7 +480,7 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
               Validation Level
               <select
                 value={panLevel}
-                onChange={(e) => setPanLevel(e.target.value as TenantComplianceConfig["panValidationLevel"])}
+                onChange={(e) => setPanLevel(e.target.value as ClientComplianceConfig["panValidationLevel"])}
                 disabled={panSaving}
                 style={{ width: "14rem" }}
               >

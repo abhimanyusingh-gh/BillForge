@@ -29,6 +29,7 @@ import { writeFileSync, readFileSync } from "node:fs";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
+import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { INVOICE_STATUS } from "@/types/invoice.js";
 import { ONBOARDING_STATUS, TENANT_MODE } from "@/types/onboarding.js";
 import {
@@ -60,7 +61,7 @@ export async function generateDataset(
   scale: DatasetScale
 ): Promise<DatasetLoadResult> {
   const start = Date.now();
-  const { tenants, vendors, invoices } = await buildFixtures({
+  const { tenants, clientOrgs, vendors, invoices } = await buildFixtures({
     ...scale,
     persist: false
   });
@@ -78,9 +79,28 @@ export async function generateDataset(
     { ordered: false }
   );
 
+  // Post hierarchy-pivot (#156): every tenant gets a companion
+  // ClientOrganization — accounting-leaf rows below link through
+  // `clientOrgId`, not `tenantId`.
+  await ClientOrganizationModel.insertMany(
+    clientOrgs.map((c) => ({
+      _id: c._id,
+      tenantId: c.tenantId,
+      gstin: c.gstin,
+      companyName: `ClientOrg ${c._id.toHexString().slice(-6)}`
+    })),
+    { ordered: false }
+  );
+
+  const tenantByClientOrgId = new Map<string, string>();
+  for (const c of clientOrgs) {
+    tenantByClientOrgId.set(c._id.toHexString(), c.tenantId);
+  }
+
   await insertInBatches(VendorMasterModel, vendors, (v, i) => ({
     _id: v._id,
-    tenantId: v.tenantId,
+    tenantId: tenantByClientOrgId.get(v.clientOrgId.toHexString()) ?? "",
+    clientOrgId: v.clientOrgId,
     vendorFingerprint: `vendor-bulk-${i}`,
     name: v.name,
     gstin: v.gstin,
@@ -91,7 +111,8 @@ export async function generateDataset(
 
   await insertInBatches(InvoiceModel, invoices, (inv, i) => ({
     _id: inv._id,
-    tenantId: inv.tenantId,
+    tenantId: tenantByClientOrgId.get(inv.clientOrgId.toHexString()) ?? "",
+    clientOrgId: inv.clientOrgId,
     workloadTier: "standard",
     sourceType: "harness-bulk",
     sourceKey: `harness-bulk-${scale.seed ?? 42}`,
@@ -125,16 +146,21 @@ export async function generateDataset(
 export function dumpDataset(set: FixtureSet, path: string): void {
   const serialisable = {
     tenants: set.tenants.map((t) => ({ _id: t._id.toHexString(), name: t.name })),
+    clientOrgs: set.clientOrgs.map((c) => ({
+      _id: c._id.toHexString(),
+      tenantId: c.tenantId,
+      gstin: c.gstin
+    })),
     vendors: set.vendors.map((v) => ({
       _id: v._id.toHexString(),
-      tenantId: v.tenantId,
+      clientOrgId: v.clientOrgId.toHexString(),
       name: v.name,
       gstin: v.gstin,
       pan: v.pan
     })),
     invoices: set.invoices.map((i) => ({
       _id: i._id.toHexString(),
-      tenantId: i.tenantId,
+      clientOrgId: i.clientOrgId.toHexString(),
       vendorName: i.vendorName,
       totalAmountMinor: i.totalAmountMinor,
       invoiceNumber: i.invoiceNumber
