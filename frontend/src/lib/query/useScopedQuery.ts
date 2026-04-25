@@ -8,13 +8,13 @@ import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
 
 const SCOPED_QUERY_NAMESPACE = "clientOrg" as const;
 
-export type ScopedQueryKey = readonly unknown[];
+type ScopedQueryKey = readonly unknown[];
 
-export interface ScopedQueryContext {
+interface ScopedQueryContext {
   activeClientOrgId: string;
 }
 
-export interface UseScopedQueryOptions<TData, TError>
+interface UseScopedQueryOptions<TData, TError>
   extends Omit<UseQueryOptions<TData, TError, TData, QueryKey>, "queryKey" | "queryFn" | "enabled"> {
   queryKey: ScopedQueryKey;
   queryFn: (ctx: ScopedQueryContext) => Promise<TData>;

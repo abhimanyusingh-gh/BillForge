@@ -10,6 +10,14 @@
  * drift. Long-term replacement (BE-driven code-gen) tracked in #170.
  */
 
+/**
+ * @public
+ * Consumed by `backend/scripts/check-realm-scoped-paths.sh` via text grep
+ * (sed parse between the `[` and `] as const;` markers). Knip cannot see
+ * cross-language string-grep consumers, so this `@public` tag tells knip
+ * the export is intentional even with no static TS importer outside this
+ * file.
+ */
 export const REALM_SCOPED_PATH_PREFIXES = [
   "/invoices",
   "/vendors",
@@ -30,7 +38,7 @@ export const REALM_SCOPED_PATH_PREFIXES = [
   "/admin/approval-workflow"
 ] as const;
 
-export const REALM_SCOPED_PATH_BYPASS_PREFIXES = [
+const REALM_SCOPED_PATH_BYPASS_PREFIXES = [
   "/compliance/admin",
   // Triage list (#166): the ONE accounting-leaf list query that legitimately
   // filters by tenantId WITHOUT clientOrgId — these invoices have
@@ -51,12 +59,12 @@ export const REALM_SCOPED_PATH_BYPASS_PREFIXES = [
 // these suffixes for non-bypass routes. If a new route legitimately needs
 // to end with `/reject` or `/assign-client-org` AND must remain realm-scoped,
 // add a counter-rule here before adding the route.
-export const REALM_SCOPED_PATH_BYPASS_SUFFIXES = [
+const REALM_SCOPED_PATH_BYPASS_SUFFIXES = [
   "/assign-client-org",
   "/reject"
 ] as const;
 
-export const TENANT_SCOPED_PATH_PREFIXES = [
+const TENANT_SCOPED_PATH_PREFIXES = [
   "/admin",
   "/auth",
   "/integrations",
@@ -68,7 +76,7 @@ export const TENANT_SCOPED_PATH_PREFIXES = [
   "/session"
 ] as const;
 
-export type RealmScope = "realm-scoped" | "tenant-scoped" | "unknown";
+type RealmScope = "realm-scoped" | "tenant-scoped" | "unknown";
 
 function stripQueryString(path: string): string {
   const idx = path.indexOf("?");

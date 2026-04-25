@@ -14,7 +14,7 @@ type SlideOverWidth = keyof typeof SLIDE_OVER_WIDTH;
 
 type SlideOverSide = "right" | "left";
 
-export interface SlideOverPanelProps {
+interface SlideOverPanelProps {
   open: boolean;
   title: string;
   onClose: () => void;

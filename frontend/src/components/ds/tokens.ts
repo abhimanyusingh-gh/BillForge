@@ -1,4 +1,4 @@
-export const TOKEN_CSS_VAR = {
+const TOKEN_CSS_VAR = {
   "color.bg.main": "--bg-main",
   "color.bg.panel": "--bg-panel",
   "color.ink": "--ink",
@@ -46,7 +46,7 @@ export const TOKEN_CSS_VAR = {
   "shadow.lg": "--shadow-lg"
 } as const;
 
-export type TokenPath = keyof typeof TOKEN_CSS_VAR;
+type TokenPath = keyof typeof TOKEN_CSS_VAR;
 
 export function cssVar(path: TokenPath): string {
   return `var(${TOKEN_CSS_VAR[path]})`;
@@ -115,5 +115,3 @@ export const tokens = {
     }
   }
 } as const;
-
-export type Tokens = typeof tokens;

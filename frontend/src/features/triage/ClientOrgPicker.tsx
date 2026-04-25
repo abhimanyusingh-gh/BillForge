@@ -5,7 +5,7 @@ import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 const PICKER_TITLE_DEFAULT = "Choose a client";
 const PICKER_PLACEHOLDER_DEFAULT = "Search by company name...";
 
-export interface ClientOrgPickerProps {
+interface ClientOrgPickerProps {
   open: boolean;
   onClose: () => void;
   onSelect: (option: ClientOrgOption) => void;

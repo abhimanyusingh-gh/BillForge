@@ -1,14 +1,14 @@
 import { tokens } from "./tokens";
 
-export const SPINNER_SIZE = {
+const SPINNER_SIZE = {
   sm: 14,
   md: 20,
   lg: 32
 } as const;
 
-export type SpinnerSize = keyof typeof SPINNER_SIZE;
+type SpinnerSize = keyof typeof SPINNER_SIZE;
 
-export interface SpinnerProps {
+interface SpinnerProps {
   size?: SpinnerSize;
   label?: string;
 }

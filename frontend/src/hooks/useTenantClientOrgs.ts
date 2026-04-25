@@ -4,7 +4,7 @@ import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 
 export const TENANT_CLIENT_ORGS_QUERY_KEY = ["tenantClientOrgs"] as const;
 
-export interface UseTenantClientOrgsResult {
+interface UseTenantClientOrgsResult {
   clientOrgs: ClientOrgOption[] | undefined;
   isLoading: boolean;
   isError: boolean;
