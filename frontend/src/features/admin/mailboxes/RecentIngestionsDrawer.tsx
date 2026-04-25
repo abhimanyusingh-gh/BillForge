@@ -180,11 +180,7 @@ function RecentIngestionRow({
         <span className="recent-ingestions-drawer-row-vendor">{vendorLabel}</span>
       </div>
       <div className="recent-ingestions-drawer-row-meta">
-        {item.status ? (
-          <Badge tone={getInvoiceStatusPresentation(item.status).tone} size="sm">
-            {getInvoiceStatusPresentation(item.status).label}
-          </Badge>
-        ) : null}
+        {item.status ? <StatusBadge status={item.status} /> : null}
         {clientOrgName ? (
           <span className="recent-ingestions-drawer-row-org">{clientOrgName}</span>
         ) : null}
@@ -193,6 +189,15 @@ function RecentIngestionRow({
         </time>
       </div>
     </li>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const { label, tone } = getInvoiceStatusPresentation(status);
+  return (
+    <Badge tone={tone} size="sm">
+      {label}
+    </Badge>
   );
 }
 
