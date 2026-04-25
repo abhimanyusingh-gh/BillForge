@@ -422,7 +422,9 @@ function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canView
   // {tenantId, clientOrgId} and re-fetches on realm switch via `useScopedQuery`.
   // Same hook drives `<ActionRequiredTrigger>` in the topnav — react-query
   // dedupes by key so this is a single fetch with two consumers.
-  const { totalCount: actionRequiredCount, isRealmActive } = useActionRequiredQueue();
+  // The hook returns `null` when no realm is active; the sidebar treats
+  // null as "unknown" (badge hidden), so we forward it as-is.
+  const { totalCount: actionRequiredCount } = useActionRequiredQueue();
   const navigateToStandaloneRoute = useCallback((route: StandaloneHashRoute) => {
     window.location.hash = STANDALONE_HASH_PATH[route];
   }, []);
@@ -434,7 +436,7 @@ function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canView
       onStandaloneRouteChange={navigateToStandaloneRoute}
       canViewTenantConfig={canViewTenantConfig}
       canViewConnections={canViewConnections}
-      invoiceActionRequiredCount={isRealmActive ? actionRequiredCount : null}
+      invoiceActionRequiredCount={actionRequiredCount}
       triageCount={triageCount}
       topNav={topNav}
       subNav={subNav}

@@ -57,9 +57,10 @@ interface TenantSidebarProps {
   // null = unknown (no active realm yet — pre-onboarding); 0 = empty queue.
   // The sidebar hides the badge in BOTH cases (matches the triage badge
   // hide-at-zero convention) so users do not misread "no realm selected"
-  // as "queue is empty".
-  invoiceActionRequiredCount?: number | null;
-  triageCount?: number;
+  // as "queue is empty". Prop is required so callers cannot accidentally
+  // collapse the null sentinel via an `undefined` default.
+  invoiceActionRequiredCount: number | null;
+  triageCount: number;
 }
 
 function badgeAriaLabel(label: string, count: number, suffix: string): string {
@@ -90,6 +91,27 @@ function isItemActive(
   return false;
 }
 
+function activateTarget(
+  target: SidebarTarget,
+  onTabChange: (tab: TenantViewTab) => void,
+  onStandaloneRouteChange: (route: StandaloneHashRoute) => void
+): void {
+  switch (target.kind) {
+    case SIDEBAR_TARGET_KIND.Tab:
+      onTabChange(target.tab);
+      return;
+    case SIDEBAR_TARGET_KIND.StandaloneHash:
+      onStandaloneRouteChange(target.route);
+      return;
+    case SIDEBAR_TARGET_KIND.Placeholder:
+      return;
+    default: {
+      const _exhaustive: never = target;
+      return _exhaustive;
+    }
+  }
+}
+
 export function TenantSidebar({
   activeTab,
   activeStandaloneRoute,
@@ -97,8 +119,8 @@ export function TenantSidebar({
   onStandaloneRouteChange,
   canViewTenantConfig,
   canViewConnections,
-  invoiceActionRequiredCount = 0,
-  triageCount = 0
+  invoiceActionRequiredCount,
+  triageCount
 }: TenantSidebarProps) {
   const invoiceCount = invoiceActionRequiredCount ?? 0;
   return (
@@ -130,11 +152,7 @@ export function TenantSidebar({
                 data-item-id={item.id}
                 onClick={() => {
                   if (isDisabled) return;
-                  if (item.target.kind === SIDEBAR_TARGET_KIND.Tab) {
-                    onTabChange(item.target.tab);
-                  } else if (item.target.kind === SIDEBAR_TARGET_KIND.StandaloneHash) {
-                    onStandaloneRouteChange(item.target.route);
-                  }
+                  activateTarget(item.target, onTabChange, onStandaloneRouteChange);
                 }}
               >
                 <span className="material-symbols-outlined tenant-sidebar-icon" aria-hidden="true">
