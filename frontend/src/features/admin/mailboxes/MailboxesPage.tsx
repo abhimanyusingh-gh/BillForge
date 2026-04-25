@@ -7,7 +7,10 @@ import {
   MAILBOX_ASSIGNMENTS_QUERY_KEY,
   useMailboxAssignments
 } from "@/hooks/useMailboxAssignments";
-import { useRecentIngestionCounts } from "@/hooks/useRecentIngestions";
+import {
+  recentIngestionsQueryKey,
+  useRecentIngestionCounts
+} from "@/hooks/useRecentIngestions";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import {
   createMailboxAssignment,
@@ -122,6 +125,15 @@ export function MailboxesPage() {
     days: RECENT_INGESTIONS_WINDOW_DAYS
   });
 
+  const retryIngestionCount = useCallback(
+    (assignmentId: string) => {
+      void queryClient.invalidateQueries({
+        queryKey: recentIngestionsQueryKey(assignmentId, RECENT_INGESTIONS_WINDOW_DAYS, 1)
+      });
+    },
+    [queryClient]
+  );
+
   const openAddForm = useCallback(() => {
     setFormState({ open: true, mode: MAILBOX_FORM_MODE.Add, target: null, errorMessage: null });
   }, []);
@@ -217,6 +229,7 @@ export function MailboxesPage() {
             setDeleteTarget(target);
           }}
           onViewRecent={(target) => setDrawerTarget(target)}
+          onRetryCount={retryIngestionCount}
         />
       ) : null}
 

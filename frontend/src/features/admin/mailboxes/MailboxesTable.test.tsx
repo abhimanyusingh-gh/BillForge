@@ -115,7 +115,7 @@ describe("features/admin/mailboxes/MailboxesTable", () => {
     expect(screen.getByTestId("mailboxes-table-count-pending-a-2")).toBeInTheDocument();
   });
 
-  it("renders a `?` with a retry tooltip when the per-row count errored (null sentinel)", () => {
+  it("renders a `?` static span with a non-actionable tooltip when no retry handler is supplied", () => {
     render(
       <MailboxesTable
         items={[buildAssignment({ _id: "a-1" })]}
@@ -127,7 +127,27 @@ describe("features/admin/mailboxes/MailboxesTable", () => {
     );
     const cell = screen.getByTestId("mailboxes-table-count-error-a-1");
     expect(cell).toHaveTextContent("?");
-    expect(cell).toHaveAttribute("title", "Failed to load count — retry");
+    expect(cell.tagName.toLowerCase()).toBe("span");
+    expect(cell).toHaveAttribute("title", "Failed to load count");
+  });
+
+  it("renders the `?` cell as a clickable button that invokes onRetryCount with the row id", () => {
+    const onRetryCount = jest.fn();
+    render(
+      <MailboxesTable
+        items={[buildAssignment({ _id: "a-1" })]}
+        clientOrgs={ORGS}
+        ingestionCounts={{ "a-1": null }}
+        onEdit={jest.fn()}
+        onDelete={jest.fn()}
+        onRetryCount={onRetryCount}
+      />
+    );
+    const cell = screen.getByTestId("mailboxes-table-count-error-a-1");
+    expect(cell.tagName.toLowerCase()).toBe("button");
+    expect(cell).toHaveAttribute("title", "Failed to load count — click to retry");
+    fireEvent.click(cell);
+    expect(onRetryCount).toHaveBeenCalledWith("a-1");
   });
 
   it("invokes the onEdit / onDelete callbacks with the row's assignment", () => {

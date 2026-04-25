@@ -12,6 +12,7 @@ interface MailboxesTableProps {
   onEdit: (assignment: MailboxAssignment) => void;
   onDelete: (assignment: MailboxAssignment) => void;
   onViewRecent?: (assignment: MailboxAssignment) => void;
+  onRetryCount?: (assignmentId: string) => void;
 }
 
 interface ClientOrgChipsResult {
@@ -42,7 +43,8 @@ export function MailboxesTable({
   ingestionCounts,
   onEdit,
   onDelete,
-  onViewRecent
+  onViewRecent,
+  onRetryCount
 }: MailboxesTableProps) {
   const orgsById = useMemo(() => {
     const map = new Map<string, ClientOrgOption>();
@@ -114,12 +116,24 @@ export function MailboxesTable({
                     <span data-testid={`mailboxes-table-count-${item._id}`}>{ingestionCount}</span>
                   )
                 ) : ingestionCount === null ? (
-                  <span
-                    title="Failed to load count — retry"
-                    data-testid={`mailboxes-table-count-error-${item._id}`}
-                  >
-                    ?
-                  </span>
+                  onRetryCount ? (
+                    <button
+                      type="button"
+                      className="mailboxes-table-count-link"
+                      title="Failed to load count — click to retry"
+                      onClick={() => onRetryCount(item._id)}
+                      data-testid={`mailboxes-table-count-error-${item._id}`}
+                    >
+                      ?
+                    </button>
+                  ) : (
+                    <span
+                      title="Failed to load count"
+                      data-testid={`mailboxes-table-count-error-${item._id}`}
+                    >
+                      ?
+                    </span>
+                  )
                 ) : (
                   <span aria-hidden="true" data-testid={`mailboxes-table-count-pending-${item._id}`}>
                     —
