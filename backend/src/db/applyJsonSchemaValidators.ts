@@ -1,6 +1,7 @@
-import type { Db } from "mongodb";
 import mongoose from "mongoose";
 import { buildAllJsonSchemas, MINOR_FIELD_REGISTRY } from "@/db/jsonSchemaValidators.js";
+
+type Db = mongoose.mongo.Db;
 
 export const ValidationAction = {
   Warn: "warn",
@@ -17,13 +18,13 @@ export type ValidationLevel = (typeof ValidationLevel)[keyof typeof ValidationLe
 
 const NAMESPACE_EXISTS_CODE = 48;
 
-export interface ApplyOptions {
+interface ApplyOptions {
   action?: ValidationAction;
   level?: ValidationLevel;
   log?: (event: string, details?: Record<string, unknown>) => void;
 }
 
-export interface ApplyResult {
+interface ApplyResult {
   modelName: string;
   collectionName: string;
   ok: boolean;

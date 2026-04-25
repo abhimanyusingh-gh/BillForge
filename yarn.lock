@@ -8575,7 +8575,6 @@ __metadata:
     mongoose: "npm:^8.9.1"
     multer: "npm:^2.1.1"
     nodemailer: "npm:^8.0.5"
-    testcontainers: "npm:^10.13.2"
     ts-jest: "npm:^29.4.9"
     tsc-alias: "npm:^1.8.16"
     tsx: "npm:^4.21.0"
@@ -11096,7 +11095,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"testcontainers@npm:^10.13.2, testcontainers@npm:^10.28.0":
+"testcontainers@npm:^10.28.0":
   version: 10.28.0
   resolution: "testcontainers@npm:10.28.0"
   dependencies:

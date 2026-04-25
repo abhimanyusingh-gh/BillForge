@@ -1,13 +1,13 @@
-export type MinorFieldPath = string;
+type MinorFieldPath = string;
 
-export interface MinorFieldGroup {
+interface MinorFieldGroup {
   prefix: string;
   fields: MinorFieldPath[];
   nullable?: boolean;
   array?: boolean;
 }
 
-export interface CollectionValidatorSpec {
+interface CollectionValidatorSpec {
   modelName: string;
   groups: MinorFieldGroup[];
 }
@@ -81,7 +81,7 @@ export const MINOR_FIELD_REGISTRY: readonly CollectionValidatorSpec[] = [
 
 const INTEGER_BSON_TYPES = ["int", "long", "double"] as const;
 
-export interface MinorFieldRule {
+interface MinorFieldRule {
   bsonType: readonly string[];
   multipleOf: 1;
 }

@@ -11,7 +11,7 @@ export const defaultAuth = {
   isPlatformAdmin: false
 };
 
-export const DEFAULT_ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000aa");
+const DEFAULT_ACTIVE_CLIENT_ORG_ID = new Types.ObjectId("65f0000000000000000000aa");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function findHandler(router: any, method: string, path: string): Function {

@@ -9,7 +9,6 @@ import { Schema, model, type InferSchemaType, Types } from "mongoose";
 export const MAILBOX_ASSIGNED_TO = {
   ALL: "all"
 } as const;
-export type MailboxAssignedToSentinel = (typeof MAILBOX_ASSIGNED_TO)[keyof typeof MAILBOX_ASSIGNED_TO];
 
 const tenantMailboxAssignmentSchema = new Schema(
   {

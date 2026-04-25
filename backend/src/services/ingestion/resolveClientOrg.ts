@@ -17,7 +17,7 @@ export interface MailboxAssignmentLike {
   clientOrgIds: Types.ObjectId[];
 }
 
-export interface ResolveClientOrgResult {
+interface ResolveClientOrgResult {
   /**
    * Resolved client-org for this invoice. `null` means the resolver fell
    * through to PENDING_TRIAGE — the caller must set

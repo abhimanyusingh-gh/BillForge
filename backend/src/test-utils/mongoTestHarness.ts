@@ -35,7 +35,7 @@ type StartedMongoDBContainer = import("@testcontainers/mongodb").StartedMongoDBC
 const DEFAULT_IMAGE = "mongo:7.0";
 const DEFAULT_START_TIMEOUT_MS = 60_000;
 
-export interface MongoHarnessOptions {
+interface MongoHarnessOptions {
   /** Docker image tag; defaults to `mongo:7.0` (Atlas-compatible). */
   image?: string;
   /** Container startup timeout in ms; defaults to 60s. */
@@ -44,7 +44,7 @@ export interface MongoHarnessOptions {
   databaseName?: string;
 }
 
-export interface MongoHarness {
+interface MongoHarness {
   /** Mongo connection URI, including replica-set host + credentials. */
   uri: string;
   /** Database name the harness is connected to. */
@@ -74,7 +74,7 @@ export async function isDockerAvailable(): Promise<boolean> {
  * Start a fresh single-node replica-set Mongo container and connect
  * mongoose to it. Callers MUST `await harness.stop()` in `afterAll`.
  */
-export async function startMongoHarness(
+async function startMongoHarness(
   options: MongoHarnessOptions = {}
 ): Promise<MongoHarness> {
   const {
@@ -138,7 +138,7 @@ export async function startMongoHarness(
  *
  * Usage:
  * ```ts
- * import { describeHarness, startMongoHarness } from "@/test-utils";
+ * import { describeHarness } from "@/test-utils";
  *
  * describeHarness("VendorMerge tx", ({ getHarness }) => {
  *   it("rolls back on error", async () => {
