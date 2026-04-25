@@ -4667,6 +4667,7 @@ pre {
   resize: vertical;
 }
 
+/* TODO(#187): re-derive padding/border-radius/font-size from a shared .ds-pill / .ds-segmented-group primitive once extracted; today no shared primitive exists, so .admin-realm-switcher, .overview-preset-btn, and the inline OverviewDashboard scope-toggle each duplicate the same DS tokens. */
 .admin-realm-switcher {
   display: inline-flex;
   align-items: stretch;
