@@ -3,7 +3,10 @@ import { TenantUserRoleModel, normalizeTenantRole, type TenantAssignableRole } f
 import { UserModel } from "@/models/core/User.js";
 import { HttpError } from "@/errors/HttpError.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
-import { TenantMailboxAssignmentModel } from "@/models/integration/TenantMailboxAssignment.js";
+import {
+  TenantMailboxAssignmentModel,
+  MAILBOX_ASSIGNED_TO
+} from "@/models/integration/TenantMailboxAssignment.js";
 import { ViewerScopeModel } from "@/models/integration/ViewerScope.js";
 import { Types } from "mongoose";
 
@@ -118,9 +121,9 @@ export class TenantAdminService {
     return integrations.map((integration) => {
       const iid = (integration._id as Types.ObjectId).toString();
       const integrationAssignments = assignments.filter((a) => a.integrationId.toString() === iid);
-      const hasAll = integrationAssignments.some((a) => a.assignedTo === "all");
+      const hasAll = integrationAssignments.some((a) => a.assignedTo === MAILBOX_ASSIGNED_TO.ALL);
       const specificAssignments = integrationAssignments
-        .filter((a) => a.assignedTo !== "all")
+        .filter((a) => a.assignedTo !== MAILBOX_ASSIGNED_TO.ALL)
         .map((a) => ({ userId: a.assignedTo, email: userMap.get(a.assignedTo) ?? a.assignedTo }));
 
       const pollingConfig = (integration as Record<string, unknown>).pollingConfig as { enabled?: boolean; intervalHours?: number; lastPolledAt?: Date; nextPollAfter?: Date } | undefined;
@@ -131,7 +134,7 @@ export class TenantAdminService {
         emailAddress: integration.emailAddress,
         status: integration.status,
         lastSyncedAt: integration.lastSyncedAt,
-        assignments: hasAll ? ("all" as const) : specificAssignments,
+        assignments: hasAll ? (MAILBOX_ASSIGNED_TO.ALL as typeof MAILBOX_ASSIGNED_TO.ALL) : specificAssignments,
         ...(pollingConfig ? { pollingConfig: { enabled: pollingConfig.enabled ?? false, intervalHours: pollingConfig.intervalHours ?? 4, lastPolledAt: pollingConfig.lastPolledAt, nextPollAfter: pollingConfig.nextPollAfter } } : {})
       };
     });

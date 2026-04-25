@@ -1,5 +1,16 @@
 import { Schema, model, type InferSchemaType, Types } from "mongoose";
 
+/**
+ * Sentinel values for `TenantMailboxAssignment.assignedTo`. The field is
+ * a free-form string (legacy: holds either a tenant userId or the `ALL`
+ * sentinel meaning "fan out to every tenant admin"). Hoisted into a
+ * named constant so the magic string lives in exactly one place.
+ */
+export const MAILBOX_ASSIGNED_TO = {
+  ALL: "all"
+} as const;
+export type MailboxAssignedToSentinel = (typeof MAILBOX_ASSIGNED_TO)[keyof typeof MAILBOX_ASSIGNED_TO];
+
 const tenantMailboxAssignmentSchema = new Schema(
   {
     tenantId: { type: String, required: true },
