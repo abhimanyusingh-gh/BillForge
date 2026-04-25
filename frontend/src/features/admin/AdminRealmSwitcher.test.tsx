@@ -50,13 +50,13 @@ afterEach(() => {
 describe("AdminRealmSwitcher", () => {
   it("renders 'All clients' option and a trigger button for the specific-realm picker", async () => {
     renderSwitcher();
-    expect(await screen.findByTestId("admin-realm-switcher-option-all")).toHaveTextContent("All clients");
-    expect(screen.getByTestId("admin-realm-switcher-trigger")).toBeInTheDocument();
+    expect(await screen.findByTestId("admin-realm-switcher-segment-all")).toHaveTextContent("All clients");
+    expect(screen.getByTestId("admin-realm-switcher-segment-picker")).toBeInTheDocument();
   });
 
   it("defaults to 'All clients' when URL has no clientOrgId param", () => {
     renderSwitcher();
-    const allBtn = screen.getByTestId("admin-realm-switcher-option-all");
+    const allBtn = screen.getByTestId("admin-realm-switcher-segment-all");
     expect(allBtn).toHaveAttribute("data-active", "true");
     expect(allBtn).toHaveAttribute("aria-pressed", "true");
     expect(urlClientOrgId()).toBeNull();
@@ -65,55 +65,68 @@ describe("AdminRealmSwitcher", () => {
   it("initializes from URL when ?clientOrgId=... is present (URL is single source of truth)", async () => {
     window.history.replaceState({}, "", `/?clientOrgId=${ORG_B}`);
     renderSwitcher();
-    expect(screen.getByTestId("admin-realm-switcher-option-all")).not.toHaveAttribute("data-active");
-    expect(screen.getByTestId("admin-realm-switcher-trigger")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("admin-realm-switcher-segment-all")).not.toHaveAttribute("data-active");
+    expect(screen.getByTestId("admin-realm-switcher-segment-picker")).toHaveAttribute("data-active", "true");
     await waitFor(() =>
-      expect(screen.getByTestId("admin-realm-switcher-trigger")).toHaveTextContent("Bose Steel")
+      expect(screen.getByTestId("admin-realm-switcher-segment-picker")).toHaveTextContent("Bose Steel")
     );
   });
 
   it("treats invalid (non-ObjectId) URL values as null — defaults to All clients", () => {
     window.history.replaceState({}, "", "/?clientOrgId=not-a-real-id");
     renderSwitcher();
-    expect(screen.getByTestId("admin-realm-switcher-option-all")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("admin-realm-switcher-segment-all")).toHaveAttribute("data-active", "true");
   });
 
   it("clicking 'All clients' clears the URL query param", () => {
     window.history.replaceState({}, "", `/?clientOrgId=${ORG_A}`);
     renderSwitcher();
-    fireEvent.click(screen.getByTestId("admin-realm-switcher-option-all"));
+    fireEvent.click(screen.getByTestId("admin-realm-switcher-segment-all"));
     expect(urlClientOrgId()).toBeNull();
-    expect(screen.getByTestId("admin-realm-switcher-option-all")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("admin-realm-switcher-segment-all")).toHaveAttribute("data-active", "true");
   });
 
   it("opens the picker when the trigger is clicked", async () => {
     renderSwitcher();
-    fireEvent.click(screen.getByTestId("admin-realm-switcher-trigger"));
+    fireEvent.click(screen.getByTestId("admin-realm-switcher-segment-picker"));
     expect(await screen.findByTestId("admin-realm-switcher-picker-overlay")).toBeInTheDocument();
   });
 
   it("selecting a specific realm sets ?clientOrgId=... in the URL", async () => {
     renderSwitcher();
-    fireEvent.click(screen.getByTestId("admin-realm-switcher-trigger"));
+    fireEvent.click(screen.getByTestId("admin-realm-switcher-segment-picker"));
     const option = await screen.findByTestId(`admin-realm-switcher-picker-option-${ORG_A}`);
     fireEvent.click(option);
     expect(urlClientOrgId()).toBe(ORG_A);
-    expect(screen.getByTestId("admin-realm-switcher-trigger")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("admin-realm-switcher-segment-picker")).toHaveAttribute("data-active", "true");
   });
 
   it("selecting a realm closes the picker", async () => {
     renderSwitcher();
-    fireEvent.click(screen.getByTestId("admin-realm-switcher-trigger"));
+    fireEvent.click(screen.getByTestId("admin-realm-switcher-segment-picker"));
     const option = await screen.findByTestId(`admin-realm-switcher-picker-option-${ORG_C}`);
     fireEvent.click(option);
     expect(screen.queryByTestId("admin-realm-switcher-picker-overlay")).not.toBeInTheDocument();
+  });
+
+  it("groups the two segments under role=group with an aria-label naming the dimension being toggled", () => {
+    renderSwitcher();
+    const group = screen.getByTestId("admin-realm-switcher");
+    expect(group).toHaveAttribute("role", "group");
+    expect(group).toHaveAttribute("aria-label", "Analytics scope");
+  });
+
+  it("each segment exposes aria-pressed reflecting the current selection", () => {
+    renderSwitcher();
+    expect(screen.getByTestId("admin-realm-switcher-segment-all")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("admin-realm-switcher-segment-picker")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("uses replaceState (not pushState) — selection is in-page state, not navigation", () => {
     const replaceSpy = jest.spyOn(window.history, "replaceState");
     const pushSpy = jest.spyOn(window.history, "pushState");
     renderSwitcher();
-    fireEvent.click(screen.getByTestId("admin-realm-switcher-option-all"));
+    fireEvent.click(screen.getByTestId("admin-realm-switcher-segment-all"));
     expect(replaceSpy).toHaveBeenCalled();
     expect(pushSpy).not.toHaveBeenCalled();
   });

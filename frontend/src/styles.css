@@ -4676,8 +4676,8 @@ pre {
   overflow: hidden;
 }
 
-.admin-realm-switcher-option-all,
-.admin-realm-switcher-trigger {
+.admin-realm-switcher-segment-all,
+.admin-realm-switcher-segment-picker {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -4690,18 +4690,18 @@ pre {
   cursor: pointer;
 }
 
-.admin-realm-switcher-option-all + .admin-realm-switcher-trigger {
+.admin-realm-switcher-segment-all + .admin-realm-switcher-segment-picker {
   border-left: 1px solid var(--line);
 }
 
-.admin-realm-switcher-option-all[data-active="true"],
-.admin-realm-switcher-trigger[data-active="true"] {
+.admin-realm-switcher-segment-all[data-active="true"],
+.admin-realm-switcher-segment-picker[data-active="true"] {
   background: var(--accent, #1e3a8a);
   color: #ffffff;
   font-weight: 700;
 }
 
-.admin-realm-switcher-trigger .material-symbols-outlined {
+.admin-realm-switcher-segment-picker .material-symbols-outlined {
   font-size: 1rem;
 }
 

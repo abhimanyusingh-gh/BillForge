@@ -32,25 +32,30 @@ export function AdminRealmSwitcher() {
   const specificTriggerLabel = activeRealmName ?? "Pick a client...";
 
   return (
-    <div className="admin-realm-switcher" data-testid="admin-realm-switcher">
+    <div
+      className="admin-realm-switcher"
+      data-testid="admin-realm-switcher"
+      role="group"
+      aria-label="Analytics scope"
+    >
       <button
         type="button"
-        className="admin-realm-switcher-option-all"
+        className="admin-realm-switcher-segment-all"
         data-active={isAllSelected ? "true" : undefined}
         aria-pressed={isAllSelected}
-        data-testid="admin-realm-switcher-option-all"
+        data-testid="admin-realm-switcher-segment-all"
         onClick={handleSelectAll}
       >
         {ALL_CLIENTS_LABEL}
       </button>
       <button
         type="button"
-        className="admin-realm-switcher-trigger"
+        className="admin-realm-switcher-segment-picker"
         data-active={!isAllSelected ? "true" : undefined}
         aria-pressed={!isAllSelected}
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-testid="admin-realm-switcher-trigger"
+        data-testid="admin-realm-switcher-segment-picker"
         onClick={openPicker}
       >
         <span className="material-symbols-outlined" aria-hidden="true">filter_alt</span>

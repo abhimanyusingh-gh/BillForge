@@ -105,7 +105,7 @@ describe("OverviewDashboard — admin clientOrgId integration (#162)", () => {
     renderDashboard();
     await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
     mockedApi.fetchAnalyticsOverview.mockClear();
-    fireEvent.click(await screen.findByTestId("admin-realm-switcher-trigger"));
+    fireEvent.click(await screen.findByTestId("admin-realm-switcher-segment-picker"));
     const option = await screen.findByTestId(`admin-realm-switcher-picker-option-${ORG_B}`);
     fireEvent.click(option);
     await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
@@ -118,7 +118,7 @@ describe("OverviewDashboard — admin clientOrgId integration (#162)", () => {
     renderDashboard();
     await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
     mockedApi.fetchAnalyticsOverview.mockClear();
-    fireEvent.click(await screen.findByTestId("admin-realm-switcher-option-all"));
+    fireEvent.click(await screen.findByTestId("admin-realm-switcher-segment-all"));
     await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
     const lastArgs = mockedApi.fetchAnalyticsOverview.mock.calls[0];
     expect(lastArgs[3]).toBeNull();
