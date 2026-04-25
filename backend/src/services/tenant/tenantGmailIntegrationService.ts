@@ -2,7 +2,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { env } from "@/config/env.js";
 import { OAuthStateModel } from "@/models/integration/OAuthState.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
-import { TenantMailboxAssignmentModel } from "@/models/integration/TenantMailboxAssignment.js";
+import {
+  TenantMailboxAssignmentModel,
+  MAILBOX_ASSIGNED_TO
+} from "@/models/integration/TenantMailboxAssignment.js";
 import {
   exchangeGoogleAuthorizationCode,
   fetchGoogleUserEmail,
@@ -118,8 +121,8 @@ export class TenantGmailIntegrationService {
     );
 
     await TenantMailboxAssignmentModel.updateOne(
-      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: "all" },
-      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: "all" },
+      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: MAILBOX_ASSIGNED_TO.ALL },
+      { tenantId: oauthState.tenantId, integrationId: integration._id, assignedTo: MAILBOX_ASSIGNED_TO.ALL },
       { upsert: true }
     );
 
