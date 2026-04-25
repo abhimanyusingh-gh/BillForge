@@ -53,6 +53,27 @@ export class ClientOrganizationNotFoundError extends Error {
   }
 }
 
+/**
+ * Thrown by `buildVoucherInput` when neither the vendor's GSTIN nor address
+ * yields a derivable party state via `deriveVendorState`. PLACEOFSUPPLY
+ * emission requires a non-null party state to compute the same-state vs
+ * cross-state decision; emitting an XML voucher without it produces an
+ * invalid Tally import. Surface the failure at construction so the invoice
+ * is marked failed with a clear diagnostic instead of silently shipping a
+ * malformed document downstream.
+ */
+export class MissingVendorStateError extends Error {
+  readonly code = "TALLY_MISSING_VENDOR_STATE";
+  constructor(readonly invoiceId: string, readonly vendorName: string | null) {
+    super(
+      `Cannot derive party state for invoice ${invoiceId}` +
+      (vendorName ? ` (vendor "${vendorName}")` : "") +
+      ": neither vendor.gstin nor vendor.address resolves to a known Indian state. " +
+      "PLACEOFSUPPLY cannot be emitted without a party state; correct the vendor GSTIN or address before re-exporting."
+    );
+  }
+}
+
 export const EXPORT_VERSION_CONFLICT_REASON = {
   VERSION_MISMATCH: "version-mismatch",
   IN_FLIGHT_MISMATCH: "in-flight-mismatch"

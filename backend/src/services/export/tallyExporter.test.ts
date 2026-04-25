@@ -27,7 +27,8 @@ jest.mock("@/services/export/tallyReExportGuard.ts", () => ({
   computeVoucherGuid: jest.requireActual("@/services/export/tallyReExportGuard.ts").computeVoucherGuid,
   F12OverwriteNotVerifiedError: jest.requireActual("@/services/export/tallyReExportGuard.ts").F12OverwriteNotVerifiedError,
   ExportVersionConflictError: jest.requireActual("@/services/export/tallyReExportGuard.ts").ExportVersionConflictError,
-  EXPORT_VERSION_CONFLICT_REASON: jest.requireActual("@/services/export/tallyReExportGuard.ts").EXPORT_VERSION_CONFLICT_REASON
+  EXPORT_VERSION_CONFLICT_REASON: jest.requireActual("@/services/export/tallyReExportGuard.ts").EXPORT_VERSION_CONFLICT_REASON,
+  MissingVendorStateError: jest.requireActual("@/services/export/tallyReExportGuard.ts").MissingVendorStateError
 }));
 
 jest.mock("@/services/export/clientExportConfigResolver.ts", () => ({
@@ -413,7 +414,8 @@ describe("TallyExporter.exportInvoices", () => {
       parsed: {
         vendorName: "Fallback Corp",
         invoiceNumber: "FB-001",
-        totalAmountMinor: 1000
+        totalAmountMinor: 1000,
+        vendorGstin: "27AABCA1234C1Z5"
       },
       ocrText: "Grand Total: 10.00",
       set: jest.fn(),
@@ -1230,9 +1232,28 @@ interface InvoiceStubInput {
   clientOrgId?: string | null;
 }
 
+// Default GSTIN injected into stub invoices so `buildVoucherInput` always has
+// a derivable party state. Tests that explicitly cover the no-GSTIN /
+// no-address path opt out by passing `vendorGstin: null` (or by overriding
+// `parsed` such that derivation still fails) so they exercise the
+// `MissingVendorStateError` branch deliberately.
+const DEFAULT_STUB_VENDOR_GSTIN = "27AABCA1234C1Z5";
+
 function createInvoiceStub(input: InvoiceStubInput) {
+  const parsedInput = (input.parsed ?? {}) as Record<string, unknown>;
+  const parsedHasVendorGstin = "vendorGstin" in parsedInput;
+  const parsedHasVendorAddress = "vendorAddress" in parsedInput;
+  const parsedGst = (typeof parsedInput.gst === "object" && parsedInput.gst !== null)
+    ? (parsedInput.gst as Record<string, unknown>)
+    : undefined;
+  const gstHasGstin = parsedGst ? "gstin" in parsedGst : false;
+  const hasAnyVendorStateInput = parsedHasVendorGstin || parsedHasVendorAddress || gstHasGstin;
+  const parsedWithDefaults: Record<string, unknown> = hasAnyVendorStateInput
+    ? parsedInput
+    : { ...parsedInput, vendorGstin: DEFAULT_STUB_VENDOR_GSTIN };
+
   const state = {
-    parsed: input.parsed ?? {},
+    parsed: parsedWithDefaults,
     processingIssues: input.processingIssues ?? []
   };
 
@@ -1561,7 +1582,11 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     expect(stageInFlightExportVersionMock).not.toHaveBeenCalled();
   });
 
-  it("omits PLACEOFSUPPLY when party state cannot be determined (safe default)", async () => {
+  it("fails the invoice with MissingVendorStateError when party state cannot be determined", async () => {
+    // Re-export path: when neither the vendor GSTIN nor address yields a
+    // party state, `buildVoucherInput` throws so the invalid invoice never
+    // reaches XML serialization (avoids silently shipping a Tally import
+    // missing PLACEOFSUPPLY).
     resolveReExportDecisionMock.mockResolvedValue({
       guid: "sha-pos",
       action: "Create",
@@ -1576,13 +1601,22 @@ describe("TallyExporter re-export guard (BE-2) — 2-phase staging", () => {
     const exporter = createExporter();
     const invoice = createInvoiceStub({
       _id: "re-5",
-      parsed: { invoiceNumber: "RE-5", vendorName: "Vendor", currency: "INR", totalAmountMinor: 50000 }
+      parsed: {
+        invoiceNumber: "RE-5",
+        vendorName: "Vendor",
+        currency: "INR",
+        totalAmountMinor: 50000,
+        // explicit null overrides the stub's default GSTIN to exercise the
+        // no-GSTIN-no-address path
+        vendorGstin: null,
+        vendorAddress: null
+      }
     });
 
-    await exporter.exportInvoices([invoice], TENANT_ID);
-    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
-    expect(payload).toContain("<GUID>sha-pos</GUID>");
-    expect(payload).not.toContain("<PLACEOFSUPPLY>");
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    expect(results[0].error).toMatch(/Cannot derive party state/);
+    expect(axiosPostMock).not.toHaveBeenCalled();
   });
 
   it("reads detectedVersion from ClientOrganization when tenantId is provided", async () => {
@@ -1734,7 +1768,7 @@ describe("TallyExporter PLACEOFSUPPLY emission matrix (post-pivot, ClientOrganiz
     expect(payload).toContain("<PLACEOFSUPPLY>Karnataka</PLACEOFSUPPLY>");
   });
 
-  it("both vendor identifiers absent: party state = null, PLACEOFSUPPLY absent (safe default)", async () => {
+  it("both vendor identifiers absent: invoice fails with MissingVendorStateError, no XML posted", async () => {
     mockBuyerState("Karnataka");
     const exporter = createExporter();
     const invoice = createInvoiceStub({
@@ -1743,17 +1777,21 @@ describe("TallyExporter PLACEOFSUPPLY emission matrix (post-pivot, ClientOrganiz
         invoiceNumber: "POS-NONE",
         vendorName: "Vendor",
         currency: "INR",
-        totalAmountMinor: 50000
+        totalAmountMinor: 50000,
+        // explicit null overrides the stub's default GSTIN to exercise the
+        // no-GSTIN-no-address path
+        vendorGstin: null,
+        vendorAddress: null
       }
     });
 
-    await exporter.exportInvoices([invoice], TENANT_ID);
-    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
-    expect(payload).not.toContain("<PLACEOFSUPPLY>");
-    expect(payload).not.toContain("<STATENAME>");
+    const results = await exporter.exportInvoices([invoice], TENANT_ID);
+    expect(results[0].success).toBe(false);
+    expect(results[0].error).toMatch(/Cannot derive party state/);
+    expect(axiosPostMock).not.toHaveBeenCalled();
   });
 
-  it("unknown vendor GSTIN prefix (99xxxx): party state = null, PLACEOFSUPPLY absent, no throw", async () => {
+  it("unknown vendor GSTIN prefix (99xxxx) without address: invoice fails with MissingVendorStateError, no XML posted", async () => {
     mockBuyerState("Karnataka");
     const exporter = createExporter();
     const invoice = createInvoiceStub({
@@ -1768,10 +1806,9 @@ describe("TallyExporter PLACEOFSUPPLY emission matrix (post-pivot, ClientOrganiz
     });
 
     const results = await exporter.exportInvoices([invoice], TENANT_ID);
-    expect(results[0].success).toBe(true);
-    const payload = String(axiosPostMock.mock.calls[0]?.[1] ?? "");
-    expect(payload).not.toContain("<PLACEOFSUPPLY>");
-    expect(payload).not.toContain("<STATENAME>");
+    expect(results[0].success).toBe(false);
+    expect(results[0].error).toMatch(/Cannot derive party state/);
+    expect(axiosPostMock).not.toHaveBeenCalled();
   });
 
   it("vendor GSTIN beats mismatched address: GSTIN-derived Maharashtra wins over address Karnataka", async () => {
