@@ -1,8 +1,15 @@
 /**
- * Pure helpers for the #171 nested-router URL migration. Extracted from
- * `client.ts` so they can be unit-tested standalone — `client.ts` pulls in
- * `import.meta.env` which Jest's CJS runtime can't parse (same workaround
- * pattern as `classifyApiPath.ts`).
+ * Per-path migrated-shape dispatch for the axios interceptor.
+ *
+ * The interceptor in `client.ts` calls `classifyMigratedPath(path)` to
+ * determine whether a request needs URL rewriting (to nested or
+ * tenant-scoped shape) or should pass through unchanged. The legacy
+ * `classifyApiPath` / `?clientOrgId=` query-injection layer was removed in
+ * #223 once all realm-scoped routes migrated; this module is now the sole
+ * URL-shape decision point.
+ *
+ * Extracted from `client.ts` so the helpers can be unit-tested standalone —
+ * `client.ts` pulls in `import.meta.env` which Jest's CJS runtime can't parse.
  *
  * Two prefix lists, two rewrite shapes, one enum dispatcher:
  *   - `MIGRATED_REALM_SCOPED_PREFIXES` → `/tenants/:tenantId/clientOrgs/:clientOrgId/...`
@@ -11,10 +18,6 @@
  *     (tenant-wide; no clientOrgId in the path).
  *   - `classifyMigratedPath(path)` → `MIGRATED_PATH_KIND.{REALM_SCOPED|TENANT_SCOPED|NONE}`
  *     reads both arrays plus the invoice-domain bypass rules.
- *
- * The axios interceptor in `client.ts` calls `classifyMigratedPath` BEFORE the
- * legacy `?clientOrgId=` query injection: migrated paths take the new shape
- * and skip the query param entirely.
  */
 
 export const MIGRATED_PATH_KIND = {
@@ -52,7 +55,10 @@ export const MIGRATED_REALM_SCOPED_PREFIXES = [
   // Invoice domain (#204, final vertical slice — closes #171).
   "/invoices",
   "/admin/approval-workflow",
-  "/admin/approval-limits"
+  "/admin/approval-limits",
+  // Notification config (#223 — last realm-scoped prefix off the legacy
+  // classifier; ships with the classifier teardown).
+  "/admin/notification-config"
 ] as const;
 
 /**
@@ -70,6 +76,9 @@ export const MIGRATED_TENANT_SCOPED_PREFIXES = [
   "/admin/mailboxes",
   "/admin/client-orgs",
   "/admin/mailbox-assignments",
+  // Notification log (#223) — split out from the realm-scoped notification-config
+  // router; tenant-wide and admin-only (no clientOrgId in the path).
+  "/admin/notifications/log",
   "/integrations/gmail",
   // Analytics domain (#222, sub-PR B of #171) — single overview endpoint.
   // Optional realm scoping flows via `?clientOrgId=` query param; the BE
@@ -99,9 +108,9 @@ const MIGRATED_TENANT_SCOPED_BYPASS_PREFIXES = [
  * tenant-scoped bypass. Add a counter-rule before adding such a route.
  *
  * COUNTER-RULE: any path that ends in `/reject` or `/assign-client-org` but
- * should REMAIN realm-scoped (i.e. needs `?clientOrgId=` injection / the
- * nested `/clientOrgs/:clientOrgId` segment) must NOT use these suffix
- * names. Rename the new endpoint (e.g. `/workflow-reject`,
+ * should REMAIN realm-scoped (i.e. needs the nested
+ * `/clientOrgs/:clientOrgId` segment in the rewritten URL) must NOT use
+ * these suffix names. Rename the new endpoint (e.g. `/workflow-reject`,
  * `/reassign-client-org`), OR explicitly path-handle it BEFORE the suffix
  * check fires in `classifyMigratedPath`.
  */
