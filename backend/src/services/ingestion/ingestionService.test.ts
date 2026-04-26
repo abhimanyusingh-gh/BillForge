@@ -77,7 +77,7 @@ describeHarness("IngestionService — S3 checkpoint regression", ({ getHarness }
       `uploads/${TENANT_ID}/b.pdf`
     ]);
     const checkpoint = await CheckpointModel.findOne({ sourceKey, tenantId: TENANT_ID }).lean();
-    expect(checkpoint?.marker).toBe("2026-04-20T11:00:00.000Z");
+    expect(checkpoint?.marker).toBe(`2026-04-20T11:00:00.000Z|uploads/${TENANT_ID}/b.pdf`);
   });
 
   it("does NOT re-process objects whose LastModified is at or below the stored checkpoint", async () => {

@@ -33,11 +33,20 @@ export class S3UploadIngestionSource implements IngestionSource {
       return [];
     }
 
-    const checkpointMs = parseCheckpoint(lastCheckpoint);
+    const checkpoint = parseCheckpoint(lastCheckpoint);
     const objects = await this.fileStore.listObjects(this.prefix);
     const fresh = objects
-      .filter((object) => object.lastModified.getTime() > checkpointMs)
-      .sort((a, b) => a.lastModified.getTime() - b.lastModified.getTime());
+      .filter((object) => {
+        const ms = object.lastModified.getTime();
+        if (ms > checkpoint.lastModifiedMs) return true;
+        if (ms === checkpoint.lastModifiedMs) return object.key > checkpoint.lastKey;
+        return false;
+      })
+      .sort((a, b) => {
+        const delta = a.lastModified.getTime() - b.lastModified.getTime();
+        if (delta !== 0) return delta;
+        return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+      });
 
     const files: IngestedFile[] = [];
 
@@ -71,7 +80,7 @@ export class S3UploadIngestionSource implements IngestionSource {
         mimeType,
         receivedAt: object.lastModified,
         buffer: result.body,
-        checkpointValue: object.lastModified.toISOString(),
+        checkpointValue: encodeCheckpoint(object.lastModified, object.key),
         metadata: {
           uploadKey: object.key
         }
@@ -91,10 +100,27 @@ export class S3UploadIngestionSource implements IngestionSource {
   }
 }
 
-function parseCheckpoint(value: string | null): number {
+interface ParsedCheckpoint {
+  lastModifiedMs: number;
+  lastKey: string;
+}
+
+const CHECKPOINT_DELIMITER = "|";
+
+function encodeCheckpoint(lastModified: Date, key: string): string {
+  return `${lastModified.toISOString()}${CHECKPOINT_DELIMITER}${key}`;
+}
+
+function parseCheckpoint(value: string | null): ParsedCheckpoint {
   if (!value) {
-    return Number.NEGATIVE_INFINITY;
+    return { lastModifiedMs: Number.NEGATIVE_INFINITY, lastKey: "" };
   }
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+  const delimiterIndex = value.indexOf(CHECKPOINT_DELIMITER);
+  const isoPart = delimiterIndex === -1 ? value : value.slice(0, delimiterIndex);
+  const keyPart = delimiterIndex === -1 ? "" : value.slice(delimiterIndex + 1);
+  const parsed = Date.parse(isoPart);
+  if (!Number.isFinite(parsed)) {
+    return { lastModifiedMs: Number.NEGATIVE_INFINITY, lastKey: "" };
+  }
+  return { lastModifiedMs: parsed, lastKey: keyPart };
 }
