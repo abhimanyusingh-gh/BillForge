@@ -314,6 +314,7 @@ export const CAPABILITY_FLAG_OPTIONS: Array<{ value: string; label: string }> = 
   { value: "canConfigureTdsMappings", label: "Can Configure TDS Mappings" },
   { value: "canConfigureGlCodes", label: "Can Configure GL Codes" },
   { value: "canManageUsers", label: "Can Manage Users" },
+  { value: "canManageMailboxes", label: "Can Manage Mailboxes" },
   { value: "canManageConnections", label: "Can Manage Connections" },
   { value: "canExportToTally", label: "Can Export to Tally" },
   { value: "canExportToCsv", label: "Can Export to CSV" },
@@ -351,6 +352,7 @@ export interface UserCapabilities {
   canConfigureTdsMappings: boolean;
   canConfigureGlCodes: boolean;
   canManageUsers: boolean;
+  canManageMailboxes: boolean;
   canManageConnections: boolean;
   canExportToTally: boolean;
   canExportToCsv: boolean;

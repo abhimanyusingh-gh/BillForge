@@ -203,6 +203,7 @@ export function App() {
   const isPlatformAdmin = session.user.isPlatformAdmin;
   const requiresTenantSetup = session.flags.requires_tenant_setup;
   const canManageUsers = caps.canManageUsers === true;
+  const canManageMailboxes = caps.canManageMailboxes === true;
   const canManageConnections = caps.canManageConnections === true;
   const canViewConfig = canManageUsers || caps.canConfigureWorkflow === true || caps.canConfigureGlCodes === true || caps.canConfigureCompliance === true;
   const canViewConnections = canManageConnections;
@@ -334,8 +335,7 @@ export function App() {
 
         {standaloneRoute === "triage" && <TriagePage />}
 
-        {/* gated on canManageUsers as a stand-in until canManageMailboxes ships, see #194 */}
-        {standaloneRoute === "mailboxes" && canManageUsers && (
+        {standaloneRoute === "mailboxes" && canManageMailboxes && (
           <Suspense fallback={<div role="status" aria-busy="true">Loading mailboxes…</div>}>
             <MailboxesPage />
           </Suspense>
