@@ -96,7 +96,7 @@ export class MailboxAssignmentsAdminService {
         _id: String(i._id),
         emailAddress: i.emailAddress ?? null,
         status: i.status,
-        providerKind: i.provider
+        provider: i.provider
       }));
     items.sort((left, right) => (left.emailAddress ?? "").localeCompare(right.emailAddress ?? ""));
     return items;

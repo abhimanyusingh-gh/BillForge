@@ -285,7 +285,7 @@ describeHarness("MailboxAssignmentsAdminService (#174)", ({ getHarness }) => {
       expect(items.map((i) => i._id)).toEqual([String(unassigned._id)]);
     });
 
-    it("returns the {_id, emailAddress, status, providerKind} shape exactly", async () => {
+    it("returns the {_id, emailAddress, status, provider} shape exactly", async () => {
       const integration = await seedTenantWithIntegration(TENANT_A, "shape@firm.com");
 
       const items = await service.listAvailableIntegrations(TENANT_A);
@@ -294,8 +294,34 @@ describeHarness("MailboxAssignmentsAdminService (#174)", ({ getHarness }) => {
         _id: String(integration._id),
         emailAddress: "shape@firm.com",
         status: "connected",
-        providerKind: "gmail"
+        provider: "gmail"
       });
+    });
+
+    it("excludes an integration that has multiple assignments (Set-collapse defence)", async () => {
+      const assigned = await seedTenantWithIntegration(TENANT_A, "multi@firm.com");
+      const unassigned = await seedTenantWithIntegration(TENANT_A, "free@firm.com");
+      const orgA = await ClientOrganizationModel.create({
+        tenantId: TENANT_A, gstin: GSTIN_A, companyName: "A"
+      });
+      const orgB = await ClientOrganizationModel.create({
+        tenantId: TENANT_A, gstin: GSTIN_B, companyName: "B"
+      });
+      await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A,
+        integrationId: assigned._id,
+        assignedTo: "user-1",
+        clientOrgIds: [orgA._id]
+      });
+      await TenantMailboxAssignmentModel.create({
+        tenantId: TENANT_A,
+        integrationId: assigned._id,
+        assignedTo: "user-2",
+        clientOrgIds: [orgB._id]
+      });
+
+      const items = await service.listAvailableIntegrations(TENANT_A);
+      expect(items.map((i) => i._id)).toEqual([String(unassigned._id)]);
     });
 
     it("returns [] when every tenant integration is already assigned", async () => {
