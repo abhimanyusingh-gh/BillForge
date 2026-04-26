@@ -56,7 +56,9 @@ const TENANT_SCOPED_PATH_PREFIXES = [
   // upload sub-tree (`/jobs/upload`) lives in `MIGRATED_REALM_SCOPED_PREFIXES`.
   "/tenant",
   "/platform",
-  "/analytics",
+  // `/analytics` migrated to nested-router shape (#222, sub-PR B of #171).
+  // The migrated-paths interceptor rewrites `/analytics/overview` to
+  // `/tenants/:tenantId/analytics/overview` BEFORE this classifier runs.
   "/session"
 ] as const;
 

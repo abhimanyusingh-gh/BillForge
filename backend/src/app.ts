@@ -138,7 +138,17 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   const uploadsRouter = createUploadsRouter(dependencies.fileStore);
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, jobsRouter);
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, uploadsRouter);
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
+  // Analytics domain (#222, sub-PR B of #171) — additive dual-mount. The same
+  // `createAnalyticsRouter` instance is reused across the legacy `/api` mount
+  // and the new tenant-scoped mount below. Optional realm scoping continues
+  // to flow through the `?clientOrgId=` query param (resolved by
+  // `resolveOptionalClientOrgId`); promoting it into the path would force a
+  // dual-handler split (`/analytics/overview` aggregate vs
+  // `/clientOrgs/:clientOrgId/analytics/overview` scoped) for no behaviour
+  // gain — keeping the query param preserves cache keying in
+  // `useScopedQuery`.
+  const analyticsRouter = createAnalyticsRouter();
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, analyticsRouter);
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createGlCodesRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createVendorsRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createClientComplianceConfigRouter());
@@ -216,6 +226,12 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   clientOrgRouter.use(createActionRequiredRouter());
   clientOrgRouter.use(createApprovalWorkflowRouter(dependencies.approvalWorkflowService));
   tenantRouter.use(createTriageRouter(dependencies.triageService));
+
+  // Analytics domain (#222, sub-PR B of #171) — tenant-scoped mount of the
+  // shared `analyticsRouter` instance built above. Optional clientOrgId still
+  // flows via `?clientOrgId=` query param (see `resolveOptionalClientOrgId`),
+  // so no `/clientOrgs/:clientOrgId/...` mount is added.
+  tenantRouter.use(analyticsRouter);
 
   // Tenant domain (sub-PR — #203) — administrative routes that operate on the
   // tenant itself (users, mailboxes, client-orgs, mailbox-assignments, gmail
