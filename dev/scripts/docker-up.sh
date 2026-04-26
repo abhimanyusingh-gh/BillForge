@@ -21,7 +21,6 @@ OCR_HEALTH_URL="${OCR_HEALTH_URL:-http://127.0.0.1:8200/health}"
 SLM_HEALTH_URL="${SLM_HEALTH_URL:-http://127.0.0.1:8300/health}"
 DEFAULT_DEMO_INBOX_PATH="$ROOT_DIR/.local-run/demo-inbox"
 INVOICE_INBOX_PATH="${INVOICE_INBOX_PATH:-$DEFAULT_DEMO_INBOX_PATH}"
-DEFAULT_LOCAL_MANIFEST_PATH="backend/runtime-manifest.local.demo.json"
 APP_MANIFEST_PATH_VALUE="${APP_MANIFEST_PATH:-}"
 LOCAL_DEMO_SEED_VALUE="${LOCAL_DEMO_SEED:-}"
 AUTH_AUTO_PROVISION_USERS_VALUE="${AUTH_AUTO_PROVISION_USERS:-}"
@@ -281,9 +280,6 @@ if [[ "$ENV_MODE" == "local" || "$ENV_MODE" == "dev" ]]; then
   local_demo_mode="false"
   if [[ "$INVOICE_INBOX_PATH" == "$DEFAULT_DEMO_INBOX_PATH" ]]; then
     local_demo_mode="true"
-  fi
-  if [[ -z "$APP_MANIFEST_PATH_VALUE" && "$local_demo_mode" == "true" ]]; then
-    APP_MANIFEST_PATH_VALUE="$DEFAULT_LOCAL_MANIFEST_PATH"
   fi
   if [[ -z "$LOCAL_DEMO_SEED_VALUE" ]]; then
     if [[ "$local_demo_mode" == "true" ]]; then
