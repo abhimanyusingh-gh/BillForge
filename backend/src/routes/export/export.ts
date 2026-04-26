@@ -2,7 +2,6 @@ import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
 import type { ExportService } from "@/services/export/exportService.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { isString } from "@/utils/validation.js";
 
@@ -10,7 +9,7 @@ export function createExportRouter(exportService: ExportService | null) {
   const router = Router();
   router.use(requireAuth);
 
-  router.post("/exports/tally", requireCap("canExportToTally"), requireActiveClientOrg, async (req, res, next) => {
+  router.post("/exports/tally", requireCap("canExportToTally"), async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({
@@ -33,7 +32,7 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
-  router.post("/exports/tally/download", requireCap("canExportToTally"), requireActiveClientOrg, async (req, res, next) => {
+  router.post("/exports/tally/download", requireCap("canExportToTally"), async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({
@@ -69,7 +68,7 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
-  router.get("/exports/tally/history", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/exports/tally/history", async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({ message: "Tally exporter is not configured." });
@@ -91,7 +90,7 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
-  router.get("/exports/tally/download/:batchId", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/exports/tally/download/:batchId", async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({ message: "Tally exporter is not configured." });

@@ -2,7 +2,6 @@ import { Router } from "express";
 import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { getAuth } from "@/types/auth.js";
 
 const VALID_CSV_COLUMN_KEYS = new Set([
@@ -36,13 +35,9 @@ export function createClientExportConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/tenant/:tenantId/export-config", requireActiveClientOrg, requireCap("canExportToTally"), async (req, res, next) => {
+  router.get("/export-config", requireCap("canExportToTally"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
-      if (auth.tenantId !== req.params.tenantId) {
-        res.status(403).json({ message: "Access denied to this tenant." });
-        return;
-      }
       const clientOrgId = req.activeClientOrgId!;
 
       const config = await ClientExportConfigModel.findOne({ tenantId: auth.tenantId, clientOrgId }).lean();
@@ -50,13 +45,9 @@ export function createClientExportConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.patch("/tenant/:tenantId/export-config", requireActiveClientOrg, requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.patch("/export-config", requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
-      if (auth.tenantId !== req.params.tenantId) {
-        res.status(403).json({ message: "Access denied to this tenant." });
-        return;
-      }
       const clientOrgId = req.activeClientOrgId!;
 
       const update: Record<string, unknown> = {};
