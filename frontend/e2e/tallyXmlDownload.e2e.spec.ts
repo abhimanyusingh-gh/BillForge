@@ -19,17 +19,20 @@ interface InvoiceListResponse {
 
 test.describe("Tally XML download", () => {
   let authToken = "";
+  let tenantId = "";
+  let clientOrgId = "";
 
   test.beforeAll(async ({ request }) => {
     await expectBackendReady(request);
     authToken = await createE2ESessionToken(apiBaseUrl);
     await completeE2ETenantOnboarding(request, authToken);
+    ({ tenantId, clientOrgId } = await bootstrapTenantContext(request, authToken));
 
     if (!skipIngest) {
-      await triggerAndWaitForIngestion(request, authToken);
+      await triggerAndWaitForIngestion(request, authToken, tenantId);
     }
 
-    await ensureApprovedInvoicesExist(request, authToken);
+    await ensureApprovedInvoicesExist(request, authToken, tenantId, clientOrgId);
   });
 
   test("downloads XML from toolbar, validates Tally envelope structure", async ({ page }) => {
@@ -73,7 +76,8 @@ test.describe("Tally XML download", () => {
 
   test("downloads XML from Export History dashboard", async ({ page, request }) => {
     // First generate a batch via API so history has at least one entry
-    const generateResponse = await request.post(`${apiBaseUrl}/api/exports/tally/download`, {
+    const exportsBase = `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/exports`;
+    const generateResponse = await request.post(`${exportsBase}/tally/download`, {
       headers: authHeaders(authToken),
       data: { requestedBy: "e2e-test" }
     });
@@ -81,8 +85,8 @@ test.describe("Tally XML download", () => {
     // If no approved invoices, skip (they were already exported above)
     if (generateResponse.status() === 404) {
       // Re-approve invoices so we can generate again
-      await ensureApprovedInvoicesExist(request, authToken);
-      const retryResponse = await request.post(`${apiBaseUrl}/api/exports/tally/download`, {
+      await ensureApprovedInvoicesExist(request, authToken, tenantId, clientOrgId);
+      const retryResponse = await request.post(`${exportsBase}/tally/download`, {
         headers: authHeaders(authToken),
         data: { requestedBy: "e2e-test" }
       });
@@ -206,8 +210,13 @@ async function completeE2ETenantOnboarding(request: APIRequestContext, token: st
   expect(complete.ok()).toBeTruthy();
 }
 
-async function triggerAndWaitForIngestion(request: APIRequestContext, token: string): Promise<void> {
-  const trigger = await request.post(`${apiBaseUrl}/api/jobs/ingest`, {
+async function triggerAndWaitForIngestion(
+  request: APIRequestContext,
+  token: string,
+  tenantId: string
+): Promise<void> {
+  const tenantBase = `${apiBaseUrl}/api/tenants/${tenantId}`;
+  const trigger = await request.post(`${tenantBase}/jobs/ingest`, {
     headers: authHeaders(token)
   });
   expect(trigger.status()).toBe(202);
@@ -215,7 +224,7 @@ async function triggerAndWaitForIngestion(request: APIRequestContext, token: str
   const startedAt = Date.now();
   const timeoutMs = 20 * 60_000;
   while (Date.now() - startedAt < timeoutMs) {
-    const statusResponse = await request.get(`${apiBaseUrl}/api/jobs/ingest/status`, {
+    const statusResponse = await request.get(`${tenantBase}/jobs/ingest/status`, {
       headers: authHeaders(token)
     });
     expect(statusResponse.ok()).toBeTruthy();
@@ -232,8 +241,14 @@ async function triggerAndWaitForIngestion(request: APIRequestContext, token: str
   throw new Error(`Timed out waiting for ingestion after ${timeoutMs}ms`);
 }
 
-async function ensureApprovedInvoicesExist(request: APIRequestContext, token: string): Promise<void> {
-  const list = await request.get(`${apiBaseUrl}/api/invoices?page=1&limit=100`, {
+async function ensureApprovedInvoicesExist(
+  request: APIRequestContext,
+  token: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<void> {
+  const realmBase = `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}`;
+  const list = await request.get(`${realmBase}/invoices?page=1&limit=100`, {
     headers: authHeaders(token)
   });
   expect(list.ok()).toBeTruthy();
@@ -252,11 +267,34 @@ async function ensureApprovedInvoicesExist(request: APIRequestContext, token: st
     throw new Error("No invoices available to approve for export E2E test.");
   }
 
-  const approve = await request.post(`${apiBaseUrl}/api/invoices/approve`, {
+  const approve = await request.post(`${realmBase}/invoices/approve`, {
     headers: authHeaders(token),
     data: { ids: pendingIds }
   });
   expect(approve.ok()).toBeTruthy();
+}
+
+async function bootstrapTenantContext(
+  request: APIRequestContext,
+  token: string
+): Promise<{ tenantId: string; clientOrgId: string }> {
+  const session = await request.get(`${apiBaseUrl}/api/session`, { headers: authHeaders(token) });
+  expect(session.ok()).toBeTruthy();
+  const payload = (await session.json()) as { tenant?: { id?: string } };
+  const tenantId = String(payload.tenant?.id ?? "").trim();
+  if (!tenantId) {
+    throw new Error("Session response did not include tenant.id.");
+  }
+  const list = await request.get(`${apiBaseUrl}/api/tenants/${tenantId}/admin/client-orgs`, {
+    headers: authHeaders(token)
+  });
+  expect(list.ok()).toBeTruthy();
+  const listData = (await list.json()) as { items?: Array<{ _id: string }> } | Array<{ _id: string }>;
+  const items = Array.isArray(listData) ? listData : listData.items ?? [];
+  if (items.length === 0 || typeof items[0]?._id !== "string") {
+    throw new Error(`Tenant ${tenantId} has no client-orgs — seed one before running this test.`);
+  }
+  return { tenantId, clientOrgId: items[0]._id };
 }
 
 function authHeaders(token: string): Record<string, string> {

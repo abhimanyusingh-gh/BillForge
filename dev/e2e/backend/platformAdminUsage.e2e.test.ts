@@ -70,8 +70,9 @@ describe("platform admin tenant usage e2e", () => {
     );
     expect(forbiddenOnboard.status).toBe(403);
 
+    const onboardedTenantId = onboardedAdminSession.tenant.id;
     const platformIngest = await api.post(
-      "/api/jobs/ingest",
+      `/api/tenants/${onboardedTenantId}/jobs/ingest`,
       {},
       {
         headers: authHeaders(platformToken)
@@ -79,9 +80,15 @@ describe("platform admin tenant usage e2e", () => {
     );
     expect(platformIngest.status).toBe(403);
 
-    const platformInvoices = await api.get("/api/invoices?page=1&limit=5", {
-      headers: authHeaders(platformToken)
-    });
+    // Realm-scoped invoice list — uses the onboarded tenant + a placeholder
+    // clientOrgId. `requireNonPlatformAdmin` short-circuits with 403 before
+    // path-scope ownership validation runs, so the placeholder id never
+    // touches the DB. Hex 24-char id is well-formed for the path validator.
+    const placeholderClientOrgId = "000000000000000000000001";
+    const platformInvoices = await api.get(
+      `/api/tenants/${onboardedTenantId}/clientOrgs/${placeholderClientOrgId}/invoices?page=1&limit=5`,
+      { headers: authHeaders(platformToken) }
+    );
     expect(platformInvoices.status).toBe(403);
 
     const tenantAEmail = `usage-a-${Date.now()}@local.test`;

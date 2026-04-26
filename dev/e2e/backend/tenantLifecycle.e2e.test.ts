@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import mongoose from "mongoose";
 import FormData from "form-data";
-import { loginWithPassword } from "./authHelper.js";
+import { bootstrapTenantContext, loginWithPassword } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const mongoUri = process.env.E2E_MONGO_URI ?? "mongodb://ledgerbuddy_app:ledgerbuddy_local_pass@127.0.0.1:27018/ledgerbuddy?authSource=ledgerbuddy";
@@ -115,13 +115,17 @@ describe("tenant lifecycle e2e", () => {
     );
     expect(completeResponse.status).toBe(204);
 
+    const tenantContext = await bootstrapTenantContext(apiBaseUrl, newToken);
+    const tenantBase = `/api/tenants/${tenantContext.tenantId}`;
+    const realmBase = `${tenantBase}/clientOrgs/${tenantContext.clientOrgId}`;
+
     // 10. Upload file
     const samplePdfPath = path.resolve(__dirname, "../../../sample-invoices/e2e-inbox/e2e-sample.pdf");
     const pdfBuffer = readFileSync(samplePdfPath);
     const form = new FormData();
     form.append("files", pdfBuffer, { filename: "e2e-upload-test.pdf", contentType: "application/pdf" });
 
-    const uploadResponse = await api.post("/api/jobs/upload", form, {
+    const uploadResponse = await api.post(`${realmBase}/jobs/upload`, form, {
       headers: {
         Authorization: `Bearer ${newToken}`,
         ...form.getHeaders()
@@ -131,7 +135,7 @@ describe("tenant lifecycle e2e", () => {
     expect(uploadResponse.data.count).toBe(1);
 
     // 10b. Verify uploaded file appears as PENDING invoice immediately
-    const pendingInvoicesResponse = await api.get("/api/invoices", {
+    const pendingInvoicesResponse = await api.get(`${realmBase}/invoices`, {
       headers: { Authorization: `Bearer ${newToken}` }
     });
     expect(pendingInvoicesResponse.status).toBe(200);
@@ -145,13 +149,13 @@ describe("tenant lifecycle e2e", () => {
     // 10c. Upload same file again — should succeed (unique fileId)
     const form2 = new FormData();
     form2.append("files", pdfBuffer, { filename: "e2e-upload-test.pdf", contentType: "application/pdf" });
-    const reuploadResponse = await api.post("/api/jobs/upload", form2, {
+    const reuploadResponse = await api.post(`${realmBase}/jobs/upload`, form2, {
       headers: { Authorization: `Bearer ${newToken}`, ...form2.getHeaders() }
     });
     expect(reuploadResponse.status).toBe(201);
 
     // 10d. Verify duplicate detection flag
-    const afterReuploadResponse = await api.get("/api/invoices", {
+    const afterReuploadResponse = await api.get(`${realmBase}/invoices`, {
       headers: { Authorization: `Bearer ${newToken}` }
     });
     expect(afterReuploadResponse.status).toBe(200);
@@ -165,7 +169,7 @@ describe("tenant lifecycle e2e", () => {
     // 10e. Delete one duplicate
     const dupeToDelete = dupeInvoices[0]._id;
     const deleteResponse = await api.post(
-      "/api/invoices/delete",
+      `${realmBase}/invoices/delete`,
       { ids: [dupeToDelete] },
       { headers: { Authorization: `Bearer ${newToken}` } }
     );
@@ -173,7 +177,7 @@ describe("tenant lifecycle e2e", () => {
     expect(deleteResponse.data.deletedCount).toBe(1);
 
     // 10f. Verify deletion — only one copy remains
-    const afterDeleteResponse = await api.get("/api/invoices", {
+    const afterDeleteResponse = await api.get(`${realmBase}/invoices`, {
       headers: { Authorization: `Bearer ${newToken}` }
     });
     expect(afterDeleteResponse.status).toBe(200);
@@ -184,7 +188,7 @@ describe("tenant lifecycle e2e", () => {
 
     // 11. Ingest
     const ingestResponse = await api.post(
-      "/api/jobs/ingest",
+      `${tenantBase}/jobs/ingest`,
       {},
       { headers: { Authorization: `Bearer ${newToken}` } }
     );
@@ -193,7 +197,7 @@ describe("tenant lifecycle e2e", () => {
     // Wait for ingestion to complete
     let ingestionDone = false;
     for (let attempt = 0; attempt < 30; attempt++) {
-      const statusResponse = await api.get("/api/jobs/ingest/status", {
+      const statusResponse = await api.get(`${tenantBase}/jobs/ingest/status`, {
         headers: { Authorization: `Bearer ${newToken}` }
       });
       if (statusResponse.data.state === "completed" || statusResponse.data.state === "failed") {
@@ -206,7 +210,7 @@ describe("tenant lifecycle e2e", () => {
 
     const RECOGNIZED_CURRENCIES = new Set(["USD", "EUR", "GBP", "INR", "AUD", "CAD", "JPY", "AED", "SGD"]);
 
-    const invoicesResponse = await api.get("/api/invoices", {
+    const invoicesResponse = await api.get(`${realmBase}/invoices`, {
       headers: { Authorization: `Bearer ${newToken}` }
     });
     expect(invoicesResponse.status).toBe(200);
@@ -264,14 +268,14 @@ describe("tenant lifecycle e2e", () => {
 
     const invoiceIds = invoices.map((item) => item._id);
     const approveResponse = await api.post(
-      "/api/invoices/approve",
+      `${realmBase}/invoices/approve`,
       { ids: invoiceIds, approvedBy: adminEmail },
       { headers: { Authorization: `Bearer ${newToken}` } }
     );
     expect(approveResponse.status).toBe(200);
 
     const exportResponse = await api.post(
-      "/api/exports/tally/download",
+      `${realmBase}/exports/tally/download`,
       { ids: invoiceIds, requestedBy: "e2e" },
       { headers: { Authorization: `Bearer ${newToken}` } }
     );
@@ -281,7 +285,7 @@ describe("tenant lifecycle e2e", () => {
     expect(exportResponse.data.includedCount).toBeGreaterThanOrEqual(1);
 
     const downloadResponse = await api.get(
-      `/api/exports/tally/download/${exportResponse.data.batchId}`,
+      `${realmBase}/exports/tally/download/${exportResponse.data.batchId}`,
       { headers: { Authorization: `Bearer ${newToken}` }, responseType: "text" }
     );
     expect(downloadResponse.status).toBe(200);

@@ -10,7 +10,7 @@ import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.j
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { MailboxNotificationEventModel } from "@/models/integration/MailboxNotificationEvent.js";
 import { decryptSecret, encryptSecret } from "@/utils/secretCrypto.js";
-import { createE2EUserAndLogin, E2E_TEST_PASSWORD } from "./authHelper.js";
+import { bootstrapTenantContext, createE2EUserAndLogin, E2E_TEST_PASSWORD } from "./authHelper.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
@@ -96,9 +96,16 @@ describe("saas lifecycle e2e", () => {
     expect(adminTenant).not.toBeNull();
     expect(adminTenant?.onboardingStatus).toBe("pending");
 
-    const blockedInvoices = await api.get("/api/invoices?page=1&limit=5", {
-      headers: authHeaders(adminToken)
-    });
+    // Realm-scoped invoice list — `requireTenantSetupCompleted` short-circuits
+    // with the `requires_tenant_setup` 403 BEFORE path-scope ownership runs,
+    // so a placeholder clientOrgId is never validated against the DB. The
+    // tenantId in the path must match the caller's session tenantId
+    // (`requireMatchingTenantIdParam`); the user's own tenantId satisfies that.
+    const placeholderClientOrgId = "000000000000000000000001";
+    const blockedInvoices = await api.get(
+      `/api/tenants/${adminUser!.tenantId}/clientOrgs/${placeholderClientOrgId}/invoices?page=1&limit=5`,
+      { headers: authHeaders(adminToken) }
+    );
     expect(blockedInvoices.status).toBe(403);
     expect(blockedInvoices.data?.requires_tenant_setup).toBe(true);
 
@@ -156,8 +163,10 @@ describe("saas lifecycle e2e", () => {
     expect(completeSession.flags.requires_tenant_setup).toBe(false);
     expect(completeSession.tenant.onboarding_status).toBe("completed");
 
+    const adminContext = await bootstrapTenantContext(apiBaseUrl, adminToken);
     const invoice = await InvoiceModel.create({
       tenantId: adminUser!.tenantId,
+      clientOrgId: adminContext.clientOrgId,
       workloadTier: "standard",
       sourceType: "folder",
       sourceKey: "local-folder",
@@ -177,9 +186,11 @@ describe("saas lifecycle e2e", () => {
 
     const otherTenantToken = await loginAs(uniqueEmail("phase23-other"));
     await completeOnboarding(otherTenantToken, "other-tenant", uniqueEmail("phase23-other-admin"));
-    const crossTenant = await api.get(`/api/invoices/${String(invoice._id)}`, {
-      headers: authHeaders(otherTenantToken)
-    });
+    const otherContext = await bootstrapTenantContext(apiBaseUrl, otherTenantToken);
+    const crossTenant = await api.get(
+      `/api/tenants/${otherContext.tenantId}/clientOrgs/${otherContext.clientOrgId}/invoices/${String(invoice._id)}`,
+      { headers: authHeaders(otherTenantToken) }
+    );
     expect(crossTenant.status).toBe(404);
 
     const forgedToken = createSessionToken({
@@ -204,16 +215,17 @@ describe("saas lifecycle e2e", () => {
     const adminSession = await getSession(adminToken);
     const tenantId = String(adminSession.tenant.id);
 
+    const tenantBase = `/api/tenants/${tenantId}`;
     const candidateEmail = uniqueEmail("phase45-candidate");
     const inviteStartMs = Date.now();
     const inviteOne = await api.post(
-      "/api/admin/users/invite",
+      `${tenantBase}/admin/users/invite`,
       { email: candidateEmail },
       { headers: authHeaders(adminToken) }
     );
     expect(inviteOne.status).toBe(201);
     const inviteTwo = await api.post(
-      "/api/admin/users/invite",
+      `${tenantBase}/admin/users/invite`,
       { email: candidateEmail },
       { headers: authHeaders(adminToken) }
     );
@@ -257,21 +269,21 @@ describe("saas lifecycle e2e", () => {
     expect(candidateRole?.role).toBe("ap_clerk");
 
     const nonAdminInvite = await api.post(
-      "/api/admin/users/invite",
+      `${tenantBase}/admin/users/invite`,
       { email: uniqueEmail("phase45-denied") },
       { headers: authHeaders(freshCandidateToken) }
     );
     expect(nonAdminInvite.status).toBe(403);
 
     const nonAdminEscalate = await api.post(
-      `/api/admin/users/${String(candidateUser?._id)}/role`,
+      `${tenantBase}/admin/users/${String(candidateUser?._id)}/role`,
       { role: "TENANT_ADMIN" },
       { headers: authHeaders(freshCandidateToken) }
     );
     expect(nonAdminEscalate.status).toBe(403);
 
     const rolePromote = await api.post(
-      `/api/admin/users/${String(candidateUser?._id)}/role`,
+      `${tenantBase}/admin/users/${String(candidateUser?._id)}/role`,
       { role: "TENANT_ADMIN" },
       { headers: authHeaders(adminToken) }
     );
@@ -280,7 +292,7 @@ describe("saas lifecycle e2e", () => {
     const expiringEmail = uniqueEmail("phase45-expire");
     const expireStart = Date.now();
     const expiringInvite = await api.post(
-      "/api/admin/users/invite",
+      `${tenantBase}/admin/users/invite`,
       { email: expiringEmail },
       { headers: authHeaders(adminToken) }
     );
@@ -312,7 +324,8 @@ describe("saas lifecycle e2e", () => {
     const session = await getSession(adminToken);
     const tenantId = String(session.tenant.id);
 
-    const connectUrlResponse = await api.get("/api/integrations/gmail/connect-url", {
+    const tenantBase = `/api/tenants/${tenantId}`;
+    const connectUrlResponse = await api.get(`${tenantBase}/integrations/gmail/connect-url`, {
       headers: authHeaders(adminToken)
     });
     expect(connectUrlResponse.status).toBe(200);
@@ -369,7 +382,7 @@ describe("saas lifecycle e2e", () => {
     const memberEmail = uniqueEmail("phase78-member");
     const inviteStartMs = Date.now();
     const invite = await api.post(
-      "/api/admin/users/invite",
+      `${tenantBase}/admin/users/invite`,
       { email: memberEmail },
       { headers: authHeaders(adminToken) }
     );
@@ -386,7 +399,7 @@ describe("saas lifecycle e2e", () => {
     // Re-login after acceptance — tenantId in MongoDB changed, old token is stale
     const freshMemberToken = await loginAs(memberEmail);
 
-    const nonAdminConnect = await api.get("/api/integrations/gmail/connect-url", {
+    const nonAdminConnect = await api.get(`${tenantBase}/integrations/gmail/connect-url`, {
       headers: authHeaders(freshMemberToken)
     });
     expect(nonAdminConnect.status).toBe(403);

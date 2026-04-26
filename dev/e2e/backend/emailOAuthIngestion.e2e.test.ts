@@ -2,7 +2,7 @@ import axios from "axios";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
-import { completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper.js";
+import { bootstrapTenantContext, completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const wrapperBaseUrl = process.env.E2E_MAILHOG_WRAPPER_URL ?? "http://127.0.0.1:8126";
@@ -42,6 +42,8 @@ describe("email XOAUTH2 ingestion e2e", () => {
 
   let xoauth2HeaderValue = "";
   let expectedAttachmentNames: string[] = [];
+  let tenantBase = "";
+  let realmBase = "";
 
   beforeAll(async () => {
     const health = await api.get("/health");
@@ -51,6 +53,9 @@ describe("email XOAUTH2 ingestion e2e", () => {
     const sessionToken = await createE2EUserAndLogin(apiBaseUrl, `email-oauth-e2e-${Date.now()}@local.test`);
     api.defaults.headers.common.Authorization = `Bearer ${sessionToken}`;
     await completeE2ETenantOnboarding(apiBaseUrl, sessionToken);
+    const { tenantId, clientOrgId } = await bootstrapTenantContext(apiBaseUrl, sessionToken);
+    tenantBase = `/api/tenants/${tenantId}`;
+    realmBase = `${tenantBase}/clientOrgs/${clientOrgId}`;
 
     const accessToken = await fetchAccessToken();
     xoauth2HeaderValue = buildXoauth2AuthorizationHeader(emailUsername, accessToken);
@@ -88,10 +93,10 @@ describe("email XOAUTH2 ingestion e2e", () => {
   });
 
   it("ingests seeded XOAUTH2 emails and checkpoints processed messages", async () => {
-    const trigger = await api.post("/api/jobs/ingest");
+    const trigger = await api.post(`${tenantBase}/jobs/ingest`);
     expect(trigger.status).toBe(202);
 
-    const completed = await waitForIngestionCompletion(api);
+    const completed = await waitForIngestionCompletion(api, tenantBase);
     expect(completed.state).toBe("completed");
     expect(completed.totalFiles).toBe(3);
     expect(completed.processedFiles).toBe(3);
@@ -99,7 +104,7 @@ describe("email XOAUTH2 ingestion e2e", () => {
     expect(completed.failures).toBe(0);
     expect(completed.duplicates).toBe(0);
 
-    const invoices = await api.get("/api/invoices?page=1&limit=50");
+    const invoices = await api.get(`${realmBase}/invoices?page=1&limit=50`);
     expect(invoices.status).toBe(200);
     expect(Array.isArray(invoices.data?.items)).toBe(true);
     expect(invoices.data.items).toHaveLength(3);
@@ -109,10 +114,10 @@ describe("email XOAUTH2 ingestion e2e", () => {
       .sort((left: string, right: string) => left.localeCompare(right));
     expect(attachmentNames).toEqual(expectedAttachmentNames);
 
-    const rerunTrigger = await api.post("/api/jobs/ingest");
+    const rerunTrigger = await api.post(`${tenantBase}/jobs/ingest`);
     expect(rerunTrigger.status).toBe(202);
 
-    const rerun = await waitForIngestionCompletion(api);
+    const rerun = await waitForIngestionCompletion(api, tenantBase);
     expect(rerun.state).toBe("completed");
     expect(rerun.totalFiles).toBe(0);
     expect(rerun.processedFiles).toBe(0);
@@ -180,10 +185,10 @@ function resolveMimeType(fileName: string): string {
   return "image/jpeg";
 }
 
-async function waitForIngestionCompletion(apiClient: ReturnType<typeof axios.create>): Promise<IngestStatus> {
+async function waitForIngestionCompletion(apiClient: ReturnType<typeof axios.create>, tenantBase: string): Promise<IngestStatus> {
   const startedAt = Date.now();
   while (Date.now() - startedAt < 10 * 60_000) {
-    const response = await apiClient.get<IngestStatus>("/api/jobs/ingest/status");
+    const response = await apiClient.get<IngestStatus>(`${tenantBase}/jobs/ingest/status`);
     if (response.status !== 200) {
       throw new Error(`Status endpoint failed with HTTP ${response.status}.`);
     }

@@ -151,17 +151,29 @@ export async function getInvoiceStatusFromRow(page: Page, rowIndex = 0): Promise
   return (await statusCell.textContent())?.trim() ?? "";
 }
 
-export async function getInvoiceStatusViaApi(token: string, invoiceId: string): Promise<string> {
-  const res = await axios.get(`${apiBaseUrl}/api/invoices/${invoiceId}`, {
-    headers: authHeaders(token), timeout: 10_000
-  });
+export async function getInvoiceStatusViaApi(
+  token: string,
+  invoiceId: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<string> {
+  const res = await axios.get(
+    `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}`,
+    { headers: authHeaders(token), timeout: 10_000 }
+  );
   return res.data.status;
 }
 
-export async function getInvoiceViaApi(token: string, invoiceId: string): Promise<Record<string, unknown>> {
-  const res = await axios.get(`${apiBaseUrl}/api/invoices/${invoiceId}`, {
-    headers: authHeaders(token), timeout: 10_000
-  });
+export async function getInvoiceViaApi(
+  token: string,
+  invoiceId: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<Record<string, unknown>> {
+  const res = await axios.get(
+    `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}`,
+    { headers: authHeaders(token), timeout: 10_000 }
+  );
   return res.data;
 }
 
@@ -173,10 +185,16 @@ export async function getSessionToken(email: string): Promise<string> {
   return res.data.token;
 }
 
-export async function fetchInvoicesByStatus(token: string, status: string): Promise<Array<{ _id: string; status: string }>> {
-  const res = await axios.get(`${apiBaseUrl}/api/invoices`, {
-    headers: authHeaders(token), params: { status, limit: 5 }, timeout: 10_000
-  });
+export async function fetchInvoicesByStatus(
+  token: string,
+  status: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<Array<{ _id: string; status: string }>> {
+  const res = await axios.get(
+    `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices`,
+    { headers: authHeaders(token), params: { status, limit: 5 }, timeout: 10_000 }
+  );
   return res.data.items ?? [];
 }
 
@@ -190,8 +208,53 @@ export async function ensureTenantOnboarded(request: APIRequestContext, token: s
   });
 }
 
-export async function seedComplianceConfig(token: string): Promise<void> {
-  await axios.put(`${apiBaseUrl}/api/admin/compliance-config`,
+/**
+ * Resolve `{tenantId, clientOrgId}` for the authenticated session — required
+ * for callers that hit nested-path routes
+ * (`/api/tenants/:tenantId/clientOrgs/:clientOrgId/...`). `tenantId` comes
+ * from `/api/session`; `clientOrgId` is the first row returned by
+ * `GET /api/tenants/:tenantId/admin/client-orgs`. `ensureTenantOnboarded`
+ * MUST run first — `requireTenantSetupCompleted` gates the nested mount.
+ */
+export async function bootstrapTenantContext(
+  token: string
+): Promise<{ tenantId: string; clientOrgId: string }> {
+  const sessionResponse = await axios.get(`${apiBaseUrl}/api/session`, {
+    headers: authHeaders(token), timeout: 10_000, validateStatus: () => true
+  });
+  if (sessionResponse.status !== 200) {
+    throw new Error(`Failed to fetch session for tenant bootstrap (HTTP ${sessionResponse.status}).`);
+  }
+  const tenantId = String(sessionResponse.data?.tenant?.id ?? "").trim();
+  if (!tenantId) {
+    throw new Error("Session response did not include tenant.id.");
+  }
+
+  const listResponse = await axios.get(
+    `${apiBaseUrl}/api/tenants/${tenantId}/admin/client-orgs`,
+    { headers: authHeaders(token), timeout: 10_000, validateStatus: () => true }
+  );
+  if (listResponse.status !== 200) {
+    throw new Error(`Failed to list client-orgs for tenant ${tenantId} (HTTP ${listResponse.status}).`);
+  }
+  const items = Array.isArray(listResponse.data?.items)
+    ? listResponse.data.items
+    : Array.isArray(listResponse.data)
+      ? listResponse.data
+      : [];
+  if (items.length === 0 || typeof items[0]?._id !== "string") {
+    throw new Error(`Tenant ${tenantId} has no client-orgs — seed one before running this test.`);
+  }
+  return { tenantId, clientOrgId: items[0]._id };
+}
+
+export async function seedComplianceConfig(
+  token: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<void> {
+  const realmBase = `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}`;
+  await axios.put(`${realmBase}/admin/compliance-config`,
     { complianceEnabled: true, autoSuggestGlCodes: true, autoDetectTds: true },
     { headers: authHeaders(token), timeout: 10_000 }
   );
@@ -201,14 +264,18 @@ export async function seedComplianceConfig(token: string): Promise<void> {
     { code: "5030", name: "Rent - Building", category: "Rent", linkedTdsSection: "194I(b)" }
   ];
   for (const gl of codes) {
-    await axios.post(`${apiBaseUrl}/api/admin/gl-codes`, gl, {
+    await axios.post(`${realmBase}/admin/gl-codes`, gl, {
       headers: authHeaders(token), timeout: 10_000, validateStatus: () => true
     });
   }
 }
 
-export async function enableWorkflow(token: string): Promise<void> {
-  await axios.put(`${apiBaseUrl}/api/admin/approval-workflow`, {
+export async function enableWorkflow(
+  token: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<void> {
+  await axios.put(`${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/admin/approval-workflow`, {
     enabled: true, mode: "advanced",
     simpleConfig: { requireManagerReview: false, requireFinalSignoff: false },
     steps: [
@@ -218,7 +285,12 @@ export async function enableWorkflow(token: string): Promise<void> {
   }, { headers: authHeaders(token), timeout: 10_000 });
 }
 
-export async function uploadTestInvoiceAndWait(token: string, testLabel: string): Promise<string> {
+export async function uploadTestInvoiceAndWait(
+  token: string,
+  testLabel: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<string> {
   const pdfPath = path.resolve(import.meta.dirname, "../../sample-invoices/inbox/INV-FY2526-939.pdf");
   if (!fs.existsSync(pdfPath)) throw new Error(`Test PDF not found at ${pdfPath}`);
 
@@ -226,23 +298,25 @@ export async function uploadTestInvoiceAndWait(token: string, testLabel: string)
   const fileBuffer = fs.readFileSync(pdfPath);
   form.append("files", fileBuffer, { filename: `test-${testLabel}-${Date.now()}.pdf`, contentType: "application/pdf" });
 
-  const uploadRes = await axios.post(`${apiBaseUrl}/api/jobs/upload`, form, {
+  const realmBase = `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}`;
+  const tenantBase = `${apiBaseUrl}/api/tenants/${tenantId}`;
+  const uploadRes = await axios.post(`${realmBase}/jobs/upload`, form, {
     headers: { ...authHeaders(token), ...form.getHeaders() },
     timeout: 30_000
   });
   expect(uploadRes.status).toBeLessThan(300);
 
-  await axios.post(`${apiBaseUrl}/api/jobs/ingest`, {}, { headers: authHeaders(token), timeout: 30_000 }).catch(() => {});
+  await axios.post(`${tenantBase}/jobs/ingest`, {}, { headers: authHeaders(token), timeout: 30_000 }).catch(() => {});
 
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 3_000));
-    const res = await axios.get(`${apiBaseUrl}/api/invoices`, {
+    const res = await axios.get(`${realmBase}/invoices`, {
       headers: authHeaders(token), params: { status: "NEEDS_REVIEW", limit: 5 }
     });
     const items = (res.data as { items: Array<{ _id: string }> }).items;
     if (items.length > 0) return items[items.length - 1]._id;
 
-    const parsed = await axios.get(`${apiBaseUrl}/api/invoices`, {
+    const parsed = await axios.get(`${realmBase}/invoices`, {
       headers: authHeaders(token), params: { status: "PARSED", limit: 5 }
     });
     const parsedItems = (parsed.data as { items: Array<{ _id: string }> }).items;
@@ -252,8 +326,12 @@ export async function uploadTestInvoiceAndWait(token: string, testLabel: string)
   throw new Error(`Invoice from upload "${testLabel}" did not reach PARSED/NEEDS_REVIEW within 90 seconds`);
 }
 
-export async function disableWorkflow(token: string): Promise<void> {
-  await axios.put(`${apiBaseUrl}/api/admin/approval-workflow`, {
+export async function disableWorkflow(
+  token: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<void> {
+  await axios.put(`${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/admin/approval-workflow`, {
     enabled: false, mode: "simple",
     simpleConfig: { requireManagerReview: false, requireFinalSignoff: false }, steps: []
   }, { headers: authHeaders(token), timeout: 10_000 });

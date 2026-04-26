@@ -1,7 +1,7 @@
 import axios from "axios";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper.js";
+import { bootstrapTenantContext, completeE2ETenantOnboarding, createE2EUserAndLogin } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 const frontendBaseUrl = process.env.E2E_FRONTEND_BASE_URL ?? "http://127.0.0.1:5177";
@@ -79,6 +79,8 @@ const CONFIDENCE_TONES = new Set(["red", "yellow", "green"]);
 describe("local full-stack ingestion e2e", () => {
   let expectedFiles: string[] = [];
   let sessionToken = "";
+  let tenantBase = "";
+  let realmBase = "";
 
   beforeAll(async () => {
     expectedFiles = await listInboxFiles(inboxDir);
@@ -97,6 +99,9 @@ describe("local full-stack ingestion e2e", () => {
     sessionToken = await createE2EUserAndLogin(apiBaseUrl, `folder-e2e-${Date.now()}@local.test`);
     api.defaults.headers.common.Authorization = `Bearer ${sessionToken}`;
     await completeE2ETenantOnboarding(apiBaseUrl, sessionToken);
+    const { tenantId, clientOrgId } = await bootstrapTenantContext(apiBaseUrl, sessionToken);
+    tenantBase = `/api/tenants/${tenantId}`;
+    realmBase = `${tenantBase}/clientOrgs/${clientOrgId}`;
 
     const frontend = await axios.get(frontendBaseUrl, { timeout: 30_000, responseType: "text" });
     expect(frontend.status).toBeGreaterThanOrEqual(200);
@@ -115,17 +120,17 @@ describe("local full-stack ingestion e2e", () => {
   });
 
   it("processes all inbox files using live OCR + SLM through running backend", async () => {
-    const trigger = await api.post("/api/jobs/ingest");
+    const trigger = await api.post(`${tenantBase}/jobs/ingest`);
     expect(trigger.status).toBe(202);
 
-    const completed = await waitForIngestionCompletion();
+    const completed = await waitForIngestionCompletion(tenantBase);
     expect(completed.state).toBe("completed");
     expect(completed.running).toBe(false);
     expect(completed.totalFiles).toBe(expectedFiles.length);
     expect(completed.processedFiles).toBe(expectedFiles.length);
     expect(completed.newInvoices + completed.failures + completed.duplicates).toBe(expectedFiles.length);
 
-    const invoicesResponse = await api.get<InvoiceListResponse>("/api/invoices?page=1&limit=500");
+    const invoicesResponse = await api.get<InvoiceListResponse>(`${realmBase}/invoices?page=1&limit=500`);
     expect(invoicesResponse.status).toBe(200);
     const invoices = invoicesResponse.data.items;
     expect(invoices.length).toBe(expectedFiles.length);
@@ -196,7 +201,7 @@ describe("local full-stack ingestion e2e", () => {
     expect(invoicesWithCurrency).toBeGreaterThanOrEqual(1);
 
     const invoiceDetails = await Promise.all(
-      invoices.map((invoice) => api.get<InvoiceDetailResponse>(`/api/invoices/${invoice._id}`))
+      invoices.map((invoice) => api.get<InvoiceDetailResponse>(`${realmBase}/invoices/${invoice._id}`))
     );
     invoiceDetails.forEach((response) => {
       expect(response.status).toBe(200);
@@ -230,31 +235,31 @@ describe("local full-stack ingestion e2e", () => {
     for (const response of invoiceDetails) {
       const detail = response.data;
       // The source-overlays and per-block crop routes have been removed; any legacy URL should now 404.
-      const overlayResponse = await api.get(`/api/invoices/${detail._id}/source-overlays/vendorName`);
+      const overlayResponse = await api.get(`${realmBase}/invoices/${detail._id}/source-overlays/vendorName`);
       expect(overlayResponse.status).toBe(404);
-      const cropResponse = await api.get(`/api/invoices/${detail._id}/ocr-blocks/0/crop`);
+      const cropResponse = await api.get(`${realmBase}/invoices/${detail._id}/ocr-blocks/0/crop`);
       expect(cropResponse.status).toBe(404);
     }
   });
 
   it("uses checkpointing to skip already processed files on rerun", async () => {
-    const trigger = await api.post("/api/jobs/ingest");
+    const trigger = await api.post(`${tenantBase}/jobs/ingest`);
     expect(trigger.status).toBe(202);
 
-    const rerun = await waitForIngestionCompletion();
+    const rerun = await waitForIngestionCompletion(tenantBase);
     expect(rerun.state).toBe("completed");
     expect(rerun.totalFiles).toBe(0);
     expect(rerun.processedFiles).toBe(0);
     expect(rerun.newInvoices).toBe(0);
     expect(rerun.failures).toBe(0);
 
-    const invoicesResponse = await api.get<InvoiceListResponse>("/api/invoices?page=1&limit=500");
+    const invoicesResponse = await api.get<InvoiceListResponse>(`${realmBase}/invoices?page=1&limit=500`);
     expect(invoicesResponse.status).toBe(200);
     expect(invoicesResponse.data.total).toBe(expectedFiles.length);
   });
 
   it("PATCH preserves existing parsed fields when updating a single field", async () => {
-    const listResponse = await api.get<InvoiceListResponse>("/api/invoices?page=1&limit=500");
+    const listResponse = await api.get<InvoiceListResponse>(`${realmBase}/invoices?page=1&limit=500`);
     expect(listResponse.status).toBe(200);
     const target = listResponse.data.items.find(
       (inv) => inv.parsed?.vendorName && inv.parsed?.invoiceNumber
@@ -263,17 +268,17 @@ describe("local full-stack ingestion e2e", () => {
       return;
     }
 
-    const beforeResponse = await api.get(`/api/invoices/${target._id}`);
+    const beforeResponse = await api.get(`${realmBase}/invoices/${target._id}`);
     expect(beforeResponse.status).toBe(200);
     const fieldsBefore = beforeResponse.data.parsed ?? {};
 
-    const patch = await api.patch(`/api/invoices/${target._id}`, {
+    const patch = await api.patch(`${realmBase}/invoices/${target._id}`, {
       parsed: { vendorName: "Updated Vendor E2E" },
       updatedBy: "e2e-merge-test"
     });
     expect(patch.status).toBe(200);
 
-    const afterResponse = await api.get(`/api/invoices/${target._id}`);
+    const afterResponse = await api.get(`${realmBase}/invoices/${target._id}`);
     expect(afterResponse.status).toBe(200);
     const fieldsAfter = afterResponse.data.parsed ?? {};
 
@@ -292,28 +297,28 @@ describe("local full-stack ingestion e2e", () => {
     }
 
     // Restore original vendor name
-    await api.patch(`/api/invoices/${target._id}`, {
+    await api.patch(`${realmBase}/invoices/${target._id}`, {
       parsed: { vendorName: fieldsBefore.vendorName ?? null },
       updatedBy: "e2e-merge-test-restore"
     });
   });
 
   it("changes NEEDS_REVIEW invoices to APPROVED via API", async () => {
-    const listResponse = await api.get<InvoiceListResponse>("/api/invoices?page=1&limit=500&status=NEEDS_REVIEW");
+    const listResponse = await api.get<InvoiceListResponse>(`${realmBase}/invoices?page=1&limit=500&status=NEEDS_REVIEW`);
     expect(listResponse.status).toBe(200);
     const target = listResponse.data.items[0];
     if (!target) {
       return;
     }
 
-    const approve = await api.post("/api/invoices/approve", {
+    const approve = await api.post(`${realmBase}/invoices/approve`, {
       ids: [target._id],
       approvedBy: "e2e-approver"
     });
     expect(approve.status).toBe(200);
     expect(Number(approve.data?.modifiedCount ?? 0)).toBeGreaterThanOrEqual(1);
 
-    const updated = await api.get(`/api/invoices/${target._id}`);
+    const updated = await api.get(`${realmBase}/invoices/${target._id}`);
     expect(updated.status).toBe(200);
     expect(updated.data?.status).toBe("APPROVED");
     expect(updated.data?.approval?.approvedBy).toBe("e2e-approver");
@@ -331,11 +336,11 @@ async function listInboxFiles(directory: string): Promise<string[]> {
     .sort((left, right) => left.localeCompare(right));
 }
 
-async function waitForIngestionCompletion(timeoutMs = 20 * 60_000): Promise<IngestStatus> {
+async function waitForIngestionCompletion(tenantBase: string, timeoutMs = 20 * 60_000): Promise<IngestStatus> {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const response = await api.get<IngestStatus>("/api/jobs/ingest/status");
+    const response = await api.get<IngestStatus>(`${tenantBase}/jobs/ingest/status`);
     if (response.status !== 200) {
       throw new Error(`Status endpoint failed with HTTP ${response.status}.`);
     }

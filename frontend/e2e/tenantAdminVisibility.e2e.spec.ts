@@ -11,16 +11,18 @@ test.describe("tenant admin visibility", () => {
   let adminToken = "";
   let memberToken = "";
   let platformToken = "";
+  let adminTenantId = "";
 
   test.beforeAll(async ({ request }) => {
     await expectBackendReady(request);
 
     adminToken = await createE2ESessionToken(apiBaseUrl, tenantAdminEmail);
     await completeE2ETenantOnboarding(request, adminToken);
+    adminTenantId = await fetchTenantId(request, adminToken);
     memberToken = await createE2ESessionToken(apiBaseUrl, tenantMemberEmail);
     platformToken = await createE2ESessionToken(apiBaseUrl, platformAdminEmail);
 
-    await connectGmail(adminToken);
+    await connectGmail(adminToken, adminTenantId);
   });
 
   test("admin sees tenant settings and gmail action controls", async ({ page }) => {
@@ -46,16 +48,19 @@ test.describe("tenant admin visibility", () => {
   });
 
   test("member is denied gmail connect-url api while admin is allowed", async ({ request }) => {
-    const adminConnectUrl = await request.get(`${apiBaseUrl}/api/integrations/gmail/connect-url`, {
-      headers: authHeaders(adminToken)
-    });
+    const adminConnectUrl = await request.get(
+      `${apiBaseUrl}/api/tenants/${adminTenantId}/integrations/gmail/connect-url`,
+      { headers: authHeaders(adminToken) }
+    );
     expect(adminConnectUrl.status()).toBe(200);
     const payload = (await adminConnectUrl.json()) as { connectUrl?: string };
     expect(typeof payload.connectUrl).toBe("string");
 
-    const memberConnectUrl = await request.get(`${apiBaseUrl}/api/integrations/gmail/connect-url`, {
-      headers: authHeaders(memberToken)
-    });
+    const memberTenantId = await fetchTenantId(request, memberToken);
+    const memberConnectUrl = await request.get(
+      `${apiBaseUrl}/api/tenants/${memberTenantId}/integrations/gmail/connect-url`,
+      { headers: authHeaders(memberToken) }
+    );
     expect(memberConnectUrl.status()).toBe(403);
   });
 
@@ -185,12 +190,22 @@ async function seedAuthToken(page: Page, token: string): Promise<void> {
   }, token);
 }
 
-async function connectGmail(token: string): Promise<void> {
-  const connectUrlResponse = await axios.get(`${apiBaseUrl}/api/integrations/gmail/connect-url`, {
-    headers: authHeaders(token),
-    timeout: 30_000,
-    validateStatus: () => true
-  });
+async function fetchTenantId(request: APIRequestContext, token: string): Promise<string> {
+  const session = await request.get(`${apiBaseUrl}/api/session`, { headers: authHeaders(token) });
+  expect(session.ok()).toBeTruthy();
+  const payload = (await session.json()) as { tenant?: { id?: string } };
+  const tenantId = String(payload.tenant?.id ?? "").trim();
+  if (!tenantId) {
+    throw new Error("Session response did not include tenant.id.");
+  }
+  return tenantId;
+}
+
+async function connectGmail(token: string, tenantId: string): Promise<void> {
+  const connectUrlResponse = await axios.get(
+    `${apiBaseUrl}/api/tenants/${tenantId}/integrations/gmail/connect-url`,
+    { headers: authHeaders(token), timeout: 30_000, validateStatus: () => true }
+  );
   if (connectUrlResponse.status !== 200) {
     throw new Error(`Failed to resolve Gmail connect URL (HTTP ${connectUrlResponse.status}).`);
   }

@@ -45,14 +45,17 @@ interface IngestionStatusResponse {
 
 test.describe("frontend source highlights", () => {
   let authToken = "";
+  let tenantId = "";
+  let clientOrgId = "";
 
   test.beforeAll(async ({ request }) => {
     await expectBackendReady(request);
     authToken = await createE2ESessionToken(apiBaseUrl);
     await completeE2ETenantOnboarding(request, authToken);
+    ({ tenantId, clientOrgId } = await bootstrapTenantContext(request, authToken));
 
     if (!skipIngest) {
-      const ingestion = await triggerAndWaitForIngestion(request, authToken);
+      const ingestion = await triggerAndWaitForIngestion(request, authToken, tenantId);
       expect(ingestion.totalFiles).toBeGreaterThanOrEqual(0);
       if (ingestion.totalFiles > 0) {
         expect(ingestion.processedFiles).toBe(ingestion.totalFiles);
@@ -60,7 +63,7 @@ test.describe("frontend source highlights", () => {
       expect(ingestion.failures).toBe(0);
     }
 
-    const list = await fetchInvoices(request, authToken);
+    const list = await fetchInvoices(request, authToken, tenantId, clientOrgId);
     expect(list.total).toBeGreaterThanOrEqual(expectedTotalFiles);
     expect(list.items.length).toBeGreaterThanOrEqual(expectedTotalFiles);
     expect(list.items.some((item) => /.+\.(jpg|jpeg)$/i.test(item.attachmentName))).toBeTruthy();
@@ -70,7 +73,7 @@ test.describe("frontend source highlights", () => {
 
   test("jpg invoice exposes image preview + selectable bbox overlay", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
-    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken);
+    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken, tenantId, clientOrgId);
     await verifyInvoiceOverlayFlow(page, invoice.attachmentName);
   });
 
@@ -83,13 +86,13 @@ test.describe("frontend source highlights", () => {
 
   test("png invoice exposes image preview + selectable bbox overlay", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
-    const invoice = await resolveInvoiceByExtension(request, /.+\.png$/i, authToken);
+    const invoice = await resolveInvoiceByExtension(request, /.+\.png$/i, authToken, tenantId, clientOrgId);
     await verifyInvoiceOverlayFlow(page, invoice.attachmentName);
   });
 
   test("pdf invoice exposes rendered 300 dpi image preview + selectable bbox overlay", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
-    const invoice = await resolveInvoiceByExtension(request, /.+\.pdf$/i, authToken);
+    const invoice = await resolveInvoiceByExtension(request, /.+\.pdf$/i, authToken, tenantId, clientOrgId);
     await verifyInvoiceOverlayFlow(page, invoice.attachmentName);
   });
 
@@ -134,7 +137,7 @@ test.describe("frontend source highlights", () => {
 
   test("bounding box chip click scrolls image container", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
-    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken);
+    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken, tenantId, clientOrgId);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
 
@@ -188,7 +191,7 @@ test.describe("frontend source highlights", () => {
 
   test("tally mapping hint expansion shows inline text", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
-    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken);
+    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken, tenantId, clientOrgId);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
 
@@ -219,7 +222,7 @@ test.describe("frontend source highlights", () => {
 
   test("source preview bounding boxes align with OCR-detected text regions", async ({ page, request }) => {
     for (const pattern of [/.+\.(jpg|jpeg)$/i, /.+\.png$/i, /.+\.pdf$/i]) {
-      const invoice = await resolveInvoiceByExtension(request, pattern, authToken);
+      const invoice = await resolveInvoiceByExtension(request, pattern, authToken, tenantId, clientOrgId);
       await seedAuthToken(page, authToken);
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
@@ -280,7 +283,7 @@ test.describe("frontend source highlights", () => {
 
   test("ctrl+wheel zoom scales canvas via transform without triggering browser zoom", async ({ page, request }) => {
     await seedAuthToken(page, authToken);
-    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken);
+    const invoice = await resolveInvoiceByExtension(request, /.+\.(jpg|jpeg)$/i, authToken, tenantId, clientOrgId);
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Invoice Workspace" })).toBeVisible();
 
@@ -418,8 +421,13 @@ async function expectBackendReady(request: APIRequestContext): Promise<void> {
   expect(payload.ready).toBe(true);
 }
 
-async function triggerAndWaitForIngestion(request: APIRequestContext, token: string): Promise<IngestionStatusResponse> {
-  const trigger = await request.post(`${apiBaseUrl}/api/jobs/ingest`, {
+async function triggerAndWaitForIngestion(
+  request: APIRequestContext,
+  token: string,
+  tenantId: string
+): Promise<IngestionStatusResponse> {
+  const tenantBase = `${apiBaseUrl}/api/tenants/${tenantId}`;
+  const trigger = await request.post(`${tenantBase}/jobs/ingest`, {
     headers: authHeaders(token)
   });
   expect(trigger.status()).toBe(202);
@@ -427,7 +435,7 @@ async function triggerAndWaitForIngestion(request: APIRequestContext, token: str
   const startedAt = Date.now();
   const timeoutMs = 20 * 60_000;
   while (Date.now() - startedAt < timeoutMs) {
-    const statusResponse = await request.get(`${apiBaseUrl}/api/jobs/ingest/status`, {
+    const statusResponse = await request.get(`${tenantBase}/jobs/ingest/status`, {
       headers: authHeaders(token)
     });
     expect(statusResponse.ok()).toBeTruthy();
@@ -446,10 +454,16 @@ async function triggerAndWaitForIngestion(request: APIRequestContext, token: str
   throw new Error(`Timed out waiting for ingestion completion after ${timeoutMs}ms`);
 }
 
-async function fetchInvoices(request: APIRequestContext, token: string): Promise<InvoiceListResponse> {
-  const response = await request.get(`${apiBaseUrl}/api/invoices?page=1&limit=100`, {
-    headers: authHeaders(token)
-  });
+async function fetchInvoices(
+  request: APIRequestContext,
+  token: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<InvoiceListResponse> {
+  const response = await request.get(
+    `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices?page=1&limit=100`,
+    { headers: authHeaders(token) }
+  );
   expect(response.ok()).toBeTruthy();
   return (await response.json()) as InvoiceListResponse;
 }
@@ -457,15 +471,17 @@ async function fetchInvoices(request: APIRequestContext, token: string): Promise
 async function resolveInvoiceByExtension(
   request: APIRequestContext,
   pattern: RegExp,
-  token: string
+  token: string,
+  tenantId: string,
+  clientOrgId: string
 ): Promise<InvoiceDetailResponse> {
-  const list = await fetchInvoices(request, token);
+  const list = await fetchInvoices(request, token, tenantId, clientOrgId);
   const match = list.items.find((item) => pattern.test(item.attachmentName));
   if (!match) {
     throw new Error(`No invoice found for pattern ${pattern}.`);
   }
 
-  const detail = await fetchInvoiceDetail(request, match._id, token);
+  const detail = await fetchInvoiceDetail(request, match._id, token, tenantId, clientOrgId);
   const firstReadableBlock = detail.ocrBlocks?.find((block) => block.text.trim().length >= 3);
   if (!firstReadableBlock) {
     throw new Error(`Invoice '${detail.attachmentName}' has no readable OCR blocks for overlay validation.`);
@@ -479,26 +495,59 @@ async function resolveInvoiceByExtension(
       .slice(0, 4)
       .join(" ");
 
-      const patch = await request.patch(`${apiBaseUrl}/api/invoices/${detail._id}`, {
-        headers: authHeaders(token),
-        data: {
-          parsed: { vendorName: seededVendor },
-          updatedBy: "frontend-e2e"
+      const patch = await request.patch(
+        `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${detail._id}`,
+        {
+          headers: authHeaders(token),
+          data: {
+            parsed: { vendorName: seededVendor },
+            updatedBy: "frontend-e2e"
+          }
         }
-      });
+      );
       expect(patch.ok()).toBeTruthy();
-    return fetchInvoiceDetail(request, detail._id, token);
+    return fetchInvoiceDetail(request, detail._id, token, tenantId, clientOrgId);
   }
 
   return detail;
 }
 
-async function fetchInvoiceDetail(request: APIRequestContext, id: string, token: string): Promise<InvoiceDetailResponse> {
-  const response = await request.get(`${apiBaseUrl}/api/invoices/${id}`, {
-    headers: authHeaders(token)
-  });
+async function fetchInvoiceDetail(
+  request: APIRequestContext,
+  id: string,
+  token: string,
+  tenantId: string,
+  clientOrgId: string
+): Promise<InvoiceDetailResponse> {
+  const response = await request.get(
+    `${apiBaseUrl}/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${id}`,
+    { headers: authHeaders(token) }
+  );
   expect(response.ok()).toBeTruthy();
   return (await response.json()) as InvoiceDetailResponse;
+}
+
+async function bootstrapTenantContext(
+  request: APIRequestContext,
+  token: string
+): Promise<{ tenantId: string; clientOrgId: string }> {
+  const session = await request.get(`${apiBaseUrl}/api/session`, { headers: authHeaders(token) });
+  expect(session.ok()).toBeTruthy();
+  const payload = (await session.json()) as { tenant?: { id?: string } };
+  const tenantId = String(payload.tenant?.id ?? "").trim();
+  if (!tenantId) {
+    throw new Error("Session response did not include tenant.id.");
+  }
+  const list = await request.get(`${apiBaseUrl}/api/tenants/${tenantId}/admin/client-orgs`, {
+    headers: authHeaders(token)
+  });
+  expect(list.ok()).toBeTruthy();
+  const listData = (await list.json()) as { items?: Array<{ _id: string }> } | Array<{ _id: string }>;
+  const items = Array.isArray(listData) ? listData : listData.items ?? [];
+  if (items.length === 0 || typeof items[0]?._id !== "string") {
+    throw new Error(`Tenant ${tenantId} has no client-orgs — seed one before running this test.`);
+  }
+  return { tenantId, clientOrgId: items[0]._id };
 }
 
 function authHeaders(token: string): Record<string, string> {
