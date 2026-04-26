@@ -1,7 +1,7 @@
 import axios from "axios";
 import mongoose from "mongoose";
 import { randomUUID } from "node:crypto";
-import { loginWithPassword, createE2EUserAndLogin, completeE2ETenantOnboarding } from "./authHelper.js";
+import { loginWithPassword, createE2EUserAndLogin, completeE2ETenantOnboarding, PLACEHOLDER_CLIENT_ORG_ID } from "./authHelper.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.js";
 
@@ -70,8 +70,9 @@ describe("platform admin tenant usage e2e", () => {
     );
     expect(forbiddenOnboard.status).toBe(403);
 
+    const onboardedTenantId = onboardedAdminSession.tenant.id;
     const platformIngest = await api.post(
-      "/api/jobs/ingest",
+      `/api/tenants/${onboardedTenantId}/jobs/ingest`,
       {},
       {
         headers: authHeaders(platformToken)
@@ -79,9 +80,13 @@ describe("platform admin tenant usage e2e", () => {
     );
     expect(platformIngest.status).toBe(403);
 
-    const platformInvoices = await api.get("/api/invoices?page=1&limit=5", {
-      headers: authHeaders(platformToken)
-    });
+    // Realm-scoped invoice list — uses the onboarded tenant + PLACEHOLDER_CLIENT_ORG_ID.
+    // `requireNonPlatformAdmin` short-circuits with 403 before path-scope
+    // ownership validation runs, so the placeholder id never touches the DB.
+    const platformInvoices = await api.get(
+      `/api/tenants/${onboardedTenantId}/clientOrgs/${PLACEHOLDER_CLIENT_ORG_ID}/invoices?page=1&limit=5`,
+      { headers: authHeaders(platformToken) }
+    );
     expect(platformInvoices.status).toBe(403);
 
     const tenantAEmail = `usage-a-${Date.now()}@local.test`;

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { createE2EUserAndLogin, completeE2ETenantOnboarding } from "./authHelper.js";
+import { bootstrapTenantContext, createE2EUserAndLogin, completeE2ETenantOnboarding } from "./authHelper.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
 
@@ -13,17 +13,20 @@ jest.setTimeout(5 * 60_000);
 
 describe("Tally Export E2E", () => {
   let sessionToken: string;
+  let exportsBase: string;
 
   beforeAll(async () => {
     sessionToken = await createE2EUserAndLogin(apiBaseUrl, `tally-e2e-${Date.now()}@local.test`);
     await completeE2ETenantOnboarding(apiBaseUrl, sessionToken);
+    const { tenantId, clientOrgId } = await bootstrapTenantContext(apiBaseUrl, sessionToken);
+    exportsBase = `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/exports`;
   });
 
   const authHeaders = () => ({ Authorization: `Bearer ${sessionToken}` });
 
   it("returns empty export result when no approved invoices exist", async () => {
     const response = await api.post(
-      "/api/exports/tally",
+      `${exportsBase}/tally`,
       { requestedBy: "e2e-test" },
       { headers: authHeaders() }
     );
@@ -33,7 +36,7 @@ describe("Tally Export E2E", () => {
   });
 
   it("returns empty history when no exports have been run", async () => {
-    const response = await api.get("/api/exports/tally/history", {
+    const response = await api.get(`${exportsBase}/tally/history`, {
       headers: authHeaders()
     });
 
@@ -45,7 +48,7 @@ describe("Tally Export E2E", () => {
   });
 
   it("returns 404 for non-existent batch download", async () => {
-    const response = await api.get("/api/exports/tally/download/000000000000000000000000", {
+    const response = await api.get(`${exportsBase}/tally/download/000000000000000000000000`, {
       headers: authHeaders()
     });
 
@@ -53,7 +56,7 @@ describe("Tally Export E2E", () => {
   });
 
   it("supports pagination query parameters on history", async () => {
-    const response = await api.get("/api/exports/tally/history?page=2&limit=5", {
+    const response = await api.get(`${exportsBase}/tally/history?page=2&limit=5`, {
       headers: authHeaders()
     });
 
@@ -65,7 +68,7 @@ describe("Tally Export E2E", () => {
   it("generates export file and downloads it by batchId", async () => {
     // First, try to generate a file export (may return 404 if no APPROVED invoices)
     const generateResponse = await api.post(
-      "/api/exports/tally/download",
+      `${exportsBase}/tally/download`,
       { requestedBy: "e2e-test" },
       { headers: authHeaders() }
     );
@@ -80,7 +83,7 @@ describe("Tally Export E2E", () => {
 
     // Download the generated file
     const downloadResponse = await api.get(
-      `/api/exports/tally/download/${generateResponse.data.batchId}`,
+      `${exportsBase}/tally/download/${generateResponse.data.batchId}`,
       {
         headers: authHeaders(),
         responseType: "arraybuffer"
@@ -92,7 +95,7 @@ describe("Tally Export E2E", () => {
     expect(downloadResponse.headers["content-disposition"]).toContain("attachment");
 
     // Verify the batch appears in export history
-    const historyResponse = await api.get("/api/exports/tally/history", {
+    const historyResponse = await api.get(`${exportsBase}/tally/history`, {
       headers: authHeaders()
     });
 
@@ -106,10 +109,10 @@ describe("Tally Export E2E", () => {
 
   it("rejects unauthenticated requests to all export endpoints", async () => {
     const endpoints = [
-      { method: "post" as const, url: "/api/exports/tally" },
-      { method: "post" as const, url: "/api/exports/tally/download" },
-      { method: "get" as const, url: "/api/exports/tally/history" },
-      { method: "get" as const, url: "/api/exports/tally/download/any-batch-id" }
+      { method: "post" as const, url: `${exportsBase}/tally` },
+      { method: "post" as const, url: `${exportsBase}/tally/download` },
+      { method: "get" as const, url: `${exportsBase}/tally/history` },
+      { method: "get" as const, url: `${exportsBase}/tally/download/any-batch-id` }
     ];
 
     for (const endpoint of endpoints) {
