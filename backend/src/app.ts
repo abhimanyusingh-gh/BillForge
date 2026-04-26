@@ -223,8 +223,8 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     createClientExportConfigRouter()
   );
 
-  // Bank domain (sub-PR for #201) — second vertical slice migrated to the
-  // nested-router shape. Mount realm-scoped routers under BOTH the new path-
+  // Bank domain (sub-PR for #201) — second domain migrated to the dual-mount
+  // nested-router shape. Realm-scoped routers mount under BOTH the new path-
   // scoped tree and the old `/api` mount (additive — FE cuts over per-domain).
   // The shared `BankStatementParseProgress` instance is passed into both the
   // realm-scoped router (for upload broadcasts) and the standalone SSE router
