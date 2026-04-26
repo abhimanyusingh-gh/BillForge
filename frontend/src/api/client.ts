@@ -9,15 +9,10 @@ import {
   rewriteToTenantNestedShape
 } from "@/api/migratedPaths";
 import { MissingActiveClientOrgError } from "@/api/errors";
-import { ACTIVE_TENANT_ID_STORAGE_KEY } from "@/api/auth";
+import { ACTIVE_TENANT_ID_STORAGE_KEY, readActiveTenantId } from "@/api/tenantStorage";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
 const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
-
-function readActiveTenantIdFromStorage(): string | null {
-  const value = window.sessionStorage.getItem(ACTIVE_TENANT_ID_STORAGE_KEY);
-  return value && value.length > 0 ? value : null;
-}
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
@@ -35,7 +30,7 @@ apiClient.interceptors.request.use((config) => {
   // Rewrite the URL to the new nested shape and skip the `?clientOrgId=` query
   // injection (the BE reads it from the path).
   if (isMigratedRealmScopedPath(requestPath)) {
-    const tenantId = readActiveTenantIdFromStorage();
+    const tenantId = readActiveTenantId();
     const clientOrgId = readActiveClientOrgId();
     if (!tenantId || !clientOrgId) {
       return Promise.reject(new MissingActiveClientOrgError(requestPath));
@@ -48,7 +43,7 @@ apiClient.interceptors.request.use((config) => {
   // a clientOrgId segment. Used by the ingestion-domain orchestration routes
   // (#198) which are tenant-wide.
   if (isMigratedTenantScopedPath(requestPath)) {
-    const tenantId = readActiveTenantIdFromStorage();
+    const tenantId = readActiveTenantId();
     if (!tenantId) {
       return Promise.reject(new MissingActiveClientOrgError(requestPath));
     }

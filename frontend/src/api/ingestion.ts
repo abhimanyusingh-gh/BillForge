@@ -1,5 +1,5 @@
 import { apiClient, getStoredSessionToken } from "@/api/client";
-import { readActiveTenantId } from "@/api/auth";
+import { readActiveTenantId } from "@/api/tenantStorage";
 import { rewriteToTenantNestedShape } from "@/api/migratedPaths";
 import type { IngestionJobStatus } from "@/types";
 
