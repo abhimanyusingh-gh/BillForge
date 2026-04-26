@@ -2,7 +2,12 @@ import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
 import { readActiveClientOrgId, ACTIVE_CLIENT_ORG_QUERY_PARAM } from "@/hooks/useActiveClientOrg";
 import { isRealmScopedPath } from "@/api/classifyApiPath";
-import { isMigratedRealmScopedPath, rewriteToNestedShape } from "@/api/migratedPaths";
+import {
+  isMigratedRealmScopedPath,
+  isMigratedTenantScopedPath,
+  rewriteToNestedShape,
+  rewriteToTenantNestedShape
+} from "@/api/migratedPaths";
 import { MissingActiveClientOrgError } from "@/api/errors";
 import { ACTIVE_TENANT_ID_STORAGE_KEY } from "@/api/auth";
 
@@ -36,6 +41,18 @@ apiClient.interceptors.request.use((config) => {
       return Promise.reject(new MissingActiveClientOrgError(requestPath));
     }
     config.url = rewriteToNestedShape(requestPath, tenantId, clientOrgId);
+    return config;
+  }
+
+  // Tenant-scoped migrated paths: rewrite to `/tenants/:tenantId/...` without
+  // a clientOrgId segment. Used by the ingestion-domain orchestration routes
+  // (#198) which are tenant-wide.
+  if (isMigratedTenantScopedPath(requestPath)) {
+    const tenantId = readActiveTenantIdFromStorage();
+    if (!tenantId) {
+      return Promise.reject(new MissingActiveClientOrgError(requestPath));
+    }
+    config.url = rewriteToTenantNestedShape(requestPath, tenantId);
     return config;
   }
 

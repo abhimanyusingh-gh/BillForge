@@ -121,18 +121,11 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createInvoiceRouter(dependencies.invoiceService, dependencies.approvalWorkflowService, dependencies.fileStore));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createActionRequiredRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTriageRouter(dependencies.triageService));
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    createJobsRouter(dependencies.ingestionService, dependencies.emailSimulationService, dependencies.fileStore)
-  );
-  app.use(
-    "/api",
-    requireNonPlatformAdmin,
-    requireTenantSetupCompleted,
-    createUploadsRouter(dependencies.fileStore)
-  );
+  // Ingestion domain (#198, sub-PR 2) — vertical cutover to nested-router
+  // shape. The legacy `/api/jobs/...` and `/api/uploads/presign` mounts are
+  // removed. The same `createJobsRouter` instance is reused across the two
+  // nested mounts below so the per-tenant orchestrator state (running flag,
+  // pendingRerun, SSE subscribers) lives in one place.
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
   app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createGlCodesRouter());
@@ -170,6 +163,23 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   clientOrgRouter.use(createExportRouter(dependencies.exportService));
   clientOrgRouter.use(createCsvExportRouter());
   clientOrgRouter.use(createClientExportConfigRouter());
+
+  // Ingestion domain (sub-PR 2, #198) — vertical cutover (no query-shape
+  // back-compat). The single `createJobsRouter` instance is mounted on both
+  // the tenant-scoped router (for `/jobs/ingest{,/status,/sse,/pause,
+  // /email-simulate}`) AND the realm-scoped router (for `/jobs/upload{,
+  // /by-keys}`). Sharing the instance keeps the per-tenant ingestion
+  // orchestrator state (running flag, pendingRerun, SSE subscribers) in one
+  // place. Routes that need a clientOrgId read `req.activeClientOrgId` which
+  // is stamped only on the realm-scoped mount.
+  const jobsRouter = createJobsRouter(
+    dependencies.ingestionService,
+    dependencies.emailSimulationService,
+    dependencies.fileStore
+  );
+  tenantRouter.use(jobsRouter);
+  clientOrgRouter.use(jobsRouter);
+  tenantRouter.use(createUploadsRouter(dependencies.fileStore));
 
   app.use(
     "/api",
