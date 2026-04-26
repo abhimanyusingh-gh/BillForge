@@ -23,7 +23,7 @@ import {
 } from "@/api/migratedPaths";
 
 describe("api/migratedPaths", () => {
-  describe("isMigratedRealmScopedPath — migrated paths (export + ingestion-upload)", () => {
+  describe("isMigratedRealmScopedPath — migrated paths (export + ingestion-upload + compliance domains)", () => {
     const migrated = [
       "/exports",
       "/exports/tally",
@@ -34,7 +34,16 @@ describe("api/migratedPaths", () => {
       "/export-config",
       // Ingestion sub-PR 2: realm-scoped uploads.
       "/jobs/upload",
-      "/jobs/upload/by-keys"
+      "/jobs/upload/by-keys",
+      "/vendors",
+      "/vendors/v-1",
+      "/admin/gl-codes",
+      "/admin/gl-codes/SOMECODE",
+      "/admin/gl-codes/import-csv",
+      "/admin/tcs-config",
+      "/admin/tcs-config/roles",
+      "/admin/tcs-config/history",
+      "/admin/compliance-config"
     ];
 
     test.each(migrated)("returns true for %s", (path) => {
@@ -44,6 +53,8 @@ describe("api/migratedPaths", () => {
     it("matches a path with a query string suffix", () => {
       expect(isMigratedRealmScopedPath("/exports/tally/history?page=2")).toBe(true);
       expect(isMigratedRealmScopedPath("/export-config?fields=tallyCompanyName")).toBe(true);
+      expect(isMigratedRealmScopedPath("/vendors?search=acme")).toBe(true);
+      expect(isMigratedRealmScopedPath("/admin/gl-codes?limit=200")).toBe(true);
     });
   });
 
@@ -71,7 +82,6 @@ describe("api/migratedPaths", () => {
     const nonMigrated = [
       "/invoices",
       "/invoices/abc-123",
-      "/vendors",
       "/payments",
       "/bank-statements",
       "/admin/notification-config",
@@ -81,7 +91,11 @@ describe("api/migratedPaths", () => {
       "/healthz",
       // Ingestion: tenant-scoped paths are NOT realm-scoped.
       "/jobs/ingest",
-      "/uploads/presign"
+      "/uploads/presign",
+      // Unscoped compliance metadata routes stay on the legacy mount.
+      "/compliance/tds-sections",
+      "/compliance/risk-signals",
+      "/compliance/tds-rates"
     ];
 
     test.each(nonMigrated)("returns false for %s (legacy ?clientOrgId= path)", (path) => {
@@ -95,6 +109,10 @@ describe("api/migratedPaths", () => {
       expect(isMigratedRealmScopedPath("/export-config-history")).toBe(false);
       // /jobs/upload-foo must NOT match /jobs/upload exactly.
       expect(isMigratedRealmScopedPath("/jobs/upload-foo")).toBe(false);
+      // /vendors-archive must NOT match /vendors.
+      expect(isMigratedRealmScopedPath("/vendors-archive")).toBe(false);
+      // /admin/gl-codes-archive must NOT match /admin/gl-codes.
+      expect(isMigratedRealmScopedPath("/admin/gl-codes-archive")).toBe(false);
     });
   });
 
@@ -175,12 +193,16 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("MIGRATED_REALM_SCOPED_PREFIXES — sub-PR 1 + 2 scope", () => {
-    it("contains export + ingestion-upload prefixes", () => {
+  describe("MIGRATED_REALM_SCOPED_PREFIXES — current scope (export + ingestion-upload + compliance)", () => {
+    it("contains export, ingestion-upload, and compliance domain prefixes", () => {
       expect([...MIGRATED_REALM_SCOPED_PREFIXES]).toEqual([
         "/exports",
         "/export-config",
-        "/jobs/upload"
+        "/jobs/upload",
+        "/vendors",
+        "/admin/gl-codes",
+        "/admin/tcs-config",
+        "/admin/compliance-config"
       ]);
     });
   });

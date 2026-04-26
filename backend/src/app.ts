@@ -24,7 +24,7 @@ import { createApprovalWorkflowRouter } from "@/routes/invoice/approvalWorkflow.
 import { createGlCodesRouter } from "@/routes/compliance/glCodes.js";
 import { createTdsRatesRouter } from "@/routes/compliance/tdsRates.js";
 import { createVendorsRouter } from "@/routes/compliance/vendors.js";
-import { createClientComplianceConfigRouter } from "@/routes/compliance/clientComplianceConfig.js";
+import { createClientComplianceConfigRouter, createComplianceMetadataRouter } from "@/routes/compliance/clientComplianceConfig.js";
 import { createCsvExportRouter } from "@/routes/export/csvExport.js";
 import { createClientExportConfigRouter } from "@/routes/export/clientExportConfig.js";
 import { createBankStatementsRouter } from "@/routes/bank/bankStatements.js";
@@ -139,12 +139,13 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, uploadsRouter);
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createAnalyticsRouter());
   app.use("/api", requireNonPlatformAdmin, createBankAccountsRouter(dependencies.bankService));
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createGlCodesRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createVendorsRouter());
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createClientComplianceConfigRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createGlCodesRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createVendorsRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createClientComplianceConfigRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createComplianceMetadataRouter());
   app.use("/api", createTdsRatesRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier));
-  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createTcsConfigRouter());
+  app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, requireActiveClientOrg, createTcsConfigRouter());
   app.use("/api", requireNonPlatformAdmin, requireTenantSetupCompleted, createNotificationConfigRouter());
 
   // Nested-router scaffold for #171 — REST URL refactor.
@@ -190,6 +191,16 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   tenantRouter.use(jobsRouter);
   clientOrgRouter.use(jobsRouter);
   tenantRouter.use(uploadsRouter);
+
+  // Compliance domain (sub-PR for #200) — vendors, GL codes, TCS config,
+  // realm-scoped compliance config. Same dual-mount pattern as export.
+  // Unscoped metadata routes (`/compliance/tds-sections`, `/compliance/risk-signals`,
+  // `/compliance/tds-rates`) intentionally stay on the legacy `/api` mount only —
+  // they have no clientOrg scope.
+  clientOrgRouter.use(createVendorsRouter());
+  clientOrgRouter.use(createGlCodesRouter());
+  clientOrgRouter.use(createTcsConfigRouter());
+  clientOrgRouter.use(createClientComplianceConfigRouter());
 
   app.use(
     "/api",

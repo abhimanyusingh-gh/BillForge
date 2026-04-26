@@ -3,7 +3,6 @@ import { Router } from "express";
 import { VendorMasterModel } from "@/models/compliance/VendorMaster.js";
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { requireNotViewer } from "@/auth/middleware.js";
 
@@ -12,7 +11,6 @@ const MSME_STATUTORY_MAX_DAYS = 45;
 export function createVendorsRouter() {
   const router = Router();
   router.use(requireAuth);
-  router.use(requireActiveClientOrg);
 
   router.get("/vendors", requireCap("canViewAllInvoices"), async (req, res, next) => {
     try {

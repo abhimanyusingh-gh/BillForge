@@ -2,7 +2,6 @@ import { Router } from "express";
 import multer from "multer";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { requireAuth } from "@/auth/requireAuth.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { requireCap } from "@/auth/requireCapability.js";
 
 const MAX_CSV_FILE_SIZE = 1024 * 1024;
@@ -107,7 +106,6 @@ function splitCsvLine(line: string): string[] {
 export function createGlCodesRouter() {
   const router = Router();
   router.use(requireAuth);
-  router.use(requireActiveClientOrg);
 
   router.get("/admin/gl-codes", async (req, res, next) => {
     try {
