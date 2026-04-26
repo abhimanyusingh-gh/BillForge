@@ -174,9 +174,7 @@ describe("api/migratedPaths", () => {
       // Unscoped compliance metadata routes stay on the legacy mount.
       "/compliance/tds-sections",
       "/compliance/risk-signals",
-      "/compliance/tds-rates",
-      // analytics still goes through the legacy classifier (deferred follow-up #222).
-      "/analytics/overview"
+      "/compliance/tds-rates"
     ];
 
     test.each(nonMigrated)("classifies %s as NONE (legacy ?clientOrgId= path)", (path) => {
@@ -396,7 +394,7 @@ describe("api/migratedPaths", () => {
   });
 
   describe("MIGRATED_TENANT_SCOPED_PREFIXES — accumulated tenant-scoped scope", () => {
-    it("contains ingestion-orchestration, presign, and tenant-domain prefixes", () => {
+    it("contains ingestion-orchestration, presign, tenant-domain, and analytics prefixes", () => {
       expect([...MIGRATED_TENANT_SCOPED_PREFIXES]).toEqual([
         "/jobs/ingest",
         "/uploads/presign",
@@ -404,8 +402,48 @@ describe("api/migratedPaths", () => {
         "/admin/mailboxes",
         "/admin/client-orgs",
         "/admin/mailbox-assignments",
-        "/integrations/gmail"
+        "/integrations/gmail",
+        "/analytics/overview"
       ]);
+    });
+  });
+
+  describe("isMigratedTenantScopedPath — analytics domain (#222)", () => {
+    const migrated = [
+      "/analytics/overview",
+      "/analytics/overview?from=2026-04-01&to=2026-04-30",
+      "/analytics/overview?clientOrgId=65a1b2c3d4e5f6a7b8c9d0e1",
+      "/analytics/overview?scope=all"
+    ];
+
+    test.each(migrated)("returns true for %s", (path) => {
+      expect(isMigratedTenantScopedPath(path)).toBe(true);
+      expect(classifyMigratedPath(path)).toBe(MIGRATED_PATH_KIND.TENANT_SCOPED);
+      expect(isMigratedRealmScopedPath(path)).toBe(false);
+    });
+
+    it("does not match prefix substrings outside a path-segment boundary", () => {
+      expect(isMigratedTenantScopedPath("/analytics/overview-archive")).toBe(false);
+      expect(isMigratedTenantScopedPath("/analytics-other")).toBe(false);
+    });
+  });
+
+  describe("rewriteToTenantShape — analytics domain (#222)", () => {
+    it("rewrites /analytics/overview into the tenant-scoped shape (no clientOrgs segment)", () => {
+      expect(rewriteToTenantShape("/analytics/overview", "tenant-1")).toBe(
+        "/tenants/tenant-1/analytics/overview"
+      );
+    });
+
+    it("preserves the optional clientOrgId query param when scoping to a single realm", () => {
+      expect(
+        rewriteToTenantShape(
+          "/analytics/overview?clientOrgId=65a1b2c3d4e5f6a7b8c9d0e1&from=2026-04-01",
+          "tenant-1"
+        )
+      ).toBe(
+        "/tenants/tenant-1/analytics/overview?clientOrgId=65a1b2c3d4e5f6a7b8c9d0e1&from=2026-04-01"
+      );
     });
   });
 });

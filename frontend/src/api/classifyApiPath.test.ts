@@ -53,7 +53,11 @@ describe("api/client classifier", () => {
       // them, which the interceptor treats as "no clientOrgId injection".
       "/tenant/onboarding/complete",
       "/platform/tenants/usage",
-      "/analytics/overview",
+      // `/analytics/overview` migrated to nested-router shape (#222) — covered
+      // by `migratedPaths.test.ts`. The classifier returns `unknown` for it
+      // (no `/analytics` prefix anymore), which the interceptor treats as
+      // "no clientOrgId injection" — moot anyway because the migrated-paths
+      // layer rewrites first.
       "/session"
     ];
 
@@ -90,6 +94,15 @@ describe("api/client classifier", () => {
       expect(classifyApiPath("/compliance/tds-sections")).toBe("unknown");
       expect(classifyApiPath("/compliance/risk-signals")).toBe("unknown");
       expect(classifyApiPath("/compliance/tds-rates")).toBe("unknown");
+    });
+
+    it("classifies migrated analytics paths so they fall through to the migratedPaths interceptor", () => {
+      // Analytics domain (#222) migrated to nested-router shape — `/analytics`
+      // is no longer in TENANT_SCOPED_PATH_PREFIXES. `/analytics/overview`
+      // matches no prefix and is 'unknown'. The migrated-paths interceptor
+      // rewrites BEFORE this classifier is consulted.
+      expect(classifyApiPath("/analytics/overview")).toBe("unknown");
+      expect(isRealmScopedPath("/analytics/overview")).toBe(false);
     });
 
     it("classifies migrated invoice paths so they fall through to the migratedPaths interceptor", () => {

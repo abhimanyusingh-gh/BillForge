@@ -70,7 +70,11 @@ export const MIGRATED_TENANT_SCOPED_PREFIXES = [
   "/admin/mailboxes",
   "/admin/client-orgs",
   "/admin/mailbox-assignments",
-  "/integrations/gmail"
+  "/integrations/gmail",
+  // Analytics domain (#222, sub-PR B of #171) — single overview endpoint.
+  // Optional realm scoping flows via `?clientOrgId=` query param; the BE
+  // resolves it via `resolveOptionalClientOrgId`, so no realm-scoped mount.
+  "/analytics/overview"
 ] as const;
 
 /**
