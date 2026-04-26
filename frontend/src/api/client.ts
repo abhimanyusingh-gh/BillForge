@@ -41,7 +41,10 @@ apiClient.interceptors.request.use((config) => {
 
   // Tenant-scoped migrated paths: rewrite to `/tenants/:tenantId/...` without
   // a clientOrgId segment. Used by the ingestion-domain orchestration routes
-  // (#198) which are tenant-wide.
+  // (#198) which are tenant-wide, plus the tenant-domain admin/integration
+  // routes (#203) that are pre-setup-safe (BE mount omits
+  // `requireTenantSetupCompleted`) and remain reachable during tenant
+  // onboarding.
   if (isMigratedTenantScopedPath(requestPath)) {
     const tenantId = readActiveTenantId();
     if (!tenantId) {

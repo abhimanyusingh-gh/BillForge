@@ -201,6 +201,28 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   clientOrgRouter.use(createTcsConfigRouter());
   clientOrgRouter.use(createClientComplianceConfigRouter());
 
+  // Tenant domain (sub-PR — #203) — administrative routes that operate on the
+  // tenant itself (users, mailboxes, client-orgs, mailbox-assignments, gmail
+  // connection). All purely tenant-scoped — no clientOrgId dependency.
+  //
+  // These routes run DURING tenant onboarding (admin sets things up before
+  // setup is marked completed), so they mount on a separate router that
+  // omits `requireTenantSetupCompleted` — matching the legacy `/api/...`
+  // mounts above. Both new (path-scoped) and old (`/api/...`) mounts
+  // coexist; FE migrates its callers via the `migratedPaths` rewriter
+  // (additive cutover, mirrors the export-domain pattern).
+  const tenantAdminRouter = express.Router({ mergeParams: true });
+  app.use(
+    "/api/tenants/:tenantId",
+    requireNonPlatformAdmin,
+    requireMatchingTenantIdParam,
+    tenantAdminRouter
+  );
+  tenantAdminRouter.use(createTenantAdminRouter(dependencies.tenantAdminService, dependencies.tenantInviteService));
+  tenantAdminRouter.use(createClientOrgsRouter(dependencies.clientOrgsAdminService));
+  tenantAdminRouter.use(createMailboxAssignmentsRouter(dependencies.mailboxAssignmentsAdminService));
+  tenantAdminRouter.use(createGmailConnectionRouter(dependencies.gmailIntegrationService));
+
   app.use(
     "/api",
     requireNonPlatformAdmin,

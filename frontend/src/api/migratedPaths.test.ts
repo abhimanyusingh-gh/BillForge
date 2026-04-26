@@ -111,7 +111,6 @@ describe("api/migratedPaths", () => {
       "/invoices/abc-123",
       "/payments",
       "/admin/notification-config",
-      "/admin/users",
       "/auth/token",
       "/session",
       "/healthz",
@@ -240,11 +239,76 @@ describe("api/migratedPaths", () => {
     });
   });
 
-  describe("MIGRATED_TENANT_SCOPED_PREFIXES — sub-PR 2 scope", () => {
-    it("contains ingestion-orchestration and presign prefixes", () => {
+  describe("isMigratedTenantScopedPath — tenant domain (#203)", () => {
+    const migrated = [
+      "/admin/users",
+      "/admin/users/invite",
+      "/admin/users/abc-123/role",
+      "/admin/mailboxes",
+      "/admin/mailboxes/abc-123/assign",
+      "/admin/client-orgs",
+      "/admin/client-orgs/abc-123",
+      "/admin/mailbox-assignments",
+      "/admin/mailbox-assignments/abc-123/recent-ingestions",
+      "/integrations/gmail",
+      "/integrations/gmail/connect-url"
+    ];
+
+    test.each(migrated)("returns true for %s", (path) => {
+      expect(isMigratedTenantScopedPath(path)).toBe(true);
+    });
+
+    it("matches a path with a query string suffix", () => {
+      expect(isMigratedTenantScopedPath("/admin/client-orgs?includeArchived=true")).toBe(true);
+      expect(isMigratedTenantScopedPath("/admin/mailbox-assignments/abc/recent-ingestions?days=30")).toBe(true);
+    });
+
+    it("returns false for non-tenant-domain admin/integration paths", () => {
+      // Composite-key admin endpoints belong to other vertical slices.
+      expect(isMigratedTenantScopedPath("/admin/notification-config")).toBe(false);
+      expect(isMigratedTenantScopedPath("/admin/compliance-config")).toBe(false);
+      expect(isMigratedTenantScopedPath("/admin/tcs-config")).toBe(false);
+      expect(isMigratedTenantScopedPath("/admin/gl-codes")).toBe(false);
+      expect(isMigratedTenantScopedPath("/admin/approval-workflow")).toBe(false);
+    });
+
+    it("does not match prefix substrings outside a path-segment boundary", () => {
+      expect(isMigratedTenantScopedPath("/admin/users-archive")).toBe(false);
+      expect(isMigratedTenantScopedPath("/integrations/gmail-legacy")).toBe(false);
+      expect(isMigratedTenantScopedPath("/admin/client-orgs-export")).toBe(false);
+    });
+
+    it("returns false for unmigrated tenant-scoped paths", () => {
+      expect(isMigratedTenantScopedPath("/tenant/onboarding/complete")).toBe(false);
+      expect(isMigratedTenantScopedPath("/session")).toBe(false);
+      expect(isMigratedTenantScopedPath("/auth/token")).toBe(false);
+    });
+  });
+
+  describe("rewriteToTenantShape — tenant domain (#203)", () => {
+    it("rewrites a tenant-domain path into the /tenants/:tenantId/... shape (no clientOrgs segment)", () => {
+      expect(rewriteToTenantShape("/admin/users", "tenant-1")).toBe(
+        "/tenants/tenant-1/admin/users"
+      );
+    });
+
+    it("preserves the query string for tenant-domain paths", () => {
+      expect(rewriteToTenantShape("/admin/client-orgs?includeArchived=true", "tenant-1")).toBe(
+        "/tenants/tenant-1/admin/client-orgs?includeArchived=true"
+      );
+    });
+  });
+
+  describe("MIGRATED_TENANT_SCOPED_PREFIXES — accumulated tenant-scoped scope", () => {
+    it("contains ingestion-orchestration, presign, and tenant-domain prefixes", () => {
       expect([...MIGRATED_TENANT_SCOPED_PREFIXES]).toEqual([
         "/jobs/ingest",
-        "/uploads/presign"
+        "/uploads/presign",
+        "/admin/users",
+        "/admin/mailboxes",
+        "/admin/client-orgs",
+        "/admin/mailbox-assignments",
+        "/integrations/gmail"
       ]);
     });
   });
