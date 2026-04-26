@@ -15,12 +15,10 @@ const TENANT_SETUP_COMPLETED_CHANGE_EVENT =
 export const TENANT_SETUP_COMPLETED_STORAGE_KEY = "tenantSetupCompleted";
 
 function readFromStorage(): boolean {
-  if (typeof window === "undefined") return false;
   return window.sessionStorage.getItem(TENANT_SETUP_COMPLETED_STORAGE_KEY) === "true";
 }
 
 export function writeTenantSetupCompleted(completed: boolean): void {
-  if (typeof window === "undefined") return;
   if (completed) {
     window.sessionStorage.setItem(TENANT_SETUP_COMPLETED_STORAGE_KEY, "true");
   } else {
