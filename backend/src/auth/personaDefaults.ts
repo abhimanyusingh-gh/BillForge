@@ -14,6 +14,7 @@ export interface UserCapabilities {
   canConfigureTdsMappings: boolean;
   canConfigureGlCodes: boolean;
   canManageUsers: boolean;
+  canManageMailboxes: boolean;
   canManageConnections: boolean;
   canExportToTally: boolean;
   canExportToCsv: boolean;
@@ -39,6 +40,7 @@ const ALL_TRUE: UserCapabilities = {
   canConfigureTdsMappings: true,
   canConfigureGlCodes: true,
   canManageUsers: true,
+  canManageMailboxes: true,
   canManageConnections: true,
   canExportToTally: true,
   canExportToCsv: true,
@@ -64,6 +66,7 @@ const ALL_FALSE: UserCapabilities = {
   canConfigureTdsMappings: false,
   canConfigureGlCodes: false,
   canManageUsers: false,
+  canManageMailboxes: false,
   canManageConnections: false,
   canExportToTally: false,
   canExportToCsv: false,
@@ -115,6 +118,7 @@ const ROLE_DEFAULTS: Record<CapabilityRole, UserCapabilities> = {
   ca: {
     ...ALL_TRUE,
     canManageUsers: false,
+    canManageMailboxes: false,
     canManageConnections: false
   },
   tax_specialist: {
@@ -136,6 +140,7 @@ const ROLE_DEFAULTS: Record<CapabilityRole, UserCapabilities> = {
   ops_admin: {
     ...ALL_FALSE,
     canManageUsers: true,
+    canManageMailboxes: true,
     canManageConnections: true,
     canStartIngestion: true
   },

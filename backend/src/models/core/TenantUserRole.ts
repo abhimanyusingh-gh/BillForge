@@ -40,6 +40,7 @@ const userCapabilitiesSchema = new Schema(
     canConfigureTdsMappings: { type: Boolean, default: false },
     canConfigureGlCodes: { type: Boolean, default: false },
     canManageUsers: { type: Boolean, default: false },
+    canManageMailboxes: { type: Boolean, default: false },
     canManageConnections: { type: Boolean, default: false },
     canExportToTally: { type: Boolean, default: false },
     canExportToCsv: { type: Boolean, default: false },
