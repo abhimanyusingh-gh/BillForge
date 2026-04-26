@@ -287,31 +287,28 @@ function buildModuleConstants(source: ts.SourceFile): Map<string, string> {
 
 interface ResolvedPath {
   bare: string;
-  hadDynamicSegment: boolean;
 }
 
 function resolvePathExpr(node: ts.Expression, ctx: ResolveContext): ResolvedPath | null {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-    return { bare: node.text, hadDynamicSegment: false };
+    return { bare: node.text };
   }
   if (ts.isTemplateExpression(node)) {
     let out = node.head.text;
-    let hadDynamic = false;
     for (const span of node.templateSpans) {
       const sub = resolveExprToString(span.expression, ctx);
       if (sub === null) {
         out += `:param`;
-        hadDynamic = true;
       } else {
         out += sub;
       }
       out += span.literal.text;
     }
-    return { bare: out, hadDynamicSegment: hadDynamic };
+    return { bare: out };
   }
   if (ts.isIdentifier(node)) {
     const v = ctx.constants.get(node.text);
-    if (v !== undefined) return { bare: v, hadDynamicSegment: false };
+    if (v !== undefined) return { bare: v };
   }
   return null;
 }
@@ -352,7 +349,6 @@ interface RawFeCall {
   bare: string;
   fullUrlOverride: string | null;
   source: string;
-  hadDynamic: boolean;
 }
 
 function collectRawFeCalls(file: string): RawFeCall[] {
@@ -395,8 +391,7 @@ function collectRawFeCalls(file: string): RawFeCall[] {
               method,
               bare: resolved.bare,
               fullUrlOverride: null,
-              source: loc(node),
-              hadDynamic: resolved.hadDynamicSegment
+              source: loc(node)
             });
           }
         }
@@ -423,8 +418,7 @@ function collectRawFeCalls(file: string): RawFeCall[] {
               method: HTTP_METHOD.GET,
               bare: resolved.bare,
               fullUrlOverride: fullUrl,
-              source: loc(node),
-              hadDynamic: resolved.hadDynamicSegment
+              source: loc(node)
             });
           }
         }
@@ -470,8 +464,7 @@ function collectRawFeCalls(file: string): RawFeCall[] {
             method: HTTP_METHOD.GET,
             bare,
             fullUrlOverride: `/api${bare.startsWith("/") ? bare : `/${bare}`}`,
-            source: `${relative(REPO_ROOT, file)}:${line + 1}:${character + 1}`,
-            hadDynamic: false
+            source: `${relative(REPO_ROOT, file)}:${line + 1}:${character + 1}`
           });
         }
       }
