@@ -19,6 +19,8 @@ describe("personaDefaults", () => {
       expect(getRoleDefaults("ap_clerk").canApproveInvoices).toBe(true);
     });
 
+    // Transitional invariant: parity is intentional at rollout; expected to diverge.
+    // See issue #240 for the BE route-guard split that ends parity.
     describe("canManageMailboxes mirrors canManageUsers per persona", () => {
       it.each([
         ["TENANT_ADMIN", true],
