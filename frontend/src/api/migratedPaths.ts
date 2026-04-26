@@ -41,10 +41,22 @@ export const MIGRATED_REALM_SCOPED_PREFIXES = [
   "/bank-statements"
 ] as const;
 
+/**
+ * Tenant-scoped (no clientOrgId required) prefixes that have migrated to the
+ * new `/api/tenants/:tenantId/...` shape. Rewrites WITHOUT a
+ * `/clientOrgs/:clientOrgId` segment — these routes are tenant-wide.
+ */
 export const MIGRATED_TENANT_SCOPED_PREFIXES = [
   // Ingestion domain (#198, sub-PR 2) — tenant-wide orchestration + presign.
   "/jobs/ingest",
-  "/uploads/presign"
+  "/uploads/presign",
+  // Tenant domain (#203, sub-PR) — administrative + integration routes that
+  // operate on the tenant itself (admin CRUD, integrations).
+  "/admin/users",
+  "/admin/mailboxes",
+  "/admin/client-orgs",
+  "/admin/mailbox-assignments",
+  "/integrations/gmail"
 ] as const;
 
 function matchesPrefix(path: string, prefix: string): boolean {
