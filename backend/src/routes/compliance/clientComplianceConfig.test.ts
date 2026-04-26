@@ -61,6 +61,7 @@ const authedReq = (overrides: Record<string, unknown> = {}) =>
   mockRequest({ authContext: defaultAuth, activeClientOrgId: ACTIVE_CLIENT_ORG_ID, ...overrides });
 
 let createClientComplianceConfigRouter: typeof import("./clientComplianceConfig.ts").createClientComplianceConfigRouter;
+let createComplianceMetadataRouter: typeof import("./clientComplianceConfig.ts").createComplianceMetadataRouter;
 
 const nextFn = jest.fn();
 
@@ -79,6 +80,7 @@ beforeEach(async () => {
 
   const mod = await import("./clientComplianceConfig.ts");
   createClientComplianceConfigRouter = mod.createClientComplianceConfigRouter;
+  createComplianceMetadataRouter = mod.createComplianceMetadataRouter;
 });
 
 describe("compliance config routes", () => {
@@ -762,7 +764,7 @@ describe("compliance config routes", () => {
 
   describe("GET /compliance/tds-sections", () => {
     it("returns default TDS sections", async () => {
-      const router = createClientComplianceConfigRouter();
+      const router = createComplianceMetadataRouter();
       const handler = findHandler(router, "get", "/compliance/tds-sections");
       const res = mockResponse();
 
@@ -781,7 +783,7 @@ describe("compliance config routes", () => {
 
   describe("GET /compliance/risk-signals", () => {
     it("returns available risk signals", async () => {
-      const router = createClientComplianceConfigRouter();
+      const router = createComplianceMetadataRouter();
       const handler = findHandler(router, "get", "/compliance/risk-signals");
       const res = mockResponse();
 

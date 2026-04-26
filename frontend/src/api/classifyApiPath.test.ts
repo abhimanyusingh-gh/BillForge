@@ -18,26 +18,14 @@ describe("api/client classifier", () => {
       "/invoices",
       "/invoices/abc-123",
       "/invoices/abc-123/workflow-approve",
-      "/vendors",
-      "/vendors/v-1",
       "/payments",
       "/bank-statements",
       "/bank-statements/upload",
       "/bank-accounts",
       "/bank/accounts",
       "/bank/accounts/abc/refresh",
-      "/compliance",
-      "/compliance/risk-signals",
-      "/compliance/tds-rates",
       // Composite-key endpoints under otherwise-tenant-scoped trees:
       "/admin/notification-config",
-      "/admin/compliance-config",
-      "/admin/tcs-config",
-      "/admin/tcs-config/roles",
-      "/admin/tcs-config/history",
-      "/admin/gl-codes",
-      "/admin/gl-codes/import-csv",
-      "/admin/gl-codes/SOMECODE",
       "/admin/approval-limits",
       "/admin/approval-workflow"
     ];
@@ -87,6 +75,30 @@ describe("api/client classifier", () => {
       expect(isRealmScopedPath("/compliance/admin")).toBe(false);
     });
 
+    it("classifies migrated compliance paths so they fall through to the migratedPaths interceptor", () => {
+      // Compliance domain (#200) migrated to nested-router shape — these are
+      // no longer in REALM_SCOPED_PATH_PREFIXES. `/admin/...` paths match the
+      // broader `/admin` tenant-scoped prefix (so the interceptor will not try
+      // to inject ?clientOrgId=). `/vendors` matches no prefix and is 'unknown'.
+      // In all cases the axios interceptor rewrites them via `migratedPaths.ts`
+      // BEFORE this classifier is consulted, so the classifier result is moot.
+      expect(classifyApiPath("/vendors")).toBe("unknown");
+      expect(classifyApiPath("/admin/gl-codes")).toBe("tenant-scoped");
+      expect(classifyApiPath("/admin/tcs-config")).toBe("tenant-scoped");
+      expect(classifyApiPath("/admin/compliance-config")).toBe("tenant-scoped");
+      expect(isRealmScopedPath("/vendors")).toBe(false);
+      expect(isRealmScopedPath("/admin/gl-codes")).toBe(false);
+    });
+
+    it("classifies unscoped compliance metadata as 'unknown'", () => {
+      // /compliance/tds-sections, /compliance/risk-signals, /compliance/tds-rates
+      // never required clientOrgId — they remain on the legacy mount but are no
+      // longer claimed by REALM_SCOPED_PATH_PREFIXES.
+      expect(classifyApiPath("/compliance/tds-sections")).toBe("unknown");
+      expect(classifyApiPath("/compliance/risk-signals")).toBe("unknown");
+      expect(classifyApiPath("/compliance/tds-rates")).toBe("unknown");
+    });
+
     describe("triage bypass (#166) — invoices with clientOrgId: null", () => {
       it("classifies the triage list /invoices/triage as tenant-scoped", () => {
         expect(classifyApiPath("/invoices/triage")).toBe("tenant-scoped");
@@ -112,12 +124,15 @@ describe("api/client classifier", () => {
   });
 
   describe("edge case: bypass-vs-allow asymmetry (the original bug)", () => {
-    it("classifies /compliance/administrators as realm-scoped (NOT bypassed)", () => {
+    it("does not let /compliance/admin bypass match /compliance/administrators", () => {
       // Pre-fix, naked startsWith on the bypass list would incorrectly match
       // `/compliance/admin` against `/compliance/administrators` and bypass
-      // realm-scoping. Exact-prefix matching prevents that.
-      expect(classifyApiPath("/compliance/administrators")).toBe("realm-scoped");
-      expect(isRealmScopedPath("/compliance/administrators")).toBe(true);
+      // realm-scoping. Exact-prefix matching prevents that. After #200,
+      // `/compliance` is no longer a realm-scoped prefix (the only `/compliance/*`
+      // BE routes are unscoped metadata), so the path classifies as 'unknown'
+      // instead of 'tenant-scoped' — but the asymmetry guard still holds.
+      expect(classifyApiPath("/compliance/administrators")).toBe("unknown");
+      expect(isRealmScopedPath("/compliance/administrators")).toBe(false);
     });
 
     it("does not match a prefix that is only a substring of a path segment", () => {

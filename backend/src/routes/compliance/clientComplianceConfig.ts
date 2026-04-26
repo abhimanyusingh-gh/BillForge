@@ -3,7 +3,6 @@ import { z } from "zod";
 import { ClientComplianceConfigModel } from "@/models/integration/ClientComplianceConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 
 const VALID_PAN_LEVELS = new Set(["format", "format_and_checksum", "disabled"]);
@@ -138,7 +137,7 @@ export function createClientComplianceConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/compliance-config", requireActiveClientOrg, requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.get("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -155,7 +154,7 @@ export function createClientComplianceConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/compliance-config", requireActiveClientOrg, requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.put("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -244,6 +243,13 @@ export function createClientComplianceConfigRouter() {
       res.json(config!.toObject());
     } catch (error) { next(error); }
   });
+
+  return router;
+}
+
+export function createComplianceMetadataRouter() {
+  const router = Router();
+  router.use(requireAuth);
 
   router.get("/compliance/tds-sections", async (_req, res) => {
     res.json({ items: DEFAULT_TDS_SECTIONS });

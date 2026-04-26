@@ -3,7 +3,6 @@ import { Router } from "express";
 import { ClientTcsConfigModel } from "@/models/integration/ClientTcsConfig.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
-import { requireActiveClientOrg } from "@/auth/activeClientOrg.js";
 import { ActiveTenantRoles, normalizeTenantRole } from "@/models/core/TenantUserRole.js";
 import type { Request, Response, NextFunction } from "express";
 
@@ -34,7 +33,7 @@ export function createTcsConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/tcs-config", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/admin/tcs-config", async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -48,7 +47,7 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/tcs-config", requireActiveClientOrg, requireTcsModifyAccess, async (req, res, next) => {
+  router.put("/admin/tcs-config", requireTcsModifyAccess, async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -98,7 +97,7 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/tcs-config/roles", requireActiveClientOrg, requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.put("/admin/tcs-config/roles", requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -125,7 +124,7 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.get("/admin/tcs-config/history", requireActiveClientOrg, async (req, res, next) => {
+  router.get("/admin/tcs-config/history", async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;

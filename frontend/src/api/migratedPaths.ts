@@ -23,7 +23,15 @@ export const MIGRATED_REALM_SCOPED_PREFIXES = [
   // clientOrgId in the path. The ingest-orchestration endpoints
   // (`/jobs/ingest{,/status,/sse,/pause,/email-simulate}`) and the presign
   // endpoint are tenant-wide and live in `MIGRATED_TENANT_SCOPED_PREFIXES`.
-  "/jobs/upload"
+  "/jobs/upload",
+  // Compliance domain (#200) — vendors, GL codes, TCS config, realm-scoped
+  // compliance config. The unscoped metadata routes (`/compliance/tds-sections`,
+  // `/compliance/risk-signals`, `/compliance/tds-rates`) stay on the legacy
+  // mount and are NOT in this list.
+  "/vendors",
+  "/admin/gl-codes",
+  "/admin/tcs-config",
+  "/admin/compliance-config"
 ] as const;
 
 export const MIGRATED_TENANT_SCOPED_PREFIXES = [
