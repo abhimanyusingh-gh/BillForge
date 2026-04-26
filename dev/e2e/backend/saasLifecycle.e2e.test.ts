@@ -10,7 +10,7 @@ import { TenantIntegrationModel } from "@/models/integration/TenantIntegration.j
 import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { MailboxNotificationEventModel } from "@/models/integration/MailboxNotificationEvent.js";
 import { decryptSecret, encryptSecret } from "@/utils/secretCrypto.js";
-import { bootstrapTenantContext, createE2EUserAndLogin, E2E_TEST_PASSWORD } from "./authHelper.js";
+import { bootstrapTenantContext, createE2EUserAndLogin, E2E_TEST_PASSWORD, PLACEHOLDER_CLIENT_ORG_ID } from "./authHelper.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
 
 const apiBaseUrl = process.env.E2E_API_BASE_URL ?? "http://127.0.0.1:4100";
@@ -98,12 +98,11 @@ describe("saas lifecycle e2e", () => {
 
     // Realm-scoped invoice list — `requireTenantSetupCompleted` short-circuits
     // with the `requires_tenant_setup` 403 BEFORE path-scope ownership runs,
-    // so a placeholder clientOrgId is never validated against the DB. The
+    // so PLACEHOLDER_CLIENT_ORG_ID is never validated against the DB. The
     // tenantId in the path must match the caller's session tenantId
     // (`requireMatchingTenantIdParam`); the user's own tenantId satisfies that.
-    const placeholderClientOrgId = "000000000000000000000001";
     const blockedInvoices = await api.get(
-      `/api/tenants/${adminUser!.tenantId}/clientOrgs/${placeholderClientOrgId}/invoices?page=1&limit=5`,
+      `/api/tenants/${adminUser!.tenantId}/clientOrgs/${PLACEHOLDER_CLIENT_ORG_ID}/invoices?page=1&limit=5`,
       { headers: authHeaders(adminToken) }
     );
     expect(blockedInvoices.status).toBe(403);

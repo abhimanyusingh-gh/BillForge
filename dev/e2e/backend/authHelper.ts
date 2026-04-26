@@ -1,4 +1,14 @@
 import axios from "axios";
+import { deriveVendorState } from "@/constants/gstinStateCodes.js";
+
+/**
+ * A well-formed but unused ObjectId for testing middleware short-circuits
+ * (e.g., requireNonPlatformAdmin, requireTenantSetupCompleted) where the
+ * path-scope ownership check should never fire. Callers MUST assert the
+ * short-circuit response (typically 403) before this id can leak through
+ * to the DB.
+ */
+export const PLACEHOLDER_CLIENT_ORG_ID = "000000000000000000000001";
 
 const E2E_KC_BASE = process.env.E2E_KEYCLOAK_BASE_URL ?? "http://127.0.0.1:8280";
 const E2E_KC_REALM = process.env.E2E_KC_REALM ?? "ledgerbuddy";
@@ -165,6 +175,10 @@ export async function bootstrapTenantContext(
     throw new Error("Session response did not include tenant.id.");
   }
 
+  // Precondition: caller has a unique tenant for this test (no parallel workers
+  // race the same tenant). Today this holds because each test bootstraps its
+  // own tenant via `loginAs(uniqueEmail(...))`. If parallel-per-tenant becomes
+  // a thing, swap the list-then-create below for a 409-retry loop.
   const listResponse = await axios.get(
     `${apiBaseUrl}/api/tenants/${tenantId}/admin/client-orgs`,
     {
@@ -185,12 +199,16 @@ export async function bootstrapTenantContext(
   }
 
   const gstin = deriveDeterministicGstin(tenantId);
+  const stateName = deriveVendorState(gstin);
+  if (!stateName) {
+    throw new Error(`deriveDeterministicGstin produced an invalid GSTIN '${gstin}' for tenant ${tenantId}.`);
+  }
   const createResponse = await axios.post(
     `${apiBaseUrl}/api/tenants/${tenantId}/admin/client-orgs`,
     {
       gstin,
       companyName: "E2E Default Org",
-      stateName: "Telangana"
+      stateName
     },
     {
       headers: { Authorization: `Bearer ${token}` },
