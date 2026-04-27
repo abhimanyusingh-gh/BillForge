@@ -282,6 +282,48 @@ describe("jobs routes", () => {
       expect(fileStore.getObject).toHaveBeenCalledTimes(2);
     });
 
+    // #181: only the email-poller path stamps sourceMailboxAssignmentId.
+    // S3 uploads have no originating mailbox, so the field must stay
+    // unset (schema default `null`) and the recent-ingestions report
+    // must never attribute manual uploads to a mailbox assignment.
+    it("does not stamp sourceMailboxAssignmentId on S3-upload invoices", async () => {
+      const fileStore = createMockFileStore();
+      const router = createJobsRouter(createMockIngestionService(), undefined, fileStore);
+      const { InvoiceModel } = await import("../../models/invoice/Invoice.ts");
+      (InvoiceModel.create as jest.Mock).mockClear();
+
+      await findHandler(router, "post", "/jobs/upload/by-keys")(
+        mockRequest({
+          authContext: defaultAuth,
+          body: { keys: [`uploads/${defaultAuth.tenantId}/abc-123.pdf`] }
+        }),
+        mockResponse(), jest.fn()
+      );
+
+      expect(InvoiceModel.create).toHaveBeenCalledTimes(1);
+      const payload = (InvoiceModel.create as jest.Mock).mock.calls[0][0];
+      expect(payload.sourceMailboxAssignmentId).toBeUndefined();
+    });
+
+    it("does not stamp sourceMailboxAssignmentId on multipart uploads", async () => {
+      const fileStore = createMockFileStore();
+      const router = createJobsRouter(createMockIngestionService(), undefined, fileStore);
+      const { InvoiceModel } = await import("../../models/invoice/Invoice.ts");
+      (InvoiceModel.create as jest.Mock).mockClear();
+
+      await findSecondHandler(router, "post", "/jobs/upload")(
+        mockRequest({
+          authContext: defaultAuth,
+          files: [{ originalname: "a.pdf", buffer: Buffer.from("%PDF-1.4 t"), mimetype: "application/pdf" }]
+        }),
+        mockResponse(), jest.fn()
+      );
+
+      expect(InvoiceModel.create).toHaveBeenCalledTimes(1);
+      const payload = (InvoiceModel.create as jest.Mock).mock.calls[0][0];
+      expect(payload.sourceMailboxAssignmentId).toBeUndefined();
+    });
+
     it("returns 400 when file store is not configured", async () => {
       const router = createJobsRouter(createMockIngestionService());
       const res = mockResponse();

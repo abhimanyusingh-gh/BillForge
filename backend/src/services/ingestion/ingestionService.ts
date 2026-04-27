@@ -55,6 +55,10 @@ interface IngestionServiceOptions {
    * `resolveClientOrgForIngestion` after extraction (so parsed
    * `customerGstin` is available). Returning `null` keeps the file in
    * the PENDING_TRIAGE bucket.
+   *
+   * Resolver-injection by the Gmail-poller adapter is the follow-up;
+   * #181 lands the schema/stamping shape only. Until that adapter wires
+   * this hook, no production caller stamps `sourceMailboxAssignmentId`.
    */
   mailboxAssignmentResolver?: (file: IngestedFile) => Promise<MailboxAssignmentLike | null>;
 }
@@ -296,6 +300,7 @@ export class IngestionService {
         try {
           const assignment = await this.mailboxAssignmentResolver(file);
           if (assignment) {
+            file.sourceMailboxAssignmentId = String(assignment._id);
             const parsed = (extraction.parseResult.parsed ?? {}) as ParsedInvoiceData;
             const resolution = await resolveClientOrgForIngestion(parsed, assignment);
             if (resolution.clientOrgId) {
