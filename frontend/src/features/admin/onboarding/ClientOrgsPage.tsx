@@ -341,7 +341,7 @@ function ArchiveDialogBody({
         aria-live="polite"
       >
         <Spinner />
-        <span>Counting linked accounting records…</span>
+        <span>Checking dependents…</span>
       </div>
     );
   }
@@ -356,6 +356,34 @@ function ArchiveDialogBody({
 
   const breakdown = summarizeLinkedCounts(previewData.linkedCounts);
   const willDelete = previewData.projectedStatus === ARCHIVE_RESULT_STATUS.Deleted;
+
+  if (previewData.archivedAt !== null) {
+    return (
+      <div
+        className="client-orgs-archive-dialog-body"
+        data-testid="client-orgs-archive-dialog-already-archived"
+      >
+        <p className="client-orgs-archive-dialog-message">
+          {`"${companyName}" was already archived on ${formatArchivedAt(previewData.archivedAt)}. Confirming will refresh the dependent counts but leave the original archive timestamp intact.`}
+        </p>
+        {breakdown.length > 0 ? (
+          <ul
+            className="client-orgs-archive-dialog-list"
+            data-testid="client-orgs-archive-dialog-list"
+          >
+            {breakdown.map((entry) => (
+              <li
+                key={entry.label}
+                data-testid={`client-orgs-archive-dialog-item-${entry.label}`}
+              >
+                {entry.text}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    );
+  }
 
   if (willDelete) {
     return (
@@ -388,6 +416,12 @@ function ArchiveDialogBody({
       </ul>
     </div>
   );
+}
+
+function formatArchivedAt(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 interface ArchiveNoticeBannerProps {

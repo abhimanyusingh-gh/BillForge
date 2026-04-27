@@ -306,7 +306,7 @@ describe("features/admin/onboarding/ClientOrgsPage — archive flow", () => {
     fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
 
     await screen.findByRole("alertdialog");
-    expect(screen.getByTestId("client-orgs-archive-dialog-loading")).toHaveTextContent(/counting linked accounting records/i);
+    expect(screen.getByTestId("client-orgs-archive-dialog-loading")).toHaveTextContent(/checking dependents/i);
   });
 
   it("falls back to the generic warning copy when the probe fails", async () => {
@@ -323,6 +323,30 @@ describe("features/admin/onboarding/ClientOrgsPage — archive flow", () => {
     const fallback = await screen.findByTestId("client-orgs-archive-dialog-fallback");
     expect(fallback).toHaveTextContent(/linked accounting records/i);
     expect(fallback).toHaveTextContent(/breakdown is shown/i);
+  });
+
+  it("renders an already-archived notice in the dialog when previewArchive returns a non-null archivedAt", async () => {
+    mocked.fetchClientOrganizations.mockResolvedValue([
+      buildOrg({ _id: "org-1", gstin: "29ABCPK1234F1Z5", companyName: "Sharma Textiles" })
+    ]);
+    mocked.previewArchiveClientOrganization.mockResolvedValue({
+      projectedStatus: "archived",
+      linkedCounts: { invoices: 4, vendors: 2 },
+      archivedAt: "2026-04-20T08:30:00Z"
+    });
+
+    renderPage();
+    await screen.findByTestId("client-orgs-table");
+    fireEvent.click(screen.getByTestId("client-orgs-table-archive"));
+
+    const dialog = await screen.findByRole("alertdialog");
+    const alreadyArchived = await screen.findByTestId("client-orgs-archive-dialog-already-archived");
+    expect(alreadyArchived).toHaveTextContent(/Sharma Textiles/);
+    expect(alreadyArchived).toHaveTextContent(/was already archived on/i);
+    expect(alreadyArchived).toHaveTextContent(/refresh the dependent counts/i);
+    expect(within(dialog).getByTestId("client-orgs-archive-dialog-item-invoices")).toHaveTextContent(/4 invoices/);
+    expect(within(dialog).getByTestId("client-orgs-archive-dialog-item-vendors")).toHaveTextContent(/2 vendors/);
+    expect(within(dialog).getByRole("button", { name: /archive/i })).not.toBeDisabled();
   });
 
   it("flags the projected delete-outright in the dialog when no dependents exist", async () => {

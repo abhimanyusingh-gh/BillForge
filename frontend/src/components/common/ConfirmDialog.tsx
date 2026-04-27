@@ -5,6 +5,7 @@ interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
+  /** When provided, replaces the default `<p>{message}</p>` body. `message` is still required (used as fallback / a11y). */
   body?: ReactNode;
   confirmLabel?: string;
   destructive?: boolean;
