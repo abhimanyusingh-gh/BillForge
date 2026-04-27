@@ -19,26 +19,36 @@ import { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import { TriageService } from "@/services/invoice/triageService.js";
 import { ClientOrganizationModel } from "@/models/integration/ClientOrganization.js";
 import { ONBOARDING_STATUS } from "@/types/onboarding.js";
-import { toUUID } from "@/types/uuid.js";
+import { toUUID, type UUID } from "@/types/uuid.js";
 
-const TEST_TENANT_ID = toUUID("11111111-1111-1111-1111-111111111111");
-const TEST_USER_ID = toUUID("22222222-2222-2222-2222-222222222222");
+const DEFAULT_TENANT_ID = toUUID("11111111-1111-1111-1111-111111111111");
+const DEFAULT_USER_ID = toUUID("22222222-2222-2222-2222-222222222222");
 export const TEST_USER_EMAIL = "harness@ledgerbuddy.test";
 export const TEST_BEARER_TOKEN = "harness-token";
 
-const TEST_AUTH_CONTEXT: AuthenticatedRequestContext = {
-  userId: TEST_USER_ID,
-  email: TEST_USER_EMAIL,
-  tenantId: TEST_TENANT_ID,
-  tenantName: "Harness Tenant",
-  onboardingStatus: ONBOARDING_STATUS.COMPLETED,
-  role: "TENANT_ADMIN" satisfies TenantRole,
-  isPlatformAdmin: false
-};
+interface AuthOverrides {
+  tenantId?: UUID;
+  userId?: UUID;
+  email?: string;
+  role?: TenantRole;
+  isPlatformAdmin?: boolean;
+}
 
-function buildStubAuthService(): AuthService {
+function buildAuthContext(overrides: AuthOverrides = {}): AuthenticatedRequestContext {
   return {
-    resolveRequestContext: async () => TEST_AUTH_CONTEXT
+    userId: overrides.userId ?? DEFAULT_USER_ID,
+    email: overrides.email ?? TEST_USER_EMAIL,
+    tenantId: overrides.tenantId ?? DEFAULT_TENANT_ID,
+    tenantName: "Harness Tenant",
+    onboardingStatus: ONBOARDING_STATUS.COMPLETED,
+    role: (overrides.role ?? "TENANT_ADMIN") satisfies TenantRole,
+    isPlatformAdmin: overrides.isPlatformAdmin ?? false
+  };
+}
+
+function buildStubAuthService(authContext: AuthenticatedRequestContext): AuthService {
+  return {
+    resolveRequestContext: async () => authContext
   } as unknown as AuthService;
 }
 
@@ -59,9 +69,11 @@ export interface IntegrationAppContext {
   bearerToken: string;
 }
 
-export async function createIntegrationApp(): Promise<IntegrationAppContext> {
+export async function createIntegrationApp(overrides: AuthOverrides = {}): Promise<IntegrationAppContext> {
+  const authContext = buildAuthContext(overrides);
+
   const clientOrg = await ClientOrganizationModel.create({
-    tenantId: TEST_TENANT_ID,
+    tenantId: authContext.tenantId,
     gstin: "29ABCDE1234F1Z5",
     companyName: "Harness Test ClientOrg"
   });
@@ -76,7 +88,7 @@ export async function createIntegrationApp(): Promise<IntegrationAppContext> {
     invoiceService,
     exportService: buildStubExportService(),
     emailSimulationService: new EmailSimulationService(),
-    authService: buildStubAuthService(),
+    authService: buildStubAuthService(authContext),
     tenantAdminService: new TenantAdminService(),
     tenantInviteService: {} as never,
     clientOrgsAdminService: new ClientOrgsAdminService(),
@@ -95,7 +107,7 @@ export async function createIntegrationApp(): Promise<IntegrationAppContext> {
 
   return {
     app,
-    tenantId: TEST_TENANT_ID,
+    tenantId: authContext.tenantId,
     clientOrgId: clientOrg._id,
     bearerToken: TEST_BEARER_TOKEN
   };

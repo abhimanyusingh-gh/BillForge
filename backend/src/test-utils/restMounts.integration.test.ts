@@ -40,32 +40,66 @@ describeHarness("REST nested-mount middleware chain (#171 / #219)", ({ getHarnes
     ]);
   });
 
-  it("invoice domain — GET /invoices/:id stamps activeClientOrgId from path", async () => {
-    const invoice = await InvoiceModel.create({
-      tenantId: ctx.tenantId,
-      clientOrgId: ctx.clientOrgId,
-      sourceType: "harness",
-      sourceKey: "harness",
-      sourceDocumentId: "doc-1",
-      attachmentName: "INV-1.pdf",
-      mimeType: "application/pdf",
-      receivedAt: new Date(),
-      status: INVOICE_STATUS.PARSED,
-      parsed: {
-        invoiceNumber: "INV-1",
-        vendorName: "Acme",
-        invoiceDate: new Date(),
-        totalAmountMinor: 12345,
-        currency: "INR"
+  it("invoice domain — GET /invoices/:id refuses foreign clientOrg's invoice via path scope", async () => {
+    const foreignClientOrgId = new Types.ObjectId();
+    const targetInvoiceId = new Types.ObjectId();
+    const foreignInvoiceId = new Types.ObjectId();
+    const now = new Date();
+    await InvoiceModel.collection.insertMany([
+      {
+        _id: targetInvoiceId,
+        tenantId: ctx.tenantId,
+        clientOrgId: ctx.clientOrgId,
+        sourceType: "harness",
+        sourceKey: "harness",
+        sourceDocumentId: "doc-target",
+        attachmentName: "INV-TARGET.pdf",
+        mimeType: "application/pdf",
+        receivedAt: now,
+        status: INVOICE_STATUS.PARSED,
+        parsed: {
+          invoiceNumber: "INV-TARGET",
+          vendorName: "Acme",
+          invoiceDate: now,
+          totalAmountMinor: 12345,
+          currency: "INR"
+        },
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        _id: foreignInvoiceId,
+        tenantId: ctx.tenantId,
+        clientOrgId: foreignClientOrgId,
+        sourceType: "harness",
+        sourceKey: "harness",
+        sourceDocumentId: "doc-foreign",
+        attachmentName: "INV-FOREIGN.pdf",
+        mimeType: "application/pdf",
+        receivedAt: now,
+        status: INVOICE_STATUS.PARSED,
+        parsed: {
+          invoiceNumber: "INV-FOREIGN",
+          vendorName: "Other",
+          invoiceDate: now,
+          totalAmountMinor: 99999,
+          currency: "INR"
+        },
+        createdAt: now,
+        updatedAt: now
       }
-    });
+    ]);
 
-    const response = await request(ctx.app)
-      .get(`/api/tenants/${ctx.tenantId}/clientOrgs/${ctx.clientOrgId}/invoices/${invoice._id}`)
+    const targetResponse = await request(ctx.app)
+      .get(`/api/tenants/${ctx.tenantId}/clientOrgs/${ctx.clientOrgId}/invoices/${targetInvoiceId}`)
       .set(REST_MOUNT_PROBE_HEADERS);
+    expect(targetResponse.status).toBe(200);
+    expect(String(targetResponse.body._id)).toBe(String(targetInvoiceId));
 
-    expect(response.status).toBe(200);
-    expect(String(response.body._id)).toBe(String(invoice._id));
+    const foreignResponse = await request(ctx.app)
+      .get(`/api/tenants/${ctx.tenantId}/clientOrgs/${ctx.clientOrgId}/invoices/${foreignInvoiceId}`)
+      .set(REST_MOUNT_PROBE_HEADERS);
+    expect(foreignResponse.status).toBe(404);
   });
 
   it("ingestion domain — GET /jobs/ingest/status passes both middlewares", async () => {
