@@ -3523,6 +3523,12 @@ pre {
   margin-top: var(--sp-4);
 }
 
+.confirm-dialog-message {
+  margin: var(--sp-3) 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
 .clear-filters-pill {
   display: inline-flex;
   align-items: center;

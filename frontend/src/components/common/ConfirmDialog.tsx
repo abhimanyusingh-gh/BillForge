@@ -41,7 +41,7 @@ export function ConfirmDialog({ open, title, message, body, confirmLabel = "Conf
         {body !== undefined ? (
           body
         ) : (
-          <p style={{ margin: "0.75rem 0 0", color: "var(--ink-soft)", lineHeight: 1.5 }}>{message}</p>
+          <p className="confirm-dialog-message">{message}</p>
         )}
         <div className="confirm-actions">
           <button ref={cancelRef} type="button" className="app-button app-button-secondary" onClick={onCancel}>Cancel</button>
