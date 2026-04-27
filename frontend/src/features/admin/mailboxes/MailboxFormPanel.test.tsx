@@ -160,24 +160,26 @@ describe("features/admin/mailboxes/MailboxFormPanel — Add mode picker", () => 
     expect(screen.getByTestId("mailbox-form-submit")).toBeDisabled();
   });
 
-  it("falls back to a free-text input + warning when the integrations fetch errors", async () => {
+  it("renders an error + retry affordance and keeps submit disabled when the integrations fetch errors", async () => {
     listIntegrations.mockRejectedValueOnce(new Error("boom"));
+    listIntegrations.mockResolvedValueOnce(SAMPLE_INTEGRATIONS);
     const onSubmit = jest.fn();
     renderPanel({ mode: MAILBOX_FORM_MODE.Add, onSubmit });
 
     expect(
       await screen.findByTestId("mailbox-form-integration-error")
     ).toHaveTextContent(/couldn't load integrations/i);
-    const input = screen.getByTestId("mailbox-form-integration-id-input");
+    expect(screen.queryByTestId("mailbox-form-integration-id-input")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("mailbox-form-integration-id-select")).not.toBeInTheDocument();
 
-    fireEvent.change(input, { target: { value: "not-an-objectid" } });
     fireEvent.click(screen.getByTestId("client-org-multi-picker-checkbox-org-1"));
     expect(screen.getByTestId("mailbox-form-submit")).toBeDisabled();
-    expect(screen.getByTestId("mailbox-form-integration-id-error")).toHaveTextContent(
-      /24-character objectid/i
-    );
 
-    fireEvent.change(input, { target: { value: VALID_INTEGRATION_ID } });
+    fireEvent.click(screen.getByTestId("mailbox-form-integration-retry"));
+    const select = (await screen.findByTestId(
+      "mailbox-form-integration-id-select"
+    )) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: VALID_INTEGRATION_ID } });
     fireEvent.click(screen.getByTestId("mailbox-form-submit"));
     expect(onSubmit).toHaveBeenCalledWith({
       integrationId: VALID_INTEGRATION_ID,

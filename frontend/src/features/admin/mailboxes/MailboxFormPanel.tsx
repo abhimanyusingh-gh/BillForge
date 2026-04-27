@@ -32,16 +32,9 @@ interface MailboxFormPanelProps {
   onClose: () => void;
 }
 
-const OBJECT_ID_PATTERN = /^[0-9a-fA-F]{24}$/;
-const INTEGRATION_ID_INVALID_MESSAGE = "Integration ID must be a 24-character ObjectId.";
 const INTEGRATIONS_EMPTY_MESSAGE =
   "No available integrations to assign — contact admin to add one.";
-const INTEGRATIONS_ERROR_MESSAGE =
-  "Couldn't load integrations — paste a 24-character integration ID below instead.";
-
-function isValidObjectId(value: string): boolean {
-  return OBJECT_ID_PATTERN.test(value);
-}
+const INTEGRATIONS_ERROR_MESSAGE = "Couldn't load integrations.";
 
 function describeIntegration(integration: AvailableIntegration): string {
   const email = integration.emailAddress ?? "(no email)";
@@ -99,24 +92,21 @@ export function MailboxFormPanel({
   }, [open, initial]);
 
   const integrationsQuery = useAvailableIntegrations(open && !isEdit);
-  const integrationsFallbackToFreeText = integrationsQuery.status === "error";
 
-  const trimmedIntegrationId = values.integrationId.trim();
-  const integrationIdTouched = values.integrationId.length > 0;
-  const integrationIdValid = isValidObjectId(trimmedIntegrationId);
+  const hasIntegrationId = values.integrationId.length > 0;
   const hasOneClientOrg = values.clientOrgIds.length >= 1;
 
   const canSubmit = useMemo(() => {
     if (submitting) return false;
     if (!hasOneClientOrg) return false;
-    if (!isEdit && !integrationIdValid) return false;
+    if (!isEdit && !hasIntegrationId) return false;
     return true;
-  }, [submitting, hasOneClientOrg, isEdit, integrationIdValid]);
+  }, [submitting, hasOneClientOrg, isEdit, hasIntegrationId]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     onSubmit({
-      integrationId: trimmedIntegrationId,
+      integrationId: values.integrationId,
       clientOrgIds: values.clientOrgIds
     });
   };
@@ -211,44 +201,24 @@ export function MailboxFormPanel({
                 ))}
               </select>
             ) : null}
-            {integrationsFallbackToFreeText ? (
-              <>
-                <span
-                  className="mailboxes-form-field-error"
-                  role="alert"
-                  data-testid="mailbox-form-integration-error"
+            {integrationsQuery.status === "error" ? (
+              <div
+                className="mailboxes-form-field-error"
+                role="alert"
+                data-testid="mailbox-form-integration-error"
+              >
+                <span>{INTEGRATIONS_ERROR_MESSAGE}</span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void integrationsQuery.refetch();
+                  }}
+                  data-testid="mailbox-form-integration-retry"
                 >
-                  {INTEGRATIONS_ERROR_MESSAGE}
-                </span>
-                <input
-                  id="mailbox-form-integration-id"
-                  data-testid="mailbox-form-integration-id-input"
-                  type="text"
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={values.integrationId}
-                  aria-invalid={integrationIdTouched && !integrationIdValid ? true : undefined}
-                  aria-describedby="mailbox-form-integration-id-hint"
-                  onChange={(event) =>
-                    setValues((current) => ({ ...current, integrationId: event.target.value }))
-                  }
-                />
-                <span
-                  id="mailbox-form-integration-id-hint"
-                  className="mailboxes-form-field-hint"
-                >
-                  Paste the 24-character integration ID from Settings &gt; Integrations.
-                </span>
-                {integrationIdTouched && !integrationIdValid ? (
-                  <span
-                    className="mailboxes-form-field-error"
-                    role="alert"
-                    data-testid="mailbox-form-integration-id-error"
-                  >
-                    {INTEGRATION_ID_INVALID_MESSAGE}
-                  </span>
-                ) : null}
-              </>
+                  Retry
+                </Button>
+              </div>
             ) : null}
           </div>
         ) : null}
