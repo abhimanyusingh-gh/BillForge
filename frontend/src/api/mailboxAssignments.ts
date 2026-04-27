@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import { mailboxUrls } from "@/api/urls/mailboxUrls";
 
 export interface MailboxAssignmentPollingConfig {
   enabled: boolean;
@@ -31,9 +32,6 @@ interface UpdateMailboxAssignmentPayload {
   assignedTo?: string;
 }
 
-const MAILBOX_ASSIGNMENTS_PATH = "/admin/mailbox-assignments";
-const INTEGRATIONS_PATH = "/admin/integrations";
-
 export interface AvailableIntegration {
   _id: string;
   emailAddress: string | null;
@@ -42,7 +40,7 @@ export interface AvailableIntegration {
 }
 
 export async function listIntegrations(): Promise<AvailableIntegration[]> {
-  const response = await apiClient.get<{ items?: AvailableIntegration[] }>(INTEGRATIONS_PATH);
+  const response = await apiClient.get<{ items?: AvailableIntegration[] }>(mailboxUrls.integrationsList());
   return Array.isArray(response.data?.items) ? response.data.items : [];
 }
 
@@ -71,21 +69,21 @@ export async function fetchMailboxRecentIngestions(
   params: { days: number; limit?: number }
 ): Promise<MailboxRecentIngestionsResponse> {
   const response = await apiClient.get<MailboxRecentIngestionsResponse>(
-    `${MAILBOX_ASSIGNMENTS_PATH}/${encodeURIComponent(id)}/recent-ingestions`,
+    mailboxUrls.assignmentRecentIngestions(id),
     { params: { days: params.days, ...(params.limit !== undefined ? { limit: params.limit } : {}) } }
   );
   return response.data;
 }
 
 export async function fetchMailboxAssignments(): Promise<MailboxAssignment[]> {
-  const response = await apiClient.get<{ items?: MailboxAssignment[] }>(MAILBOX_ASSIGNMENTS_PATH);
+  const response = await apiClient.get<{ items?: MailboxAssignment[] }>(mailboxUrls.assignmentsList());
   return Array.isArray(response.data?.items) ? response.data.items : [];
 }
 
 export async function createMailboxAssignment(
   payload: CreateMailboxAssignmentPayload
 ): Promise<MailboxAssignment> {
-  return (await apiClient.post<MailboxAssignment>(MAILBOX_ASSIGNMENTS_PATH, payload)).data;
+  return (await apiClient.post<MailboxAssignment>(mailboxUrls.assignmentsCreate(), payload)).data;
 }
 
 export async function updateMailboxAssignment(
@@ -93,13 +91,10 @@ export async function updateMailboxAssignment(
   payload: UpdateMailboxAssignmentPayload
 ): Promise<MailboxAssignment> {
   return (
-    await apiClient.patch<MailboxAssignment>(
-      `${MAILBOX_ASSIGNMENTS_PATH}/${encodeURIComponent(id)}`,
-      payload
-    )
+    await apiClient.patch<MailboxAssignment>(mailboxUrls.assignmentUpdate(id), payload)
   ).data;
 }
 
 export async function deleteMailboxAssignment(id: string): Promise<void> {
-  await apiClient.delete(`${MAILBOX_ASSIGNMENTS_PATH}/${encodeURIComponent(id)}`);
+  await apiClient.delete(mailboxUrls.assignmentDelete(id));
 }

@@ -9,6 +9,8 @@ import {
   listIntegrations,
   updateMailboxAssignment
 } from "@/api/mailboxAssignments";
+import { writeActiveTenantId } from "@/api/tenantStorage";
+import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 
 jest.mock("@/api/client", () => {
   const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
@@ -19,15 +21,26 @@ import { getMockedApiClient } from "@/test-utils/mockApiClient";
 
 const apiClient = getMockedApiClient();
 
+// Post-Sub-PR D: callers resolve URLs through `mailboxUrls.*`, which require
+// an active tenantId. Asserted URLs are the tenant-scoped rewrites.
+const TENANT_PREFIX = "/tenants/tenant-1";
+
 beforeEach(() => {
   jest.clearAllMocks();
+  writeActiveTenantId("tenant-1");
+  setActiveClientOrgId("client-1");
+});
+
+afterEach(() => {
+  writeActiveTenantId(null);
+  setActiveClientOrgId(null);
 });
 
 describe("api/mailboxAssignments", () => {
   it("fetchMailboxAssignments unwraps the items array and returns [] for malformed payloads", async () => {
     apiClient.get.mockResolvedValueOnce({ data: { items: [{ _id: "a-1" }] } });
     const items = await fetchMailboxAssignments();
-    expect(apiClient.get).toHaveBeenCalledWith("/admin/mailbox-assignments");
+    expect(apiClient.get).toHaveBeenCalledWith(`${TENANT_PREFIX}/admin/mailbox-assignments`);
     expect(items).toEqual([{ _id: "a-1" }]);
 
     apiClient.get.mockResolvedValueOnce({ data: {} });
@@ -40,7 +53,7 @@ describe("api/mailboxAssignments", () => {
       integrationId: "int-1",
       clientOrgIds: ["org-1", "org-2"]
     });
-    expect(apiClient.post).toHaveBeenCalledWith("/admin/mailbox-assignments", {
+    expect(apiClient.post).toHaveBeenCalledWith(`${TENANT_PREFIX}/admin/mailbox-assignments`, {
       integrationId: "int-1",
       clientOrgIds: ["org-1", "org-2"]
     });
@@ -50,15 +63,16 @@ describe("api/mailboxAssignments", () => {
   it("updateMailboxAssignment PATCHes the assignment id and percent-encodes it", async () => {
     apiClient.patch.mockResolvedValueOnce({ data: { _id: "a 1" } });
     await updateMailboxAssignment("a 1", { clientOrgIds: ["org-3"] });
-    expect(apiClient.patch).toHaveBeenCalledWith("/admin/mailbox-assignments/a%201", {
-      clientOrgIds: ["org-3"]
-    });
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      `${TENANT_PREFIX}/admin/mailbox-assignments/a%201`,
+      { clientOrgIds: ["org-3"] }
+    );
   });
 
   it("deleteMailboxAssignment DELETEs by id", async () => {
     apiClient.delete.mockResolvedValueOnce({ data: undefined });
     await deleteMailboxAssignment("a-1");
-    expect(apiClient.delete).toHaveBeenCalledWith("/admin/mailbox-assignments/a-1");
+    expect(apiClient.delete).toHaveBeenCalledWith(`${TENANT_PREFIX}/admin/mailbox-assignments/a-1`);
   });
 
   it("fetchMailboxRecentIngestions GETs the recent-ingestions endpoint with days+limit query", async () => {
@@ -67,7 +81,7 @@ describe("api/mailboxAssignments", () => {
     });
     await fetchMailboxRecentIngestions("a-1", { days: 30, limit: 50 });
     expect(apiClient.get).toHaveBeenCalledWith(
-      "/admin/mailbox-assignments/a-1/recent-ingestions",
+      `${TENANT_PREFIX}/admin/mailbox-assignments/a-1/recent-ingestions`,
       { params: { days: 30, limit: 50 } }
     );
   });
@@ -77,7 +91,7 @@ describe("api/mailboxAssignments", () => {
       data: { items: [{ _id: "i-1", emailAddress: "a@b.com", status: "CONNECTED", provider: "gmail" }] }
     });
     const items = await listIntegrations();
-    expect(apiClient.get).toHaveBeenCalledWith("/admin/integrations");
+    expect(apiClient.get).toHaveBeenCalledWith(`${TENANT_PREFIX}/admin/integrations`);
     expect(items).toEqual([
       { _id: "i-1", emailAddress: "a@b.com", status: "CONNECTED", provider: "gmail" }
     ]);
@@ -92,7 +106,7 @@ describe("api/mailboxAssignments", () => {
     });
     await fetchMailboxRecentIngestions("a 1", { days: 30 });
     expect(apiClient.get).toHaveBeenCalledWith(
-      "/admin/mailbox-assignments/a%201/recent-ingestions",
+      `${TENANT_PREFIX}/admin/mailbox-assignments/a%201/recent-ingestions`,
       { params: { days: 30 } }
     );
   });

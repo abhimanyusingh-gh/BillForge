@@ -1,5 +1,7 @@
 import { apiClient, safeNum, stripNulls } from "@/api/client";
+import { analyticsUrls } from "@/api/urls/analyticsUrls";
 import { complianceUrls } from "@/api/urls/complianceUrls";
+import { mailboxUrls } from "@/api/urls/mailboxUrls";
 import type {
   AnalyticsOverview,
   ApprovalWorkflowConfig,
@@ -49,7 +51,7 @@ export async function fetchAnalyticsOverview(
   // admin analytics: optional clientOrgId, see #162
   const params: Record<string, string> = { from, to, scope };
   if (clientOrgId) params.clientOrgId = clientOrgId;
-  return (await apiClient.get<AnalyticsOverview>("/analytics/overview", { params })).data;
+  return (await apiClient.get<AnalyticsOverview>(analyticsUrls.overview(), { params })).data;
 }
 
 export async function fetchPlatformTenantUsage(): Promise<PlatformTenantUsageSummary[]> {
@@ -186,11 +188,11 @@ export async function saveNotificationConfig(config: Partial<NotificationConfig>
 }
 
 export async function fetchNotificationLog(page = 1, limit = 20): Promise<NotificationLogResponse> {
-  return (await apiClient.get<NotificationLogResponse>("/admin/notifications/log", { params: { page, limit } })).data;
+  return (await apiClient.get<NotificationLogResponse>(mailboxUrls.notificationLog(), { params: { page, limit } })).data;
 }
 
 export async function fetchGmailConnectionStatus() {
-  const data = stripNulls((await apiClient.get<GmailConnectionStatus>("/integrations/gmail")).data) as Partial<GmailConnectionStatus>;
+  const data = stripNulls((await apiClient.get<GmailConnectionStatus>(mailboxUrls.gmailStatus())).data) as Partial<GmailConnectionStatus>;
   const validStates = ["CONNECTED", "NEEDS_REAUTH", "DISCONNECTED"] as const;
   return {
     provider: "gmail" as const,
@@ -202,7 +204,7 @@ export async function fetchGmailConnectionStatus() {
 }
 
 export async function fetchGmailConnectUrl(): Promise<string> {
-  const response = await apiClient.get<{ connectUrl: string }>("/integrations/gmail/connect-url");
+  const response = await apiClient.get<{ connectUrl: string }>(mailboxUrls.gmailConnectUrl());
   const connectUrl = typeof response.data?.connectUrl === "string" ? response.data.connectUrl.trim() : "";
   if (!connectUrl) throw new Error("Gmail connect URL was not returned.");
   return connectUrl;
