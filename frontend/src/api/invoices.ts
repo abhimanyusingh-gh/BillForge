@@ -1,6 +1,7 @@
 import { apiClient, safeNum, stripNulls } from "@/api/client";
 import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import { ingestionUrls } from "@/api/urls/ingestionUrls";
+import { exportUrls } from "@/api/urls/exportUrls";
 import type { Invoice, InvoiceListResponse, TallyFileExportResponse, ExportHistoryResponse } from "@/types";
 
 interface UpdateInvoiceParsedPayload {
@@ -87,15 +88,15 @@ export async function retryInvoices(ids: string[]) {
 }
 
 export async function generateTallyXmlFile(ids?: string[]) {
-  return (await apiClient.post<TallyFileExportResponse>("/exports/tally/download", { ids })).data;
+  return (await apiClient.post<TallyFileExportResponse>(exportUrls.tallyDownloadStart(), { ids })).data;
 }
 
 export async function downloadTallyXmlFile(batchId: string): Promise<Blob> {
-  return (await apiClient.get(`/exports/tally/download/${batchId}`, { responseType: "blob" })).data as Blob;
+  return (await apiClient.get(exportUrls.tallyDownloadResult(batchId), { responseType: "blob" })).data as Blob;
 }
 
 export async function fetchExportHistory(page = 1, limit = 20): Promise<ExportHistoryResponse> {
-  const data = stripNulls((await apiClient.get<ExportHistoryResponse>("/exports/tally/history", { params: { page, limit } })).data) as Partial<ExportHistoryResponse>;
+  const data = stripNulls((await apiClient.get<ExportHistoryResponse>(exportUrls.tallyHistory(), { params: { page, limit } })).data) as Partial<ExportHistoryResponse>;
   return {
     items: Array.isArray(data.items) ? data.items : [],
     page: safeNum(data.page, 1), limit: safeNum(data.limit, 20), total: safeNum(data.total, 0)

@@ -4,7 +4,12 @@ import { requireCap } from "@/auth/requireCapability.js";
 import type { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import type { TenantInviteService } from "@/services/tenant/tenantInviteService.js";
 
-export function createTenantLifecycleRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
+// `/tenant/onboarding/complete` is split into its own router factory so the
+// nested-tree mount under `tenantAdminRouter` (path
+// `/api/tenants/:tenantId/tenant/onboarding/complete`) can register JUST this
+// route without dragging in `/tenant/invites/accept`, which is a one-time
+// email-link flow and stays on the legacy `/api` mount.
+export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
   const router = Router();
 
   router.post("/tenant/onboarding/complete", requireCap("canManageUsers"), async (request, response, next) => {
@@ -23,6 +28,14 @@ export function createTenantLifecycleRouter(tenantAdminService: TenantAdminServi
       next(error);
     }
   });
+
+  return router;
+}
+
+export function createTenantLifecycleRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
+  const router = Router();
+
+  router.use(createTenantOnboardingCompleteRouter(tenantAdminService));
 
   router.post("/tenant/invites/accept", async (request, response, next) => {
     try {

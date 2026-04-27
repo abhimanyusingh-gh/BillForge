@@ -1,10 +1,13 @@
-import { buildNested } from "@/api/urls/buildNested";
+import { buildNested, buildTenantNested } from "@/api/urls/buildNested";
 
-// All bank routes covered here are realm-scoped (mounted under `clientOrgRouter`
-// in `app.ts`). The SSE subscriber endpoint `/bank-statements/parse/sse` lives
-// on the legacy unscoped `/api` mount (it bypasses the axios interceptor via
-// EventSource) and therefore stays out of this provider until the legacy mount
-// is retired.
+// Bank routes split across two scopes:
+//  - Realm-scoped (mounted under `clientOrgRouter`): accounts, statements,
+//    transactions, vendor-gstins, account-names. Use `buildNested`.
+//  - Tenant-scoped (mounted under `tenantRouter`): the SSE subscriber for
+//    parse-progress broadcasts (one feed per tenant, no clientOrgId filter).
+//    Use `buildTenantNested`. The consumer constructs an absolute URL by
+//    prepending `apiClient.defaults.baseURL` because EventSource bypasses the
+//    axios interceptor — same shape as `subscribeIngestionSSE` (Sub-PR A).
 export const bankUrls = {
   accountsList: (): string => buildNested("/bank/accounts"),
   accountsCreate: (): string => buildNested("/bank/accounts"),
@@ -25,5 +28,6 @@ export const bankUrls = {
     buildNested(`/bank-statements/${encodeURIComponent(statementId)}/reconcile`),
   transactionMatch: (transactionId: string): string =>
     buildNested(`/bank-statements/transactions/${encodeURIComponent(transactionId)}/match`),
-  accountNames: (): string => buildNested("/bank-statements/account-names")
+  accountNames: (): string => buildNested("/bank-statements/account-names"),
+  parseSse: (): string => buildTenantNested("/bank-statements/parse/sse")
 };
