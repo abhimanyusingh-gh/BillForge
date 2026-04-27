@@ -7,6 +7,7 @@ import {
   TENANT_SETUP_COMPLETED_STORAGE_KEY
 } from "@/stores/authStore";
 import { useActiveRealmStore } from "@/stores/activeRealmStore";
+import { useAdminRealmStore } from "@/stores/adminRealmStore";
 import { resetStores } from "@/test-utils/resetStores";
 
 const TENANT = "tenant-abc";
@@ -65,15 +66,17 @@ describe("authStore.clearAuth", () => {
     expect(useAuthStore.getState().tenantSetupCompleted).toBe(false);
   });
 
-  it("also clears activeRealm.id so logout leaves no stale realm state across users", () => {
+  it("also clears activeRealm.id and adminRealm.id so logout leaves no stale realm state across users", () => {
     useAuthStore.getState().setActiveTenantId(TENANT);
     useAuthStore.getState().setTenantSetupCompleted(true);
     useActiveRealmStore.setState({ id: "client-org-xyz" });
+    useAdminRealmStore.setState({ id: "admin-realm-id" });
 
     useAuthStore.getState().clearAuth();
 
     expect(useAuthStore.getState().activeTenantId).toBeNull();
     expect(useAuthStore.getState().tenantSetupCompleted).toBe(false);
     expect(useActiveRealmStore.getState().id).toBeNull();
+    expect(useAdminRealmStore.getState().id).toBeNull();
   });
 });
