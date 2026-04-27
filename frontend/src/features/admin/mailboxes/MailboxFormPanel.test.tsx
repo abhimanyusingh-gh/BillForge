@@ -171,6 +171,7 @@ describe("features/admin/mailboxes/MailboxFormPanel — Add mode picker", () => 
     ).toHaveTextContent(/couldn't load integrations/i);
     expect(screen.queryByTestId("mailbox-form-integration-id-input")).not.toBeInTheDocument();
     expect(screen.queryByTestId("mailbox-form-integration-id-select")).not.toBeInTheDocument();
+    expect(listIntegrations).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByTestId("client-org-multi-picker-checkbox-org-1"));
     expect(screen.getByTestId("mailbox-form-submit")).toBeDisabled();
@@ -179,6 +180,7 @@ describe("features/admin/mailboxes/MailboxFormPanel — Add mode picker", () => 
     const select = (await screen.findByTestId(
       "mailbox-form-integration-id-select"
     )) as HTMLSelectElement;
+    expect(listIntegrations).toHaveBeenCalledTimes(2);
     fireEvent.change(select, { target: { value: VALID_INTEGRATION_ID } });
     fireEvent.click(screen.getByTestId("mailbox-form-submit"));
     expect(onSubmit).toHaveBeenCalledWith({
