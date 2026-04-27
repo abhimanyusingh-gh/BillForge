@@ -1,5 +1,6 @@
 import { apiClient, getStoredSessionToken } from "@/api/client";
 import { bankUrls } from "@/api/urls/bankUrls";
+import { mailboxUrls } from "@/api/urls/mailboxUrls";
 import type { BankAccount, BankStatementSummary } from "@/types";
 
 export interface BankParseProgressEvent {
@@ -75,19 +76,19 @@ export function subscribeBankParseSSE(
 }
 
 export async function fetchMailboxes(): Promise<import("@/types").TenantMailbox[]> {
-  return (await apiClient.get<{ items: import("@/types").TenantMailbox[] }>("/admin/mailboxes")).data.items;
+  return (await apiClient.get<{ items: import("@/types").TenantMailbox[] }>(mailboxUrls.list())).data.items;
 }
 
 export async function assignMailboxUser(integrationId: string, userId: string): Promise<void> {
-  await apiClient.post(`/admin/mailboxes/${integrationId}/assign`, { userId });
+  await apiClient.post(mailboxUrls.assign(integrationId), { userId });
 }
 
 export async function removeMailboxAssignment(integrationId: string, userId: string): Promise<void> {
-  await apiClient.delete(`/admin/mailboxes/${integrationId}/assign/${userId}`);
+  await apiClient.delete(mailboxUrls.removeAssignment(integrationId, userId));
 }
 
 export async function removeMailbox(integrationId: string): Promise<void> {
-  await apiClient.delete(`/admin/mailboxes/${integrationId}`);
+  await apiClient.delete(mailboxUrls.remove(integrationId));
 }
 
 export async function fetchBankAccounts(): Promise<BankAccount[]> {

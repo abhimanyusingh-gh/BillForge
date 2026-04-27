@@ -2,6 +2,8 @@
  * @jest-environment jsdom
  */
 import { fetchAnalyticsOverview } from "@/api/admin";
+import { writeActiveTenantId } from "@/api/tenantStorage";
+import { setActiveClientOrgId } from "@/hooks/useActiveClientOrg";
 
 jest.mock("@/api/client", () => {
   const { buildApiClientMockModule } = require("@/test-utils/mockApiClient");
@@ -15,29 +17,41 @@ import { getMockedApiClient } from "@/test-utils/mockApiClient";
 
 const apiClient = getMockedApiClient();
 
+// Post-Sub-PR D: `fetchAnalyticsOverview` resolves the URL through
+// `analyticsUrls.overview()`, which requires an active tenantId. The asserted
+// URL is the tenant-scoped rewrite, not the bare path.
+const ANALYTICS_URL = "/tenants/tenant-1/analytics/overview";
+
 beforeEach(() => {
   jest.clearAllMocks();
+  writeActiveTenantId("tenant-1");
+  setActiveClientOrgId("client-1");
   apiClient.get.mockResolvedValue({ data: {} });
+});
+
+afterEach(() => {
+  writeActiveTenantId(null);
+  setActiveClientOrgId(null);
 });
 
 describe("api/admin/fetchAnalyticsOverview", () => {
   it("requests /analytics/overview WITHOUT clientOrgId when omitted (aggregate mode)", async () => {
     await fetchAnalyticsOverview("2026-04-01", "2026-04-30", "all");
-    expect(apiClient.get).toHaveBeenCalledWith("/analytics/overview", {
+    expect(apiClient.get).toHaveBeenCalledWith(ANALYTICS_URL, {
       params: { from: "2026-04-01", to: "2026-04-30", scope: "all" }
     });
   });
 
   it("requests /analytics/overview WITHOUT clientOrgId when explicitly null (All clients)", async () => {
     await fetchAnalyticsOverview("2026-04-01", "2026-04-30", "mine", null);
-    expect(apiClient.get).toHaveBeenCalledWith("/analytics/overview", {
+    expect(apiClient.get).toHaveBeenCalledWith(ANALYTICS_URL, {
       params: { from: "2026-04-01", to: "2026-04-30", scope: "mine" }
     });
   });
 
   it("appends ?clientOrgId=... when a specific realm is passed (per-realm mode)", async () => {
     await fetchAnalyticsOverview("2026-04-01", "2026-04-30", "all", "65a1b2c3d4e5f6a7b8c9d0e1");
-    expect(apiClient.get).toHaveBeenCalledWith("/analytics/overview", {
+    expect(apiClient.get).toHaveBeenCalledWith(ANALYTICS_URL, {
       params: {
         from: "2026-04-01",
         to: "2026-04-30",
@@ -49,14 +63,14 @@ describe("api/admin/fetchAnalyticsOverview", () => {
 
   it("does NOT append clientOrgId when given an empty string", async () => {
     await fetchAnalyticsOverview("2026-04-01", "2026-04-30", "all", "");
-    expect(apiClient.get).toHaveBeenCalledWith("/analytics/overview", {
+    expect(apiClient.get).toHaveBeenCalledWith(ANALYTICS_URL, {
       params: { from: "2026-04-01", to: "2026-04-30", scope: "all" }
     });
   });
 
   it("defaults scope to 'mine' when omitted", async () => {
     await fetchAnalyticsOverview("2026-04-01", "2026-04-30");
-    expect(apiClient.get).toHaveBeenCalledWith("/analytics/overview", {
+    expect(apiClient.get).toHaveBeenCalledWith(ANALYTICS_URL, {
       params: { from: "2026-04-01", to: "2026-04-30", scope: "mine" }
     });
   });

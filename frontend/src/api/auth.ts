@@ -1,5 +1,6 @@
 import axios from "axios";
 import { apiClient } from "@/api/client";
+import { tenantUrls } from "@/api/urls/tenantUrls";
 import { writeActiveTenantId } from "@/api/tenantStorage";
 import { writeTenantSetupCompleted } from "@/hooks/useTenantSetupCompleted";
 import type { SessionUser, TenantRole, TenantUser } from "@/types";
@@ -59,22 +60,22 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function fetchTenantUsers(): Promise<TenantUser[]> {
-  const response = await apiClient.get<{ items?: TenantUser[] }>("/admin/users");
+  const response = await apiClient.get<{ items?: TenantUser[] }>(tenantUrls.usersList());
   return Array.isArray(response.data?.items) ? response.data.items : [];
 }
 
 export async function inviteTenantUser(email: string): Promise<void> {
-  await apiClient.post("/admin/users/invite", { email });
+  await apiClient.post(tenantUrls.usersInvite(), { email });
 }
 
 export async function assignTenantUserRole(userId: string, role: TenantRole): Promise<void> {
-  await apiClient.post(`/admin/users/${userId}/role`, { role });
+  await apiClient.post(tenantUrls.userRole(userId), { role });
 }
 
 export async function removeTenantUser(userId: string): Promise<void> {
-  await apiClient.delete(`/admin/users/${userId}`);
+  await apiClient.delete(tenantUrls.userDelete(userId));
 }
 
 export async function setUserEnabled(userId: string, enabled: boolean): Promise<void> {
-  await apiClient.patch(`/admin/users/${userId}/enabled`, { enabled });
+  await apiClient.patch(tenantUrls.userEnabled(userId), { enabled });
 }
