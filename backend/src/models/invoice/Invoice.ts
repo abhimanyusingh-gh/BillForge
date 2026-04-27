@@ -469,8 +469,12 @@ invoiceSchema.index(
   { status: 1, createdAt: 1 },
   { partialFilterExpression: { status: INVOICE_STATUS.PENDING_TRIAGE } }
 );
+// Recent-ingestions report (#181) filters by (tenantId,
+// sourceMailboxAssignmentId, createdAt) with no clientOrgId predicate;
+// keep the leading keys aligned with the query so the planner picks
+// IXSCAN. Partial-filter restricts the index to stamped rows only.
 invoiceSchema.index(
-  { tenantId: 1, clientOrgId: 1, sourceMailboxAssignmentId: 1, createdAt: -1 },
+  { tenantId: 1, sourceMailboxAssignmentId: 1, createdAt: -1 },
   { partialFilterExpression: { sourceMailboxAssignmentId: { $type: "objectId" } } }
 );
 
