@@ -7,20 +7,24 @@ import {
   writeTenantSetupCompleted,
   TENANT_SETUP_COMPLETED_STORAGE_KEY
 } from "@/hooks/useTenantSetupCompleted";
+import { resetStores } from "@/test-utils/resetStores";
 
-jest.mock("@/api/client", () => ({
-  clearStoredSessionToken: () => {
-    window.localStorage.removeItem("ledgerbuddy_session_token");
-    window.sessionStorage.removeItem("activeTenantId");
-    window.sessionStorage.removeItem("tenantSetupCompleted");
-  }
-}));
+jest.mock("@/api/client", () => {
+  const { useAuthStore } = jest.requireActual("@/stores/authStore");
+  return {
+    clearStoredSessionToken: () => {
+      window.localStorage.removeItem("ledgerbuddy_session_token");
+      useAuthStore.getState().clearAuth();
+    }
+  };
+});
 
 import { clearStoredSessionToken } from "@/api/client";
 
 beforeEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
+  resetStores();
 });
 
 describe("hooks/useTenantSetupCompleted — logout-clears-flag (#193 bot review case c)", () => {
