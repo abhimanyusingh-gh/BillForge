@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useActiveRealmStore } from "@/stores/activeRealmStore";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ACTIVE_TENANT_ID_STORAGE_KEY = "activeTenantId";
@@ -56,6 +57,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
     writeTenantIdToStorage(null);
     writeSetupCompletedToStorage(false);
     set({ activeTenantId: null, tenantSetupCompleted: false });
+    useActiveRealmStore.setState({ id: null });
   }
 }));
 
