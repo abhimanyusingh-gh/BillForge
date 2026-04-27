@@ -52,7 +52,7 @@ export async function fetchSessionContext(): Promise<SessionContextResponse> {
 }
 
 export async function completeTenantOnboarding(payload: { tenantName: string; adminEmail: string }): Promise<void> {
-  await apiClient.post("/tenant/onboarding/complete", payload);
+  await apiClient.post(tenantUrls.onboardingComplete(), payload);
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {

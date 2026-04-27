@@ -73,11 +73,11 @@ export async function onboardTenantAdmin(payload: {
 }
 
 export async function fetchApprovalWorkflow(): Promise<ApprovalWorkflowConfig> {
-  return (await apiClient.get("/admin/approval-workflow")).data;
+  return (await apiClient.get(complianceUrls.approvalWorkflowGet())).data;
 }
 
 export async function saveApprovalWorkflow(config: ApprovalWorkflowConfig): Promise<ApprovalWorkflowConfig> {
-  return (await apiClient.put("/admin/approval-workflow", config)).data;
+  return (await apiClient.put(complianceUrls.approvalWorkflowUpdate(), config)).data;
 }
 
 export async function fetchGlCodes(params?: { search?: string; category?: string; active?: boolean }): Promise<{ items: GlCode[]; total: number }> {
@@ -141,11 +141,11 @@ interface ApprovalLimitsResponse {
 }
 
 export async function fetchApprovalLimits(): Promise<ApprovalLimitsResponse> {
-  return (await apiClient.get<ApprovalLimitsResponse>("/admin/approval-limits")).data;
+  return (await apiClient.get<ApprovalLimitsResponse>(complianceUrls.approvalLimitsGet())).data;
 }
 
 export async function saveApprovalLimits(limits: Record<string, number | null>): Promise<{ updated: boolean }> {
-  return (await apiClient.put<{ updated: boolean }>("/admin/approval-limits", { limits })).data;
+  return (await apiClient.put<{ updated: boolean }>(complianceUrls.approvalLimitsUpdate(), { limits })).data;
 }
 
 export interface NotificationConfig {

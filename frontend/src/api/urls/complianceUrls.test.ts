@@ -26,7 +26,11 @@ describe("api/urls/complianceUrls — collection routes", () => {
     ["notificationConfig", "/tenants/tenant-1/clientOrgs/client-1/admin/notification-config"],
     ["tcsConfig", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config"],
     ["tcsConfigRoles", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config/roles"],
-    ["tcsConfigHistory", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config/history"]
+    ["tcsConfigHistory", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config/history"],
+    ["approvalWorkflowGet", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-workflow"],
+    ["approvalWorkflowUpdate", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-workflow"],
+    ["approvalLimitsGet", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-limits"],
+    ["approvalLimitsUpdate", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-limits"]
   ] as const)("%s resolves to %s", (method, expected) => {
     const fn = complianceUrls[method] as () => string;
     expect(fn()).toBe(expected);
@@ -65,12 +69,24 @@ describe("api/urls/complianceUrls — missing-context guards", () => {
     expect(() => complianceUrls.vendorUpdate("v-1")).toThrow(
       MissingActiveClientOrgError
     );
+    expect(() => complianceUrls.approvalWorkflowGet()).toThrow(
+      MissingActiveClientOrgError
+    );
+    expect(() => complianceUrls.approvalLimitsGet()).toThrow(
+      MissingActiveClientOrgError
+    );
   });
 
   it("throws MissingActiveClientOrgError when clientOrgId is unset", () => {
     setActiveClientOrgId(null);
     expect(() => complianceUrls.tcsConfig()).toThrow(MissingActiveClientOrgError);
     expect(() => complianceUrls.glCodeDelete("GL-1")).toThrow(
+      MissingActiveClientOrgError
+    );
+    expect(() => complianceUrls.approvalWorkflowUpdate()).toThrow(
+      MissingActiveClientOrgError
+    );
+    expect(() => complianceUrls.approvalLimitsUpdate()).toThrow(
       MissingActiveClientOrgError
     );
   });

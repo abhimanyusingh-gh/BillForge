@@ -14,7 +14,7 @@ import { createGmailConnectionRouter, createGmailPublicRouter } from "@/routes/t
 import { createAuthRouter } from "@/routes/auth/auth.js";
 import { createSessionRouter } from "@/routes/auth/session.js";
 import { createTenantAdminRouter } from "@/routes/tenant/tenantAdmin.js";
-import { createTenantLifecycleRouter } from "@/routes/tenant/tenantLifecycle.js";
+import { createTenantLifecycleRouter, createTenantOnboardingCompleteRouter } from "@/routes/tenant/tenantLifecycle.js";
 import { createClientOrgsRouter } from "@/routes/tenant/clientOrgs.js";
 import { createMailboxAssignmentsRouter } from "@/routes/tenant/mailboxAssignments.js";
 import { createPlatformAdminRouter } from "@/routes/admin/platformAdmin.js";
@@ -202,13 +202,22 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   tenantAdminRouter.use(createMailboxAssignmentsRouter(dependencies.mailboxAssignmentsAdminService));
   tenantAdminRouter.use(createGmailConnectionRouter(dependencies.gmailIntegrationService));
   tenantAdminRouter.use(createNotificationLogRouter());
+  // `/tenant/onboarding/complete` runs DURING tenant setup (admin clicks
+  // "complete onboarding" before `requires_tenant_setup` flips to false), so
+  // it sits on `tenantAdminRouter` (omits `requireTenantSetupCompleted`),
+  // mirroring the legacy `/api` mount above. Sub-PR F drops the legacy mount
+  // once zero callers remain.
+  tenantAdminRouter.use(createTenantOnboardingCompleteRouter(dependencies.tenantAdminService));
 
   // Bank domain — realm-scoped routers (accounts + statements) mount under
   // `clientOrgRouter`. The shared `BankStatementParseProgress` instance is
   // passed into both the realm-scoped router (for upload broadcasts) and the
   // standalone SSE router (for subscribers) so events flow end-to-end.
-  // The SSE subscriber endpoint is tenant-scoped and uses EventSource which
-  // bypasses the axios interceptor, so it stays on the legacy `/api` mount.
+  // The SSE subscriber endpoint is tenant-scoped (no clientOrgId filter): it
+  // dual-mounts on the legacy `/api` path AND on `tenantRouter` so the FE
+  // can construct the URL via `bankUrls.parseSse()` while EventSource still
+  // bypasses the axios interceptor. Sub-PR F drops the legacy mount once
+  // zero callers remain.
   const bankParseProgress = new BankStatementParseProgress();
   clientOrgRouter.use(createBankAccountsRouter(dependencies.bankService));
   clientOrgRouter.use(createBankStatementsRouter(dependencies.fileStore, dependencies.ocrProvider, dependencies.fieldVerifier, bankParseProgress));
@@ -218,6 +227,7 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
     requireTenantSetupCompleted,
     createBankStatementsParseSseRouter(bankParseProgress)
   );
+  tenantRouter.use(createBankStatementsParseSseRouter(bankParseProgress));
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : "Unknown server error";

@@ -30,6 +30,22 @@ describe("api/urls/bankUrls — collection routes", () => {
   });
 });
 
+describe("api/urls/bankUrls — tenant-scoped routes", () => {
+  it("parseSse resolves to the tenant-scoped SSE subscriber path (no clientOrgId segment)", () => {
+    expect(bankUrls.parseSse()).toBe("/tenants/tenant-1/bank-statements/parse/sse");
+  });
+
+  it("parseSse throws MissingActiveClientOrgError when tenantId is unset", () => {
+    writeActiveTenantId(null);
+    expect(() => bankUrls.parseSse()).toThrow(MissingActiveClientOrgError);
+  });
+
+  it("parseSse resolves even when clientOrgId is unset (tenant-scoped only)", () => {
+    setActiveClientOrgId(null);
+    expect(bankUrls.parseSse()).toBe("/tenants/tenant-1/bank-statements/parse/sse");
+  });
+});
+
 describe("api/urls/bankUrls — id-bearing routes", () => {
   it("accountDelete encodes the account id into the nested path", () => {
     expect(bankUrls.accountDelete("acct/1")).toBe(

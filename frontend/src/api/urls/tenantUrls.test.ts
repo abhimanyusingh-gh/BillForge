@@ -19,7 +19,8 @@ afterEach(() => {
 describe("api/urls/tenantUrls — collection routes", () => {
   it.each([
     ["usersList", "/tenants/tenant-1/admin/users"],
-    ["usersInvite", "/tenants/tenant-1/admin/users/invite"]
+    ["usersInvite", "/tenants/tenant-1/admin/users/invite"],
+    ["onboardingComplete", "/tenants/tenant-1/tenant/onboarding/complete"]
   ] as const)("%s resolves to %s", (method, expected) => {
     const fn = tenantUrls[method] as () => string;
     expect(fn()).toBe(expected);
@@ -61,6 +62,9 @@ describe("api/urls/tenantUrls — missing-context guards", () => {
       MissingActiveClientOrgError
     );
     expect(() => tenantUrls.userEnabled("user-1")).toThrow(
+      MissingActiveClientOrgError
+    );
+    expect(() => tenantUrls.onboardingComplete()).toThrow(
       MissingActiveClientOrgError
     );
   });
