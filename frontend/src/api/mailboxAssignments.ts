@@ -37,8 +37,8 @@ const INTEGRATIONS_PATH = "/admin/integrations";
 export interface AvailableIntegration {
   _id: string;
   emailAddress: string | null;
-  status: string | null;
-  provider: string | null;
+  status: string;
+  provider: string;
 }
 
 export async function listIntegrations(): Promise<AvailableIntegration[]> {
