@@ -9,22 +9,7 @@ declare module "express-serve-static-core" {
   }
 }
 
-/**
- * Middleware for the nested-router scaffold introduced by #171.
- *
- * The URL shape encodes scope in the path:
- *   /api/tenants/:tenantId/...                          tenant-wide
- *   /api/tenants/:tenantId/clientOrgs/:clientOrgId/...  realm-scoped
- *
- * These middlewares are the sole source of `req.activeClientOrgId` post-#230;
- * the legacy query/header/session priority chain has been deleted now that
- * every realm-scoped route mounts under the nested tree.
- */
 
-/**
- * Assert the path-supplied `:tenantId` matches the authenticated tenant.
- * Returns 403 on mismatch (authenticated as tenant A but URL targets tenant B).
- */
 export function requireMatchingTenantIdParam(
   req: Request,
   res: Response,
@@ -47,12 +32,6 @@ export function requireMatchingTenantIdParam(
   }
 }
 
-/**
- * Assert the path-supplied `:clientOrgId` is owned by the authenticated tenant
- * and stamp `req.activeClientOrgId` for downstream handlers (preserves the
- * existing `req.activeClientOrgId` contract so domain handlers don't need to
- * change their body — only the mount point and the middleware chain change).
- */
 export async function requirePathClientOrgOwnership(
   req: Request,
   res: Response,

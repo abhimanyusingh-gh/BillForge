@@ -29,11 +29,6 @@ function matchesMagicBytes(filename: string, buffer: Buffer): boolean {
   return true;
 }
 
-/**
- * Tenant-scoped ingestion job orchestration: status / SSE / start / pause /
- * email-simulate. Mounted under `/api/tenants/:tenantId/...` — the parent
- * router validates the path tenantId against the authenticated tenant.
- */
 export function createJobsRouter(
   ingestionService: IngestionService,
   emailSimulationService?: EmailSimulationService,
@@ -116,9 +111,6 @@ export function createJobsRouter(
         return;
       }
 
-      // Post #198 cutover: clientOrgId is supplied by the path
-      // (`/clientOrgs/:clientOrgId/...`) and ownership-validated upstream by
-      // `requirePathClientOrgOwnership`, which stamps `req.activeClientOrgId`.
       const ownedClientOrgId = req.activeClientOrgId;
       if (!ownedClientOrgId) {
         res.status(400).json({ message: "clientOrgId is required in the upload path." });
@@ -224,9 +216,6 @@ export function createJobsRouter(
         return;
       }
 
-      // Post #198 cutover: clientOrgId is supplied by the path
-      // (`/clientOrgs/:clientOrgId/...`) and ownership-validated upstream by
-      // `requirePathClientOrgOwnership`, which stamps `req.activeClientOrgId`.
       const ownedClientOrgId = req.activeClientOrgId;
       if (!ownedClientOrgId) {
         res.status(400).json({ message: "clientOrgId is required in the upload path." });
