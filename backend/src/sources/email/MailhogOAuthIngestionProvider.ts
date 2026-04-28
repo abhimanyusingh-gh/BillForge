@@ -9,6 +9,7 @@ import { refreshGoogleAccessToken } from "@/sources/email/gmailOAuthClient.js";
 import type { EmailSourceConfig, OAuth2EmailAuthConfig } from "@/sources/email/types.js";
 import { toUUID } from "@/types/uuid.js";
 import { buildXoauth2AuthorizationHeader } from "@/sources/email/xoauth2.js";
+import { MAILHOG_URL_PATHS } from "@/integrations/urls/mailhogUrls.js";
 
 interface WrapperMessage {
   id: string;
@@ -46,7 +47,7 @@ export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
     const oauth = this.assertOAuthConfig();
     const accessToken = await this.resolveAccessToken(oauth, forceTokenRefresh);
     const apiBaseUrl = this.config.mailhogApiBaseUrl.replace(/\/+$/, "");
-    const response = await axios.get<WrapperResponse>(`${apiBaseUrl}/messages`, {
+    const response = await axios.get<WrapperResponse>(`${apiBaseUrl}${MAILHOG_URL_PATHS.messages}`, {
       params: lastCheckpoint ? { after: lastCheckpoint } : undefined,
       headers: {
         Authorization: buildXoauth2AuthorizationHeader(this.config.username, accessToken)

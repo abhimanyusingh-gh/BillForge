@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance } from "axios";
+import { KEYCLOAK_URL_PATHS } from "@/integrations/urls/keycloakUrls.js";
 
 const TOKEN_TTL_MS = 5 * 60 * 1000;
 
@@ -37,7 +38,7 @@ export class KeycloakAdminClient {
       body.credentials = [{ type: "password", value: password, temporary }];
     }
     const response = await this.http.post(
-      `${this.baseUrl}/admin/realms/${this.realm}/users`,
+      `${this.baseUrl}${KEYCLOAK_URL_PATHS.adminUsers(this.realm)}`,
       body,
       {
         headers: {
@@ -63,7 +64,7 @@ export class KeycloakAdminClient {
   async setPassword(kcUserId: string, password: string, temporary: boolean): Promise<void> {
     const token = await this.getAdminToken();
     const response = await this.http.put(
-      `${this.baseUrl}/admin/realms/${this.realm}/users/${kcUserId}/reset-password`,
+      `${this.baseUrl}${KEYCLOAK_URL_PATHS.adminUserResetPassword(this.realm, kcUserId)}`,
       { type: "password", value: password, temporary },
       {
         headers: {
@@ -80,7 +81,7 @@ export class KeycloakAdminClient {
   async findUserByEmail(email: string): Promise<{ id: string } | null> {
     const token = await this.getAdminToken();
     const response = await this.http.get(
-      `${this.baseUrl}/admin/realms/${this.realm}/users`,
+      `${this.baseUrl}${KEYCLOAK_URL_PATHS.adminUsers(this.realm)}`,
       {
         params: { email, exact: true },
         headers: { Authorization: `Bearer ${token}` }
@@ -101,7 +102,7 @@ export class KeycloakAdminClient {
   async deleteUser(kcUserId: string): Promise<void> {
     const token = await this.getAdminToken();
     const response = await this.http.delete(
-      `${this.baseUrl}/admin/realms/${this.realm}/users/${kcUserId}`,
+      `${this.baseUrl}${KEYCLOAK_URL_PATHS.adminUserById(this.realm, kcUserId)}`,
       {
         headers: { Authorization: `Bearer ${token}` }
       }
@@ -114,7 +115,7 @@ export class KeycloakAdminClient {
   async executeActionsEmail(kcUserId: string, actions: string[]): Promise<void> {
     const token = await this.getAdminToken();
     const response = await this.http.put(
-      `${this.baseUrl}/admin/realms/${this.realm}/users/${kcUserId}/execute-actions-email`,
+      `${this.baseUrl}${KEYCLOAK_URL_PATHS.adminUserExecuteActionsEmail(this.realm, kcUserId)}`,
       actions,
       {
         headers: {
@@ -140,7 +141,7 @@ export class KeycloakAdminClient {
     });
 
     const response = await this.http.post(
-      `${this.baseUrl}/realms/${this.realm}/protocol/openid-connect/token`,
+      `${this.baseUrl}${KEYCLOAK_URL_PATHS.openIdConnectToken(this.realm)}`,
       body.toString(),
       {
         headers: { "Content-Type": "application/x-www-form-urlencoded" }
