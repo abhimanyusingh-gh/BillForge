@@ -6,23 +6,70 @@ The product was previously called BillForge; the codebase, package names, and de
 
 ## Visual reference
 
-The canonical UI direction sits on the claude.ai design canvas:
+The current UI direction (post-Wave-3 redesign) is captured below. Captured from the claude.ai/design canvas at 1440×900 — the kit ships as a single React SPA with a left sidebar + top realm-switcher shell (`Cmd-K` to switch client org, `Cmd-\` to collapse the sidebar).
 
-- **Design canvas (UI kit)**: <https://api.anthropic.com/v1/design/h/TgD_Yx0OjDrwg6ai5BdyxQ?open_file=ui_kits%2Fapp%2Findex.html> — signed URL, may need refresh from the design owner.
+### Dashboard
+KPIs across the active realm, action-required queue, recent ingestion trail.
 
-The kit ships as a single React SPA with a left sidebar + top realm-switcher shell (`Cmd-K` to switch client org, `Cmd-\` to collapse the sidebar). Surfaces covered:
+![Dashboard with KPI tiles, action queue, payable trend chart, TDS deducted breakdown, recent activity feed](docs/design/screenshots/dashboard.png)
 
-- **Dashboard** — KPIs across the active realm, action-required queue, recent ingestion trail.
-- **Action queue / Triage** — invoices that need review or approval, with side-by-side detail and bounding-box overlays.
-- **Invoices + Invoice detail** — full table with payment/aging columns and per-invoice payment history.
-- **Vendors (V2) + vendor detail** — list with search/filter/sort, detail page with Invoices and TDS sub-tabs, Section 197 cert panel, merge dialog.
-- **Payments** — record single / multi-invoice / advance / reversal, method-specific validation, payment voucher export panel.
-- **TDS dashboard** — FY switcher, quarter drill-down, KPIs, liability table, cumulative chart.
-- **Tally sync + Exports** — pre-export modal, batch tracker with `AlterID`, re-export-failures action.
-- **Reconciliation + Bank statements** — junction-table reconciliation, split/aggregate detection, statement detail.
-- **Mailboxes / Client orgs / Tenant config** — operator surfaces for ingestion, realm management, compliance config.
+### Action queue
+Invoices that need review or approval, filtered by status with keyboard-driven walk-queue.
 
-Static screenshots are not committed in this PR — the canvas is a live React SPA and serves no stable image URLs at the time of writing. When the design owner publishes PNG exports, they should be dropped under `docs/design/` and referenced inline here.
+![Action Required table with NEEDS_REVIEW and AWAITING_APPROVAL filters, vendor / invoice / section / age columns](docs/design/screenshots/action-required.png)
+
+### Triage
+Firm-wide unrouted invoices that auto-routing could not place into a client org — explicit routing decision per row.
+
+![Triage table with reason chips MULTI_MATCH_GSTIN / NO_GSTIN / BOUNCE / MULTI_MATCH_PAN, route-to dropdown, route/reject actions](docs/design/screenshots/triage.png)
+
+### Invoices
+Full table with payment/aging columns and per-invoice payment history.
+
+![Invoices list with status, vendor, invoice number, date, section, age, net payable](docs/design/screenshots/invoices.png)
+
+### Vendors
+List with search/filter/sort; detail page (not shown) carries Invoices and TDS sub-tabs, Section 197 cert panel, merge dialog.
+
+![Vendors list with GSTIN, PAN, default section, MSME flag, lifetime spend](docs/design/screenshots/vendors.png)
+
+### Payments
+Single / multi-invoice / advance / reversal flows with MSME 45-day overdue surfacing and method-specific validation.
+
+![Payments list with selected rows ready to disburse, MSME-overdue highlight, RTGS/NEFT methods, schedule and disburse actions](docs/design/screenshots/payments.png)
+
+### TDS dashboard
+FY switcher, quarter drill-down, KPIs, liability table, cumulative chart, pending-challan deposits.
+
+![TDS Dashboard with FY 2025-26 KPIs, section-wise liability table, cumulative threshold chart, pending challan deposits](docs/design/screenshots/tds-dashboard.png)
+
+### Tally export
+Batch tracker with `AlterID`, retry-failed action, re-download for completed batches.
+
+![Tally Export batch list with success/failed states, AlterID values, retry and re-download actions](docs/design/screenshots/tally-export.png)
+
+<details>
+<summary>Additional surfaces (Reconciliation, Bank statements, Tally sync, Mailboxes, Client orgs, Config)</summary>
+
+### Reconciliation
+![Reconciliation with junction-table matching, split/aggregate detection](docs/design/screenshots/reconciliation.png)
+
+### Bank statements
+![Bank statements list with parsed-row counts and reconciliation status](docs/design/screenshots/bank-statements.png)
+
+### Tally sync
+![Tally Sync with bridge agent status, AlterID watermark, sync history](docs/design/screenshots/tally-sync.png)
+
+### Mailboxes
+![Mailboxes list with per-mailbox 30d ingestion counts and recent-ingestions drawer](docs/design/screenshots/mailboxes.png)
+
+### Client orgs
+![Client Orgs list with linked-record counts and archive controls](docs/design/screenshots/client-orgs.png)
+
+### Tenant config
+![Tenant Config with compliance, ingestion, and approval-policy panels](docs/design/screenshots/tenant-config.png)
+
+</details>
 
 ## Architecture at a glance
 
