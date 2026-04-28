@@ -5,6 +5,7 @@ import { MailboxNotificationEventModel } from "@/models/integration/MailboxNotif
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { NOTIFICATION_CONFIG_URL_PATHS } from "@/routes/urls/notificationConfigUrls.js";
 
 const VALID_RECIPIENT_TYPES = new Set<string>(NOTIFICATION_RECIPIENT_TYPES);
 
@@ -20,7 +21,7 @@ export function createNotificationConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/notification-config", requireCap("canManageConnections"), async (req, res, next) => {
+  router.get(NOTIFICATION_CONFIG_URL_PATHS.config, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -43,7 +44,7 @@ export function createNotificationConfigRouter() {
     }
   });
 
-  router.patch("/admin/notification-config", requireCap("canManageConnections"), async (req, res, next) => {
+  router.patch(NOTIFICATION_CONFIG_URL_PATHS.config, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -104,7 +105,7 @@ export function createNotificationLogRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/notifications/log", requireCap("canManageConnections"), async (req, res, next) => {
+  router.get(NOTIFICATION_CONFIG_URL_PATHS.log, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10) || 1);

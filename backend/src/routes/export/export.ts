@@ -4,12 +4,13 @@ import type { ExportService } from "@/services/export/exportService.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { isString } from "@/utils/validation.js";
+import { EXPORT_URL_PATHS } from "@/routes/urls/exportUrls.js";
 
 export function createExportRouter(exportService: ExportService | null) {
   const router = Router();
   router.use(requireAuth);
 
-  router.post("/exports/tally", requireCap("canExportToTally"), async (req, res, next) => {
+  router.post(EXPORT_URL_PATHS.tally, requireCap("canExportToTally"), async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({
@@ -32,7 +33,7 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
-  router.post("/exports/tally/download", requireCap("canExportToTally"), async (req, res, next) => {
+  router.post(EXPORT_URL_PATHS.tallyDownload, requireCap("canExportToTally"), async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({
@@ -68,7 +69,7 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
-  router.get("/exports/tally/history", async (req, res, next) => {
+  router.get(EXPORT_URL_PATHS.tallyHistory, async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({ message: "Tally exporter is not configured." });
@@ -90,7 +91,7 @@ export function createExportRouter(exportService: ExportService | null) {
     }
   });
 
-  router.get("/exports/tally/download/:batchId", async (req, res, next) => {
+  router.get(EXPORT_URL_PATHS.tallyDownloadByBatchId, async (req, res, next) => {
     try {
       if (!exportService) {
         res.status(400).json({ message: "Tally exporter is not configured." });

@@ -4,11 +4,12 @@ import { requireCap } from "@/auth/requireCapability.js";
 import type { MailboxAssignmentsAdminService } from "@/services/tenant/mailboxAssignmentsAdminService.js";
 import { isRecord, isString } from "@/utils/validation.js";
 import { HttpError } from "@/errors/HttpError.js";
+import { MAILBOX_URL_PATHS } from "@/routes/urls/mailboxUrls.js";
 
 export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminService) {
   const router = Router();
 
-  router.get("/admin/integrations", requireCap("canManageConnections"), async (req, res, next) => {
+  router.get(MAILBOX_URL_PATHS.integrations, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const items = await service.listAvailableIntegrations(getAuth(req).tenantId);
       res.json({ items });
@@ -17,7 +18,7 @@ export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminS
     }
   });
 
-  router.get("/admin/mailbox-assignments", requireCap("canManageConnections"), async (req, res, next) => {
+  router.get(MAILBOX_URL_PATHS.assignments, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const items = await service.list(getAuth(req).tenantId);
       res.json({ items });
@@ -26,7 +27,7 @@ export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminS
     }
   });
 
-  router.post("/admin/mailbox-assignments", requireCap("canManageConnections"), async (req, res, next) => {
+  router.post(MAILBOX_URL_PATHS.assignments, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const body = isRecord(req.body) ? req.body : {};
       if (!isString(body.integrationId)) {
@@ -44,7 +45,7 @@ export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminS
     }
   });
 
-  router.patch("/admin/mailbox-assignments/:id", requireCap("canManageConnections"), async (req, res, next) => {
+  router.patch(MAILBOX_URL_PATHS.assignmentById, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       const body = isRecord(req.body) ? req.body : {};
       const updated = await service.update({
@@ -59,7 +60,7 @@ export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminS
     }
   });
 
-  router.delete("/admin/mailbox-assignments/:id", requireCap("canManageConnections"), async (req, res, next) => {
+  router.delete(MAILBOX_URL_PATHS.assignmentById, requireCap("canManageConnections"), async (req, res, next) => {
     try {
       await service.delete({
         tenantId: getAuth(req).tenantId,
@@ -72,7 +73,7 @@ export function createMailboxAssignmentsRouter(service: MailboxAssignmentsAdminS
   });
 
   router.get(
-    "/admin/mailbox-assignments/:id/recent-ingestions",
+    MAILBOX_URL_PATHS.assignmentRecentIngestions,
     requireCap("canManageConnections"),
     async (req, res, next) => {
       try {

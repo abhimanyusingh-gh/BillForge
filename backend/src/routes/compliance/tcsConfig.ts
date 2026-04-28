@@ -5,6 +5,7 @@ import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { ActiveTenantRoles, normalizeTenantRole } from "@/models/core/TenantUserRole.js";
 import type { Request, Response, NextFunction } from "express";
+import { COMPLIANCE_URL_PATHS } from "@/routes/urls/complianceUrls.js";
 
 const VALID_ROLES = new Set<string>(ActiveTenantRoles);
 
@@ -33,7 +34,7 @@ export function createTcsConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/tcs-config", async (req, res, next) => {
+  router.get(COMPLIANCE_URL_PATHS.tcsConfig, async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -47,7 +48,7 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/tcs-config", requireTcsModifyAccess, async (req, res, next) => {
+  router.put(COMPLIANCE_URL_PATHS.tcsConfig, requireTcsModifyAccess, async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -97,7 +98,7 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/tcs-config/roles", requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.put(COMPLIANCE_URL_PATHS.tcsConfigRoles, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -124,7 +125,7 @@ export function createTcsConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.get("/admin/tcs-config/history", async (req, res, next) => {
+  router.get(COMPLIANCE_URL_PATHS.tcsConfigHistory, async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const clientOrgId = req.activeClientOrgId!;

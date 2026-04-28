@@ -3,6 +3,7 @@ import { ClientExportConfigModel } from "@/models/integration/ClientExportConfig
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { getAuth } from "@/types/auth.js";
+import { EXPORT_URL_PATHS } from "@/routes/urls/exportUrls.js";
 
 const VALID_CSV_COLUMN_KEYS = new Set([
   "invoiceNumber", "vendorName", "invoiceDate", "dueDate",
@@ -35,7 +36,7 @@ export function createClientExportConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/export-config", requireCap("canExportToTally"), async (req, res, next) => {
+  router.get(EXPORT_URL_PATHS.config, requireCap("canExportToTally"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
       const clientOrgId = req.activeClientOrgId!;
@@ -45,7 +46,7 @@ export function createClientExportConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.patch("/export-config", requireCap("canConfigureWorkflow"), async (req, res, next) => {
+  router.patch(EXPORT_URL_PATHS.config, requireCap("canConfigureWorkflow"), async (req, res, next) => {
     try {
       const auth = getAuth(req);
       const clientOrgId = req.activeClientOrgId!;

@@ -10,7 +10,7 @@ import { toValidObjectId } from "@/utils/validation.js";
 export function createTenantAdminRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
   const router = Router();
 
-  router.get("/admin/users", requireCap("canManageUsers"), async (request, response, next) => {
+  router.get(TENANT_URL_PATHS.adminUsers, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const users = await tenantAdminService.listTenantUsers(getAuth(request).tenantId);
       response.json({ items: users });
@@ -19,7 +19,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.post("/admin/users/invite", requireCap("canManageUsers"), async (request, response, next) => {
+  router.post(TENANT_URL_PATHS.adminUsersInvite, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const context = getAuth(request);
       const email = typeof request.body?.email === "string" ? request.body.email : "";
@@ -34,7 +34,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.post("/admin/users/:userId/role", requireCap("canManageUsers"), async (request, response, next) => {
+  router.post(TENANT_URL_PATHS.adminUserRole, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       if (!toValidObjectId(request.params.userId)) {
         response.status(400).json({ message: "Invalid userId." });
@@ -57,7 +57,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.patch("/admin/users/:userId/enabled", requireCap("canManageUsers"), async (request, response, next) => {
+  router.patch(TENANT_URL_PATHS.adminUserEnabled, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const enabled = request.body?.enabled;
       if (typeof enabled !== "boolean") {
@@ -76,7 +76,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/users/:userId", requireCap("canManageUsers"), async (request, response, next) => {
+  router.delete(TENANT_URL_PATHS.adminUserById, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       await tenantAdminService.removeUser({
         tenantId: getAuth(request).tenantId,
@@ -129,7 +129,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.get("/admin/users/:userId/viewer-scope", requireCap("canManageUsers"), async (request, response, next) => {
+  router.get(TENANT_URL_PATHS.adminUserViewerScope, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const result = await tenantAdminService.getViewerScope(getAuth(request).tenantId, request.params.userId);
       response.json(result);
@@ -138,7 +138,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.put("/admin/users/:userId/viewer-scope", requireCap("canManageUsers"), async (request, response, next) => {
+  router.put(TENANT_URL_PATHS.adminUserViewerScope, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       if (!toValidObjectId(request.params.userId)) {
         response.status(400).json({ message: "Invalid userId." });

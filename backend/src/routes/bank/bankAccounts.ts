@@ -4,12 +4,13 @@ import { requireCap } from "@/auth/requireCapability.js";
 import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import type { IBankConnectionService } from "@/services/bank/anumati/IBankConnectionService.js";
 import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
+import { BANK_URL_PATHS } from "@/routes/urls/bankUrls.js";
 
 export function createBankAccountsRouter(bankService: IBankConnectionService) {
   const router = Router();
 
   router.get(
-    "/bank/accounts",
+    BANK_URL_PATHS.accounts,
     requireCap("canManageConnections"),
     async (req, res, next) => {
       try {
@@ -45,7 +46,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   );
 
   router.post(
-    "/bank/accounts",
+    BANK_URL_PATHS.accounts,
     requireCap("canManageConnections"),
     async (req, res, next) => {
       try {
@@ -101,7 +102,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   );
 
   router.delete(
-    "/bank/accounts/:id",
+    BANK_URL_PATHS.accountById,
     requireCap("canManageConnections"),
     async (req, res, next) => {
       try {
@@ -125,7 +126,7 @@ export function createBankAccountsRouter(bankService: IBankConnectionService) {
   );
 
   router.post(
-    "/bank/accounts/:id/refresh",
+    BANK_URL_PATHS.accountRefresh,
     requireCap("canManageConnections"),
     async (req, res, next) => {
       try {

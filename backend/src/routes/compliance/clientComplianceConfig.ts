@@ -5,6 +5,7 @@ import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { RISK_SIGNAL_CODE } from "@/types/riskSignals.js";
 import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
+import { COMPLIANCE_URL_PATHS } from "@/routes/urls/complianceUrls.js";
 
 const VALID_PAN_LEVELS = new Set(["format", "format_and_checksum", "disabled"]);
 
@@ -138,7 +139,7 @@ export function createClientComplianceConfigRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.get(COMPLIANCE_URL_PATHS.complianceConfig, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const clientOrgId = req.activeClientOrgId!;
@@ -155,7 +156,7 @@ export function createClientComplianceConfigRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/compliance-config", requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.put(COMPLIANCE_URL_PATHS.complianceConfig, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const clientOrgId = req.activeClientOrgId!;
