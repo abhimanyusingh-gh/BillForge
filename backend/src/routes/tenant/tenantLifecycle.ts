@@ -1,18 +1,11 @@
 import { getAuth } from "@/types/auth.js";
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { requireCap } from "@/auth/requireCapability.js";
 import type { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import type { TenantInviteService } from "@/services/tenant/tenantInviteService.js";
 
-// `/tenant/onboarding/complete` is split into its own router factory so the
-// nested-tree mount under `tenantAdminRouter` (path
-// `/api/tenants/:tenantId/tenant/onboarding/complete`) can register JUST this
-// route without dragging in `/tenant/invites/accept`, which is a one-time
-// email-link flow and stays on the legacy `/api` mount.
-export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
-  const router = Router();
-
-  router.post("/tenant/onboarding/complete", requireCap("canManageUsers"), async (request, response, next) => {
+function buildOnboardingCompleteHandler(tenantAdminService: TenantAdminService): RequestHandler {
+  return async (request, response, next) => {
     try {
       const context = getAuth(request);
       const tenantName = typeof request.body?.tenantName === "string" ? request.body.tenantName : "";
@@ -27,15 +20,27 @@ export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantA
     } catch (error) {
       next(error);
     }
-  });
+  };
+}
 
+// Nested-tree mount under `tenantAdminRouter` (already prefixed
+// `/api/tenants/:tenantId/`) — registers JUST the onboarding-complete route at
+// `/onboarding/complete` so the resolved URL is the clean
+// `/api/tenants/:tenantId/onboarding/complete` (no double `tenant`).
+export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
+  const router = Router();
+  router.post("/onboarding/complete", requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
   return router;
 }
 
+// Legacy `/api`-prefixed mount — keeps the historical
+// `/api/tenant/onboarding/complete` shape AND the
+// `/api/tenant/invites/accept` route. Sub-PR F drops this once zero callers
+// remain on the legacy onboarding URL.
 export function createTenantLifecycleRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
   const router = Router();
 
-  router.use(createTenantOnboardingCompleteRouter(tenantAdminService));
+  router.post("/tenant/onboarding/complete", requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
 
   router.post("/tenant/invites/accept", async (request, response, next) => {
     try {
