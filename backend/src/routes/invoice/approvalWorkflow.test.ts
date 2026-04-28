@@ -15,7 +15,19 @@ jest.mock("../../auth/personaDefaults.js", () => ({
   getRoleDefaults: jest.fn(() => ({ approvalLimitMinor: null }))
 }));
 jest.mock("../../models/core/AuditLog.js", () => ({
-  AuditLogModel: { create: jest.fn().mockResolvedValue({}) }
+  AuditLogModel: { create: jest.fn().mockResolvedValue({}) },
+  AUDIT_ENTITY_TYPE: {
+    TDS_MANUAL_OVERRIDE: "tds_manual_override",
+    GL_OVERRIDE: "gl_override",
+    VENDOR: "vendor",
+    CONFIG: "config",
+    INVOICE: "invoice",
+    PAYMENT: "payment",
+    BANK_TRANSACTION: "bank_transaction",
+    RECONCILIATION: "reconciliation",
+    EXPORT: "export",
+    APPROVAL: "approval"
+  }
 }));
 jest.mock("../../utils/logger.js", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
@@ -138,11 +150,15 @@ describe("PUT /admin/approval-workflow condition validation", () => {
     })
   };
 
+  const auditLogStub = {
+    record: jest.fn().mockResolvedValue(undefined)
+  };
+
   let handler: Function;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    const router = createApprovalWorkflowRouter(workflowService as never);
+    const router = createApprovalWorkflowRouter(workflowService as never, auditLogStub as never);
     handler = findHandler(router, "put", "/admin/approval-workflow");
   });
 
