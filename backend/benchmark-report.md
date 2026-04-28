@@ -1,4 +1,4 @@
-# BillForge Extraction Benchmark Report
+# LedgerBuddy Extraction Benchmark Report
 
 **Date:** 2026-04-03
 **Pipeline:** OCR (heuristic parser) + deterministic OCR recovery

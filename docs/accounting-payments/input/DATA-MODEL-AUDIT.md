@@ -2,7 +2,7 @@ Now I have a comprehensive picture. Let me compile the full report.
 
 ---
 
-# BillForge Data Model Report
+# LedgerBuddy Data Model Report
 
 ## 1. Executive Summary
 

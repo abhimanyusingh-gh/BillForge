@@ -5,7 +5,7 @@
 **Changelog from v4.2** (driven by 2026-04-23 architecture pivot + PRD cross-check):
 
 ## Architecture pivot
-- **Desktop Windows/Go bridge agent removed from MVP.** Replaced by a cloud **jumpbox** inside our VPC. Customer allowlists the jumpbox's static EIP; backend reaches Tally's HTTP-XML endpoint via the jumpbox over TCP:9000 (Tally's existing port). Matches PRD's stated connectivity model ("only TCP connectivity from BillForge server to Tally port 9000 required").
+- **Desktop Windows/Go bridge agent removed from MVP.** Replaced by a cloud **jumpbox** inside our VPC. Customer allowlists the jumpbox's static EIP; backend reaches Tally's HTTP-XML endpoint via the jumpbox over TCP:9000 (Tally's existing port). Matches PRD's stated connectivity model ("only TCP connectivity from LedgerBuddy server to Tally port 9000 required").
 - **Option A chosen**: jumpbox ships in Phase 2 alongside `TallyClient`, so customers allowlist the IP once and never re-whitelist.
 - **PRs cut** (moved to post-MVP "on-prem desktop agent" backlog): STUB-SIGN, BRIDGE-3a (BridgeAgent model/pairing), BRIDGE-3b (bridge cert rotation), BRIDGE-CA, BRIDGE-4a..g (Go core, Windows service, MSI, auto-update, telemetry, startup-checks, multi-machine), BRIDGE-CHAOS (desktop failure chaos), RUNBOOK-3. **~38.5d cut.**
 

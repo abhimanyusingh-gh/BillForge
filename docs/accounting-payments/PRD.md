@@ -1,9 +1,9 @@
-# BillForge PRD: Accounting, Payments & Tally Integration
+# LedgerBuddy PRD: Accounting, Payments & Tally Integration
 
 **Version**: 1.1
 **Date**: 2026-04-16
 **Status**: Draft
-**Authors**: Product Management, BillForge
+**Authors**: Product Management, LedgerBuddy
 **VKL Version**: Final (44 decisions, 20 constraints, 6 resolved conflicts)
 **EIL Entries**: 32 evidence items
 **OAR Items**: 15 open questions
@@ -19,7 +19,7 @@
 2. [Market Context & Competitive Landscape](#2-market-context--competitive-landscape)
    - 2.1 [Indian AP Automation Market (incl. TAM/SAM/SOM)](#21-indian-ap-automation-market)
    - 2.2 [Competitor Analysis (incl. Suvit, Refrens)](#22-competitor-analysis)
-   - 2.3 [BillForge Differentiators](#23-billforge-differentiators)
+   - 2.3 [LedgerBuddy Differentiators](#23-ledgerbuddy-differentiators)
    - 2.4 [Competitive Moat](#24-competitive-moat)
    - 2.5 [What Indian Accountants Need](#25-what-indian-accountants-need-that-competitors-do-not-offer-well)
 3. [User Personas](#3-user-personas)
@@ -63,9 +63,9 @@
 
 ## 1. Executive Summary
 
-BillForge is an India-specific accounts payable automation platform that ingests vendor invoices (via email, file upload, or folder scan), extracts structured data using OCR + SLM (Small Language Model), enriches each invoice with compliance data -- TDS, GST, PAN verification, MSME flags, and risk signals -- routes invoices through configurable multi-step approval workflows, and exports finalized vouchers to Tally Prime for accounting.
+LedgerBuddy is an India-specific accounts payable automation platform that ingests vendor invoices (via email, file upload, or folder scan), extracts structured data using OCR + SLM (Small Language Model), enriches each invoice with compliance data -- TDS, GST, PAN verification, MSME flags, and risk signals -- routes invoices through configurable multi-step approval workflows, and exports finalized vouchers to Tally Prime for accounting.
 
-This PRD defines the requirements for three interconnected capabilities that bring BillForge from a competent extraction-and-approval tool into a compliance-first AP automation platform:
+This PRD defines the requirements for three interconnected capabilities that bring LedgerBuddy from a competent extraction-and-approval tool into a compliance-first AP automation platform:
 
 1. **TDS Cumulative Threshold Tracking & Rate Hierarchy** -- per-vendor, per-section annual threshold compliance per the Income Tax Act, replacing today's single-transaction-only TDS computation with a full financial-year-aware cumulative engine. Layered rate resolution incorporating Section 197 lower deduction certificates, Section 206AA no-PAN penalties, tenant-level overrides, and the standard rate table.
 2. **Payment Recording & Tracking** -- recording payments against approved invoices, tracking partial/full payment status, advance payments, reversals, payment approval workflows, and generating Tally payment vouchers.
@@ -91,19 +91,19 @@ CA and accounting firms in India face a set of interlocking challenges that grow
 
 ### 1.2 The Solution
 
-BillForge addresses each of these pain points through an integrated platform built from the ground up for Indian accounting practices:
+LedgerBuddy addresses each of these pain points through an integrated platform built from the ground up for Indian accounting practices:
 
 - **AI-Powered Extraction.** Invoices enter the system through upload, email ingestion, or folder watch. OCR reads every line. An AI language model extracts structured fields -- vendor name, invoice number, date, line items with HSN/SAC, tax breakdowns, PAN, GSTIN, bank details -- and produces a confidence score for each field. The system highlights exactly where on the source document each value was found.
 
-- **India-First Compliance Engine.** BillForge automatically splits GST into CGST/SGST or IGST based on extracted GSTIN data. It detects the applicable TDS section from GL category and PAN type, calculates the TDS amount and net payable, validates PAN format and cross-references it with GSTIN, checks for MSME payment deadlines, and flags missing e-invoice IRN for high-value transactions. Every compliance check produces a clear risk signal -- not a hidden score, but a visible, actionable finding.
+- **India-First Compliance Engine.** LedgerBuddy automatically splits GST into CGST/SGST or IGST based on extracted GSTIN data. It detects the applicable TDS section from GL category and PAN type, calculates the TDS amount and net payable, validates PAN format and cross-references it with GSTIN, checks for MSME payment deadlines, and flags missing e-invoice IRN for high-value transactions. Every compliance check produces a clear risk signal -- not a hidden score, but a visible, actionable finding.
 
 - **One Client, One Workspace.** Each client is a separate tenant with its own chart of accounts, vendor master, TDS section mappings, TCS rates, approval workflows, and user access list. Data is completely isolated.
 
-- **Role-Based Team Access.** From firm partner (full control across clients) to audit clerk (read-only access for external auditors), BillForge maps to how your firm actually operates.
+- **Role-Based Team Access.** From firm partner (full control across clients) to audit clerk (read-only access for external auditors), LedgerBuddy maps to how your firm actually operates.
 
-- **One-Click Tally Export.** When invoices are approved, BillForge generates Tally-compatible XML with purchase vouchers that include the correct party ledger, GL-mapped purchase ledger, CGST/SGST/IGST/Cess ledger entries, and TDS payable ledger entries. Download the file and import it directly into Tally Prime.
+- **One-Click Tally Export.** When invoices are approved, LedgerBuddy generates Tally-compatible XML with purchase vouchers that include the correct party ledger, GL-mapped purchase ledger, CGST/SGST/IGST/Cess ledger entries, and TDS payable ledger entries. Download the file and import it directly into Tally Prime.
 
-- **Bank Statement Reconciliation.** Upload a bank statement (PDF or CSV), and BillForge automatically matches debit transactions to approved invoices based on amount, invoice number, vendor name, and date proximity. TDS and TCS adjustments are factored into the matching.
+- **Bank Statement Reconciliation.** Upload a bank statement (PDF or CSV), and LedgerBuddy automatically matches debit transactions to approved invoices based on amount, invoice number, vendor name, and date proximity. TDS and TCS adjustments are factored into the matching.
 
 ### What Exists Today
 
@@ -157,7 +157,7 @@ SOM rationale: India's CA firm ecosystem is relationship-driven. Initial tractio
 
 ### 2.2 Competitor Analysis
 
-| Capability | BillForge | Tally Prime | Zoho Books | ClearTax | Suvit | Refrens |
+| Capability | LedgerBuddy | Tally Prime | Zoho Books | ClearTax | Suvit | Refrens |
 |---|---|---|---|---|---|---|
 | **Invoice OCR/Extraction** | AI-powered (OCR + SLM), multi-format, auto-classification | None; manual data entry only | Basic OCR, template-limited | GST invoice OCR only (filing-centric) | Excel/PDF to Tally import; template-based extraction | Basic invoice creation; no inbound extraction |
 | **TDS Section Detection** | Auto-detect from vendor PAN category + GL category with confidence scoring | Manual selection per voucher | Manual; basic 194C/194J presets | Post-facto for filing; not AP-integrated | Manual section selection | Not supported |
@@ -170,26 +170,26 @@ SOM rationale: India's CA firm ecosystem is relationship-driven. Initial tractio
 | **Bank Reconciliation** | AI-scored matching, TDS-adjusted amounts, split/aggregate detection | BRS module (manual) | Auto-reconciliation | Not in scope | None | None |
 | **Target Market** | India SME/CA firms | India (all segments) | India + Global SME | India tax filing | India SME/CA (Tally users) | India freelancers/SME |
 
-### 2.3 BillForge Differentiators
+### 2.3 LedgerBuddy Differentiators
 
 1. **Cumulative TDS intelligence at AP entry point**: Per-vendor annual TDS threshold tracking with automatic catch-up computation is something no competitor offers at the AP entry point. ClearTax tracks cumulative amounts for filing but cannot influence deduction at invoice processing time. This is the deepest moat -- replicating the cumulative engine requires domain expertise, atomic ledger design, and rate hierarchy integration that template-based competitors cannot bolt on.
 2. **CA firm multi-tenancy with independent configs**: A single CA firm partner can manage multiple client companies, each with independent TDS configurations, GL mappings, and approval workflows -- a use case that Tally Prime handles poorly (separate data folders) and Zoho Books charges per-organization. Network effects compound: each CA firm brings 3-10 client tenants, creating organic growth per acquisition.
 3. **Compliance-first pipeline (not bolted-on)**: TDS, GST, PAN, and MSME compliance are embedded in the extraction and approval pipeline, not bolted on as a reporting layer. Risk signals surface at the point of action, not after filing deadlines. This architectural decision means compliance intelligence improves with every invoice processed, not just at quarter-end.
-4. **Extraction-to-Tally single flow**: No other tool combines AI-powered multi-format invoice extraction with correct Tally XML voucher generation. Tally users today re-key extracted data; BillForge eliminates that. This is the most visible differentiator but the least defensible -- competitors can replicate XML generation faster than cumulative compliance intelligence.
+4. **Extraction-to-Tally single flow**: No other tool combines AI-powered multi-format invoice extraction with correct Tally XML voucher generation. Tally users today re-key extracted data; LedgerBuddy eliminates that. This is the most visible differentiator but the least defensible -- competitors can replicate XML generation faster than cumulative compliance intelligence.
 
 ### 2.4 Competitive Moat
 
 Three competitive threats require explicit defensibility analysis:
 
-1. **Tally shipping native invoice import**: Tally Prime 5.x has shown no movement toward AI-based invoice extraction. Their product philosophy is "data entry in Tally" not "data import from outside." Even if Tally adds basic OCR, it will lack compliance enrichment (cumulative TDS, PAN validation, MSME tracking) and multi-tenant CA firm workflows. BillForge's moat is compliance intelligence, not import plumbing.
+1. **Tally shipping native invoice import**: Tally Prime 5.x has shown no movement toward AI-based invoice extraction. Their product philosophy is "data entry in Tally" not "data import from outside." Even if Tally adds basic OCR, it will lack compliance enrichment (cumulative TDS, PAN validation, MSME tracking) and multi-tenant CA firm workflows. LedgerBuddy's moat is compliance intelligence, not import plumbing.
 
-2. **Zoho Books expanding Tally integration**: Zoho has added Tally data migration tools but targets Tally-to-Zoho conversion, not Tally-alongside-Zoho workflows. CA firms overwhelmingly keep clients on Tally Prime; Zoho's strategy of replacing Tally alienates this segment. BillForge's "enhance Tally, don't replace it" positioning is structurally different and aligned with how CA firms actually work.
+2. **Zoho Books expanding Tally integration**: Zoho has added Tally data migration tools but targets Tally-to-Zoho conversion, not Tally-alongside-Zoho workflows. CA firms overwhelmingly keep clients on Tally Prime; Zoho's strategy of replacing Tally alienates this segment. LedgerBuddy's "enhance Tally, don't replace it" positioning is structurally different and aligned with how CA firms actually work.
 
-3. **ClearTax moving into AP**: ClearTax has deep filing-side TDS/GST compliance but approaches AP from a tax filing lens, not an operational AP lens. Their value ends at Form 26Q preparation; BillForge starts at invoice receipt and extends through payment and Tally export. ClearTax also lacks multi-tenant CA firm architecture.
+3. **ClearTax moving into AP**: ClearTax has deep filing-side TDS/GST compliance but approaches AP from a tax filing lens, not an operational AP lens. Their value ends at Form 26Q preparation; LedgerBuddy starts at invoice receipt and extends through payment and Tally export. ClearTax also lacks multi-tenant CA firm architecture.
 
-4. **Suvit as direct Tally import competitor**: Suvit's core value proposition -- Excel/PDF to Tally import -- overlaps with BillForge's export pipeline. However, Suvit is template-dependent (users map columns manually), has no compliance enrichment layer, no approval workflows, and no cumulative TDS tracking. BillForge's AI extraction + compliance engine provides structurally higher accuracy and auditability. The risk is Suvit's existing Tally user base and brand recognition among CA firms; mitigation is BillForge's demonstrably superior extraction quality and compliance automation in pilot comparisons.
+4. **Suvit as direct Tally import competitor**: Suvit's core value proposition -- Excel/PDF to Tally import -- overlaps with LedgerBuddy's export pipeline. However, Suvit is template-dependent (users map columns manually), has no compliance enrichment layer, no approval workflows, and no cumulative TDS tracking. LedgerBuddy's AI extraction + compliance engine provides structurally higher accuracy and auditability. The risk is Suvit's existing Tally user base and brand recognition among CA firms; mitigation is LedgerBuddy's demonstrably superior extraction quality and compliance automation in pilot comparisons.
 
-**Defensibility summary**: BillForge's moat is the combination of (a) AI extraction quality (OCR + SLM, not templates), (b) compliance intelligence embedded in the processing pipeline (not bolted on for filing), (c) multi-tenant CA firm architecture, and (d) correct Tally XML with bill tracking. No single competitor addresses all four.
+**Defensibility summary**: LedgerBuddy's moat is the combination of (a) AI extraction quality (OCR + SLM, not templates), (b) compliance intelligence embedded in the processing pipeline (not bolted on for filing), (c) multi-tenant CA firm architecture, and (d) correct Tally XML with bill tracking. No single competitor addresses all four.
 
 ### 2.5 What Indian Accountants Need That Competitors Do Not Offer Well
 
@@ -218,7 +218,7 @@ Three competitive threats require explicit defensibility analysis:
 - Tally import of third-party extractions produces "journal" entries instead of proper purchase vouchers, breaking bill-by-bill aging
 - Quarter-end 26Q preparation takes 3-4 days of manual aggregation
 
-**How BillForge Serves Rajesh**:
+**How LedgerBuddy Serves Rajesh**:
 - Multi-tenant workspace: one login, switch between client companies, each with independent compliance configuration
 - TDS cumulative dashboard: at-a-glance view of which vendors are approaching or have crossed annual thresholds, per section, per FY
 - TDS liability report exportable in Form 26Q structure (deductee-wise, section-wise, quarter-wise)
@@ -256,7 +256,7 @@ Three competitive threats require explicit defensibility analysis:
 - Cannot tell if a vendor's PAN is valid or if the GSTIN matches the PAN until IT notice arrives
 - Bank reconciliation takes 2 full days per month
 
-**How BillForge Serves Priya**:
+**How LedgerBuddy Serves Priya**:
 - Auto-extraction reduces per-invoice handling to 30-60 seconds (review + approve)
 - System auto-computes TDS with clear signals: "Below annual threshold -- no TDS deducted" or "Threshold crossed with this invoice -- catch-up TDS of Rs X,XXX applied"
 - PAN validation and GSTIN cross-reference happen at extraction time; risk signals surface immediately
@@ -278,7 +278,7 @@ Three competitive threats require explicit defensibility analysis:
 - AP aging report in Tally does not distinguish MSME vendors from non-MSME vendors; statutory 45-day deadline missed repeatedly
 - Quarter-end TDS deposit calculation requires pulling data from Tally, Excel, and the bank portal separately
 
-**How BillForge Serves Meera**:
+**How LedgerBuddy Serves Meera**:
 - TDS rate hierarchy transparently shows: "Rate source: Section 197 certificate (valid through 31-Mar-2027, Rs 15,00,000 remaining)" or "Rate source: Standard rate table, Section 194C, 2%"
 - GST exclusion from TDS base is automatic per CBDT Circular 23/2017; auditable in the TDS result on each invoice
 - MSME risk signals at warning (7 days before deadline) and critical (overdue) levels
@@ -300,7 +300,7 @@ Three competitive threats require explicit defensibility analysis:
 - When a backdated invoice arrives (invoice date in a prior quarter), recalculating the cumulative threshold impact requires pulling all prior invoices for that vendor
 - Cannot quickly answer "what was the TDS deducted on vendor X for section 194C in Q2 FY 2025-26?" without pulling Tally data + Excel reconciliation
 
-**How BillForge Serves Vikram**:
+**How LedgerBuddy Serves Vikram**:
 - `TdsVendorLedger` maintains an atomic, per-entry audit trail of every invoice's contribution to the cumulative threshold -- queryable by vendor, section, FY, and quarter
 - Section 197 certificates stored on VendorMaster with validity dates and remaining amount; system auto-reverts to standard rate on expiry
 - Backdated invoices automatically assigned to the correct FY based on invoice date (IST timezone) with catch-up TDS computation
@@ -308,7 +308,7 @@ Three competitive threats require explicit defensibility analysis:
 
 ### 3.5 Platform Operations Manager (Aisha, 30, Pune)
 
-**Role**: Platform Operations Manager at BillForge, responsible for onboarding new tenants, monitoring platform usage, and ensuring compliance health across all tenants.
+**Role**: Platform Operations Manager at LedgerBuddy, responsible for onboarding new tenants, monitoring platform usage, and ensuring compliance health across all tenants.
 
 **Goals**:
 - Onboard new CA firm tenants with minimal friction and consistent configuration
@@ -322,7 +322,7 @@ Three competitive threats require explicit defensibility analysis:
 - Usage metrics (invoice volume, export frequency, payment adoption) are not surfaced; churn signals go undetected
 - Compliance issues at one tenant are invisible until the CA firm escalates
 
-**How BillForge Serves Aisha**:
+**How LedgerBuddy Serves Aisha**:
 - Standardized tenant onboarding workflow with progress tracking and validation at each step
 - Platform-level analytics dashboard showing per-tenant KPIs: invoice volume, TDS accuracy, export success rate, MSME overdue count, payment adoption
 - Compliance health heatmap: tenants ranked by risk score (unresolved critical signals, missed MSME deadlines, low TDS accuracy)
@@ -525,7 +525,7 @@ The highest applicable rate wins, EXCEPT Section 197 which overrides downward (i
 
 **User Story**: "As a CA firm partner, I need a TDS liability report by vendor, section, and quarter for Form 26Q preparation, so I can file quarterly returns without manually aggregating data from Tally and spreadsheets."
 
-**Background**: Form 26Q is the quarterly TDS return filed by deductors for non-salary payments. It requires deductee-wise details: PAN, section, amount paid/credited, TDS deducted, TDS deposited, date of deduction, date of deposit. BillForge's `TdsVendorLedger` contains the first five data points; deposit tracking is deferred (OAR-010).
+**Background**: Form 26Q is the quarterly TDS return filed by deductors for non-salary payments. It requires deductee-wise details: PAN, section, amount paid/credited, TDS deducted, TDS deposited, date of deduction, date of deposit. LedgerBuddy's `TdsVendorLedger` contains the first five data points; deposit tracking is deferred (OAR-010).
 
 #### Functional Requirements: TDS Reporting
 
@@ -851,7 +851,7 @@ The MSME Dashboard is a section within Reports, accessible to users with `canApp
 | FR-TALLY-010 | All GST ledger entries (CGST, SGST, IGST, Cess) use `ALLLEDGERENTRIES.LIST`. Intra/inter-state logic unchanged. | Total of all entries balances to zero. Purchase ledger = taxable base. |
 | FR-TALLY-011 | TDS ledger entry uses `ALLLEDGERENTRIES.LIST` with `ISDEEMEDPOSITIVE=Yes` and negative amount. | Entry appears only when TDS > 0. Party ledger reflects `netPayableMinor`. Accounting balances. |
 | FR-TALLY-012 | Batch export: up to 100 vouchers per `<TALLYMESSAGE>`. Split for larger batches. One HTTP POST per batch. | Per-invoice success/failure tracked. [VKL: D-029, C-018] |
-| FR-TALLY-013 | `<NARRATION>` includes vendor name, invoice number, BillForge ref. Truncated to 255 chars. XML-escaped. | Structured narrations enable identification without opening vouchers. |
+| FR-TALLY-013 | `<NARRATION>` includes vendor name, invoice number, LedgerBuddy ref. Truncated to 255 chars. XML-escaped. | Structured narrations enable identification without opening vouchers. |
 | FR-TALLY-014 | `<PARTYGSTIN>` present when vendor has GSTIN. | GSTIN validated as 15-char alphanumeric before inclusion. |
 | FR-TALLY-015 | Invoice `export.exportVersion` counter increments on each export. Used in GUID (FR-TALLY-007). | Version tracking enables safe re-export and audit trail. |
 
@@ -938,7 +938,7 @@ The MSME Dashboard is a section within Reports, accessible to users with `canApp
 
 ### 4.11 Tally Payment Voucher Export
 
-**User Story**: "As a finance controller, I need to export payment vouchers to Tally so vendor outstanding balances are updated automatically when payments are recorded in BillForge."
+**User Story**: "As a finance controller, I need to export payment vouchers to Tally so vendor outstanding balances are updated automatically when payments are recorded in LedgerBuddy."
 
 **Priority**: P1 -- MVP (depends on Phase 3)
 
@@ -1142,10 +1142,10 @@ All operations execute within the same MongoDB transaction as the vendor merge.
 
 | ID | Requirement | Acceptance Criteria |
 |---|---|---|
-| FR-VENDOR-020 | Sync vendor list from Tally: fetch Sundry Creditor ledgers, compare with BillForge records. Match: exact name, then tallyLedgerName, then fuzzy. | Results: matched, unmatched_in_billforge, unmatched_in_tally. |
+| FR-VENDOR-020 | Sync vendor list from Tally: fetch Sundry Creditor ledgers, compare with LedgerBuddy records. Match: exact name, then tallyLedgerName, then fuzzy. | Results: matched, unmatched_in_ledgerbuddy, unmatched_in_tally. |
 | FR-VENDOR-021 | Auto-create vendors in Tally when `autoCreateVendors` enabled. Generate ledger XML with NAME, PARENT, GSTIN, PANIT, ISBILLWISEON=Yes. | Failed auto-creation excludes invoices from export batch. |
 | FR-VENDOR-022 | `tallySyncStatus` field on VendorMaster: not_synced (default), synced, pending_create, created_in_tally. | Vendor list shows colored indicator. |
-| FR-VENDOR-023 | Conflict detection during sync: compare GSTIN, PAN, state. Report conflicts. Do not block export. | User can update BillForge or Tally data. AuditLog for resolutions. |
+| FR-VENDOR-023 | Conflict detection during sync: compare GSTIN, PAN, state. Report conflicts. Do not block export. | User can update LedgerBuddy or Tally data. AuditLog for resolutions. |
 
 **Vendor List Wireframe:**
 
@@ -1228,7 +1228,7 @@ All operations execute within the same MongoDB transaction as the vendor merge.
 
 | ID | Requirement | Acceptance Criteria |
 |---|---|---|
-| FR-GST-014 | Import GSTR-2B JSON from GST portal and match against BillForge invoices. | Upload endpoint accepts standard format. |
+| FR-GST-014 | Import GSTR-2B JSON from GST portal and match against LedgerBuddy invoices. | Upload endpoint accepts standard format. |
 | FR-GST-015 | Matching: supplier GSTIN (exact), invoice number (fuzzy), date (30-day tolerance), taxable value (Rs 1), tax amounts (Rs 1 each). | Per-field tolerance. |
 | FR-GST-016 | Results: Matched, Mismatch (amounts differ), Missing in GSTR-2B, Extra in GSTR-2B. | Filterable view by category. |
 | FR-GST-017 | `GSTR2B_MISMATCH` risk signal (critical) for ITC at risk. | Attached to affected invoices. 8-year retention. |
@@ -1317,7 +1317,7 @@ All operations execute within the same MongoDB transaction as the vendor merge.
 
 ## 5. Role Hierarchy & Capabilities
 
-BillForge's role system maps directly to how CA and accounting firms are structured. Each role carries a default set of capabilities that can be customized per user.
+LedgerBuddy's role system maps directly to how CA and accounting firms are structured. Each role carries a default set of capabilities that can be customized per user.
 
 ### Firm Role Mapping
 
@@ -1992,8 +1992,8 @@ MVP + Phase 5 + Future Phase 6 (Tally Desktop Bridge).
 |---|---|
 | Day 1-2 | Tenant setup: company name, TAN, GL code CSV import, TDS section mapping, Tally company name |
 | Day 3-4 | Historical invoice import: upload 50-100 past invoices to build TdsVendorLedger baseline and vendor master |
-| Day 5-7 | Supervised processing: CA firm processes 20-30 live invoices with BillForge team observing and collecting friction points |
-| Day 8-10 | Independent processing: CA firm processes invoices independently; BillForge monitors error rates and support tickets |
+| Day 5-7 | Supervised processing: CA firm processes 20-30 live invoices with LedgerBuddy team observing and collecting friction points |
+| Day 8-10 | Independent processing: CA firm processes invoices independently; LedgerBuddy monitors error rates and support tickets |
 | Day 11-14 | Tally export validation: export 50+ invoices to Tally, verify bill tracking, run Form 26Q comparison against manual preparation |
 
 #### Pricing Hypothesis
@@ -2011,7 +2011,7 @@ Annual billing at 2 months free (10-month effective rate). Pilot firms receive 3
 A pilot converts to paid when all of the following are met:
 
 1. **Functional**: Tally import success rate > 95% for 2 consecutive weeks
-2. **Adoption**: > 80% of invoices processed through BillForge (not manually entered in Tally)
+2. **Adoption**: > 80% of invoices processed through LedgerBuddy (not manually entered in Tally)
 3. **Accuracy**: Zero TDS computation errors flagged by CA partner during pilot period
 4. **Value**: CA partner confirms >= 50% reduction in quarter-end TDS preparation time (qualitative)
 5. **Willingness**: CA partner agrees to pricing terms and signs service agreement
@@ -2194,7 +2194,7 @@ Before the demo, seed the following in a dedicated demo tenant:
 
 | Step | Action | What to Show | Talking Points |
 |---|---|---|---|
-| **1. Login & Overview** | Log in as tenant admin. Show Overview dashboard. | KPI cards, status distribution, Action Required count badge. | "BillForge gives your team a single view of where every invoice stands. No more digging through Tally data folders." |
+| **1. Login & Overview** | Log in as tenant admin. Show Overview dashboard. | KPI cards, status distribution, Action Required count badge. | "LedgerBuddy gives your team a single view of where every invoice stands. No more digging through Tally data folders." |
 | **2. Upload Invoices** | Upload 3 invoice PDFs (drag and drop). | Ingestion progress overlay with elapsed time, OCR + SLM extraction, auto-classification. | "Drop invoices in any format -- PDF, image, scanned. AI extracts vendor, amounts, GST breakdown, dates. No templates to configure." |
 | **3. Review Extracted Data** | Open an extracted invoice. Show compliance panel. | Auto-detected TDS section, GST breakdown (CGST/SGST or IGST), PAN validation level, risk signals. | "Every invoice is enriched with compliance data at extraction time. TDS section, PAN status, GST treatment -- all before you approve." |
 | **4. TDS Threshold Crossing** | Open the invoice for "Infra Services Ltd" (Rs 20,000, pushing cumulative from Rs 90,000 to Rs 1,10,000). | `TDS_ANNUAL_THRESHOLD_CROSSED` risk signal. Catch-up TDS computed on full Rs 1,10,000. TDS amount shows the catch-up calculation. | "This invoice just pushed the vendor over the Section 194C annual threshold. The system automatically computes catch-up TDS on the entire cumulative amount. No spreadsheet tracking needed." |
@@ -2202,7 +2202,7 @@ Before the demo, seed the following in a dedicated demo tenant:
 | **6. Vendor Management** | Navigate to Vendors tab. Open "Infra Services Ltd." | Vendor detail with TDS summary (cumulative position across FYs), Section 197 certificate, possible duplicates, Tally ledger mapping. | "One screen shows everything about a vendor: PAN, GSTIN, TDS position, MSME status, Tally mapping. CA firms managing 30+ clients can finally see the full picture." |
 | **7. Approve & Export** | Approve 5 invoices. Click Export to Tally. | Pre-export validation modal: GL codes assigned, PAN present, no critical signals. Export 5 valid invoices. | "Before export, the system checks for problems. No more failed Tally imports because a GL code was missing or a vendor name was empty." |
 | **8. Show Tally Import Result** | Switch to Tally Prime (pre-imported). Show the purchase voucher. | Invoice-mode voucher with BILLALLOCATIONS, bill tracking in Tally's outstanding report, PLACEOFSUPPLY for GST filing. | "The voucher imports correctly on the first try. Bill tracking works. GST filing data is present. AP aging in Tally shows the right numbers." |
-| **9. Record Payment** | Back in BillForge. Record a payment against one approved invoice. | Payment form with amount, method, UTR. Invoice status updates to "Paid." Payment history visible. | "Record payments as they happen. The invoice status updates instantly. When you export, BillForge generates the payment voucher that settles the bill in Tally." |
+| **9. Record Payment** | Back in LedgerBuddy. Record a payment against one approved invoice. | Payment form with amount, method, UTR. Invoice status updates to "Paid." Payment history visible. | "Record payments as they happen. The invoice status updates instantly. When you export, LedgerBuddy generates the payment voucher that settles the bill in Tally." |
 | **10. TDS Dashboard** | Navigate to TDS dashboard. | FY selector, quarterly summary, vendors approaching threshold, per-vendor drill-down. | "Quarter-end 26Q preparation that used to take 3-4 days? This dashboard gives you the data in 2 seconds. Filter by quarter, vendor, section -- and export to CSV for your filing tool." |
 
 ### Anticipated CA Questions and Prepared Answers

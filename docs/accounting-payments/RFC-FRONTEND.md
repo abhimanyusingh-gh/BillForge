@@ -1,8 +1,8 @@
-# BillForge Frontend UX RFC
+# LedgerBuddy Frontend UX RFC
 
 ## 1. RFC Metadata
 
-- **Title**: BillForge Frontend UX Redesign -- Navigation, Invoice Workflows, Vendor Management, TDS Dashboard, Tally Export & Reconciliation
+- **Title**: LedgerBuddy Frontend UX Redesign -- Navigation, Invoice Workflows, Vendor Management, TDS Dashboard, Tally Export & Reconciliation
 - **Date**: 2026-04-16
 - **Status**: Draft
 - **Authors**: Frontend Engineering Team
@@ -14,7 +14,7 @@
 
 ## 2. Executive Summary
 
-This RFC specifies the complete frontend redesign for BillForge, covering navigation restructuring, invoice table enrichments, payment recording UI, compliance data presentation, vendor management, TDS dashboard, Tally export validation, reconciliation redesign, and tenant onboarding. It consolidates findings from four independent design workstreams into a single implementation plan.
+This RFC specifies the complete frontend redesign for LedgerBuddy, covering navigation restructuring, invoice table enrichments, payment recording UI, compliance data presentation, vendor management, TDS dashboard, Tally export validation, reconciliation redesign, and tenant onboarding. It consolidates findings from four independent design workstreams into a single implementation plan.
 
 **Key outcomes:**
 
@@ -72,7 +72,7 @@ The primary layout is a `height: 100vh` flex-column container (`.layout` class i
 }
 ```
 
-When the detail panel is open, `TenantInvoicesViewImpl` overrides the grid with an inline style: `gridTemplateColumns: ${listPanelPercent}% 6px 1fr` (line 495), where the 6px column is the draggable divider. The `listPanelPercent` value persists to `localStorage` under `billforge:panel-split` (default 58%). Dragging is implemented via raw `mousemove`/`mouseup` event listeners in `handleDividerMouseDown` (lines 564-588), clamped between 25% and 75%.
+When the detail panel is open, `TenantInvoicesViewImpl` overrides the grid with an inline style: `gridTemplateColumns: ${listPanelPercent}% 6px 1fr` (line 495), where the 6px column is the draggable divider. The `listPanelPercent` value persists to `localStorage` under `ledgerbuddy:panel-split` (default 58%). Dragging is implemented via raw `mousemove`/`mouseup` event listeners in `handleDividerMouseDown` (lines 564-588), clamped between 25% and 75%.
 
 ### 3.3 Current Responsive Behavior
 
@@ -124,7 +124,7 @@ The export flow is `select invoices -> Export Tally XML -> download file`. No pr
 
 1. **Keyboard shortcuts system** (`useKeyboardShortcuts` hook) -- j/k navigation, Space selection, `a` approve, `e` export, `?` help overlay.
 2. **Draggable panel split** with `localStorage` persistence -- correct UX pattern for desktop.
-3. **Column resize persistence** (`handleColumnResize`, storing to `billforge:col-widths`) -- a power-user feature competitors lack.
+3. **Column resize persistence** (`handleColumnResize`, storing to `ledgerbuddy:col-widths`) -- a power-user feature competitors lack.
 4. **Status filter tabs with counts** in `TenantInvoicesToolbar` -- effective pattern to replicate in new tabs.
 5. **Reorderable config sections** (`useReorderableSections` hook).
 6. **Theme toggle** (dark/light) with CSS custom properties throughout.
@@ -254,7 +254,7 @@ Step numbering (e.g., "Step 2/3") is shown only in the detail panel's approval s
 - **Component**: New `frontend/src/features/tenant-admin/ActionRequiredQueue.tsx`
 - **Current behavior**: No "inbox" or "action required" view. Accountants must navigate to Invoices and set the status filter manually.
 - **New behavior**: A new `ActionRequiredQueue` component renders above the invoice table (when `statusFilter === "ALL"` and actionable items exist). Shows invoices with status `NEEDS_REVIEW` or `AWAITING_APPROVAL`, sorted by age (oldest first). Each row shows: vendor name, amount, age badge, `RiskDot`, and a primary action button.
-- **Implementation**: The component makes its own API call (`GET /api/invoices?status=NEEDS_REVIEW,AWAITING_APPROVAL&sort=createdAt&limit=20`) for a complete count, independent of the invoice table's pagination. Integrated into `TenantInvoicesViewImpl.tsx` with a dismissible toggle persisted to `localStorage` (`billforge:show-action-queue`). Pre-Phase 3, it renders inline; in Phase 3, it becomes the dedicated Inbox tab.
+- **Implementation**: The component makes its own API call (`GET /api/invoices?status=NEEDS_REVIEW,AWAITING_APPROVAL&sort=createdAt&limit=20`) for a complete count, independent of the invoice table's pagination. Integrated into `TenantInvoicesViewImpl.tsx` with a dismissible toggle persisted to `localStorage` (`ledgerbuddy:show-action-queue`). Pre-Phase 3, it renders inline; in Phase 3, it becomes the dedicated Inbox tab.
 - **Effort**: 10-14 hours
 
 ### QW-7: Pre-Export Validation Modal
@@ -551,7 +551,7 @@ Implementation: Each `<th>` and `<td>` receives a `data-col` attribute. CSS `@me
 }
 ```
 
-**Stored column widths**: Persisted column widths (from `billforge:col-widths` in `localStorage`) are ignored for columns hidden by CSS media queries. On breakpoint change, hidden columns' stored widths are cleared to prevent layout jumps when returning to wider viewports. A `matchMedia` change listener on each breakpoint triggers cleanup of the corresponding `data-col` keys from the stored widths object.
+**Stored column widths**: Persisted column widths (from `ledgerbuddy:col-widths` in `localStorage`) are ignored for columns hidden by CSS media queries. On breakpoint change, hidden columns' stored widths are cleared to prevent layout jumps when returning to wider viewports. A `matchMedia` change listener on each breakpoint triggers cleanup of the corresponding `data-col` keys from the stored widths object.
 
 ### 6.3 Revised Detail Panel Section Order
 
@@ -1537,7 +1537,7 @@ Guided setup wizard shown to tenant admins on first login (zero configuration st
 
 ```
 +------------------------------------------------------------------+
-| BillForge Setup                                                    |
+| LedgerBuddy Setup                                                    |
 +------------------------------------------------------------------+
 |                                                                    |
 | Step 2 of 5: Tax Configuration                                    |
@@ -1588,7 +1588,7 @@ Each section in `TenantConfigTab` is wrapped in a `CollapsibleConfigSection` sho
   [>] Users                                4 active, 1 invited
 ```
 
-Expanded/collapsed state persisted to `localStorage` under `billforge:config-expanded-sections`.
+Expanded/collapsed state persisted to `localStorage` under `ledgerbuddy:config-expanded-sections`.
 
 #### 13.3.2 Impact Preview
 
@@ -1813,7 +1813,7 @@ interface PortalProps {
 }
 ```
 
-Shared portal component wrapping `createPortal` with a managed container `<div>`. On mount, creates (or reuses) a container element with the given `containerId` (default: `"billforge-portal-root"`) appended to `document.body`. On unmount, removes the container if empty. Used by `GlCodeDropdown`, `ConfirmDialog`, and `SlideOverPanel` to render overlays at the document root, avoiding `overflow: hidden` and stacking context issues. All portal-based rendering must use this component rather than calling `createPortal` directly.
+Shared portal component wrapping `createPortal` with a managed container `<div>`. On mount, creates (or reuses) a container element with the given `containerId` (default: `"ledgerbuddy-portal-root"`) appended to `document.body`. On unmount, removes the container if empty. Used by `GlCodeDropdown`, `ConfirmDialog`, and `SlideOverPanel` to render overlays at the document root, avoiding `overflow: hidden` and stacking context issues. All portal-based rendering must use this component rather than calling `createPortal` directly.
 
 ### 14.10 ActionRequiredQueue
 

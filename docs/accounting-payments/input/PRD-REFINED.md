@@ -1,8 +1,8 @@
-# Refined PRD: Accounting, Payments, and Tally Integration for BillForge
+# Refined PRD: Accounting, Payments, and Tally Integration for LedgerBuddy
 
 ## 1. Executive Summary
 
-This document refines the draft "Accounting, Payments & Tally Integration" PRD by grounding every requirement in what BillForge actually has today versus what needs to be built. The codebase was read exhaustively across 35+ files.
+This document refines the draft "Accounting, Payments & Tally Integration" PRD by grounding every requirement in what LedgerBuddy actually has today versus what needs to be built. The codebase was read exhaustively across 35+ files.
 
 **What already exists (no new work needed):**
 - Full invoice lifecycle: PENDING through EXPORTED, with multi-step approval workflows
@@ -330,7 +330,7 @@ New API endpoints:
 - Vendor fingerprint is created during extraction (hash of normalized vendor name)
 
 #### What's missing (gaps)
-- No Tally vendor sync (BillForge vendor master is independent of Tally's ledger master)
+- No Tally vendor sync (LedgerBuddy vendor master is independent of Tally's ledger master)
 - No vendor CRUD API (vendors are auto-created from invoices only, no manual add/edit)
 - No vendor merge/dedup (if the same vendor has multiple fingerprints)
 - No `tallyLedgerName` field on vendor (the Tally party ledger name may differ from the extracted vendorName)
@@ -353,7 +353,7 @@ New API endpoints:
 
 Tally sync (Phase 3 -- not for demo):
 - POST `tallyEndpoint` with export request for ledger list under "Sundry Creditors" group
-- Fuzzy-match BillForge vendors to Tally ledgers by name
+- Fuzzy-match LedgerBuddy vendors to Tally ledgers by name
 - Allow manual mapping via `tallyLedgerName` field
 - On export, use `tallyLedgerName` instead of `parsed.vendorName` if set
 
@@ -861,7 +861,7 @@ When an invoice arrives with a date in a prior period:
 ## 9. Tally Integration Specification
 
 ### 9.1 Current State
-- One-way export: BillForge -> Tally via HTTP POST of XML
+- One-way export: LedgerBuddy -> Tally via HTTP POST of XML
 - Voucher type: Purchase only
 - Config: endpoint URL + company name + ledger names (per tenant)
 - No Tally data reading
@@ -1037,7 +1037,7 @@ Add `buildTallyPaymentVoucherPayload()` to `xml.ts`:
 **For a demo (Phases 1-2, about 3-4 weeks):**
 - TDS cumulative threshold (the headline compliance feature)
 - Vendor CRUD (necessary for any Tally mapping story)
-- These two alone make BillForge credibly useful for Indian AP automation
+- These two alone make LedgerBuddy credibly useful for Indian AP automation
 
 **For MVP production (Phases 1-4, about 7-9 weeks):**
 - Add payment recording and payment voucher export

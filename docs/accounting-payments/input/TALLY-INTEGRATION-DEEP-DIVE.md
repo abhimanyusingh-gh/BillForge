@@ -2,7 +2,7 @@
 
 **Author**: Integrations engineering
 **Date**: 2026-04-22
-**Scope**: Bi-directional sync layer between BillForge (cloud) and Tally Prime (desktop). Covers request framing, master fetch, vendor push, voucher imports, error handling, and recommended architecture.
+**Scope**: Bi-directional sync layer between LedgerBuddy (cloud) and Tally Prime (desktop). Covers request framing, master fetch, vendor push, voucher imports, error handling, and recommended architecture.
 **Builds on**: `docs/accounting-payments/input/TALLY-INTEGRATION-AUDIT.md`, `docs/accounting-payments/MASTER-SYNTHESIS.md` §3, `docs/accounting-payments/RFC-BACKEND.md` §4.3. This document does not re-derive the Phase-0 XML structural fixes (ALLLEDGERENTRIES / ISINVOICE / BILLALLOCATIONS / REFERENCE / EFFECTIVEDATE) — those are settled.
 
 ---
@@ -18,7 +18,7 @@
 7. Successful response has `<CREATED>`, `<ALTERED>`, `<IGNORED>`, `<ERRORS>`, `<LASTVCHID>`, `<LASTMID>`. Partial-batch failures surface as `<ERRORS>n</ERRORS>` plus per-row `<LINEERROR>…</LINEERROR>` blocks; there is no per-voucher success/fail array — you must regenerate and retry the failed subset.
 8. `BILLALLOCATIONS` with `BILLTYPE="Agst Ref"` and a `NAME` that does not match any outstanding bill on the vendor is **silently treated as a new on-account reference** — it does not error. This is a correctness hazard for payment voucher export.
 9. AlterID / LastAlterID are Tally's native incremental-sync primitives; any drift-detection design should filter collections by `$AlterID > <last seen>` rather than re-pulling full masters.
-10. Recommended architecture: a lightweight **desktop bridge agent** (Windows service / Electron tray) running on the Tally machine, doing outbound HTTPS long-poll to the BillForge backend. The backend never connects inbound to the customer. This is the **only** viable cloud-to-Tally bridge.
+10. Recommended architecture: a lightweight **desktop bridge agent** (Windows service / Electron tray) running on the Tally machine, doing outbound HTTPS long-poll to the LedgerBuddy backend. The backend never connects inbound to the customer. This is the **only** viable cloud-to-Tally bridge.
 
 ---
 
@@ -32,16 +32,16 @@ Tally Prime's HTTP server binds to a local TCP port (default 9000) on the machin
 - **Tally.NET "Remote Access"** is client-to-client remote UI: a remote Tally.exe authenticates via the Tally.NET Gateway and then tunnels encrypted XML to the host Tally.exe. The transport is proprietary Modified-DES; it is not documented, not publicly callable, and not XML-over-HTTPS. Useful only for human users, not server-to-server sync.
 - **Tally Prime Server** (separate SKU) is multi-threaded and handles multi-user concurrency on a LAN, but still binds to a local/LAN address and uses the same XML protocol. It does not make Tally reachable from the public internet.
 
-Conclusion: **no direct BillForge-cloud → customer-Tally connection is possible.** A bridge running inside the customer's network is mandatory for any non-file-based integration. This matches D-028 in MASTER-SYNTHESIS.
+Conclusion: **no direct LedgerBuddy-cloud → customer-Tally connection is possible.** A bridge running inside the customer's network is mandatory for any non-file-based integration. This matches D-028 in MASTER-SYNTHESIS.
 
 ### 2.2 Bridge options, ranked
 
 | Option | Feasibility | Notes |
 |---|---|---|
-| (A) Desktop bridge agent (system tray / Windows service) that dials out to BillForge over HTTPS | **Recommended** | Mirror of the AI Accountant, Zoho Books, ClearTax, Suvit, Biz Analyst approach. Works behind corporate firewall/NAT. Outbound HTTPS only. |
+| (A) Desktop bridge agent (system tray / Windows service) that dials out to LedgerBuddy over HTTPS | **Recommended** | Mirror of the AI Accountant, Zoho Books, ClearTax, Suvit, Biz Analyst approach. Works behind corporate firewall/NAT. Outbound HTTPS only. |
 | (B) File-based (user downloads XML, imports via Tally F1 → Import Data) | **MVP today** | Zero infra but high friction; breaks master-data precheck and drift detection. Acceptable for Phase 0–5 as MASTER-SYNTHESIS already decided. |
 | (C) Reverse SSH / ngrok-style tunnel to expose port 9000 | Not recommended | Security nightmare (no auth on 9000), IT teams will reject. |
-| (D) VPN from BillForge infra to customer LAN | Not scalable | Per-tenant VPN setup; not viable for SaaS. |
+| (D) VPN from LedgerBuddy infra to customer LAN | Not scalable | Per-tenant VPN setup; not viable for SaaS. |
 | (E) Tally Prime Server in customer DMZ | Impractical | Still private network; requires port-forward + auth proxy in front. |
 | (F) ODBC via Tally ODBC driver (also port 9000) | Read-only, Windows-only | Alternative for pulls but identical network constraint; no write path. Skip. |
 
@@ -49,10 +49,10 @@ Conclusion: **no direct BillForge-cloud → customer-Tally connection is possibl
 
 - No inbound ports opened on the customer side.
 - Agent uses a tenant-scoped JWT/mTLS credential minted at onboarding; credential stored in Windows Credential Manager / DPAPI.
-- Agent polls or holds a WebSocket / HTTP long-poll to the BillForge backend for pending commands (push a batch of vouchers, pull a ledger snapshot, ping).
+- Agent polls or holds a WebSocket / HTTP long-poll to the LedgerBuddy backend for pending commands (push a batch of vouchers, pull a ledger snapshot, ping).
 - Agent replies with Tally's response body; backend parses and updates ExportBatch / drift tables.
 - Because Tally itself has no auth, the bridge agent becomes the trust boundary. The agent must refuse commands that don't bear a valid backend signature.
-- TLS terminates at BillForge; Tally-agent loopback traffic stays in-process on the customer machine.
+- TLS terminates at LedgerBuddy; Tally-agent loopback traffic stays in-process on the customer machine.
 
 ---
 
@@ -485,7 +485,7 @@ Tally **does not accept** a client-supplied `<GUID>` on a Ledger master during C
 
 ### 5.3 Name collision / matching strategy
 
-Matching vendor records between BillForge and Tally is the central correctness problem. Rank matches in this order:
+Matching vendor records between LedgerBuddy and Tally is the central correctness problem. Rank matches in this order:
 
 1. **GSTIN (deterministic)**. If both sides have a GSTIN, equality wins. Strip whitespace, upper-case.
 2. **Tally LedgerGUID (persisted)**. Once we've observed a ledger and stored `tallyLedgerGuid` on VendorMaster, subsequent syncs are O(1).
@@ -674,7 +674,7 @@ Authoritative numbers are not public. Based on cross-referencing Tally Solutions
 - Tally **ERP 9** has no end-of-life yet announced but is in "maintenance only" posture; estimated 20-30% of the install base still runs ERP 9, particularly in tier-2 cities and conservative MSMEs.
 - Tally **Prime Server** is a tiny sliver (enterprise, multi-user LAN) — <5%.
 
-Implication: BillForge must support both ERP 9 and Prime at the XML level. This is low-cost (pay the `GSTIN`/`PARTYGSTIN` dual-emit tax) but non-zero.
+Implication: LedgerBuddy must support both ERP 9 and Prime at the XML level. This is low-cost (pay the `GSTIN`/`PARTYGSTIN` dual-emit tax) but non-zero.
 
 **Caveat**: these percentages are estimates from secondary sources; Tally Solutions does not publish a Prime/ERP-9 split.
 
@@ -684,7 +684,7 @@ Tally Prime Server is multi-threaded with concurrent request handling, which rel
 
 ---
 
-## 9. Recommended sync architecture for BillForge
+## 9. Recommended sync architecture for LedgerBuddy
 
 ### 9.1 Onboarding flow
 
@@ -795,7 +795,7 @@ for each ledger in response:
   update lastLedgerAlterId = max(…, row.AlterID)
 
 Similar loop over Voucher collection for post-sync drift in Tally
-(user editing imported voucher in Tally). Compare BillForge.exportVersion
+(user editing imported voucher in Tally). Compare LedgerBuddy.exportVersion
 GUIDs; emit a "drift_voucher_edited" event if Tally's voucher has higher
 AlterID than what we last pushed.
 ```
@@ -810,7 +810,7 @@ The AlterID filter in TDL uses `$AlterID > {value}` inside a `FILTER` + `SYSTEM`
 
 **Minimum features (v1)**:
 
-1. One-way outbound tunnel — HTTP long-poll or WebSocket to BillForge backend; the agent pulls work items.
+1. One-way outbound tunnel — HTTP long-poll or WebSocket to LedgerBuddy backend; the agent pulls work items.
 2. Tally HTTP client: builds envelopes, POSTs to `http://localhost:9000`, parses responses, returns JSON summary to backend.
 3. Local mutex: serialise calls; max one in-flight Tally request per Tally process.
 4. Liveness: every 30 s, probe Tally server string and return to backend.

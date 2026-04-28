@@ -1,4 +1,4 @@
-# BillForge Master Synthesis: Accounting, Payments & Tally Integration
+# LedgerBuddy Master Synthesis: Accounting, Payments & Tally Integration
 
 ## Pipeline Metadata
 
@@ -13,9 +13,9 @@
 
 ## 1. System Overview
 
-### 1.1 What BillForge Is
+### 1.1 What LedgerBuddy Is
 
-BillForge is an India-specific accounts payable automation platform that ingests vendor invoices (via email, file upload, or folder scan), extracts structured data using OCR + SLM, enriches with compliance data (TDS, GST, PAN, risk signals), routes through configurable approval workflows, and exports to Tally for accounting.
+LedgerBuddy is an India-specific accounts payable automation platform that ingests vendor invoices (via email, file upload, or folder scan), extracts structured data using OCR + SLM, enriches with compliance data (TDS, GST, PAN, risk signals), routes through configurable approval workflows, and exports to Tally for accounting.
 
 ### 1.2 What This Synthesis Adds
 
@@ -183,7 +183,7 @@ Query: `invoices WHERE paymentStatus IN (unpaid, partially_paid) GROUP BY aging 
 
 > *Based on VKL: D-028, E30*
 
-Tally Prime runs on localhost (typically port 9000). BillForge is cloud-hosted. No direct connectivity is possible.
+Tally Prime runs on localhost (typically port 9000). LedgerBuddy is cloud-hosted. No direct connectivity is possible.
 
 | Phase | Approach |
 |---|---|
@@ -704,7 +704,7 @@ TCS rate applied per tenant config (TenantTcsConfig). Existing implementation is
 
 - MSMED Act 2006, Section 15: Payment to micro/small enterprises within agreed period, max 45 days from acceptance
 - Interest on delayed payment: 3× bank rate, compounded monthly [E16]
-- BillForge must: track agreed payment terms per vendor, enforce 45-day statutory cap, calculate interest liability on overdue payments, flag overdue MSME invoices as risk signal
+- LedgerBuddy must: track agreed payment terms per vendor, enforce 45-day statutory cap, calculate interest liability on overdue payments, flag overdue MSME invoices as risk signal
 
 ### 6.5 New Risk Signal Codes
 

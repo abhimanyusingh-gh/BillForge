@@ -50,7 +50,7 @@ describe("S3FileStore", () => {
       const store = new S3FileStore({
         bucket: "test-bucket",
         region: "us-east-1",
-        prefix: "billforge",
+        prefix: "ledgerbuddy",
         endpoint: "http://minio:9000",
         publicEndpoint: "http://localhost:9100",
         forcePathStyle: true
@@ -59,7 +59,7 @@ describe("S3FileStore", () => {
       const url = await store.generatePresignedPutUrl("uploads/invoice.pdf", "application/pdf", 3600);
 
       expect(url).toMatch(/^http:\/\/localhost:9100\//);
-      expect(url).toContain("billforge");
+      expect(url).toContain("ledgerbuddy");
     });
   });
 });

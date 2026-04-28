@@ -1,5 +1,5 @@
 if (!process.env.MONGO_URI) {
-  process.env.MONGO_URI = 'mongodb://billforge_app:billforge_local_pass@127.0.0.1:27018/billforge?authSource=billforge';
+  process.env.MONGO_URI = 'mongodb://ledgerbuddy_app:ledgerbuddy_local_pass@127.0.0.1:27018/ledgerbuddy?authSource=ledgerbuddy';
 }
 if (!process.env.ENV) {
   process.env.ENV = 'local';

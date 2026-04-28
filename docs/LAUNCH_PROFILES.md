@@ -1,6 +1,6 @@
 # Launch Profile System
 
-BillForge uses a composable profile system to configure launch environments. Instead of dozens of `package.json` script permutations, you select dimensions via flags.
+LedgerBuddy uses a composable profile system to configure launch environments. Instead of dozens of `package.json` script permutations, you select dimensions via flags.
 
 ## Quick Start
 
