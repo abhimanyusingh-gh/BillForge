@@ -18,8 +18,8 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
 const FRONTEND_SRC = join(REPO_ROOT, "frontend", "src");
 const BACKEND_SRC = join(REPO_ROOT, "backend", "src");
 const APP_TS = join(BACKEND_SRC, "app.ts");
-const API_PATHS_TS = join(FRONTEND_SRC, "api", "apiPaths.ts");
 const URL_PROVIDERS_DIR = join(FRONTEND_SRC, "api", "urls");
+const BE_URL_PROVIDERS_DIR = join(BACKEND_SRC, "routes", "urls");
 
 const PROVIDER_BUILDER = {
   NESTED: "buildNested",
@@ -38,12 +38,19 @@ const HTTP_METHOD = {
 type HttpMethod = typeof HTTP_METHOD[keyof typeof HTTP_METHOD];
 const METHOD_NAMES: ReadonlySet<string> = new Set(Object.values(HTTP_METHOD).map((m) => m.toLowerCase()));
 
-const PATH_KIND = {
-  REALM_SCOPED: "realm-scoped",
-  TENANT_SCOPED: "tenant-scoped",
+// Two URL-construction shapes the FE provider modules emit. NESTED →
+// `/api/tenants/:tenantId/clientOrgs/:clientOrgId/...`, TENANT →
+// `/api/tenants/:tenantId/...` (no clientOrgs segment). Bare paths (FE
+// callers that pass a literal directly to `apiClient.<verb>(...)`) are
+// resolved as `/api${bare}` — auth, session, webhooks, health, statutory
+// compliance metadata, and the deliberately-retained legacy `/api/...`
+// mounts.
+const PROVIDER_KIND = {
+  NESTED: "nested",
+  TENANT: "tenant",
   NONE: "none"
 } as const;
-type PathKind = typeof PATH_KIND[keyof typeof PATH_KIND];
+type ProviderKind = typeof PROVIDER_KIND[keyof typeof PROVIDER_KIND];
 
 const TENANT_PARAM_PLACEHOLDER = ":tenantId";
 const CLIENT_ORG_PARAM_PLACEHOLDER = ":clientOrgId";
@@ -147,53 +154,18 @@ interface BeUrl {
   source: string;
 }
 
-// ───────────────────────── FE classifier (mirrors apiPaths.ts) ─────────────────────────
+// ───────────────────────── BE URL-path map (resolves `as const` refs) ─────────────────────────
+// BE registration sites import path constants from `routes/urls/*Urls.ts`
+// (e.g. `TENANT_URL_PATHS.onboardingCompleteNested`) instead of inlining
+// string literals. The walker pre-builds a map of every `as const` object
+// property in those modules so `extractRoutesFromNode` can resolve a
+// `<Identifier>.<property>` PropertyAccessExpression to its literal value.
+// Mirrors the FE provider walker (`buildProviderMethodMap`) one tier down:
+// here the constants are bare strings, not `buildNested(...)` results.
 
-interface ClassifierConfig {
-  realmPrefixes: readonly string[];
-  tenantPrefixes: readonly string[];
-  bypassPrefixes: readonly string[];
-  bypassSuffixes: readonly string[];
-}
-
-function loadClassifierConfig(): ClassifierConfig {
-  const source = readFileSync(API_PATHS_TS, "utf8");
-  const sf = ts.createSourceFile(API_PATHS_TS, source, ts.ScriptTarget.ES2022, true);
-  const arrays: Record<string, string[]> = {};
-  const targetNames = new Set([
-    "REALM_SCOPED_PREFIXES",
-    "TENANT_SCOPED_PREFIXES",
-    "TENANT_SCOPED_BYPASS_PREFIXES",
-    "TENANT_SCOPED_BYPASS_SUFFIXES"
-  ]);
-  function visit(node: ts.Node) {
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      targetNames.has(node.name.text) &&
-      node.initializer
-    ) {
-      const init = stripAsConst(node.initializer);
-      if (ts.isArrayLiteralExpression(init)) {
-        arrays[node.name.text] = init.elements
-          .filter((e): e is ts.StringLiteral => ts.isStringLiteral(e))
-          .map((e) => e.text);
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(sf);
-  for (const name of targetNames) {
-    if (!arrays[name]) {
-      throw new Error(`apiPaths.ts: failed to extract ${name}`);
-    }
-  }
-  return {
-    realmPrefixes: arrays["REALM_SCOPED_PREFIXES"]!,
-    tenantPrefixes: arrays["TENANT_SCOPED_PREFIXES"]!,
-    bypassPrefixes: arrays["TENANT_SCOPED_BYPASS_PREFIXES"]!,
-    bypassSuffixes: arrays["TENANT_SCOPED_BYPASS_SUFFIXES"]!
-  };
+interface BeUrlPathMap {
+  values: Map<string, string>;
+  knownObjects: Set<string>;
 }
 
 function stripAsConst(node: ts.Expression): ts.Expression {
@@ -201,40 +173,70 @@ function stripAsConst(node: ts.Expression): ts.Expression {
   return node;
 }
 
-function stripQueryString(path: string): string {
-  const idx = path.indexOf("?");
-  return idx === -1 ? path : path.slice(0, idx);
-}
-
-function matchesPrefix(path: string, prefix: string): boolean {
-  return path === prefix || path.startsWith(`${prefix}/`) || path.startsWith(`${prefix}?`);
-}
-
-function endsWithSuffix(path: string, suffix: string): boolean {
-  return stripQueryString(path).endsWith(suffix);
-}
-
-function classifyApiPath(path: string, cfg: ClassifierConfig): PathKind {
-  for (const bypass of cfg.bypassPrefixes) {
-    if (matchesPrefix(path, bypass)) return PATH_KIND.TENANT_SCOPED;
+function listBeUrlProviderFiles(): string[] {
+  const out: string[] = [];
+  let entries: string[];
+  try {
+    entries = readdirSync(BE_URL_PROVIDERS_DIR);
+  } catch {
+    return out;
   }
-  const matchesAnyRealm = cfg.realmPrefixes.some((p) => matchesPrefix(path, p));
-  if (matchesAnyRealm) {
-    for (const suffix of cfg.bypassSuffixes) {
-      if (endsWithSuffix(path, suffix)) return PATH_KIND.TENANT_SCOPED;
+  for (const entry of entries) {
+    if (
+      entry.endsWith("Urls.ts") &&
+      !entry.endsWith(".test.ts") &&
+      !entry.endsWith(".d.ts")
+    ) {
+      out.push(join(BE_URL_PROVIDERS_DIR, entry));
     }
   }
-  if (cfg.tenantPrefixes.some((p) => matchesPrefix(path, p))) return PATH_KIND.TENANT_SCOPED;
-  if (matchesAnyRealm) return PATH_KIND.REALM_SCOPED;
-  return PATH_KIND.NONE;
+  return out;
 }
 
-function applyRewrite(barePath: string, kind: PathKind): string {
+function buildBeUrlPathMap(): BeUrlPathMap {
+  const values = new Map<string, string>();
+  const knownObjects = new Set<string>();
+  for (const file of listBeUrlProviderFiles()) {
+    const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true);
+    function visit(node: ts.Node) {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer
+      ) {
+        const init = stripAsConst(node.initializer);
+        if (ts.isObjectLiteralExpression(init)) {
+          const objName = node.name.text;
+          knownObjects.add(objName);
+          for (const prop of init.properties) {
+            if (
+              ts.isPropertyAssignment(prop) &&
+              (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) &&
+              (ts.isStringLiteral(prop.initializer) || ts.isNoSubstitutionTemplateLiteral(prop.initializer))
+            ) {
+              values.set(`${objName}.${prop.name.text}`, prop.initializer.text);
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+  }
+  return { values, knownObjects };
+}
+
+function applyNoneShape(barePath: string): string {
   const normalized = barePath.startsWith("/") ? barePath : `/${barePath}`;
-  if (kind === PATH_KIND.REALM_SCOPED) {
+  return `/api${normalized}`;
+}
+
+function applyProviderKindShape(barePath: string, kind: ProviderKind): string {
+  const normalized = barePath.startsWith("/") ? barePath : `/${barePath}`;
+  if (kind === PROVIDER_KIND.NESTED) {
     return `/api/tenants/${TENANT_PARAM_PLACEHOLDER}/clientOrgs/${CLIENT_ORG_PARAM_PLACEHOLDER}${normalized}`;
   }
-  if (kind === PATH_KIND.TENANT_SCOPED) {
+  if (kind === PROVIDER_KIND.TENANT) {
     return `/api/tenants/${TENANT_PARAM_PLACEHOLDER}${normalized}`;
   }
   return `/api${normalized}`;
@@ -344,8 +346,8 @@ function buildProviderMethodMap(): ProviderMethodMap {
 }
 
 function providerInfoToFullUrl(info: ProviderMethodInfo): string {
-  const kind = info.builder === PROVIDER_BUILDER.NESTED ? PATH_KIND.REALM_SCOPED : PATH_KIND.TENANT_SCOPED;
-  return applyRewrite(info.bare, kind);
+  const kind = info.builder === PROVIDER_BUILDER.NESTED ? PROVIDER_KIND.NESTED : PROVIDER_KIND.TENANT;
+  return applyProviderKindShape(info.bare, kind);
 }
 
 // `apiClient.<verb>(invoiceUrls.list())` — detect when arg0 is itself a
@@ -589,22 +591,22 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
       }
 
       // rewriteToNestedShape(path, ...) / rewriteToTenantShape(path, ...) called
-      // OUTSIDE the apiClient interceptor (i.e., in api/invoices.ts for
-      // getInvoicePreviewUrl). The interceptor itself in api/client.ts is the
-      // canonical caller — skip it. Anything else is an interceptor-bypass
-      // call site that issues a GET against the resolved URL via
-      // authenticatedUrl + window.fetch / <img> / EventSource.
+      // OUTSIDE the URL-provider helpers (i.e., from a feature module that
+      // builds a URL for authenticatedUrl + window.fetch / <img> / EventSource
+      // without going through the apiClient pipeline). `buildNested.ts` is the
+      // canonical wrapper consumed by `*Urls.ts` providers — skip it so
+      // template-literal-arg call sites there don't double-emit.
       if (
         ts.isIdentifier(callee) &&
         (callee.text === "rewriteToNestedShape" || callee.text === "rewriteToTenantShape") &&
-        !file.endsWith("/api/client.ts")
+        !file.endsWith("/api/urls/buildNested.ts")
       ) {
         const arg0 = node.arguments[0];
         if (arg0) {
           const resolved = resolvePathExpr(arg0, ctx);
           if (resolved !== null) {
-            const kind = callee.text === "rewriteToNestedShape" ? PATH_KIND.REALM_SCOPED : PATH_KIND.TENANT_SCOPED;
-            const fullUrl = applyRewrite(resolved.bare, kind);
+            const kind = callee.text === "rewriteToNestedShape" ? PROVIDER_KIND.NESTED : PROVIDER_KIND.TENANT;
+            const fullUrl = applyProviderKindShape(resolved.bare, kind);
             calls.push({
               method: HTTP_METHOD.GET,
               bare: resolved.bare,
@@ -667,7 +669,13 @@ function collectRawFeCalls(file: string, providerMap: ProviderMethodMap): RawFeC
   return calls;
 }
 
-function walkFrontend(cfg: ClassifierConfig): FeUrl[] {
+// Post-INFRA-3 (#228 Sub-PR E2): every FE bare-path apiClient caller is
+// `NONE`-kind (auth, session, webhooks, health, statutory compliance
+// metadata, the 2 legacy mounts retained for Sub-PR F). Realm-scoped and
+// tenant-scoped routes go through `*Urls.ts` providers, which set
+// `fullUrlOverride` directly. The classifier was retired with the
+// interceptor rewriter in this sub-PR.
+function walkFrontend(): FeUrl[] {
   const providerMap = buildProviderMethodMap();
   const files = listTsFiles(FRONTEND_SRC);
   const seen = new Map<string, FeUrl>();
@@ -675,9 +683,7 @@ function walkFrontend(cfg: ClassifierConfig): FeUrl[] {
     const raws = collectRawFeCalls(file, providerMap);
     for (const raw of raws) {
       const resolvedUrl =
-        raw.fullUrlOverride !== null
-          ? raw.fullUrlOverride
-          : applyRewrite(raw.bare, classifyApiPath(raw.bare, cfg));
+        raw.fullUrlOverride !== null ? raw.fullUrlOverride : applyNoneShape(raw.bare);
       const normalized = preserveScopeParams(resolvedUrl);
       const key = `${raw.method} ${normalized}`;
       if (!seen.has(key)) {
@@ -892,7 +898,7 @@ interface RouteDef {
   path: string;
 }
 
-function extractRoutesFromNode(rootNode: ts.Node): RouteDef[] {
+function extractRoutesFromNode(rootNode: ts.Node, beUrlMap: BeUrlPathMap, fileLabel: string): RouteDef[] {
   const routes: RouteDef[] = [];
   function visit(node: ts.Node) {
     if (
@@ -903,11 +909,29 @@ function extractRoutesFromNode(rootNode: ts.Node): RouteDef[] {
       METHOD_NAMES.has(node.expression.name.text)
     ) {
       const arg0 = node.arguments[0];
+      const method = node.expression.name.text.toUpperCase() as HttpMethod;
       if (arg0 && (ts.isStringLiteral(arg0) || ts.isNoSubstitutionTemplateLiteral(arg0))) {
-        routes.push({
-          method: node.expression.name.text.toUpperCase() as HttpMethod,
-          path: arg0.text
-        });
+        routes.push({ method, path: arg0.text });
+      } else if (
+        arg0 &&
+        ts.isPropertyAccessExpression(arg0) &&
+        ts.isIdentifier(arg0.expression) &&
+        ts.isIdentifier(arg0.name) &&
+        beUrlMap.knownObjects.has(arg0.expression.text)
+      ) {
+        // Receiver matches a known *Urls.ts `as const` constants object —
+        // fail-loud if the property doesn't resolve. Other PropertyAccess
+        // arg shapes (e.g., `invoiceMap.get(t.someId)` inside a handler
+        // body) are silently ignored, matching pre-refactor behavior.
+        const key = `${arg0.expression.text}.${arg0.name.text}`;
+        const resolved = beUrlMap.values.get(key);
+        if (resolved === undefined) {
+          throw new Error(
+            `BE route registration at ${fileLabel} uses ${key} but no matching property was found ` +
+              `on that constants object. Check the *Urls.ts module under backend/src/routes/urls/.`
+          );
+        }
+        routes.push({ method, path: resolved });
       }
     }
     ts.forEachChild(node, visit);
@@ -916,17 +940,17 @@ function extractRoutesFromNode(rootNode: ts.Node): RouteDef[] {
   return routes;
 }
 
-function extractRouterRoutes(file: string): RouteDef[] {
+function extractRouterRoutes(file: string, beUrlMap: BeUrlPathMap): RouteDef[] {
   const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true);
-  return extractRoutesFromNode(source);
+  return extractRoutesFromNode(source, beUrlMap, relative(REPO_ROOT, file));
 }
 
-function extractFactoryRoutes(file: string, factoryName: string): RouteDef[] {
+function extractFactoryRoutes(file: string, factoryName: string, beUrlMap: BeUrlPathMap): RouteDef[] {
   const located = findFactoryFunctionNode(file, factoryName);
-  if (located) return extractRoutesFromNode(located.fn);
+  if (located) return extractRoutesFromNode(located.fn, beUrlMap, `${relative(REPO_ROOT, file)} (${factoryName})`);
   // Fall back to whole-file extraction for files with no matching factory
   // (shouldn't happen post-walker, but keep the safety net).
-  return extractRouterRoutes(file);
+  return extractRouterRoutes(file, beUrlMap);
 }
 
 function joinUrl(base: string, sub: string): string {
@@ -937,13 +961,14 @@ function joinUrl(base: string, sub: string): string {
 
 function walkBackend(): BeUrl[] {
   const app = walkAppTs();
+  const beUrlMap = buildBeUrlPathMap();
   const out: BeUrl[] = [];
 
   // Top-level routers (healthRouter — single Router instance, walk full file).
   for (const [varName, mountPath] of app.topLevelRouters) {
     const file = findRouterFactorySource(varName);
     if (!file) continue;
-    for (const r of extractRouterRoutes(file)) {
+    for (const r of extractRouterRoutes(file, beUrlMap)) {
       out.push({ method: r.method, url: joinUrl(mountPath, r.path), source: relative(REPO_ROOT, file) });
     }
   }
@@ -952,7 +977,7 @@ function walkBackend(): BeUrl[] {
   for (const ref of app.factoryRefs) {
     const file = findRouterFactorySource(ref.factoryName);
     if (!file) continue;
-    for (const r of extractFactoryRoutes(file, ref.factoryName)) {
+    for (const r of extractFactoryRoutes(file, ref.factoryName, beUrlMap)) {
       out.push({ method: r.method, url: joinUrl(ref.mountPath, r.path), source: relative(REPO_ROOT, file) });
     }
   }
@@ -986,7 +1011,7 @@ function walkBackend(): BeUrl[] {
     const fullMount = joinUrl(parentMount, subPath);
     const file = findRouterFactorySource(usage.factoryName);
     if (!file) continue;
-    for (const r of extractFactoryRoutes(file, usage.factoryName)) {
+    for (const r of extractFactoryRoutes(file, usage.factoryName, beUrlMap)) {
       out.push({ method: r.method, url: joinUrl(fullMount, r.path), source: relative(REPO_ROOT, file) });
     }
   }
@@ -1001,8 +1026,7 @@ function normalizeBeUrl(url: string): string {
 }
 
 function main(): void {
-  const cfg = loadClassifierConfig();
-  const feUrls = walkFrontend(cfg);
+  const feUrls = walkFrontend();
   const beUrlsRaw = walkBackend();
 
   // Dedupe BE.

@@ -14,5 +14,13 @@ export const tenantUrls = {
     buildTenantNested(`/admin/users/${encodeURIComponent(userId)}`),
   userEnabled: (userId: string): string =>
     buildTenantNested(`/admin/users/${encodeURIComponent(userId)}/enabled`),
-  onboardingComplete: (): string => buildTenantNested("/onboarding/complete")
+  onboardingComplete: (): string => buildTenantNested("/onboarding/complete"),
+  clientOrgsList: (): string => buildTenantNested("/admin/client-orgs"),
+  clientOrgsCreate: (): string => buildTenantNested("/admin/client-orgs"),
+  clientOrgUpdate: (id: string): string =>
+    buildTenantNested(`/admin/client-orgs/${encodeURIComponent(id)}`),
+  clientOrgDelete: (id: string): string =>
+    buildTenantNested(`/admin/client-orgs/${encodeURIComponent(id)}`),
+  clientOrgPreviewArchive: (id: string): string =>
+    buildTenantNested(`/admin/client-orgs/${encodeURIComponent(id)}/preview-archive`)
 };
