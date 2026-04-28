@@ -202,11 +202,14 @@ export async function createApp(prebuiltDependencies?: Awaited<ReturnType<typeof
   tenantAdminRouter.use(createMailboxAssignmentsRouter(dependencies.mailboxAssignmentsAdminService));
   tenantAdminRouter.use(createGmailConnectionRouter(dependencies.gmailIntegrationService));
   tenantAdminRouter.use(createNotificationLogRouter());
-  // `/tenant/onboarding/complete` runs DURING tenant setup (admin clicks
-  // "complete onboarding" before `requires_tenant_setup` flips to false), so
-  // it sits on `tenantAdminRouter` (omits `requireTenantSetupCompleted`),
-  // mirroring the legacy `/api` mount above. Sub-PR F drops the legacy mount
-  // once zero callers remain.
+  // `/onboarding/complete` runs DURING tenant setup (admin clicks "complete
+  // onboarding" before `requires_tenant_setup` flips to false), so it sits on
+  // `tenantAdminRouter` (omits `requireTenantSetupCompleted`), mirroring the
+  // legacy `/api/tenant/onboarding/complete` mount above. The nested factory
+  // registers the route as `/onboarding/complete` (not `/tenant/onboarding/...`)
+  // so the resolved URL is `/api/tenants/:tenantId/onboarding/complete` — no
+  // double `tenant` segment. Sub-PR F drops the legacy mount once zero callers
+  // remain.
   tenantAdminRouter.use(createTenantOnboardingCompleteRouter(dependencies.tenantAdminService));
 
   // Bank domain — realm-scoped routers (accounts + statements) mount under

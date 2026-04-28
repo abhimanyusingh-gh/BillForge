@@ -4,7 +4,7 @@ import { buildTenantNested } from "@/api/urls/buildNested";
 // `app.ts` (path `/api/tenants/:tenantId/...`). Tenant-scoped only; no
 // clientOrgId in the URL. `tenantAdminRouter` omits
 // `requireTenantSetupCompleted` so onboarding-time calls (e.g.
-// `/tenant/onboarding/complete`) work BEFORE setup flips to completed.
+// `/onboarding/complete`) work BEFORE setup flips to completed.
 export const tenantUrls = {
   usersList: (): string => buildTenantNested("/admin/users"),
   usersInvite: (): string => buildTenantNested("/admin/users/invite"),
@@ -14,5 +14,5 @@ export const tenantUrls = {
     buildTenantNested(`/admin/users/${encodeURIComponent(userId)}`),
   userEnabled: (userId: string): string =>
     buildTenantNested(`/admin/users/${encodeURIComponent(userId)}/enabled`),
-  onboardingComplete: (): string => buildTenantNested("/tenant/onboarding/complete")
+  onboardingComplete: (): string => buildTenantNested("/onboarding/complete")
 };

@@ -24,8 +24,6 @@ export const complianceUrls = {
   tcsConfig: (): string => buildNested("/admin/tcs-config"),
   tcsConfigRoles: (): string => buildNested("/admin/tcs-config/roles"),
   tcsConfigHistory: (): string => buildNested("/admin/tcs-config/history"),
-  approvalWorkflowGet: (): string => buildNested("/admin/approval-workflow"),
-  approvalWorkflowUpdate: (): string => buildNested("/admin/approval-workflow"),
-  approvalLimitsGet: (): string => buildNested("/admin/approval-limits"),
-  approvalLimitsUpdate: (): string => buildNested("/admin/approval-limits")
+  approvalWorkflow: (): string => buildNested("/admin/approval-workflow"),
+  approvalLimits: (): string => buildNested("/admin/approval-limits")
 };

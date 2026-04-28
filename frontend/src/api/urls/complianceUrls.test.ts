@@ -27,10 +27,8 @@ describe("api/urls/complianceUrls — collection routes", () => {
     ["tcsConfig", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config"],
     ["tcsConfigRoles", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config/roles"],
     ["tcsConfigHistory", "/tenants/tenant-1/clientOrgs/client-1/admin/tcs-config/history"],
-    ["approvalWorkflowGet", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-workflow"],
-    ["approvalWorkflowUpdate", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-workflow"],
-    ["approvalLimitsGet", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-limits"],
-    ["approvalLimitsUpdate", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-limits"]
+    ["approvalWorkflow", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-workflow"],
+    ["approvalLimits", "/tenants/tenant-1/clientOrgs/client-1/admin/approval-limits"]
   ] as const)("%s resolves to %s", (method, expected) => {
     const fn = complianceUrls[method] as () => string;
     expect(fn()).toBe(expected);
@@ -69,10 +67,10 @@ describe("api/urls/complianceUrls — missing-context guards", () => {
     expect(() => complianceUrls.vendorUpdate("v-1")).toThrow(
       MissingActiveClientOrgError
     );
-    expect(() => complianceUrls.approvalWorkflowGet()).toThrow(
+    expect(() => complianceUrls.approvalWorkflow()).toThrow(
       MissingActiveClientOrgError
     );
-    expect(() => complianceUrls.approvalLimitsGet()).toThrow(
+    expect(() => complianceUrls.approvalLimits()).toThrow(
       MissingActiveClientOrgError
     );
   });
@@ -83,10 +81,10 @@ describe("api/urls/complianceUrls — missing-context guards", () => {
     expect(() => complianceUrls.glCodeDelete("GL-1")).toThrow(
       MissingActiveClientOrgError
     );
-    expect(() => complianceUrls.approvalWorkflowUpdate()).toThrow(
+    expect(() => complianceUrls.approvalWorkflow()).toThrow(
       MissingActiveClientOrgError
     );
-    expect(() => complianceUrls.approvalLimitsUpdate()).toThrow(
+    expect(() => complianceUrls.approvalLimits()).toThrow(
       MissingActiveClientOrgError
     );
   });
