@@ -5,6 +5,7 @@ import { InvoiceModel } from "@/models/invoice/Invoice.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
 import { requireNotViewer } from "@/auth/middleware.js";
+import { COMPLIANCE_URL_PATHS } from "@/routes/urls/complianceUrls.js";
 
 const MSME_STATUTORY_MAX_DAYS = 45;
 
@@ -12,7 +13,7 @@ export function createVendorsRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/vendors", requireCap("canViewAllInvoices"), async (req, res, next) => {
+  router.get(COMPLIANCE_URL_PATHS.vendors, requireCap("canViewAllInvoices"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const query: Record<string, unknown> = { tenantId, clientOrgId: req.activeClientOrgId };
@@ -54,7 +55,7 @@ export function createVendorsRouter() {
     } catch (error) { next(error); }
   });
 
-  router.get("/vendors/:id", requireCap("canViewAllInvoices"), async (req, res, next) => {
+  router.get(COMPLIANCE_URL_PATHS.vendorById, requireCap("canViewAllInvoices"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const vendor = await VendorMasterModel.findOne({ _id: req.params.id, tenantId, clientOrgId: req.activeClientOrgId }).lean();
@@ -63,7 +64,7 @@ export function createVendorsRouter() {
     } catch (error) { next(error); }
   });
 
-  router.patch("/vendors/:id", requireNotViewer, requireCap("canConfigureCompliance"), async (req, res, next) => {
+  router.patch(COMPLIANCE_URL_PATHS.vendorById, requireNotViewer, requireCap("canConfigureCompliance"), async (req, res, next) => {
     try {
       const tenantId = getAuth(req).tenantId;
       const vendor = await VendorMasterModel.findOne({ _id: req.params.id, tenantId, clientOrgId: req.activeClientOrgId });

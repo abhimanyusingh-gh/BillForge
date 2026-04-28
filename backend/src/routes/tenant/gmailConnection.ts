@@ -8,6 +8,7 @@ import { apiUrl } from "@/config/env.js";
 import { TenantUserRoleModel } from "@/models/core/TenantUserRole.js";
 import { mergeCapabilitiesWithDefaults } from "@/auth/personaDefaults.js";
 import { PLATFORM_URL_PATHS } from "@/routes/urls/platformUrls.js";
+import { GMAIL_CONNECTION_URL_PATHS } from "@/routes/urls/gmailConnectionUrls.js";
 
 export function createGmailPublicRouter(
   gmailIntegrationService: TenantGmailIntegrationService,
@@ -70,7 +71,7 @@ export function createGmailPublicRouter(
 export function createGmailConnectionRouter(gmailIntegrationService: TenantGmailIntegrationService) {
   const router = Router();
 
-  router.get("/integrations/gmail", async (request, response, next) => {
+  router.get(GMAIL_CONNECTION_URL_PATHS.status, async (request, response, next) => {
     try {
       const context = request.authContext;
       if (!context) {
@@ -100,7 +101,7 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
     }
   });
 
-  router.get("/integrations/gmail/connect-url", requireCap("canManageConnections"), async (request, response, next) => {
+  router.get(GMAIL_CONNECTION_URL_PATHS.connectUrl, requireCap("canManageConnections"), async (request, response, next) => {
     try {
       const context = getAuth(request);
       const sessionToken = request.header("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
@@ -116,7 +117,7 @@ export function createGmailConnectionRouter(gmailIntegrationService: TenantGmail
     }
   });
 
-  router.put("/integrations/gmail/:id/polling", requireCap("canManageConnections"), async (request, response, next) => {
+  router.put(GMAIL_CONNECTION_URL_PATHS.polling, requireCap("canManageConnections"), async (request, response, next) => {
     try {
       const context = getAuth(request);
       const enabled = typeof request.body?.enabled === "boolean" ? request.body.enabled : false;

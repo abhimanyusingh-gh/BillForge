@@ -4,11 +4,12 @@ import { requireCap } from "@/auth/requireCapability.js";
 import type { ClientOrgsAdminService } from "@/services/tenant/clientOrgsAdminService.js";
 import { isRecord, isString } from "@/utils/validation.js";
 import { HttpError } from "@/errors/HttpError.js";
+import { CLIENT_ORGS_URL_PATHS } from "@/routes/urls/clientOrgsUrls.js";
 
 export function createClientOrgsRouter(service: ClientOrgsAdminService) {
   const router = Router();
 
-  router.get("/admin/client-orgs", requireCap("canManageUsers"), async (req, res, next) => {
+  router.get(CLIENT_ORGS_URL_PATHS.list, requireCap("canManageUsers"), async (req, res, next) => {
     try {
       const includeArchived = req.query.includeArchived === "true";
       const items = await service.list(getAuth(req).tenantId, { includeArchived });
@@ -18,7 +19,7 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
     }
   });
 
-  router.post("/admin/client-orgs", requireCap("canManageUsers"), async (req, res, next) => {
+  router.post(CLIENT_ORGS_URL_PATHS.list, requireCap("canManageUsers"), async (req, res, next) => {
     try {
       const body = isRecord(req.body) ? req.body : {};
       if (!isString(body.gstin) || !isString(body.companyName)) {
@@ -37,7 +38,7 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
     }
   });
 
-  router.patch("/admin/client-orgs/:id", requireCap("canManageUsers"), async (req, res, next) => {
+  router.patch(CLIENT_ORGS_URL_PATHS.byId, requireCap("canManageUsers"), async (req, res, next) => {
     try {
       const body = isRecord(req.body) ? req.body : {};
       const updated = await service.update({
@@ -58,7 +59,7 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
     }
   });
 
-  router.get("/admin/client-orgs/:id/preview-archive", requireCap("canManageUsers"), async (req, res, next) => {
+  router.get(CLIENT_ORGS_URL_PATHS.previewArchive, requireCap("canManageUsers"), async (req, res, next) => {
     try {
       const result = await service.previewArchive({
         tenantId: getAuth(req).tenantId,
@@ -70,7 +71,7 @@ export function createClientOrgsRouter(service: ClientOrgsAdminService) {
     }
   });
 
-  router.delete("/admin/client-orgs/:id", requireCap("canManageUsers"), async (req, res, next) => {
+  router.delete(CLIENT_ORGS_URL_PATHS.byId, requireCap("canManageUsers"), async (req, res, next) => {
     try {
       const result = await service.deleteOrArchive({
         tenantId: getAuth(req).tenantId,

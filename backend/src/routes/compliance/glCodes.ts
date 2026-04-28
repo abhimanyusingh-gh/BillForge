@@ -3,6 +3,7 @@ import multer from "multer";
 import { GlCodeMasterModel } from "@/models/compliance/GlCodeMaster.js";
 import { requireAuth } from "@/auth/requireAuth.js";
 import { requireCap } from "@/auth/requireCapability.js";
+import { COMPLIANCE_URL_PATHS } from "@/routes/urls/complianceUrls.js";
 
 const MAX_CSV_FILE_SIZE = 1024 * 1024;
 const MAX_CSV_ROWS = 5000;
@@ -107,7 +108,7 @@ export function createGlCodesRouter() {
   const router = Router();
   router.use(requireAuth);
 
-  router.get("/admin/gl-codes", async (req, res, next) => {
+  router.get(COMPLIANCE_URL_PATHS.glCodes, async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const query: Record<string, unknown> = { tenantId, clientOrgId: req.activeClientOrgId };
@@ -137,7 +138,7 @@ export function createGlCodesRouter() {
     } catch (error) { next(error); }
   });
 
-  router.post("/admin/gl-codes", requireCap("canConfigureGlCodes"), async (req, res, next) => {
+  router.post(COMPLIANCE_URL_PATHS.glCodes, requireCap("canConfigureGlCodes"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const { code, name, category, linkedTdsSection, parentCode } = req.body ?? {};
@@ -167,7 +168,7 @@ export function createGlCodesRouter() {
     } catch (error) { next(error); }
   });
 
-  router.put("/admin/gl-codes/:code", requireCap("canConfigureGlCodes"), async (req, res, next) => {
+  router.put(COMPLIANCE_URL_PATHS.glCodeByCode, requireCap("canConfigureGlCodes"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const update: Record<string, unknown> = {};
@@ -188,7 +189,7 @@ export function createGlCodesRouter() {
     } catch (error) { next(error); }
   });
 
-  router.delete("/admin/gl-codes/:code", requireCap("canConfigureGlCodes"), async (req, res, next) => {
+  router.delete(COMPLIANCE_URL_PATHS.glCodeByCode, requireCap("canConfigureGlCodes"), async (req, res, next) => {
     try {
       const tenantId = req.authContext!.tenantId;
       const doc = await GlCodeMasterModel.findOneAndUpdate(
@@ -201,7 +202,7 @@ export function createGlCodesRouter() {
     } catch (error) { next(error); }
   });
 
-  router.post("/admin/gl-codes/import-csv", requireCap("canConfigureGlCodes"), (req, res, next) => {
+  router.post(COMPLIANCE_URL_PATHS.glCodesImportCsv, requireCap("canConfigureGlCodes"), (req, res, next) => {
     (csvUpload.single("file") as unknown as import("express").RequestHandler)(req, res, (error: unknown) => {
       if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
         res.status(400).json({ message: "CSV file exceeds the 1 MB size limit." });
