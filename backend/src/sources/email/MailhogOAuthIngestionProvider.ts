@@ -27,7 +27,7 @@ export class MailhogOAuthIngestionProvider implements EmailIngestionBoundary {
   private readonly http: AxiosInstance;
 
   constructor(private readonly config: EmailSourceConfig) {
-    this.http = axios.create({ baseURL: this.config.mailhogApiBaseUrl.replace(/\/+$/, "") });
+    this.http = axios.create({ baseURL: this.config.mailhogApiBaseUrl });
   }
 
   async fetchNewFiles(lastCheckpoint: string | null): Promise<IngestedFile[]> {
