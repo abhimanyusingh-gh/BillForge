@@ -1,13 +1,13 @@
 # AWS Deployment Guide
 
-This guide deploys BillForge on AWS using Spot instances, DocumentDB, and S3. Authentication is handled exclusively by Keycloak (OIDC).
+This guide deploys LedgerBuddy on AWS using Spot instances, DocumentDB, and S3. Authentication is handled exclusively by Keycloak (OIDC).
 
 ## 1. Prerequisites
 
 - AWS account with access to EC2, Auto Scaling, IAM, and ECR.
 - Existing VPC and at least 2 private/public subnets.
 - If you are not provisioning DocumentDB, an external MongoDB connection string (Atlas or self-hosted).
-- A running Keycloak instance (realm `billforge`, client `billforge-app`, port 8180 in production).
+- A running Keycloak instance (realm `ledgerbuddy`, client `ledgerbuddy-app`, port 8180 in production).
 - Terraform `>= 1.6` (matches `infra/terraform/versions.tf`).
 - AWS CLI configured (`aws configure`).
 - Docker and Yarn installed locally.
@@ -30,7 +30,7 @@ The script performs:
 - Terraform `init`, `validate`, `plan`, and `apply` with the pushed image URI
 
 Optional overrides:
-- `PROJECT_NAME` (default `billforge`)
+- `PROJECT_NAME` (default `ledgerbuddy`)
 - `ECR_REPOSITORY` (default `${PROJECT_NAME}-backend`)
 - `IMAGE_TAG` (default `<git-sha>-<timestamp>`)
 - `TERRAFORM_DIR` (default `infra/terraform`)
@@ -40,7 +40,7 @@ Optional overrides:
 
 1. Create ECR repo (one time):
 ```bash
-aws ecr create-repository --repository-name billforge-backend --region <AWS_REGION>
+aws ecr create-repository --repository-name ledgerbuddy-backend --region <AWS_REGION>
 ```
 
 2. Authenticate Docker to ECR:
@@ -50,9 +50,9 @@ aws ecr get-login-password --region <AWS_REGION> | docker login --username AWS -
 
 3. Build and push image:
 ```bash
-docker build -t billforge-backend -f backend/Dockerfile .
-docker tag billforge-backend:latest <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/billforge-backend:latest
-docker push <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/billforge-backend:latest
+docker build -t ledgerbuddy-backend -f backend/Dockerfile .
+docker tag ledgerbuddy-backend:latest <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/ledgerbuddy-backend:latest
+docker push <ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/ledgerbuddy-backend:latest
 ```
 
 ## 3. Configure Terraform Variables
@@ -93,20 +93,20 @@ cp environments/prod.tfvars.example terraform.tfvars
 
 ### Authentication Environment Variables (Keycloak OIDC)
 
-BillForge authenticates exclusively through Keycloak. The following OIDC variables must be set:
+LedgerBuddy authenticates exclusively through Keycloak. The following OIDC variables must be set:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `OIDC_CLIENT_ID` | OIDC client identifier | `billforge-app` |
+| `OIDC_CLIENT_ID` | OIDC client identifier | `ledgerbuddy-app` |
 | `OIDC_CLIENT_SECRET` | OIDC client secret | (from Keycloak admin console) |
-| `OIDC_AUTH_URL` | Authorization endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/auth` |
-| `OIDC_TOKEN_URL` | Token endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/token` |
-| `OIDC_VALIDATE_URL` | Token introspection endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/token/introspect` |
-| `OIDC_USERINFO_URL` | UserInfo endpoint | `https://auth.example.com/realms/billforge/protocol/openid-connect/userinfo` |
+| `OIDC_AUTH_URL` | Authorization endpoint | `https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/auth` |
+| `OIDC_TOKEN_URL` | Token endpoint | `https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/token` |
+| `OIDC_VALIDATE_URL` | Token introspection endpoint | `https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/token/introspect` |
+| `OIDC_USERINFO_URL` | UserInfo endpoint | `https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/userinfo` |
 | `OIDC_REDIRECT_URI` | OAuth callback URI | `https://app.example.com/api/auth/callback` |
 | `AUTH_AUTO_PROVISION_USERS` | Auto-create MongoDB user on first Keycloak login | `true` |
 | `KEYCLOAK_INTERNAL_BASE_URL` | Keycloak base URL for server-to-server calls | `http://keycloak:8080` |
-| `KEYCLOAK_REALM` | Keycloak realm name | `billforge` |
+| `KEYCLOAK_REALM` | Keycloak realm name | `ledgerbuddy` |
 
 ### OCR and Extraction Provider Variables
 
@@ -127,16 +127,16 @@ Minimal `extra_env` example for production:
 extra_env = {
   ENV = "prod"
 
-  OIDC_CLIENT_ID          = "billforge-app"
+  OIDC_CLIENT_ID          = "ledgerbuddy-app"
   OIDC_CLIENT_SECRET      = "your-keycloak-client-secret"
-  OIDC_AUTH_URL            = "https://auth.example.com/realms/billforge/protocol/openid-connect/auth"
-  OIDC_TOKEN_URL           = "https://auth.example.com/realms/billforge/protocol/openid-connect/token"
-  OIDC_VALIDATE_URL        = "https://auth.example.com/realms/billforge/protocol/openid-connect/token/introspect"
-  OIDC_USERINFO_URL        = "https://auth.example.com/realms/billforge/protocol/openid-connect/userinfo"
+  OIDC_AUTH_URL            = "https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/auth"
+  OIDC_TOKEN_URL           = "https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/token"
+  OIDC_VALIDATE_URL        = "https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/token/introspect"
+  OIDC_USERINFO_URL        = "https://auth.example.com/realms/ledgerbuddy/protocol/openid-connect/userinfo"
   OIDC_REDIRECT_URI        = "https://app.example.com/api/auth/callback"
   AUTH_AUTO_PROVISION_USERS = "true"
   KEYCLOAK_INTERNAL_BASE_URL = "http://keycloak:8080"
-  KEYCLOAK_REALM           = "billforge"
+  KEYCLOAK_REALM           = "ledgerbuddy"
 
   OCR_PROVIDER             = "deepseek"
   OCR_PROVIDER_BASE_URL    = "http://your-ocr-endpoint:8000/v1"
@@ -175,7 +175,7 @@ provision_documentdb = true
 documentdb_allowed_cidrs        = ["10.0.0.0/16"]
 documentdb_master_username      = "invoice_admin"
 documentdb_master_password      = "replace-with-strong-password"
-documentdb_db_name              = "billforge"
+documentdb_db_name              = "ledgerbuddy"
 documentdb_instance_class       = "db.t3.medium"
 documentdb_instance_count       = 1
 documentdb_deletion_protection  = true
@@ -224,7 +224,7 @@ terraform apply -var-file=terraform.tfvars
 2. Trigger one run immediately (optional):
 ```bash
 aws autoscaling update-auto-scaling-group \
-  --auto-scaling-group-name billforge-worker-asg \
+  --auto-scaling-group-name ledgerbuddy-worker-asg \
   --desired-capacity 1 \
   --min-size 0 \
   --max-size 1 \

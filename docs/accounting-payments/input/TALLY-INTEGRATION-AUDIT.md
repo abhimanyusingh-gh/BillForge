@@ -2,13 +2,13 @@ I now have a comprehensive understanding of the entire Tally integration. Let me
 
 ---
 
-# BillForge Tally Integration Audit Report
+# LedgerBuddy Tally Integration Audit Report
 
 ## 1. Executive Summary
 
 **Integration Health Score: 5 out of 10**
 
-**Justification**: BillForge has a competent Purchase Voucher generator that correctly handles the XML envelope structure, GST intra-state/inter-state bifurcation, TDS deduction, TCS receivable, and configurable ledger names. The voucher XML it produces will import into Tally Prime for straightforward purchase recording scenarios. However, the integration is narrow in scope -- it addresses only one of the five voucher types needed for a complete accounts payable workflow. Critical structural gaps include the use of `LEDGERENTRIES.LIST` where Tally expects `ALLLEDGERENTRIES.LIST` for most real-world imports, absence of `REFERENCE` and `EFFECTIVEDATE` fields that Tally uses for bill tracking and aging, no master data (ledger/vendor) creation or validation, no `BILLALLOCATIONS.LIST` for credit-term tracking, no Payment Voucher generation, no Debit Note or Journal Voucher support, and no inventory-mode line-item voucher generation. The XML will work with Tally in non-invoice mode for simple two-party entries, but will fail or produce incomplete data for GST return filing, bill-by-bill reconciliation, and payment settlement.
+**Justification**: LedgerBuddy has a competent Purchase Voucher generator that correctly handles the XML envelope structure, GST intra-state/inter-state bifurcation, TDS deduction, TCS receivable, and configurable ledger names. The voucher XML it produces will import into Tally Prime for straightforward purchase recording scenarios. However, the integration is narrow in scope -- it addresses only one of the five voucher types needed for a complete accounts payable workflow. Critical structural gaps include the use of `LEDGERENTRIES.LIST` where Tally expects `ALLLEDGERENTRIES.LIST` for most real-world imports, absence of `REFERENCE` and `EFFECTIVEDATE` fields that Tally uses for bill tracking and aging, no master data (ledger/vendor) creation or validation, no `BILLALLOCATIONS.LIST` for credit-term tracking, no Payment Voucher generation, no Debit Note or Journal Voucher support, and no inventory-mode line-item voucher generation. The XML will work with Tally in non-invoice mode for simple two-party entries, but will fail or produce incomplete data for GST return filing, bill-by-bill reconciliation, and payment settlement.
 
 ---
 
@@ -129,7 +129,7 @@ For master data, `<ID>` is set to `All Masters` instead of `Vouchers`.
 
 ### 3.B Purchase Voucher (Correct Full Structure)
 
-This is what BillForge should generate for a purchase invoice with GST and TDS:
+This is what LedgerBuddy should generate for a purchase invoice with GST and TDS:
 
 ```xml
 <VOUCHER VCHTYPE="Purchase" ACTION="Create" OBJVIEW="Accounting Voucher View">
@@ -138,7 +138,7 @@ This is what BillForge should generate for a purchase invoice with GST and TDS:
   <VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>
   <VOUCHERNUMBER>INV-2026-001</VOUCHERNUMBER>
   <REFERENCE>INV-2026-001</REFERENCE>
-  <NARRATION>Purchase from Vendor ABC | BillForge Ref: 507f1f77bcf86cd799439011</NARRATION>
+  <NARRATION>Purchase from Vendor ABC | LedgerBuddy Ref: 507f1f77bcf86cd799439011</NARRATION>
   <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>
   <ISINVOICE>Yes</ISINVOICE>
   <PARTYLEDGERNAME>Vendor ABC Pvt Ltd</PARTYLEDGERNAME>
@@ -192,7 +192,7 @@ This is what BillForge should generate for a purchase invoice with GST and TDS:
 </VOUCHER>
 ```
 
-Key differences from BillForge's current output:
+Key differences from LedgerBuddy's current output:
 - `ALLLEDGERENTRIES.LIST` instead of `LEDGERENTRIES.LIST`
 - `ISINVOICE` is `Yes` instead of `No`
 - `REFERENCE` tag present (matches `VOUCHERNUMBER` for supplier bill tracking)
@@ -369,9 +369,9 @@ Key attributes:
 - `Input IGST` (parent: `Duties & Taxes`, type of duty: `GST`, tax type: `Integrated Tax`)
 - `Cess` (parent: `Duties & Taxes`, type of duty: `GST`, tax type: `Cess`)
 
-**HSN/SAC in Vouchers**: When using inventory allocation mode (`ALLINVENTORYENTRIES.LIST`), each stock item can carry `HSNCODE` or `SERVICETAXDETAILS.LIST` with SAC. BillForge extracts HSN/SAC per line item but the current exporter does not use this data at all.
+**HSN/SAC in Vouchers**: When using inventory allocation mode (`ALLINVENTORYENTRIES.LIST`), each stock item can carry `HSNCODE` or `SERVICETAXDETAILS.LIST` with SAC. LedgerBuddy extracts HSN/SAC per line item but the current exporter does not use this data at all.
 
-**Reverse Charge Mechanism (RCM)**: For unregistered vendor purchases above threshold, GST is payable by the buyer under RCM. Tally handles this with `<ISAGAINSTFORM>Yes</ISAGAINSTFORM>` and `GSTREGISTRATIONTYPE=Unregistered` on the vendor ledger. BillForge has no RCM support.
+**Reverse Charge Mechanism (RCM)**: For unregistered vendor purchases above threshold, GST is payable by the buyer under RCM. Tally handles this with `<ISAGAINSTFORM>Yes</ISAGAINSTFORM>` and `GSTREGISTRATIONTYPE=Unregistered` on the vendor ledger. LedgerBuddy has no RCM support.
 
 ### 3.H TDS-Specific Structures
 
@@ -381,7 +381,7 @@ Tally supports TDS natively with these fields:
 - `TDSDEDUCTEETYPE` (Company, Individual, HUF, etc.)
 - Link to TDS nature of payment (194C, 194J, 194H, etc.)
 
-BillForge currently maps TDS as a simple separate ledger entry (`TDS Payable - {section}`), which will produce the correct accounting result but will not populate Tally's TDS statutory module. This means the TDS data will not appear in Tally's Form 26Q generation or TDS return filing features.
+LedgerBuddy currently maps TDS as a simple separate ledger entry (`TDS Payable - {section}`), which will produce the correct accounting result but will not populate Tally's TDS statutory module. This means the TDS data will not appear in Tally's Form 26Q generation or TDS return filing features.
 
 ---
 
@@ -389,7 +389,7 @@ BillForge currently maps TDS as a simple separate ledger entry (`TDS Payable - {
 
 ### Gap 1: `LEDGERENTRIES.LIST` vs `ALLLEDGERENTRIES.LIST`
 
-**Current**: BillForge uses `<LEDGERENTRIES.LIST>` for all ledger entries inside the voucher.
+**Current**: LedgerBuddy uses `<LEDGERENTRIES.LIST>` for all ledger entries inside the voucher.
 
 **Required**: Tally's canonical import format uses `<ALLLEDGERENTRIES.LIST>`. While `LEDGERENTRIES.LIST` may work in some configurations (particularly when `ISINVOICE=No`), using `ALLLEDGERENTRIES.LIST` is the universally accepted form that works across Tally ERP 9 and Tally Prime.
 
@@ -444,14 +444,14 @@ BillForge currently maps TDS as a simple separate ledger entry (`TDS Payable - {
 
 ### Gap 6: No Master Data / Ledger Pre-creation
 
-**Current**: BillForge assumes all referenced ledgers already exist in Tally. If a vendor name appears for the first time, the import will fail with "Ledger does not exist."
+**Current**: LedgerBuddy assumes all referenced ledgers already exist in Tally. If a vendor name appears for the first time, the import will fail with "Ledger does not exist."
 
-**Required**: Before importing vouchers, BillForge should either:
+**Required**: Before importing vouchers, LedgerBuddy should either:
 1. Pre-create ledgers for new vendors (using the master data import XML).
 2. Query Tally for existing ledgers and create missing ones.
 3. Use Tally's `ALLOWCREATION` flag (`<ALLOWCREATION>Yes</ALLOWCREATION>` in `STATICVARIABLES`) to auto-create ledgers on import -- but this creates them under "Primary" without proper classification.
 
-**Impact**: Critical for new vendor scenarios. The first export for any new vendor will fail. The error message from Tally ("Ledger does not exist") is captured correctly by BillForge's response parser, but the user must then manually create the ledger in Tally and re-export.
+**Impact**: Critical for new vendor scenarios. The first export for any new vendor will fail. The error message from Tally ("Ledger does not exist") is captured correctly by LedgerBuddy's response parser, but the user must then manually create the ledger in Tally and re-export.
 
 **Fix complexity**: High -- requires a new "vendor sync" subsystem.
 
@@ -479,7 +479,7 @@ BillForge currently maps TDS as a simple separate ledger entry (`TDS Payable - {
 
 **Current**: Only Purchase Vouchers are generated. No way to record payments.
 
-**Required**: When an invoice is paid (through bank reconciliation or manual marking), BillForge should be able to generate a Payment Voucher to record the settlement in Tally.
+**Required**: When an invoice is paid (through bank reconciliation or manual marking), LedgerBuddy should be able to generate a Payment Voucher to record the settlement in Tally.
 
 **Impact**: High for end-to-end workflow. Without Payment Vouchers, the vendor's outstanding balance in Tally never reduces, making the accounts payable subledger useless.
 
@@ -491,7 +491,7 @@ BillForge currently maps TDS as a simple separate ledger entry (`TDS Payable - {
 
 **Required**: Debit Notes for credit notes from vendors and purchase returns. Journal Vouchers for TDS adjustments, year-end provisions, and reclassification entries.
 
-**Impact**: Medium. For the MVP, purchase-only is acceptable. These become important when BillForge handles the full invoice lifecycle including disputes and adjustments.
+**Impact**: Medium. For the MVP, purchase-only is acceptable. These become important when LedgerBuddy handles the full invoice lifecycle including disputes and adjustments.
 
 **Fix complexity**: Medium per voucher type -- similar structure to Purchase Voucher with different `VCHTYPE` and reversed signs.
 
@@ -533,7 +533,7 @@ BillForge currently maps TDS as a simple separate ledger entry (`TDS Payable - {
 
 **Impact**: Medium. The accounting entry is correct, but Tally's TDS compliance module will not auto-generate TDS returns from these vouchers. The user would need to manually enter TDS details in Tally.
 
-**Fix complexity**: High -- requires understanding the tenant's TDS deductee type, mapping BillForge's TDS sections to Tally's nature-of-payment categories, and adding statutory fields.
+**Fix complexity**: High -- requires understanding the tenant's TDS deductee type, mapping LedgerBuddy's TDS sections to Tally's nature-of-payment categories, and adding statutory fields.
 
 ---
 
@@ -653,7 +653,7 @@ When a vendor exists in Tally with different data (e.g., different GSTIN):
 - **Do not overwrite** Tally's master data silently.
 - Log a warning and include it in the export result.
 - Optionally: use `ACTION="Alter"` with a user confirmation step.
-- The vendor name in BillForge (extracted from the invoice) may not exactly match the ledger name in Tally. A fuzzy matching strategy (normalized case, trimmed whitespace, common abbreviations like "Pvt" vs "Private") should be used.
+- The vendor name in LedgerBuddy (extracted from the invoice) may not exactly match the ledger name in Tally. A fuzzy matching strategy (normalized case, trimmed whitespace, common abbreviations like "Pvt" vs "Private") should be used.
 
 ---
 
@@ -661,7 +661,7 @@ When a vendor exists in Tally with different data (e.g., different GSTIN):
 
 ### 6.1 Data Requirements
 
-To generate a Payment Voucher, BillForge needs:
+To generate a Payment Voucher, LedgerBuddy needs:
 - **Bank ledger name**: configurable per tenant (e.g., "HDFC Bank A/c", "SBI Current A/c").
 - **Invoice reference**: the `REFERENCE` value from the original Purchase Voucher (same as invoice number).
 - **Payment amount**: may be full or partial.
@@ -692,7 +692,7 @@ The Payment Voucher XML structure is documented in section 3.C above. Key consid
 
 ### 6.4 Integration with Bank Reconciliation
 
-BillForge already has a reconciliation data model (`compliance.reconciliation.bankTransactionId`). When a bank transaction is matched to an invoice:
+LedgerBuddy already has a reconciliation data model (`compliance.reconciliation.bankTransactionId`). When a bank transaction is matched to an invoice:
 1. Mark the invoice as reconciled.
 2. Queue a Payment Voucher generation (or batch it).
 3. Export the Payment Voucher to Tally.

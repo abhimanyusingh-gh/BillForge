@@ -1,8 +1,8 @@
-I now have a thorough understanding of the entire BillForge frontend. Here is the comprehensive UX audit report.
+I now have a thorough understanding of the entire LedgerBuddy frontend. Here is the comprehensive UX audit report.
 
 ---
 
-# BillForge UX Audit Report
+# LedgerBuddy UX Audit Report
 
 ## 1. Executive Summary
 
@@ -44,7 +44,7 @@ Overview | Invoices | Exports | Statements | Tenant Config | Connections
 - There is no "Vendors" tab, no "Payments" tab, no "Reconciliation" tab as a first-class destination. Reconciliation is buried inside `Statements > [expand statement] > transactions`.
 
 **Comparison with Tally Prime:**
-Tally's Gateway of India: `Vouchers (Purchase/Payment/Receipt/Journal) > Masters (Ledgers/Stock/Cost Centres) > Reports (Balance Sheet/P&L/Outstanding)`. The key insight: Tally separates *entry* (Vouchers), *reference data* (Masters), and *reporting* (Reports). BillForge conflates entry and reporting in the Overview tab, and has no Masters equivalent.
+Tally's Gateway of India: `Vouchers (Purchase/Payment/Receipt/Journal) > Masters (Ledgers/Stock/Cost Centres) > Reports (Balance Sheet/P&L/Outstanding)`. The key insight: Tally separates *entry* (Vouchers), *reference data* (Masters), and *reporting* (Reports). LedgerBuddy conflates entry and reporting in the Overview tab, and has no Masters equivalent.
 
 **Comparison with Zoho Books:**
 Zoho's left sidebar: `Dashboard > Invoices > Payments Received > Expenses > Bills > Payments Made > Banking > Accountant > Reports`. Each workflow stage gets its own nav item.
@@ -108,7 +108,7 @@ The reconciliation system is built around bank statements (`BankStatementsTab.ts
 - Global filters (account name, date range, search, match status) enable cross-statement analysis.
 
 **Problems:**
-- **No split-pane reconciliation view.** Tally Prime's bank reconciliation shows bank entries and book entries side-by-side. Zoho Books' bank matching shows the bank transaction with a list of candidate invoices below it. BillForge forces the user to click "Link Invoice", which opens a full-screen modal (`InvoiceSearchPicker`) with a text search. There is no visual proximity between the bank entry and candidate invoices.
+- **No split-pane reconciliation view.** Tally Prime's bank reconciliation shows bank entries and book entries side-by-side. Zoho Books' bank matching shows the bank transaction with a list of candidate invoices below it. LedgerBuddy forces the user to click "Link Invoice", which opens a full-screen modal (`InvoiceSearchPicker`) with a text search. There is no visual proximity between the bank entry and candidate invoices.
 - **No amount difference explanation.** When a bank debit is INR 8,500 and the invoice is INR 10,000, the user sees both numbers but no explanation. Indian AP reconciliation commonly has TDS deductions (the bank pays invoice minus TDS). The system needs to show: "Invoice: 10,000 | TDS (194C @ 1%): 100 | Expected bank debit: 9,900 | Actual: 8,500 | Difference: 1,400."
 - **No split mapping.** One bank transaction cannot be mapped to multiple invoices. One invoice cannot be mapped to multiple transactions. The API (`matchTransactionToInvoice`) is 1:1.
 - **No reconciliation summary dashboard.** The "summary" (matched/suggested/unmatched counts) is per-statement. There is no cross-statement view: "this month, 85% reconciled, 12 pending, 3 discrepancies."
@@ -128,8 +128,8 @@ The reconciliation system is built around bank statements (`BankStatementsTab.ts
 **Problems:**
 - **No pre-export validation.** The user clicks "Export" and hopes everything is correct. There should be a pre-flight checklist: "3 invoices missing GL code", "1 invoice has no PAN", "vendor 'ACME' not in Tally vendor master."
 - **No post-export feedback per voucher.** The export history (`ExportHistoryDashboard`) shows batch totals (success/failure counts) but no per-invoice breakdown. If 2 of 50 invoices failed, the user cannot see which ones without downloading and inspecting the XML.
-- **Tally mapping is view-only.** The `TallyMappingTable` shows the mapping but the user cannot override individual mappings. If BillForge maps "CGST" to the wrong Tally ledger, the user must change the tenant-level Tally configuration, not fix it per invoice.
-- **No Tally import confirmation.** After exporting XML and importing into Tally, there is no feedback loop. Bill.com and Xero have direct integrations that confirm import status. BillForge exports a file; the user imports it manually.
+- **Tally mapping is view-only.** The `TallyMappingTable` shows the mapping but the user cannot override individual mappings. If LedgerBuddy maps "CGST" to the wrong Tally ledger, the user must change the tenant-level Tally configuration, not fix it per invoice.
+- **No Tally import confirmation.** After exporting XML and importing into Tally, there is no feedback loop. Bill.com and Xero have direct integrations that confirm import status. LedgerBuddy exports a file; the user imports it manually.
 
 **Recommendation:** Add a "Pre-export checklist" modal that validates all selected invoices against Tally requirements (GL code assigned, vendor exists, PAN present if TDS-applicable). Show pass/fail per invoice with the option to exclude failing ones.
 
@@ -203,40 +203,40 @@ The reconciliation system is built around bank statements (`BankStatementsTab.ts
 ## 3. Competitive Comparison
 
 ### vs Tally Prime
-| Feature | Tally Prime | BillForge | Gap |
+| Feature | Tally Prime | LedgerBuddy | Gap |
 |---------|------------|-----------|-----|
-| Navigation | Gateway hierarchy (Vouchers > Masters > Reports) | Flat tab bar | BillForge lacks workflow-based hierarchy |
+| Navigation | Gateway hierarchy (Vouchers > Masters > Reports) | Flat tab bar | LedgerBuddy lacks workflow-based hierarchy |
 | Vendor master | First-class ledger accounts with full history | None | Critical gap for Indian market |
-| Bank reconciliation | Split-pane with auto-date-matching | Statement-drill-down with search modal | BillForge lacks visual proximity |
+| Bank reconciliation | Split-pane with auto-date-matching | Statement-drill-down with search modal | LedgerBuddy lacks visual proximity |
 | TDS compliance | Per-vendor cumulative tracking with threshold alerts | Per-invoice section assignment | No cumulative view, no threshold crossing alerts |
-| Keyboard-first | All operations via keyboard from Gateway | j/k/Space/Enter/a/e shortcuts | BillForge is comparable for navigation |
+| Keyboard-first | All operations via keyboard from Gateway | j/k/Space/Enter/a/e shortcuts | LedgerBuddy is comparable for navigation |
 | GST filing integration | Direct e-filing | None | Out of scope currently |
 
 ### vs Zoho Books
-| Feature | Zoho Books | BillForge | Gap |
+| Feature | Zoho Books | LedgerBuddy | Gap |
 |---------|------------|-----------|-----|
-| Navigation | Left sidebar with 15+ workflow categories | 6 flat tabs | BillForge needs more granular nav |
+| Navigation | Left sidebar with 15+ workflow categories | 6 flat tabs | LedgerBuddy needs more granular nav |
 | Payment recording | Full payment-to-bill matching with partial payments | None | Critical gap for upcoming PRD |
-| Banking module | Auto-imported bank feeds with rule-based matching | Manual upload + AI matching | BillForge has OCR advantage |
+| Banking module | Auto-imported bank feeds with rule-based matching | Manual upload + AI matching | LedgerBuddy has OCR advantage |
 | Vendor portal | Self-service vendor onboarding and invoice submission | None | Future consideration |
 | Multi-currency | Full with exchange rate management | Currency field on invoices but no rate management | Gap |
 
 ### vs Bill.com
-| Feature | Bill.com | BillForge | Gap |
+| Feature | Bill.com | LedgerBuddy | Gap |
 |---------|---------|-----------|-----|
-| Inbox workflow | Dedicated inbox with smart routing | Invoice list with status filters | BillForge lacks "inbox" metaphor |
+| Inbox workflow | Dedicated inbox with smart routing | Invoice list with status filters | LedgerBuddy lacks "inbox" metaphor |
 | Approval chains | Configurable with delegation | Configurable with conditions | Comparable |
 | Payment execution | Direct ACH/check/wire payment | Export to Tally (manual payment) | Fundamental architecture difference |
-| Audit trail | Full with IP/timestamp per action | Workflow step results with timestamps | BillForge is adequate |
+| Audit trail | Full with IP/timestamp per action | Workflow step results with timestamps | LedgerBuddy is adequate |
 | Sync status | Real-time with QuickBooks/Xero/Sage | Manual Tally XML import | Gap in feedback loop |
 
 ### vs ClearTax
-| Feature | ClearTax | BillForge | Gap |
+| Feature | ClearTax | LedgerBuddy | Gap |
 |---------|----------|-----------|-----|
-| GST compliance | GSTR-1/2/3B auto-filing | GST field extraction only | ClearTax has filing; BillForge has extraction |
-| TDS compliance | Section-wise filing with Form 26Q generation | Per-invoice TDS calculation with rates config | ClearTax has filing; BillForge has per-invoice |
+| GST compliance | GSTR-1/2/3B auto-filing | GST field extraction only | ClearTax has filing; LedgerBuddy has extraction |
+| TDS compliance | Section-wise filing with Form 26Q generation | Per-invoice TDS calculation with rates config | ClearTax has filing; LedgerBuddy has per-invoice |
 | e-Invoice | IRN generation and QR validation | None | Gap |
-| PAN validation | Database lookup | Format + GSTIN cross-reference | BillForge's L2 is good |
+| PAN validation | Database lookup | Format + GSTIN cross-reference | LedgerBuddy's L2 is good |
 
 ---
 
@@ -244,7 +244,7 @@ The reconciliation system is built around bank statements (`BankStatementsTab.ts
 
 ### 4A. Payment Recording UX
 
-**Context:** BillForge currently has no payment recording. Invoices go from APPROVED to EXPORTED. The PRD requires recording payments against invoices.
+**Context:** LedgerBuddy currently has no payment recording. Invoices go from APPROVED to EXPORTED. The PRD requires recording payments against invoices.
 
 **Recommended design:**
 

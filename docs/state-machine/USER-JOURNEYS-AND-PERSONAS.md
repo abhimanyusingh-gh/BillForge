@@ -2,7 +2,7 @@
 
 > Last updated: 2026-04-14
 >
-> This document maps every user path through BillForge by persona,
+> This document maps every user path through LedgerBuddy by persona,
 > identifies gaps in the current 4-role model for Indian accounting firms,
 > and proposes a persona-aware role model + approval workflow overhaul.
 >

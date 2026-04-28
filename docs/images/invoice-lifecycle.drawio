@@ -1,11 +1,11 @@
-<mxfile host="app.diagrams.net" agent="BillForge" version="24.0.0">
+<mxfile host="app.diagrams.net" agent="LedgerBuddy" version="24.0.0">
   <diagram id="invoice-lifecycle" name="Invoice Lifecycle State Machine">
     <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="700">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <mxCell id="2" value="BillForge — Invoice Lifecycle (State Machine)" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+        <mxCell id="2" value="LedgerBuddy — Invoice Lifecycle (State Machine)" style="text;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="300" y="15" width="400" height="30" as="geometry" />
         </mxCell>
 

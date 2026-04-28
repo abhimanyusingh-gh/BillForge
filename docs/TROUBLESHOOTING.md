@@ -3,11 +3,11 @@
 ## Docker Status Commands
 
 ```bash
-docker ps -a --filter "label=com.docker.compose.project=billforge" --format 'table {{.Names}}\t{{.Status}}'
+docker ps -a --filter "label=com.docker.compose.project=ledgerbuddy" --format 'table {{.Names}}\t{{.Status}}'
 
-docker volume ls --format '{{.Name}}' | grep billforge
+docker volume ls --format '{{.Name}}' | grep ledgerbuddy
 
-docker network ls --format '{{.Name}}' | grep billforge
+docker network ls --format '{{.Name}}' | grep ledgerbuddy
 ```
 
 ## Health Checks
@@ -42,14 +42,14 @@ curl http://localhost:8280/health/ready
 
 **Fix**:
 ```bash
-docker logs billforge-keycloak --tail 50
+docker logs ledgerbuddy-keycloak --tail 50
 
 curl http://localhost:8280/health/ready
 ```
 
 If Keycloak is stuck, restart it:
 ```bash
-docker restart billforge-keycloak
+docker restart ledgerbuddy-keycloak
 ```
 
 ### Keycloak realm not imported
@@ -60,7 +60,7 @@ docker restart billforge-keycloak
 
 **Fix**: Verify the realm config mount:
 ```bash
-docker exec billforge-keycloak ls /opt/keycloak/data/import/
+docker exec ledgerbuddy-keycloak ls /opt/keycloak/data/import/
 ```
 
 The file `realm-config.json` should be present. If not, check the volume mount in `docker-compose.yml` points to `infra/keycloak/realm-config.json`.
@@ -72,10 +72,10 @@ The file `realm-config.json` should be present. If not, check the volume mount i
 **Cause**: `OIDC_CLIENT_SECRET` does not match the Keycloak client secret, or the introspect endpoint is unreachable from inside Docker.
 
 **Fix**:
-1. Verify the client secret matches: check `OIDC_CLIENT_SECRET` in your environment against the Keycloak admin console (Clients > billforge-app > Credentials).
+1. Verify the client secret matches: check `OIDC_CLIENT_SECRET` in your environment against the Keycloak admin console (Clients > ledgerbuddy-app > Credentials).
 2. Verify the backend can reach Keycloak internally:
 ```bash
-docker exec billforge-backend curl -s http://keycloak:8080/realms/billforge/.well-known/openid-configuration | head -5
+docker exec ledgerbuddy-backend curl -s http://keycloak:8080/realms/ledgerbuddy/.well-known/openid-configuration | head -5
 ```
 
 ### OCR / SLM services not ready
@@ -108,7 +108,7 @@ echo $LLAMA_CLOUD_API_KEY
 ```
 2. Check the backend logs for LlamaExtract errors:
 ```bash
-docker logs billforge-backend --tail 100 | grep -i llama
+docker logs ledgerbuddy-backend --tail 100 | grep -i llama
 ```
 3. Verify environment variables:
 ```bash
@@ -142,14 +142,14 @@ yarn docker:up
 # If only minio-init needs re-running, this is one of the few cases
 # where calling docker compose directly is acceptable:
 #   docker compose up -d minio-init
-docker logs billforge-minio-init
+docker logs ledgerbuddy-minio-init
 ```
 
 ### Orphaned volumes from old project name
 
 **Symptom**: Old `invoiceprocessor_*` volumes taking up disk space.
 
-**Cause**: The compose project was renamed from `invoiceprocessor` to `billforge`. Old volumes were not automatically cleaned up.
+**Cause**: The compose project was renamed from `invoiceprocessor` to `ledgerbuddy`. Old volumes were not automatically cleaned up.
 
 **Fix**:
 ```bash
@@ -175,7 +175,7 @@ lsof -i :6379   # Redis
 
 ### Yarn lockfile stale after workspace rename
 
-**Symptom**: `yarn docker:up` fails with "Package for billforge@workspace:. not found".
+**Symptom**: `yarn docker:up` fails with "Package for ledgerbuddy@workspace:. not found".
 
 **Cause**: `yarn.lock` has stale workspace names after a rename.
 
@@ -189,7 +189,7 @@ lsof -i :6379   # Redis
 
 **Fix**:
 ```bash
-docker logs billforge-redis --tail 20
+docker logs ledgerbuddy-redis --tail 20
 curl -s telnet://localhost:6379
 ```
 
@@ -198,17 +198,17 @@ Verify `REDIS_URL=redis://redis:6379` in docker-compose.yml.
 ## Log Access
 
 ```bash
-docker logs billforge-backend --tail 50
+docker logs ledgerbuddy-backend --tail 50
 
-docker logs billforge-keycloak --tail 50
+docker logs ledgerbuddy-keycloak --tail 50
 
-docker logs billforge-minio-init
+docker logs ledgerbuddy-minio-init
 
-docker logs billforge-mailhog-oauth --tail 20
+docker logs ledgerbuddy-mailhog-oauth --tail 20
 
-docker logs billforge-redis --tail 20
+docker logs ledgerbuddy-redis --tail 20
 
-docker logs -f billforge-backend
+docker logs -f ledgerbuddy-backend
 ```
 
 ### TypeScript null vs undefined with Mongoose

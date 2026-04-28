@@ -1,6 +1,6 @@
 # OCR and Extraction Provider Setup
 
-BillForge supports three OCR/extraction provider configurations. Choose the one that fits your deployment.
+LedgerBuddy supports three OCR/extraction provider configurations. Choose the one that fits your deployment.
 
 ## Provider Overview
 
@@ -42,8 +42,8 @@ Defaults:
 - `frontend` (`5177`)
 - `mongo` (`27018`)
 - `mongo-express` (`8181`)
-- `minio` (`9100`) + `minio-init` (auto-creates `billforge-local` bucket)
-- `keycloak` (`8280`) -- OIDC identity provider (realm `billforge`, client `billforge-app`)
+- `minio` (`9100`) + `minio-init` (auto-creates `ledgerbuddy-local` bucket)
+- `keycloak` (`8280`) -- OIDC identity provider (realm `ledgerbuddy`, client `ledgerbuddy-app`)
 - `mailhog` (`8125`) -- SMTP catch-all UI
 - `mailhog-oauth` (`8126`) -- OAuth2/SendGrid wrapper
 - `redis` (`6379`)

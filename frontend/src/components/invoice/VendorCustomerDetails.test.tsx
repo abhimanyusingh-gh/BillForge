@@ -30,7 +30,7 @@ function makeInvoice(overrides: Partial<Invoice["parsed"]> = {}): Invoice {
       vendorAddress: "123 Main St\nMumbai, MH 400001",
       vendorGstin: "27AADCB2230M1Z3",
       vendorPan: "AADCB2230M",
-      customerName: "BillForge Inc",
+      customerName: "LedgerBuddy Inc",
       customerAddress: "456 Oak Ave\nDelhi, DL 110001",
       customerGstin: "07BBBBB1234B1Z5",
       ...overrides,
@@ -63,7 +63,7 @@ const sectionCases: SectionCase[] = [
     name: "Customer",
     Component: CustomerDetailsSection,
     header: "Customer Details",
-    visibleWhenExpanded: "BillForge Inc",
+    visibleWhenExpanded: "LedgerBuddy Inc",
     missingOverrides: {
       customerName: undefined,
       customerAddress: undefined,
@@ -129,7 +129,7 @@ describe("VendorDetailsSection / CustomerDetailsSection", () => {
       const invoice = makeInvoice({
         currency: "INR",
         customerGstin: undefined,
-        customerName: "BillForge Inc",
+        customerName: "LedgerBuddy Inc",
       });
       render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
       const alert = screen.getByTestId("customer-gstin-missing-alert");
@@ -145,7 +145,7 @@ describe("VendorDetailsSection / CustomerDetailsSection", () => {
       const invoice = makeInvoice({
         currency: "INR",
         customerGstin: "   ",
-        customerName: "BillForge Inc",
+        customerName: "LedgerBuddy Inc",
       });
       render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
       expect(screen.getByTestId("customer-gstin-missing-alert")).toBeInTheDocument();
@@ -155,7 +155,7 @@ describe("VendorDetailsSection / CustomerDetailsSection", () => {
       const invoice = makeInvoice({
         currency: "INR",
         customerGstin: "07BBBBB1234B1Z5",
-        customerName: "BillForge Inc",
+        customerName: "LedgerBuddy Inc",
       });
       render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
       expect(screen.queryByTestId("customer-gstin-missing-alert")).not.toBeInTheDocument();
@@ -165,7 +165,7 @@ describe("VendorDetailsSection / CustomerDetailsSection", () => {
       const invoice = makeInvoice({
         currency: "USD",
         customerGstin: undefined,
-        customerName: "BillForge Inc",
+        customerName: "LedgerBuddy Inc",
       });
       render(<CustomerDetailsSection invoice={invoice} expanded={true} onToggle={jest.fn()} />);
       expect(screen.queryByTestId("customer-gstin-missing-alert")).not.toBeInTheDocument();

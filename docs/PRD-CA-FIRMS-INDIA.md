@@ -1,10 +1,10 @@
-# BillForge -- Product Requirements Document for CA and Accounting Firms in India
+# LedgerBuddy -- Product Requirements Document for CA and Accounting Firms in India
 
 > **Note:** This document has been refined and superseded by [docs/accounting-payments/PRD.md](accounting-payments/PRD.md) for the Accounting, Payments & Tally Integration feature area. This file is retained as the original domain reference.
 
 > **Implementation Status (2026-04-14)**
 >
-> This document serves as the domain reference for BillForge's India-focused feature set.
+> This document serves as the domain reference for LedgerBuddy's India-focused feature set.
 > Features marked [IMPLEMENTED] are live in the current codebase. Features marked [PLANNED]
 > are designed but not yet built. Authentication is Keycloak-only (OIDC). Roles are
 > PLATFORM_ADMIN, TENANT_ADMIN, MEMBER, VIEWER at the base level, with persona-based
@@ -16,11 +16,11 @@
 
 ## 1. Executive Summary
 
-BillForge is an AI-powered invoice processing platform purpose-built for Indian accounting practices. It takes the most tedious, error-prone work in a CA firm -- receiving invoices, keying in data, splitting GST components, verifying TDS applicability, cross-referencing PAN and GSTIN, and exporting to Tally -- and automates it end to end. For firm owners managing dozens of clients, each with hundreds of invoices per quarter, BillForge transforms a manual bottleneck into a streamlined, auditable pipeline.
+LedgerBuddy is an AI-powered invoice processing platform purpose-built for Indian accounting practices. It takes the most tedious, error-prone work in a CA firm -- receiving invoices, keying in data, splitting GST components, verifying TDS applicability, cross-referencing PAN and GSTIN, and exporting to Tally -- and automates it end to end. For firm owners managing dozens of clients, each with hundreds of invoices per quarter, LedgerBuddy transforms a manual bottleneck into a streamlined, auditable pipeline.
 
 The platform is designed around the realities of Indian compliance. It understands CGST, SGST, IGST, and Cess at the line-item level. It auto-detects TDS sections and rates based on vendor PAN category and GL classification. It validates GSTIN format, cross-references PAN with GSTIN, flags MSME payment deadlines, and checks for e-invoice IRN where required. Every extracted value is traced back to the exact location in the source document -- a bounding box on the original PDF -- giving your team the confidence to approve and export without re-checking the physical invoice.
 
-BillForge operates as a multi-tenant platform, meaning each of your clients gets their own isolated workspace with its own chart of accounts, TDS mappings, approval workflows, and user permissions. Your firm partner sees aggregate analytics across all clients. Your senior accountants review and approve. Your AP clerks upload and manage day-to-day data. Your tax specialists handle TDS/TCS overrides. And your external auditors get read-only viewer access to exactly the data they need -- nothing more, nothing less.
+LedgerBuddy operates as a multi-tenant platform, meaning each of your clients gets their own isolated workspace with its own chart of accounts, TDS mappings, approval workflows, and user permissions. Your firm partner sees aggregate analytics across all clients. Your senior accountants review and approve. Your AP clerks upload and manage day-to-day data. Your tax specialists handle TDS/TCS overrides. And your external auditors get read-only viewer access to exactly the data they need -- nothing more, nothing less.
 
 ---
 
@@ -44,21 +44,21 @@ CA and accounting firms in India face a set of interlocking challenges that grow
 
 ---
 
-## 3. The Solution: BillForge
+## 3. The Solution: LedgerBuddy
 
-BillForge addresses each of these pain points through an integrated platform built from the ground up for Indian accounting practices.
+LedgerBuddy addresses each of these pain points through an integrated platform built from the ground up for Indian accounting practices.
 
 **AI-Powered Extraction.** Invoices enter the system through upload, email ingestion, or folder watch. OCR reads every line. An AI language model then extracts structured fields -- vendor name, invoice number, date, line items with HSN/SAC, tax breakdowns, PAN, GSTIN, bank details -- and produces a confidence score for each field. The system highlights exactly where on the source document each value was found.
 
-**India-First Compliance Engine.** BillForge automatically splits GST into CGST/SGST or IGST based on extracted GSTIN data. It detects the applicable TDS section from GL category and PAN type, calculates the TDS amount and net payable, validates PAN format and cross-references it with GSTIN, checks for MSME payment deadlines, and flags missing e-invoice IRN for high-value transactions. Every compliance check produces a clear risk signal -- not a hidden score, but a visible, actionable finding.
+**India-First Compliance Engine.** LedgerBuddy automatically splits GST into CGST/SGST or IGST based on extracted GSTIN data. It detects the applicable TDS section from GL category and PAN type, calculates the TDS amount and net payable, validates PAN format and cross-references it with GSTIN, checks for MSME payment deadlines, and flags missing e-invoice IRN for high-value transactions. Every compliance check produces a clear risk signal -- not a hidden score, but a visible, actionable finding.
 
 **One Client, One Workspace.** Each client is a separate tenant with its own chart of accounts, vendor master, TDS section mappings, TCS rates, approval workflows, and user access list. Data is completely isolated. Your team members can be assigned to specific clients with specific roles.
 
-**Role-Based Team Access.** From firm partner (full control across clients) to audit clerk (read-only access for external auditors), BillForge maps to how your firm actually operates. Roles control who can upload, who can edit, who can approve, who can export, and who can only view.
+**Role-Based Team Access.** From firm partner (full control across clients) to audit clerk (read-only access for external auditors), LedgerBuddy maps to how your firm actually operates. Roles control who can upload, who can edit, who can approve, who can export, and who can only view.
 
-**One-Click Tally Export.** When invoices are approved, BillForge generates Tally-compatible XML with purchase vouchers that include the correct party ledger, GL-mapped purchase ledger, CGST/SGST/IGST/Cess ledger entries, and TDS payable ledger entries. Download the file and import it directly into Tally ERP or TallyPrime.
+**One-Click Tally Export.** When invoices are approved, LedgerBuddy generates Tally-compatible XML with purchase vouchers that include the correct party ledger, GL-mapped purchase ledger, CGST/SGST/IGST/Cess ledger entries, and TDS payable ledger entries. Download the file and import it directly into Tally ERP or TallyPrime.
 
-**Bank Statement Reconciliation.** Upload a bank statement (PDF or CSV), and BillForge automatically matches debit transactions to approved invoices based on amount, invoice number, vendor name, and date proximity. TDS and TCS adjustments are factored into the matching. Unmatched transactions and suggested matches are presented for manual review.
+**Bank Statement Reconciliation.** Upload a bank statement (PDF or CSV), and LedgerBuddy automatically matches debit transactions to approved invoices based on amount, invoice number, vendor name, and date proximity. TDS and TCS adjustments are factored into the matching. Unmatched transactions and suggested matches are presented for manual review.
 
 ---
 
@@ -66,11 +66,11 @@ BillForge addresses each of these pain points through an integrated platform bui
 
 ### 4a. Invoice Capture [IMPLEMENTED]
 
-BillForge supports three methods for getting invoices into the system:
+LedgerBuddy supports three methods for getting invoices into the system:
 
 - **Manual upload.** Drag and drop PDF, image (JPEG, PNG), or scanned invoice files directly into the web interface. Multiple files can be uploaded in a single batch.
-- **Email ingestion via Gmail.** Connect your client's accounts payable inbox (or a dedicated BillForge inbox) via Gmail OAuth. The system polls the inbox on a configurable schedule, extracts invoice attachments from emails, and feeds them into the processing pipeline. Mailbox assignments can be scoped to specific team members.
-- **S3 upload ingestion.** For firms with automated document management, BillForge monitors an S3-compatible bucket and ingests new files automatically. This supports integration with document scanners, ERP systems, or other tools that deposit files into a shared location.
+- **Email ingestion via Gmail.** Connect your client's accounts payable inbox (or a dedicated LedgerBuddy inbox) via Gmail OAuth. The system polls the inbox on a configurable schedule, extracts invoice attachments from emails, and feeds them into the processing pipeline. Mailbox assignments can be scoped to specific team members.
+- **S3 upload ingestion.** For firms with automated document management, LedgerBuddy monitors an S3-compatible bucket and ingests new files automatically. This supports integration with document scanners, ERP systems, or other tools that deposit files into a shared location.
 
 Each ingested invoice receives a unique identifier and tracks its source (email, upload, or folder), attachment filename, and receipt timestamp.
 
@@ -169,7 +169,7 @@ The compliance engine runs automatically on every extracted invoice and produces
 
 ### 4d. Review and Approval Workflow [IMPLEMENTED]
 
-BillForge provides a configurable multi-step approval workflow:
+LedgerBuddy provides a configurable multi-step approval workflow:
 
 **Simple mode** offers a straightforward configuration:
 - Team member approval (any team member can approve)
@@ -197,7 +197,7 @@ BillForge provides a configurable multi-step approval workflow:
 
 **Tally XML Export**
 
-BillForge generates Tally-compatible XML files that can be imported directly into Tally ERP 9 or TallyPrime. The generated purchase vouchers include:
+LedgerBuddy generates Tally-compatible XML files that can be imported directly into Tally ERP 9 or TallyPrime. The generated purchase vouchers include:
 
 - Voucher type: Purchase
 - Party ledger: mapped from extracted vendor name
@@ -207,7 +207,7 @@ BillForge generates Tally-compatible XML files that can be imported directly int
 - GST entries: separate ledger entries for CGST, SGST, IGST, and Cess with configurable ledger names
 - TDS entries: dedicated TDS Payable ledger entry with section reference (e.g., "TDS Payable - 194C")
 - GSTIN: included in the party GSTIN field
-- Narration: source reference, attachment name, and BillForge internal ID for audit trail
+- Narration: source reference, attachment name, and LedgerBuddy internal ID for audit trail
 
 The export supports both single-invoice and batch export. Batch export generates a single XML file with all selected invoices. Export history is maintained with batch ID, timestamp, success/failure counts, and the ability to re-download previously generated XML files.
 
@@ -221,7 +221,7 @@ Before export, the user can review a field-by-field mapping table showing:
 
 **CSV Export**
 
-For firms that need to import into systems other than Tally, BillForge also supports CSV export of invoice data.
+For firms that need to import into systems other than Tally, LedgerBuddy also supports CSV export of invoice data.
 
 **Bank Statement Reconciliation**
 
@@ -253,7 +253,7 @@ Each client is a separate tenant with complete data isolation:
 
 **Platform Analytics Dashboard**
 
-For the firm partner or practice manager, BillForge provides a cross-tenant analytics view:
+For the firm partner or practice manager, LedgerBuddy provides a cross-tenant analytics view:
 - Total documents processed, approved, and exported across all clients
 - Status distribution (approved, exported, needs review, failed)
 - Documents by tenant (bar chart)
@@ -302,7 +302,7 @@ Source traceability is not a feature -- it is a design principle that runs throu
 
 ## 5. Role Hierarchy [IMPLEMENTED]
 
-BillForge's role system maps directly to how CA and accounting firms are structured. Each role carries a default set of capabilities that can be customized per user.
+LedgerBuddy's role system maps directly to how CA and accounting firms are structured. Each role carries a default set of capabilities that can be customized per user.
 
 | Role | Firm Equivalent | Key Capabilities |
 |------|----------------|-----------------|
@@ -333,7 +333,7 @@ BillForge's role system maps directly to how CA and accounting firms are structu
 
 ### GST: Automatic Tax Split
 
-When BillForge extracts a GST-registered invoice, it identifies:
+When LedgerBuddy extracts a GST-registered invoice, it identifies:
 - **Supplier GSTIN** from the invoice
 - **Tax components** at both the summary and line-item level
 
@@ -350,7 +350,7 @@ Each component flows into the Tally export as a separate ledger entry with confi
 - SGST @ 9%: Rs 9,000
 - Total: Rs 1,18,000
 
-BillForge extracts all four values, validates the arithmetic, and generates a Tally voucher with three ledger entries: party ledger (Rs 1,18,000 credit), purchase ledger (Rs 1,00,000 debit), CGST ledger (Rs 9,000 debit), and SGST ledger (Rs 9,000 debit).
+LedgerBuddy extracts all four values, validates the arithmetic, and generates a Tally voucher with three ledger entries: party ledger (Rs 1,18,000 credit), purchase ledger (Rs 1,00,000 debit), CGST ledger (Rs 9,000 debit), and SGST ledger (Rs 9,000 debit).
 
 ### HSN/SAC Code Extraction
 
@@ -358,7 +358,7 @@ Line items are extracted with their HSN (for goods) or SAC (for services) codes,
 
 ### TDS: Section and Rate Auto-Detection
 
-BillForge maintains a configurable TDS section mapping that resolves the applicable section based on:
+LedgerBuddy maintains a configurable TDS section mapping that resolves the applicable section based on:
 1. **GL category** of the expense (e.g., "Professional Fees" maps to 194J)
 2. **Vendor PAN type** (Company "C", Individual "P", HUF "H", Firm "F", etc.)
 
@@ -396,10 +396,10 @@ TCS amounts are automatically computed on invoice totals and factored into bank 
 
 ### PAN Validation with GSTIN Cross-Reference
 
-BillForge performs multi-level PAN validation:
+LedgerBuddy performs multi-level PAN validation:
 - **Level 1 (L1):** Format validation -- does the PAN match the ABCDE1234F pattern?
 - **Level 2 (L2):** GSTIN cross-reference -- does the PAN match positions 3-12 of the vendor's GSTIN?
-- **GSTIN derivation:** If no PAN is extracted but a valid GSTIN is present, BillForge derives the PAN from the GSTIN automatically
+- **GSTIN derivation:** If no PAN is extracted but a valid GSTIN is present, LedgerBuddy derives the PAN from the GSTIN automatically
 
 When PAN is missing entirely, the system triggers a critical TDS risk signal because Section 206AA requires deduction at 20% (the penalty rate). It also auto-generates a vendor communication draft requesting the PAN.
 
@@ -409,7 +409,7 @@ GSTIN format is validated against the standard 15-character pattern (2-digit sta
 
 ### Vendor Master with Compliance Status
 
-BillForge maintains a per-tenant vendor master that is automatically built and enriched with each invoice:
+LedgerBuddy maintains a per-tenant vendor master that is automatically built and enriched with each invoice:
 - Vendor name and aliases
 - PAN and PAN category
 - GSTIN
@@ -463,7 +463,7 @@ Risk signals can be:
 
 ### Automated Vendor Communication [IMPLEMENTED]
 
-When compliance issues are detected, BillForge generates email drafts for vendor communication:
+When compliance issues are detected, LedgerBuddy generates email drafts for vendor communication:
 - **PAN missing:** Request PAN for TDS compliance
 - **IRN missing:** Request e-invoice reissuance with IRN and QR code
 - **Bank account changed:** Request bank detail verification
@@ -477,10 +477,10 @@ Each template is populated with invoice-specific details (vendor name, invoice n
 
 ### How It Works
 
-1. **Approve invoices** through the BillForge review workflow
+1. **Approve invoices** through the LedgerBuddy review workflow
 2. **Select invoices** for export (individually or in bulk)
 3. **Preview the mapping** -- see exactly what values will be sent to Tally for each field
-4. **Generate the XML file** -- BillForge produces a Tally-compatible XML import file
+4. **Generate the XML file** -- LedgerBuddy produces a Tally-compatible XML import file
 5. **Import into Tally** -- open Tally ERP 9 or TallyPrime, use the import function to load the XML
 
 ### What the XML Contains
@@ -495,7 +495,7 @@ Date                --> Extracted invoice date
 Party Ledger        --> Extracted vendor name
 Purchase Ledger     --> Mapped from GL code or default "Purchase Account"
 GSTIN               --> Extracted supplier GSTIN
-Narration           --> Source reference + attachment name + BillForge ID
+Narration           --> Source reference + attachment name + LedgerBuddy ID
 ```
 
 **Ledger entries generated per voucher:**
@@ -547,11 +547,11 @@ Every export is tracked with:
 
 ---
 
-## 9. Why BillForge for Your Firm
+## 9. Why LedgerBuddy for Your Firm
 
 **Handle 10x more clients without hiring.** When invoice data entry, GST splitting, TDS detection, and Tally export are automated, your team's capacity multiplies. An AP clerk who manually processes 50 invoices per day can review and approve 500 AI-extracted invoices in the same time. A senior accountant who spends half their day on data verification can focus on advisory work and client relationships.
 
-**Eliminate GST mismatch notices.** BillForge extracts and validates GSTIN, splits CGST/SGST/IGST based on the actual values on the invoice, and preserves HSN/SAC codes at the line-item level. The Tally export carries this structure through to the books. When GSTR-2B reconciliation happens, your client's purchase register matches.
+**Eliminate GST mismatch notices.** LedgerBuddy extracts and validates GSTIN, splits CGST/SGST/IGST based on the actual values on the invoice, and preserves HSN/SAC codes at the line-item level. The Tally export carries this structure through to the books. When GSTR-2B reconciliation happens, your client's purchase register matches.
 
 **Never miss a TDS deadline or threshold.** Automatic section detection and rate calculation mean TDS is computed correctly on every invoice. The system flags when no PAN is available (triggering the 20% penalty rate), when the amount is below the deduction threshold, and when the section is ambiguous. Your tax specialist can review edge cases rather than calculating every invoice.
 
@@ -561,13 +561,13 @@ Every export is tracked with:
 
 **Every number traced back to the source document.** When a client questions a number, when an auditor asks where a figure came from, when a GST notice requires supporting evidence -- click on any field and see exactly where it was extracted from the original invoice. Bounding box on the PDF. OCR block reference. Confidence score. No ambiguity.
 
-**Works with your existing Tally setup.** BillForge does not replace Tally. It feeds Tally. The generated XML files import directly into your existing Tally company with your existing ledger structure. You configure the ledger names once, and every export maps correctly.
+**Works with your existing Tally setup.** LedgerBuddy does not replace Tally. It feeds Tally. The generated XML files import directly into your existing Tally company with your existing ledger structure. You configure the ledger names once, and every export maps correctly.
 
 ---
 
 ## 10. Pricing Model
 
-BillForge is designed with a pricing structure that aligns cost with value for Indian CA and accounting firms.
+LedgerBuddy is designed with a pricing structure that aligns cost with value for Indian CA and accounting firms.
 
 ### Suggested Model: Per-Tenant + Per-Invoice
 
@@ -592,11 +592,11 @@ BillForge is designed with a pricing structure that aligns cost with value for I
 Consider a firm with 15 clients processing an average of 150 invoices per client per quarter (2,250 invoices/quarter):
 
 - **Current cost:** 2 full-time data entry staff at Rs 20,000/month each = Rs 1,20,000/quarter
-- **BillForge cost:** Professional plan at Rs 15,000/month = Rs 45,000/quarter
+- **LedgerBuddy cost:** Professional plan at Rs 15,000/month = Rs 45,000/quarter
 - **Savings:** Rs 75,000/quarter, plus the freed staff capacity can be redeployed to advisory work
 
 The pricing is subject to adjustment based on market feedback and will be finalised before general availability.
 
 ---
 
-*BillForge is built for the Indian accounting profession. Not adapted from a Western tool. Not a generic OCR wrapper. A purpose-built platform that understands GST, TDS, TCS, PAN, GSTIN, HSN, SAC, MSME compliance, and Tally -- because that is what your practice runs on every day.*
+*LedgerBuddy is built for the Indian accounting profession. Not adapted from a Western tool. Not a generic OCR wrapper. A purpose-built platform that understands GST, TDS, TCS, PAN, GSTIN, HSN, SAC, MSME compliance, and Tally -- because that is what your practice runs on every day.*

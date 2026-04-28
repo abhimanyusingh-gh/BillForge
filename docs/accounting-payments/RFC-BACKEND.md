@@ -5,19 +5,19 @@
 | Field | Value |
 |---|---|
 | **Title** | Accounting, Payments & Tally Integration |
-| **Authors** | BillForge Engineering |
+| **Authors** | LedgerBuddy Engineering |
 | **Status** | Draft |
 | **Date** | 2026-04-17 |
 | **VKL Version** | Final (44 decisions, 20 constraints, 6 resolved conflicts) |
 | **EIL Entries** | 32 evidence items |
 | **OAR Items** | 15 open questions |
-| **Input Documents** | [PRD.md](./PRD.md) v1.2, [PRD-REFINED.md](./input/PRD-REFINED.md), [TALLY-INTEGRATION-AUDIT.md](./input/TALLY-INTEGRATION-AUDIT.md), [UX-AUDIT-REPORT.md](./input/UX-AUDIT-REPORT.md), [DATA-MODEL-AUDIT.md](./input/DATA-MODEL-AUDIT.md), BillForge-PRD-CA-FIRMS-INDIA.pdf |
+| **Input Documents** | [PRD.md](./PRD.md) v1.2, [PRD-REFINED.md](./input/PRD-REFINED.md), [TALLY-INTEGRATION-AUDIT.md](./input/TALLY-INTEGRATION-AUDIT.md), [UX-AUDIT-REPORT.md](./input/UX-AUDIT-REPORT.md), [DATA-MODEL-AUDIT.md](./input/DATA-MODEL-AUDIT.md), LedgerBuddy-PRD-CA-FIRMS-INDIA.pdf |
 
 ---
 
 ## 2. Executive Summary
 
-BillForge is an India-specific accounts payable automation platform that ingests vendor invoices, extracts structured data using OCR + SLM, enriches with compliance data (TDS, GST, PAN, risk signals), routes through configurable approval workflows, and exports to Tally for accounting.
+LedgerBuddy is an India-specific accounts payable automation platform that ingests vendor invoices, extracts structured data using OCR + SLM, enriches with compliance data (TDS, GST, PAN, risk signals), routes through configurable approval workflows, and exports to Tally for accounting.
 
 This RFC defines the architecture for four interconnected capabilities:
 
@@ -37,7 +37,7 @@ The work is phased across 6 phases (Phase 0 through Phase 5) plus UX quick wins,
 
 ### 3.1 TDS Compliance Gap
 
-BillForge today computes TDS on a per-invoice basis only. The `TdsCalculationService.computeTds()` method checks a single-transaction threshold but never checks whether cumulative payments to a vendor in a financial year have crossed the annual aggregate threshold prescribed under the Income Tax Act, 1961.
+LedgerBuddy today computes TDS on a per-invoice basis only. The `TdsCalculationService.computeTds()` method checks a single-transaction threshold but never checks whether cumulative payments to a vendor in a financial year have crossed the annual aggregate threshold prescribed under the Income Tax Act, 1961.
 
 Sections 194C, 194J, 194H, 194I, 194A (among others) prescribe both single-transaction and annual aggregate thresholds. For example, Section 194C mandates TDS on payments to contractors only when the aggregate amount credited or paid during the FY exceeds Rs 1,00,000 (E3). Individual transactions below Rs 30,000 are exempt per single-transaction threshold, but once the annual cumulative crosses Rs 1,00,000, TDS applies to the entire amount credited/paid during the year, minus any TDS already deducted.
 
@@ -66,7 +66,7 @@ Without payment recording, the AP team must manually track payment status in spr
 
 ### 3.3 Broken Tally Export
 
-BillForge's current Tally export produces XML that Tally Prime imports as journal-style vouchers, not as proper purchase invoices. Five cascading consequences:
+LedgerBuddy's current Tally export produces XML that Tally Prime imports as journal-style vouchers, not as proper purchase invoices. Five cascading consequences:
 
 1. **No bill tracking.** Without `BILLALLOCATIONS.LIST`, every purchase voucher vanishes from Tally's Outstanding Receivable/Payable reports.
 2. **No GST return filing from Tally.** `ISINVOICE=No` means vouchers never appear in auto-generated GSTR-2 data.
@@ -783,7 +783,7 @@ Per VKL D-014, C-003; EIL E4, E16:
 
 - MSMED Act 2006, Section 15: Payment to micro/small enterprises within agreed period, max 45 days from acceptance
 - Interest on delayed payment: 3x bank rate, compounded monthly [E16]
-- BillForge must: track agreed payment terms per vendor, enforce 45-day statutory cap, calculate interest liability on overdue payments, flag overdue MSME invoices as risk signal
+- LedgerBuddy must: track agreed payment terms per vendor, enforce 45-day statutory cap, calculate interest liability on overdue payments, flag overdue MSME invoices as risk signal
 
 **MSME interest formula [Addressed: DA-05]:**
 
@@ -1119,7 +1119,7 @@ function buildVoucherElement(input: VoucherPayloadInput): string {
   const voucherNumber = xmlEscape(input.voucherNumber);
   const partyLedgerName = xmlEscape(input.partyLedgerName);
   const purchaseLedgerName = xmlEscape(input.purchaseLedgerName);
-  const narration = xmlEscape(input.narration ?? "Invoice import from BillForge");
+  const narration = xmlEscape(input.narration ?? "Invoice import from LedgerBuddy");
   const tcsAmountMinor = (input.tcs && input.tcs.amountMinor > 0) ? input.tcs.amountMinor : 0;
   const partyTotalMinor = Math.abs(input.amountMinor) + tcsAmountMinor;
   const totalAmount = formatAmount(partyTotalMinor, input.currency);
@@ -2385,11 +2385,11 @@ Automated unit tests validate XML structure, but Tally Prime's XML import behavi
 **Prerequisites:**
 - Tally Prime Release 4.0+ installed on a Windows machine (or VM)
 - A test company created in Tally with ledgers: at least one Sundry Creditor, one Purchase account, one Bank account
-- BillForge staging environment with test invoices and payments
+- LedgerBuddy staging environment with test invoices and payments
 
 **Manual test checklist:**
 
-- [ ] Export a single Purchase Voucher XML from BillForge. Import into Tally via `Import Data > XML`. Verify: voucher appears in Day Book, party ledger shows outstanding bill, GSTR-2 data includes the entry.
+- [ ] Export a single Purchase Voucher XML from LedgerBuddy. Import into Tally via `Import Data > XML`. Verify: voucher appears in Day Book, party ledger shows outstanding bill, GSTR-2 data includes the entry.
 - [ ] Export a batch of 5 Purchase Vouchers. Import. Verify: all 5 appear in Day Book. Outstanding report shows 5 bills.
 - [ ] Export a Payment Voucher for one of the imported Purchase Vouchers. Import. Verify: Outstanding report shows the bill as settled (partially or fully). Payment appears in Bank Book.
 - [ ] Export a Payment Voucher referencing 3 invoices (multi-allocation). Import. Verify: all 3 bills settled. BILLALLOCATIONS with `Agst Ref` match original `New Ref` names.
@@ -2398,7 +2398,7 @@ Automated unit tests validate XML structure, but Tally Prime's XML import behavi
 - [ ] Export a voucher with PLACEOFSUPPLY. Import. Verify: Tally shows correct state in GST details.
 - [ ] Export a voucher with TDS ledger entry. Import. Verify: TDS Payable ledger in Tally shows correct amount.
 - [ ] Export 150 invoices (exceeds 100-voucher batch limit). Import both chunks. Verify: all 150 appear.
-- [ ] Attempt to import a voucher with a non-existent ledger name. Verify: Tally returns LINEERROR and BillForge handles it gracefully.
+- [ ] Attempt to import a voucher with a non-existent ledger name. Verify: Tally returns LINEERROR and LedgerBuddy handles it gracefully.
 
 **Frequency:** Before each release that modifies `xml.ts`, `tallyExporter.ts`, or `paymentVoucher.ts`. Results documented in release notes.
 

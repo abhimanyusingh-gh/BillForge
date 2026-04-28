@@ -1,11 +1,11 @@
-<mxfile host="app.diagrams.net" agent="BillForge" version="24.0.0">
-  <diagram id="billforge-architecture" name="High-Level Architecture">
+<mxfile host="app.diagrams.net" agent="LedgerBuddy" version="24.0.0">
+  <diagram id="ledgerbuddy-architecture" name="High-Level Architecture">
     <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <mxCell id="2" value="BillForge — High-Level Architecture" style="text;html=1;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+        <mxCell id="2" value="LedgerBuddy — High-Level Architecture" style="text;html=1;fontSize=18;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
           <mxGeometry x="335" y="10" width="500" height="30" as="geometry" />
         </mxCell>
 
