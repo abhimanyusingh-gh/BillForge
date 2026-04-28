@@ -1,5 +1,6 @@
 import { getAuth } from "@/types/auth.js";
 import { Router } from "express";
+import { TENANT_URL_PATHS } from "@/routes/urls/tenantUrls.js";
 import { TenantAssignableRoles, type TenantAssignableRole } from "@/models/core/TenantUserRole.js";
 import type { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import type { TenantInviteService } from "@/services/tenant/tenantInviteService.js";
@@ -87,7 +88,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.get("/admin/mailboxes", requireCap("canManageMailboxes"), async (request, response, next) => {
+  router.get(TENANT_URL_PATHS.adminMailboxesList, requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       const items = await tenantAdminService.listMailboxes(getAuth(request).tenantId);
       response.json({ items });
@@ -96,7 +97,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.post("/admin/mailboxes/:id/assign", requireCap("canManageMailboxes"), async (request, response, next) => {
+  router.post(TENANT_URL_PATHS.adminMailboxAssign, requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       const userId = typeof request.body?.userId === "string" ? request.body.userId : "";
       if (!userId) {
@@ -110,7 +111,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/mailboxes/:id/assign/:userId", requireCap("canManageMailboxes"), async (request, response, next) => {
+  router.delete(TENANT_URL_PATHS.adminMailboxUnassign, requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       await tenantAdminService.removeMailboxAssignment(getAuth(request).tenantId, request.params.id, request.params.userId);
       response.status(204).send();
@@ -119,7 +120,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/mailboxes/:id", requireCap("canManageMailboxes"), async (request, response, next) => {
+  router.delete(TENANT_URL_PATHS.adminMailboxDelete, requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       await tenantAdminService.deleteMailbox(getAuth(request).tenantId, request.params.id);
       response.status(204).send();

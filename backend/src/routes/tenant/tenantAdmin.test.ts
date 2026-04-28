@@ -1,3 +1,4 @@
+import { TENANT_URL_PATHS } from "@/routes/urls/tenantUrls.ts";
 import { createTenantAdminRouter } from "@/routes/tenant/tenantAdmin.ts";
 import type { TenantAdminService } from "@/services/tenant/tenantAdminService.ts";
 import type { TenantInviteService } from "@/services/tenant/tenantInviteService.ts";
@@ -39,10 +40,10 @@ describe("tenantAdmin route guards", () => {
 
   describe("/admin/mailboxes/* routes are gated on canManageMailboxes", () => {
     it.each([
-      ["get", "/admin/mailboxes"],
-      ["post", "/admin/mailboxes/:id/assign"],
-      ["delete", "/admin/mailboxes/:id/assign/:userId"],
-      ["delete", "/admin/mailboxes/:id"],
+      ["get", TENANT_URL_PATHS.adminMailboxesList],
+      ["post", TENANT_URL_PATHS.adminMailboxAssign],
+      ["delete", TENANT_URL_PATHS.adminMailboxUnassign],
+      ["delete", TENANT_URL_PATHS.adminMailboxDelete],
     ])("%s %s", (method, path) => {
       expect(findGuardCapability(router, method, path)).toBe("canManageMailboxes");
     });
