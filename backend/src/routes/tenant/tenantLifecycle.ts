@@ -1,6 +1,7 @@
 import { getAuth } from "@/types/auth.js";
 import { Router, type RequestHandler } from "express";
 import { requireCap } from "@/auth/requireCapability.js";
+import { TENANT_URL_PATHS } from "@/routes/urls/tenantUrls.js";
 import type { TenantAdminService } from "@/services/tenant/tenantAdminService.js";
 import type { TenantInviteService } from "@/services/tenant/tenantInviteService.js";
 
@@ -29,7 +30,7 @@ function buildOnboardingCompleteHandler(tenantAdminService: TenantAdminService):
 // `/api/tenants/:tenantId/onboarding/complete` (no double `tenant`).
 export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
   const router = Router();
-  router.post("/onboarding/complete", requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
+  router.post(TENANT_URL_PATHS.onboardingCompleteNested, requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
   return router;
 }
 
@@ -40,7 +41,7 @@ export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantA
 export function createTenantLifecycleRouter(tenantAdminService: TenantAdminService, inviteService: TenantInviteService) {
   const router = Router();
 
-  router.post("/tenant/onboarding/complete", requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
+  router.post(TENANT_URL_PATHS.onboardingCompleteLegacy, requireCap("canManageUsers"), buildOnboardingCompleteHandler(tenantAdminService));
 
   router.post("/tenant/invites/accept", async (request, response, next) => {
     try {

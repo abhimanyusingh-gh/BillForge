@@ -1,4 +1,5 @@
 import { apiClient } from "@/api/client";
+import { tenantUrls } from "@/api/urls/tenantUrls";
 
 export const TALLY_DETECTED_VERSION = {
   ERP9: "erp9",
@@ -83,33 +84,29 @@ export interface PreviewArchiveClientOrganizationResult {
   archivedAt: string | null;
 }
 
-const CLIENT_ORGS_PATH = "/admin/client-orgs";
-
 export async function fetchClientOrganizations(): Promise<ClientOrganization[]> {
-  const response = await apiClient.get<{ items?: ClientOrganization[] }>(CLIENT_ORGS_PATH);
+  const response = await apiClient.get<{ items?: ClientOrganization[] }>(tenantUrls.clientOrgsList());
   return Array.isArray(response.data?.items) ? response.data.items : [];
 }
 
 export async function createClientOrganization(
   payload: CreateClientOrganizationPayload
 ): Promise<ClientOrganization> {
-  return (await apiClient.post<ClientOrganization>(CLIENT_ORGS_PATH, payload)).data;
+  return (await apiClient.post<ClientOrganization>(tenantUrls.clientOrgsCreate(), payload)).data;
 }
 
 export async function updateClientOrganization(
   id: string,
   payload: UpdateClientOrganizationPayload
 ): Promise<ClientOrganization> {
-  return (await apiClient.patch<ClientOrganization>(`${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}`, payload)).data;
+  return (await apiClient.patch<ClientOrganization>(tenantUrls.clientOrgUpdate(id), payload)).data;
 }
 
 export async function deleteClientOrganization(
   id: string
 ): Promise<ArchiveClientOrganizationResult> {
   return (
-    await apiClient.delete<ArchiveClientOrganizationResult>(
-      `${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}`
-    )
+    await apiClient.delete<ArchiveClientOrganizationResult>(tenantUrls.clientOrgDelete(id))
   ).data;
 }
 
@@ -118,7 +115,7 @@ export async function previewArchiveClientOrganization(
 ): Promise<PreviewArchiveClientOrganizationResult> {
   return (
     await apiClient.get<PreviewArchiveClientOrganizationResult>(
-      `${CLIENT_ORGS_PATH}/${encodeURIComponent(id)}/preview-archive`
+      tenantUrls.clientOrgPreviewArchive(id)
     )
   ).data;
 }

@@ -1,14 +1,5 @@
 import axios from "axios";
 import { normalizeApiError } from "@/lib/common/apiError";
-import { readActiveClientOrgId } from "@/hooks/useActiveClientOrg";
-import {
-  PATH_KIND,
-  classifyApiPath,
-  rewriteToNestedShape,
-  rewriteToTenantShape
-} from "@/api/apiPaths";
-import { MissingActiveClientOrgError } from "@/api/errors";
-import { readActiveTenantId } from "@/api/tenantStorage";
 import { useAuthStore } from "@/stores/authStore";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4100/api";
@@ -16,6 +7,13 @@ const SESSION_TOKEN_KEY = "ledgerbuddy_session_token";
 
 export const apiClient = axios.create({ baseURL: apiBaseUrl });
 
+// Post-#228 Sub-PR E2: every URL passed to `apiClient.<verb>(...)` is
+// already in its final shape — provider modules under `api/urls/*Urls.ts`
+// produce the nested `/tenants/:tenantId[/clientOrgs/:clientOrgId]/...`
+// path up front; bare paths target the deliberately-retained legacy
+// `/api/...` mounts (auth, session, webhooks, health, statutory
+// compliance metadata, plus the 2 mounts pending Sub-PR F). The
+// interceptor's only job is auth-token attachment.
 apiClient.interceptors.request.use((config) => {
   const token = getStoredSessionToken();
   config.headers = config.headers ?? {};
@@ -23,37 +21,6 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   config.headers["X-Requested-With"] = "LedgerBuddy";
-
-  const requestPath = config.url ?? "";
-
-  // Single enum dispatcher classifies the path as realm-scoped, tenant-scoped,
-  // or none — both data prefixes (`REALM_SCOPED_PREFIXES`,
-  // `TENANT_SCOPED_PREFIXES`) plus the invoice-domain triage bypass (#166:
-  // PENDING_TRIAGE invoices carry `clientOrgId: null` per #156, exposed under
-  // realm-scoped trees via `/invoices/triage` and the `/assign-client-org` /
-  // `/reject` suffixes). Realm-scoped → nested shape; tenant-scoped → tenant
-  // shape (no `/clientOrgs/:clientOrgId` segment); none → pass through
-  // unchanged (legacy `/api/...` mounts kept deliberately for auth/session/
-  // webhooks/health/tenant-onboarding/compliance-metadata/tds-rates/
-  // bank-parse-sse).
-  const pathKind = classifyApiPath(requestPath);
-  if (pathKind === PATH_KIND.REALM_SCOPED) {
-    const tenantId = readActiveTenantId();
-    const clientOrgId = readActiveClientOrgId();
-    if (!tenantId || !clientOrgId) {
-      return Promise.reject(new MissingActiveClientOrgError(requestPath));
-    }
-    config.url = rewriteToNestedShape(requestPath, tenantId, clientOrgId);
-    return config;
-  }
-  if (pathKind === PATH_KIND.TENANT_SCOPED) {
-    const tenantId = readActiveTenantId();
-    if (!tenantId) {
-      return Promise.reject(new MissingActiveClientOrgError(requestPath));
-    }
-    config.url = rewriteToTenantShape(requestPath, tenantId);
-    return config;
-  }
   return config;
 });
 

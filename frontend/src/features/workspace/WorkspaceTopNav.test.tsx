@@ -23,6 +23,7 @@ import {
   ACTIVE_CLIENT_ORG_STORAGE_KEY,
   setActiveClientOrgId
 } from "@/hooks/useActiveClientOrg";
+import { writeActiveTenantId } from "@/api/tenantStorage";
 
 function buildOrg(overrides: Partial<ClientOrganization> & { _id: string; companyName: string }): ClientOrganization {
   return {
@@ -39,6 +40,7 @@ function buildOrg(overrides: Partial<ClientOrganization> & { _id: string; compan
 function clearActiveRealm() {
   window.history.replaceState({}, "", "/");
   window.sessionStorage.clear();
+  writeActiveTenantId(null);
 }
 
 function renderTopNav(overrides: Partial<React.ComponentProps<typeof WorkspaceTopNav>> = {}) {
@@ -62,6 +64,10 @@ function renderTopNav(overrides: Partial<React.ComponentProps<typeof WorkspaceTo
 beforeEach(() => {
   jest.clearAllMocks();
   clearActiveRealm();
+  // Provider URLs throw at construction time when tenantId is missing —
+  // every test in this suite simulates a logged-in tenant whose orgs the
+  // workspace fetches, so a stable test tenantId must be present.
+  writeActiveTenantId("tenant-1");
 });
 afterEach(clearActiveRealm);
 
