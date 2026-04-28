@@ -1,6 +1,8 @@
 import { create } from "zustand";
+import { devtools as reduxDevtools } from "zustand/middleware";
 import { useActiveRealmStore } from "@/stores/activeRealmStore";
 import { useAdminRealmStore } from "@/stores/adminRealmStore";
+import { reduxDevtoolsConfig } from "@/stores/reduxDevtoolsConfig";
 import { registerStoreReset } from "@/test-utils/resetStores";
 
 export const ACTIVE_TENANT_ID_STORAGE_KEY = "activeTenantId";
@@ -43,25 +45,30 @@ function writeSetupCompletedToStorage(completed: boolean): void {
   }
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
-  activeTenantId: readTenantIdFromStorage(),
-  tenantSetupCompleted: readSetupCompletedFromStorage(),
-  setActiveTenantId: (id) => {
-    writeTenantIdToStorage(id);
-    set({ activeTenantId: id });
-  },
-  setTenantSetupCompleted: (completed) => {
-    writeSetupCompletedToStorage(completed);
-    set({ tenantSetupCompleted: completed });
-  },
-  clearAuth: () => {
-    writeTenantIdToStorage(null);
-    writeSetupCompletedToStorage(false);
-    set({ activeTenantId: null, tenantSetupCompleted: false });
-    useActiveRealmStore.setState({ id: null });
-    useAdminRealmStore.setState({ id: null });
-  }
-}));
+export const useAuthStore = create<AuthState>()(
+  reduxDevtools(
+    (set) => ({
+      activeTenantId: readTenantIdFromStorage(),
+      tenantSetupCompleted: readSetupCompletedFromStorage(),
+      setActiveTenantId: (id) => {
+        writeTenantIdToStorage(id);
+        set({ activeTenantId: id });
+      },
+      setTenantSetupCompleted: (completed) => {
+        writeSetupCompletedToStorage(completed);
+        set({ tenantSetupCompleted: completed });
+      },
+      clearAuth: () => {
+        writeTenantIdToStorage(null);
+        writeSetupCompletedToStorage(false);
+        set({ activeTenantId: null, tenantSetupCompleted: false });
+        useActiveRealmStore.setState({ id: null });
+        useAdminRealmStore.setState({ id: null });
+      }
+    }),
+    reduxDevtoolsConfig(ACTIVE_TENANT_ID_STORAGE_KEY)
+  )
+);
 
 registerStoreReset(() =>
   useAuthStore.setState({ activeTenantId: null, tenantSetupCompleted: false })
