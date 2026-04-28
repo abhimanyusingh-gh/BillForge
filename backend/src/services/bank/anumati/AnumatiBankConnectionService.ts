@@ -3,7 +3,7 @@ import { BankAccountModel } from "@/models/bank/BankAccount.js";
 import { aesDecrypt, aesEncrypt } from "@/services/bank/anumati/AnumatiCrypto.js";
 import { AnumatiClient } from "@/services/bank/anumati/AnumatiClient.js";
 import type { IBankConnectionService, InitiateConsentResult, FetchFiResult } from "@/services/bank/anumati/IBankConnectionService.js";
-import { BANK_AA_URL_PATHS } from "@/integrations/urls/bankAaUrls.js";
+import { BANK_AA_URL_PATHS, aaCallbackUrl } from "@/integrations/urls/bankAaUrls.js";
 import { env } from "@/config/env.js";
 import { BANK_ACCOUNT_STATUS } from "@/types/bankAccount.js";
 import type { UUID } from "@/types/uuid.js";
@@ -34,7 +34,7 @@ export class AnumatiBankConnectionService implements IBankConnectionService {
     bankAccountId: string;
   }): Promise<InitiateConsentResult> {
     const sessionId = randomUUID();
-    const callbackUrl = `${this.callbackBaseUrl}${BANK_AA_URL_PATHS.aaCallback}?sessionId=${sessionId}`;
+    const callbackUrl = aaCallbackUrl(this.callbackBaseUrl, sessionId);
 
     const result = await this.client.post<{ consentHandle: string }>(BANK_AA_URL_PATHS.consent, {
       aaAddress: params.aaAddress,
