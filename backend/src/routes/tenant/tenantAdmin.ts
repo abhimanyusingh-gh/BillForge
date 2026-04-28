@@ -87,7 +87,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.get("/admin/mailboxes", requireCap("canManageUsers"), async (request, response, next) => {
+  router.get("/admin/mailboxes", requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       const items = await tenantAdminService.listMailboxes(getAuth(request).tenantId);
       response.json({ items });
@@ -96,7 +96,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.post("/admin/mailboxes/:id/assign", requireCap("canManageUsers"), async (request, response, next) => {
+  router.post("/admin/mailboxes/:id/assign", requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       const userId = typeof request.body?.userId === "string" ? request.body.userId : "";
       if (!userId) {
@@ -110,7 +110,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/mailboxes/:id/assign/:userId", requireCap("canManageUsers"), async (request, response, next) => {
+  router.delete("/admin/mailboxes/:id/assign/:userId", requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       await tenantAdminService.removeMailboxAssignment(getAuth(request).tenantId, request.params.id, request.params.userId);
       response.status(204).send();
@@ -119,7 +119,7 @@ export function createTenantAdminRouter(tenantAdminService: TenantAdminService, 
     }
   });
 
-  router.delete("/admin/mailboxes/:id", requireCap("canManageUsers"), async (request, response, next) => {
+  router.delete("/admin/mailboxes/:id", requireCap("canManageMailboxes"), async (request, response, next) => {
     try {
       await tenantAdminService.deleteMailbox(getAuth(request).tenantId, request.params.id);
       response.status(204).send();
