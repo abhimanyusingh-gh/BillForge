@@ -11,7 +11,7 @@ import type { TenantInviteService } from "@/services/tenant/tenantInviteService.
 // `/api/tenants/:tenantId/onboarding/complete`.
 export function createTenantOnboardingCompleteRouter(tenantAdminService: TenantAdminService) {
   const router = Router();
-  router.post(TENANT_URL_PATHS.onboardingCompleteNested, requireCap("canManageUsers"), async (request, response, next) => {
+  router.post(TENANT_URL_PATHS.onboardingComplete, requireCap("canManageUsers"), async (request, response, next) => {
     try {
       const context = getAuth(request);
       const tenantName = typeof request.body?.tenantName === "string" ? request.body.tenantName : "";

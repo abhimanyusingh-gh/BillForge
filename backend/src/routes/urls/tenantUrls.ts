@@ -4,6 +4,6 @@
 // accesses to their literal values (see `extractRoutesFromNode` in
 // check-fe-be-contract.ts) so registration-site drift is caught.
 export const TENANT_URL_PATHS = {
-  onboardingCompleteNested: "/onboarding/complete",
+  onboardingComplete: "/onboarding/complete",
   inviteAccept: "/tenant/invites/accept"
 } as const;
