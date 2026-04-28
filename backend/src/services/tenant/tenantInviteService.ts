@@ -117,7 +117,7 @@ export class TenantInviteService {
   }
 
   private async sendInviteEmail(input: { email: string; token: string; expiresAt: Date }): Promise<void> {
-    const inviteUrl = inviteAcceptUrl(env.INVITE_BASE_URL, input.token);
+    const inviteUrl = inviteAcceptUrl(input.token);
     const expiresAt = input.expiresAt.toISOString();
     const textBody = [
       "You were invited to join a tenant in LedgerBuddy.",
