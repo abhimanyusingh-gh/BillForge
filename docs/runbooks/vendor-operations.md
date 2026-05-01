@@ -147,13 +147,13 @@ What does require operator action: vendor-detail UIs surfacing the cert as "acti
      clientOrgId: ObjectId("<clientOrgId>"),
      "metadata.vendorFingerprint": "<vendorFingerprint>",
      status: { $in: ["NEEDS_REVIEW", "AWAITING_APPROVAL", "PARSED"] },
-     "compliance.tds.rateSource": "section197"
+     "compliance.tds.rateSource": "section-197"
    }, { _id: 1, invoiceDate: 1, "compliance.tds.rateBps": 1 })
    ```
    The `INVOICE_STATUS` enum is at `backend/src/types/invoice.ts:4`; `TDS_RATE_SOURCE` at `backend/src/types/invoice.ts:132`. Re-trigger compliance enrichment for each affected invoice via the admin recompute endpoint — the recompute will pick up the now-falsy cert check and emit a fresh `compliance.tds` block at the standard rate, dropping `TDS_SECTION_197_APPLIED` from `riskSignals`.
 4. The cumulative ledger row at `{tenantId, vendorFingerprint, FY, section}` is **not** retroactively corrected for invoices already recorded under the cert rate. If the customer needs Form 26Q reconciliation, follow `docs/runbooks/tds-and-audit.md` §3.4 and §5 to retire the cert-rate entries and re-record at the standard rate.
 
-**Expected outputs**: `VendorMaster.lowerDeductionCert` cleared (or left expired-but-present per customer preference); pending invoices show the standard `rateSource` (typically `"rateTable"` or `"tenantOverride"`); no `TDS_SECTION_197_APPLIED` signal on newly enriched invoices.
+**Expected outputs**: `VendorMaster.lowerDeductionCert` cleared (or left expired-but-present per customer preference); pending invoices show the standard `rateSource` (typically `"standard"` or `"tenant-override"`); no `TDS_SECTION_197_APPLIED` signal on newly enriched invoices.
 
 **Rollback path**: Re-upload the cert via the post-#262 `POST /api/tenants/:tenantId/vendors/:fingerprint/cert` endpoint with corrected `validTo`; the next compliance run will re-apply it.
 
