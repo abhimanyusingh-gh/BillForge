@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Surfaces</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 14px; font-family: var(--font-sans); display:flex; gap: 12px; }
+  .col { flex:1; }
+  .swatch { border:1px solid var(--line); border-radius: 10px; padding: 12px 14px; display:flex; align-items:center; justify-content:space-between; height: 38px; }
+  .lbl { font: 700 10px var(--font-sans); text-transform: uppercase; letter-spacing:.1em; color: var(--ink-soft); }
+  .val { font: 500 11px var(--font-mono); color: var(--ink-soft); }
+  .stack { display:flex; flex-direction: column; gap: 8px; }
+  .grp { font: 700 10px var(--font-sans); text-transform: uppercase; letter-spacing:.12em; color: var(--ink-soft); margin: 0 0 8px 4px; }
+  .dark { background: #0b1120; padding: 14px; border-radius: 12px; color-scheme: dark; }
+</style>
+</head>
+<body>
+  <div class="col">
+    <div class="grp">Light</div>
+    <div class="stack">
+      <div class="swatch" style="background: var(--bg-main);"><span class="lbl">Page</span><span class="val">--bg-main</span></div>
+      <div class="swatch" style="background: var(--bg-panel);"><span class="lbl">Panel</span><span class="val">--bg-panel</span></div>
+      <div class="swatch" style="background: var(--bg-sunken);"><span class="lbl">Sunken</span><span class="val">--bg-sunken</span></div>
+    </div>
+  </div>
+  <div class="col" data-theme="dark">
+    <div class="grp" style="color:#94a3b8">Dark</div>
+    <div class="stack dark">
+      <div class="swatch" style="background: var(--bg-main); color:var(--ink);"><span class="lbl" style="color:var(--ink-soft)">Page</span><span class="val">--bg-main</span></div>
+      <div class="swatch" style="background: var(--bg-panel); color:var(--ink);"><span class="lbl" style="color:var(--ink-soft)">Panel</span><span class="val">--bg-panel</span></div>
+      <div class="swatch" style="background: var(--bg-sunken); color:var(--ink);"><span class="lbl" style="color:var(--ink-soft)">Sunken</span><span class="val">--bg-sunken</span></div>
+    </div>
+  </div>
+</body>
+</html>

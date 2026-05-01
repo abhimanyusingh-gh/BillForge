@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Realm switcher hierarchy</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 18px; font-family: var(--font-sans); display:flex; gap: 14px; align-items:center; flex-wrap: wrap; }
+  .pill { display:inline-flex; align-items:center; gap: 6px; padding: 4px 10px; border-radius: 999px; font: 600 12px var(--font-sans); border: 1px solid var(--line); }
+  .tenant { background: var(--bg-main); color: var(--ink-soft); }
+  .realm { background: var(--accent-soft-bg); color: var(--accent); border-color: transparent; }
+  .empty { background: transparent; color: var(--warn); border-style: dashed; border-color: rgba(225,29,72,.5); }
+  .sep { color: var(--ink-muted); font: 600 14px var(--font-sans); }
+  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+  .kbd { display:inline-flex; align-items:center; justify-content:center; padding: 1px 6px; font: 600 10px var(--font-mono); background: var(--bg-sunken); border:1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+  <span class="pill tenant"><span class="material-symbols-outlined">business</span>Patel & Co. Chartered Accountants</span>
+  <span class="sep">/</span>
+  <span class="pill realm"><span class="material-symbols-outlined">account_tree</span>Sundaram Textiles Pvt Ltd <span class="kbd">⌘K</span></span>
+  <span class="pill empty"><span class="material-symbols-outlined">priority_high</span>Select client org</span>
+</body>
+</html>

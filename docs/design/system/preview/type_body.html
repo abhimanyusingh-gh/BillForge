@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Type · Body & mono</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 16px 20px; font-family: var(--font-sans); }
+  .row { display:flex; align-items: baseline; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .meta { width: 130px; font: 500 11px var(--font-mono); color: var(--ink-soft); }
+  .ex { color: var(--ink); }
+  .b13 { font: 400 13px/1.5 var(--font-sans); }
+  .b14 { font: 400 14px/1.5 var(--font-sans); }
+  .cap { font: 500 12px var(--font-sans); color: var(--ink-soft); }
+  .mono { font: 500 13px var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .amt { font: 600 14px var(--font-mono); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+  <div class="row"><span class="meta">13 / Inter</span><span class="ex b13">Default body in tables and dense panels.</span></div>
+  <div class="row"><span class="meta">14 / Inter</span><span class="ex b14">Section bodies in detail surfaces.</span></div>
+  <div class="row"><span class="meta">12 / Inter 500</span><span class="ex cap">Helper text · captions · dim labels</span></div>
+  <div class="row"><span class="meta">13 / JetBrains</span><span class="ex mono">27AAACR0123A1Z5  ·  AECPS1234C  ·  194C</span></div>
+  <div class="row"><span class="meta">14 / JetBrains 600</span><span class="ex amt">₹ 12,34,567.89  ·  ₹ 1,15,200.00</span></div>
+</body>
+</html>

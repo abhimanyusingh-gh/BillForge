@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Net Payable block</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 16px; font-family: var(--font-sans); background: var(--bg-main); }
+  .card { background: var(--bg-panel); border:1px solid var(--line); border-radius: 10px; padding: 12px 14px; max-width: 660px; }
+  .row { display:flex; justify-content: space-between; align-items: center; padding: 5px 0; font: 500 12px var(--font-sans); color: var(--ink-soft); }
+  .row .v { font: 600 13px var(--font-mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .row.deduct .v { color: var(--warn); }
+  .net { display:flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .net .lbl { font: 800 11px var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+  .net .amt { font: 700 22px var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); letter-spacing: -.005em; }
+  .tag { display:inline-flex; align-items: center; gap: 4px; padding: 1px 7px; background: var(--accent-soft-bg); color: var(--accent); border-radius: 999px; font: 600 10px var(--font-mono); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="row"><span>Gross invoice</span><span class="v">₹ 4,72,000.00</span></div>
+    <div class="row deduct"><span>TDS deducted <span class="tag">194J · 10%</span></span><span class="v">− ₹ 47,200.00</span></div>
+    <div class="row deduct"><span>TCS</span><span class="v">− ₹ 0.00</span></div>
+    <div class="net"><span class="lbl">Net Payable</span><span class="amt">₹ 4,24,800.00</span></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Accent & Ink</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 14px; font-family: var(--font-sans); }
+  .row { display:flex; gap:8px; margin-bottom: 10px; }
+  .chip { flex:1; height: 50px; border-radius: 8px; border:1px solid var(--line); display:flex; flex-direction:column; justify-content:flex-end; padding: 6px 10px; }
+  .name { font: 700 10px var(--font-sans); color:#fff; text-transform: uppercase; letter-spacing:.06em; }
+  .val { font: 500 10px var(--font-mono); color: rgba(255,255,255,.85); }
+  .ink .name { color: var(--ink); }
+  .ink .val { color: var(--ink-soft); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="chip" style="background:#1152d4;"><span class="name">Accent</span><span class="val">#1152d4</span></div>
+    <div class="chip" style="background:#1d4ed8;"><span class="name">Accent / hover</span><span class="val">#1d4ed8</span></div>
+    <div class="chip ink" style="background:rgba(17,82,212,0.10);"><span class="name">Soft accent bg</span><span class="val">rgba(17,82,212,.10)</span></div>
+  </div>
+  <div class="row">
+    <div class="chip ink" style="background:#0f172a; "><span class="name" style="color:#fff">Ink</span><span class="val" style="color:rgba(255,255,255,.7)">#0f172a</span></div>
+    <div class="chip ink" style="background:#64748b;"><span class="name" style="color:#fff">Ink soft</span><span class="val" style="color:rgba(255,255,255,.85)">#64748b</span></div>
+    <div class="chip ink" style="background:#94a3b8;"><span class="name" style="color:#fff">Ink muted</span><span class="val" style="color:rgba(255,255,255,.85)">#94a3b8</span></div>
+    <div class="chip ink" style="background:#e2e8f0;"><span class="name" style="color:var(--ink)">Line</span><span class="val">#e2e8f0</span></div>
+  </div>
+</body>
+</html>

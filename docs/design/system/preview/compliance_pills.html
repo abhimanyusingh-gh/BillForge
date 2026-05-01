@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Compliance pills</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 18px; font-family: var(--font-sans); display:flex; flex-direction: column; gap: 8px; }
+  .row { display:flex; gap: 8px; flex-wrap:wrap; align-items:center; }
+  .badge { display:inline-flex; align-items:center; gap:5px; padding: 3px 9px; border-radius: 999px; font: 600 11px var(--font-sans); }
+  .ok { background: var(--badge-valid-bg); color: var(--badge-valid-fg); }
+  .cross { background: var(--badge-cross-checked-bg); color: var(--badge-cross-checked-fg); }
+  .invalid { background: var(--badge-invalid-bg); color: var(--badge-invalid-fg); }
+  .warn { background: var(--amber-soft-bg); color: #b8770b; }
+  .crit { background: var(--warn-soft-bg); color: var(--warn); }
+  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 13px; }
+  .lbl { width: 110px; font: 700 10px var(--font-sans); text-transform: uppercase; letter-spacing:.1em; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+  <div class="row"><span class="lbl">PAN/GSTIN</span>
+    <span class="badge ok"><span class="material-symbols-outlined">check</span>Format valid</span>
+    <span class="badge cross"><span class="material-symbols-outlined">verified</span>GSTIN cross-checked</span>
+    <span class="badge invalid"><span class="material-symbols-outlined">close</span>Invalid format</span>
+  </div>
+  <div class="row"><span class="lbl">Risk signal</span>
+    <span class="badge crit"><span class="material-symbols-outlined">priority_high</span>VENDOR_BANK_CHANGED</span>
+    <span class="badge warn"><span class="material-symbols-outlined">warning</span>MSME_PAYMENT_OVERDUE</span>
+  </div>
+  <div class="row"><span class="lbl">Tally sync</span>
+    <span class="badge ok"><span class="material-symbols-outlined">sync</span>Synced</span>
+    <span class="badge warn"><span class="material-symbols-outlined">hourglass_empty</span>Pending push</span>
+    <span class="badge invalid"><span class="material-symbols-outlined">sync_problem</span>AlterID drift</span>
+  </div>
+</body>
+</html>
