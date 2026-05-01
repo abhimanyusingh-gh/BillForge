@@ -24,6 +24,9 @@ import { TriagePage } from "@/features/triage/TriagePage";
 const MailboxesPage = lazy(() =>
   import("@/features/admin/mailboxes/MailboxesPage").then((m) => ({ default: m.MailboxesPage }))
 );
+const TdsDashboardPage = lazy(() =>
+  import("@/features/reports/TdsDashboardPage").then((m) => ({ default: m.TdsDashboardPage }))
+);
 import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
@@ -338,6 +341,12 @@ export function App() {
         {standaloneRoute === "mailboxes" && canManageMailboxes && (
           <Suspense fallback={<div role="status" aria-busy="true">Loading mailboxes…</div>}>
             <MailboxesPage />
+          </Suspense>
+        )}
+
+        {standaloneRoute === "reportsTds" && (
+          <Suspense fallback={<div role="status" aria-busy="true">Loading TDS dashboard…</div>}>
+            <TdsDashboardPage />
           </Suspense>
         )}
 

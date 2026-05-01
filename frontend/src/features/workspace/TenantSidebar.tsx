@@ -10,6 +10,7 @@ const SIDEBAR_ITEM_ID = {
   Vendors: "vendors",
   Payments: "payments",
   Reconciliation: "reconciliation",
+  Reports: "reports",
   Exports: "exports",
   Settings: "settings"
 } as const;
@@ -43,6 +44,7 @@ const SIDEBAR_ITEMS: readonly SidebarItemConfig[] = [
   { id: SIDEBAR_ITEM_ID.Vendors, label: "Vendors", icon: "store", target: { kind: SIDEBAR_TARGET_KIND.Placeholder }, requires: "always" },
   { id: SIDEBAR_ITEM_ID.Payments, label: "Payments", icon: "payments", target: { kind: SIDEBAR_TARGET_KIND.Placeholder }, requires: "always" },
   { id: SIDEBAR_ITEM_ID.Reconciliation, label: "Reconciliation", icon: "rule", target: { kind: SIDEBAR_TARGET_KIND.Tab, tab: "statements" }, requires: "connections" },
+  { id: SIDEBAR_ITEM_ID.Reports, label: "Reports", icon: "monitoring", target: { kind: SIDEBAR_TARGET_KIND.StandaloneHash, route: "reportsTds" }, requires: "always" },
   { id: SIDEBAR_ITEM_ID.Exports, label: "Exports", icon: "upload_file", target: { kind: SIDEBAR_TARGET_KIND.Tab, tab: "exports" }, requires: "always" },
   { id: SIDEBAR_ITEM_ID.Settings, label: "Settings", icon: "settings", target: { kind: SIDEBAR_TARGET_KIND.Tab, tab: "config" }, requires: "config" }
 ] as const;

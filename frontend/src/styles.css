@@ -5289,3 +5289,143 @@ pre {
   flex: 1;
 }
 
+.tds-dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+}
+
+.tds-dashboard-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tds-dashboard-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.tds-dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.tds-dashboard-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tds-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.tds-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tds-filter-label {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.tds-filter-select {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-main);
+  color: var(--ink);
+}
+
+.tds-quarter-segmented {
+  align-self: flex-end;
+}
+
+.tds-active-vendor-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.tds-loading {
+  opacity: 0.7;
+}
+
+.tds-error {
+  margin-top: var(--sp-2);
+}
+
+.tds-table-empty,
+.tds-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--bg-soft);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.tds-liability-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.tds-liability-table th,
+.tds-liability-table td {
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tds-liability-table tbody tr[data-threshold-crossed="true"] {
+  background: var(--warn-soft-bg, rgba(234, 88, 12, 0.05));
+}
+
+.tds-sort-button,
+.tds-vendor-link {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+}
+
+.tds-sort-button[data-active="true"] {
+  font-weight: 600;
+}
+
+.tds-sort-button:hover,
+.tds-vendor-link:hover {
+  text-decoration: underline;
+}
+
+.tds-cumulative-chart {
+  width: 100%;
+}
+
