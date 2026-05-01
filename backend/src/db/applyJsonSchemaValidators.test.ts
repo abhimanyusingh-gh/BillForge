@@ -12,6 +12,7 @@ import "@/models/bank/BankTransaction.js";
 import "@/models/core/TenantUserRole.js";
 import "@/models/integration/ClientComplianceConfig.js";
 import "@/models/compliance/TdsRateTable.js";
+import "@/models/compliance/TdsVendorLedger.js";
 
 type CommandArg = {
   collMod: string;

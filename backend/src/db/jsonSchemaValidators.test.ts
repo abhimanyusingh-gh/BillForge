@@ -128,6 +128,7 @@ describe("MINOR_FIELD_REGISTRY", () => {
         "ClientComplianceConfig",
         "Invoice",
         "TdsRateTable",
+        "TdsVendorLedger",
         "TenantUserRole"
       ].sort()
     );
