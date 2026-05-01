@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Status colors</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 14px; font-family: var(--font-sans); }
+  .grid { display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .pill { display:flex; align-items:center; gap:8px; padding: 8px 10px; border-radius: 8px; border:1px solid var(--line); }
+  .dot { width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; }
+  .lbl { font: 700 10px var(--font-mono); color: var(--ink); letter-spacing:.04em; }
+  .val { margin-left: auto; font: 500 10px var(--font-mono); color: var(--ink-soft); }
+</style>
+</head>
+<body>
+  <div class="grid">
+    <div class="pill"><span class="dot" style="background:var(--status-pending)"></span><span class="lbl">PENDING</span></div>
+    <div class="pill"><span class="dot" style="background:var(--status-parsed)"></span><span class="lbl">PARSED</span></div>
+    <div class="pill"><span class="dot" style="background:var(--status-needs-review)"></span><span class="lbl">NEEDS_REVIEW</span></div>
+    <div class="pill"><span class="dot" style="background:var(--status-awaiting-approval)"></span><span class="lbl">AWAITING_APPROVAL</span></div>
+    <div class="pill"><span class="dot" style="background:var(--status-approved)"></span><span class="lbl">APPROVED</span></div>
+    <div class="pill"><span class="dot" style="background:var(--status-exported)"></span><span class="lbl">EXPORTED</span></div>
+    <div class="pill"><span class="dot" style="background:var(--status-failed-ocr)"></span><span class="lbl">FAILED_OCR</span></div>
+    <div class="pill"><span class="dot" style="background:var(--status-failed-parse)"></span><span class="lbl">FAILED_PARSE</span></div>
+  </div>
+</body>
+</html>

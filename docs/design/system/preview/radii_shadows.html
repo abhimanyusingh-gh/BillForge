@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Radii & shadows</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 18px; font-family: var(--font-sans); display:flex; gap: 14px; align-items:center; }
+  .swatch { width: 80px; height: 80px; background: var(--bg-panel); border:1px solid var(--line); display:flex; align-items:flex-end; justify-content:center; padding: 6px; font: 600 10px var(--font-mono); color: var(--ink-soft); }
+  .pill { border-radius: 999px; }
+  .stack { display:flex; flex-direction:column; gap:6px; align-items:center; }
+  .lbl { font: 700 10px var(--font-sans); color: var(--ink-soft); letter-spacing:.1em; text-transform: uppercase; }
+  .sh1 { box-shadow: var(--shadow-sm); border-color: transparent; }
+  .sh2 { box-shadow: var(--shadow-md); border-color: transparent; }
+  .sh3 { box-shadow: var(--shadow-lg); border-color: transparent; }
+</style>
+</head>
+<body>
+  <div class="stack"><div class="swatch" style="border-radius: 6px;">6 px</div><span class="lbl">sm</span></div>
+  <div class="stack"><div class="swatch" style="border-radius: 10px;">10 px</div><span class="lbl">md</span></div>
+  <div class="stack"><div class="swatch" style="border-radius: 16px;">16 px</div><span class="lbl">lg</span></div>
+  <div class="stack"><div class="swatch pill">pill</div><span class="lbl">999</span></div>
+  <div style="width: 1px; height: 70px; background: var(--line); margin: 0 8px;"></div>
+  <div class="stack"><div class="swatch sh1"></div><span class="lbl">shadow-sm</span></div>
+  <div class="stack"><div class="swatch sh2"></div><span class="lbl">shadow-md</span></div>
+  <div class="stack"><div class="swatch sh3"></div><span class="lbl">shadow-lg</span></div>
+</body>
+</html>

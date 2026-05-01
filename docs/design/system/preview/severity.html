@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Severity</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 18px; font-family: var(--font-sans); display:flex; gap: 14px; flex-wrap: wrap; }
+  .badge { display:inline-flex; align-items:center; gap:6px; padding: 4px 10px; border-radius: 999px; font: 600 12px var(--font-sans); }
+  .info { background: var(--accent-soft-bg); color: var(--accent); }
+  .warn { background: var(--amber-soft-bg); color: #b8770b; }
+  .crit { background: var(--warn-soft-bg); color: var(--warn); }
+  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 14px; }
+  .stack { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+  .lbl { font: 700 10px var(--font-sans); color: var(--ink-soft); letter-spacing: .1em; text-transform: uppercase; }
+  .ex { font: 500 12px var(--font-sans); color: var(--ink); }
+  .row { display:flex; gap: 14px; }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <span class="lbl">Info</span>
+    <span class="badge info"><span class="material-symbols-outlined">info</span>Cross-checked</span>
+    <span class="ex">Confirmation, not action</span>
+  </div>
+  <div class="stack">
+    <span class="lbl">Warning</span>
+    <span class="badge warn"><span class="material-symbols-outlined">warning</span>IRN missing</span>
+    <span class="ex">Needs review before export</span>
+  </div>
+  <div class="stack">
+    <span class="lbl">Critical</span>
+    <span class="badge crit"><span class="material-symbols-outlined">priority_high</span>PAN absent · 206AA 20%</span>
+    <span class="ex">Blocks approval / export</span>
+  </div>
+</body>
+</html>

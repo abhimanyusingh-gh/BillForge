@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Buttons</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 18px; font-family: var(--font-sans); display:flex; gap: 10px; flex-wrap: wrap; align-items:center; }
+  .btn { display:inline-flex; align-items:center; gap:6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid; font: 600 13px var(--font-sans); cursor: pointer; }
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .secondary { background: var(--bg-panel); border-color: var(--line); color: var(--ink); }
+  .destructive { background: var(--warn); border-color: var(--warn); color: #fff; }
+  .ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+  .kbd { display:inline-flex; align-items:center; justify-content:center; min-width:16px; padding: 1px 5px; font: 600 10px var(--font-mono); background: rgba(255,255,255,.20); color: #fff; border-radius: 3px; }
+  .secondary .kbd, .ghost .kbd { background: var(--bg-sunken); color: var(--ink-soft); }
+  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 16px; }
+  .sm { height: 26px; padding: 0 10px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <button class="btn primary">Approve <span class="kbd">A</span></button>
+  <button class="btn secondary"><span class="material-symbols-outlined">visibility</span>View source</button>
+  <button class="btn ghost">Reject <span class="kbd">R</span></button>
+  <button class="btn destructive"><span class="material-symbols-outlined">delete</span>Delete</button>
+  <button class="btn primary sm">Export <span class="kbd">E</span></button>
+  <button class="btn secondary sm">Retry</button>
+</body>
+</html>

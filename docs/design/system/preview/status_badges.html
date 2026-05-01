@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Status badges</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 18px; font-family: var(--font-sans); display:flex; gap: 8px; flex-wrap: wrap; align-items:center; }
+  .badge { display:inline-flex; align-items:center; gap:5px; padding: 3px 9px; border-radius: 999px; font: 600 11px var(--font-mono); letter-spacing: .03em; }
+  .pending { background: rgba(148,163,184,.18); color: #475569; }
+  .parsed { background: rgba(245,158,11,.16); color: #b8770b; }
+  .needs { background: rgba(225,29,72,.12); color: #b91c4d; }
+  .await { background: rgba(139,92,246,.16); color: #7c3aed; }
+  .approved { background: rgba(34,197,94,.18); color: #166534; }
+  .exported { background: rgba(17,82,212,.12); color: #1152d4; }
+  .failed { background: rgba(239,68,68,.16); color: #b91c1c; }
+  .failed-parse { background: rgba(249,115,22,.18); color: #c2410c; }
+  .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+</style>
+</head>
+<body>
+  <span class="badge pending"><span class="dot"></span>PENDING</span>
+  <span class="badge parsed"><span class="dot"></span>PARSED</span>
+  <span class="badge needs"><span class="dot"></span>NEEDS_REVIEW</span>
+  <span class="badge await"><span class="dot"></span>AWAITING_APPROVAL</span>
+  <span class="badge approved"><span class="dot"></span>APPROVED</span>
+  <span class="badge exported"><span class="dot"></span>EXPORTED</span>
+  <span class="badge failed"><span class="dot"></span>FAILED_OCR</span>
+  <span class="badge failed-parse"><span class="dot"></span>FAILED_PARSE</span>
+</body>
+</html>

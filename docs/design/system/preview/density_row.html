@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Density · table row</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  body { margin:0; padding: 14px 16px; font-family: var(--font-sans); }
+  table { border-collapse: collapse; width: 100%; font: 400 13px var(--font-sans); color: var(--ink); }
+  thead th { background: var(--bg-sunken); padding: 8px 10px; text-align: left; font: 700 10px var(--font-sans); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); border-bottom: 1px solid var(--line); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--line-soft); height: 32px; vertical-align: middle; }
+  .num { font: 600 12px var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .dot { display:inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 8px; vertical-align: middle; }
+  .lbl-mono { font: 500 12px var(--font-mono); }
+</style>
+</head>
+<body>
+  <table>
+    <thead><tr><th>Status</th><th>Vendor</th><th>Invoice #</th><th>Date</th><th style="text-align:right">Net Payable</th></tr></thead>
+    <tbody>
+      <tr><td><span class="dot" style="background: var(--status-needs-review)"></span>NEEDS_REVIEW</td><td>Tata Consultancy Services</td><td class="lbl-mono">INV-241208-9145</td><td class="lbl-mono">12-Apr-2026</td><td class="num">₹ 4,24,800.00</td></tr>
+      <tr><td><span class="dot" style="background: var(--status-awaiting-approval)"></span>AWAITING_APPROVAL</td><td>Mahalakshmi Power Loom</td><td class="lbl-mono">MPL/2526/0412</td><td class="lbl-mono">10-Apr-2026</td><td class="num">₹ 1,15,200.00</td></tr>
+      <tr><td><span class="dot" style="background: var(--status-approved)"></span>APPROVED</td><td>Reliance Jio Infocomm</td><td class="lbl-mono">RJIL-92834</td><td class="lbl-mono">08-Apr-2026</td><td class="num">₹ 9,28,400.00</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

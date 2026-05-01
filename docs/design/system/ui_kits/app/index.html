@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>LedgerBuddy — App UI Kit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+<link rel="stylesheet" href="../../colors_and_type.css" />
+<link rel="stylesheet" href="app.css" />
+<link rel="stylesheet" href="Login.css" />
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="Sidebar.jsx"></script>
+<script type="text/babel" src="TopNav.jsx"></script>
+<script type="text/babel" src="ActionRequiredQueue.jsx"></script>
+<script type="text/babel" src="InvoiceDetail.jsx"></script>
+<script type="text/babel" src="RealmSwitcher.jsx"></script>
+<script type="text/babel" src="PreExportModal.jsx"></script>
+<script type="text/babel" src="Reconciliation.jsx"></script>
+<script type="text/babel" src="Vendors.jsx"></script>
+<script type="text/babel" src="Triage.jsx"></script>
+<script type="text/babel" src="TdsDashboard.jsx"></script>
+<script type="text/babel" src="TdsBankMapModal.jsx"></script>
+<script type="text/babel" src="TallySync.jsx"></script>
+<script type="text/babel" src="TenantConfig.jsx"></script>
+<script type="text/babel" src="Payments.jsx"></script>
+<script type="text/babel" src="BankStatements.jsx"></script>
+<script type="text/babel" src="Mailboxes.jsx"></script>
+<script type="text/babel" src="ClientOrgs.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="NewVendorModal.jsx"></script>
+<script type="text/babel" src="NewClientOrgModal.jsx"></script>
+<script type="text/babel" src="NewTallyModal.jsx"></script>
+<script type="text/babel" src="DataTable.jsx"></script>
+<script type="text/babel" src="DateRange.jsx"></script>
+<script type="text/babel" src="StatementDetail.jsx"></script>
+<script type="text/babel" src="VendorsV2.jsx"></script>
+<script type="text/babel" src="RecordPaymentModal.jsx"></script>
+<script type="text/babel" src="Invoices.jsx"></script>
+<script type="text/babel" src="UserSettings.jsx"></script>
+<script type="text/babel" src="Login.jsx"></script>
+<script type="text/babel">
+function App() {
+  const [auth, setAuth] = React.useState(false);
+  const [authState, setAuthState] = React.useState("signin");
+  const [page, setPage] = React.useState("dashboard");
+  const [prevPage, setPrevPage] = React.useState("dashboard");
+  const [userSettingsTab, setUserSettingsTab] = React.useState("profile");
+  const [activeId, setActiveId] = React.useState(window.INVOICES[0].id);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  const [exportOpen, setExportOpen] = React.useState(false);
+  const [tenant] = React.useState("Khan & Associates, CA");
+  const [realm, setRealm] = React.useState("Sundaram Textiles Pvt Ltd");
+  const [theme, setTheme] = React.useState(() => localStorage.getItem("lb-theme") || "light"); // light | dark | system
+  const [systemDark, setSystemDark] = React.useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches || false);
+  const dark = theme === "dark" || (theme === "system" && systemDark);
+  const [sbCollapsed, setSbCollapsed] = React.useState(false);
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    localStorage.setItem("lb-theme", theme);
+  }, [dark, theme]);
+
+  React.useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!mq) return;
+    const h = (e) => setSystemDark(e.matches);
+    mq.addEventListener?.("change", h);
+    return () => mq.removeEventListener?.("change", h);
+  }, []);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPaletteOpen(o => !o); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "\\") { e.preventDefault(); setSbCollapsed(c => !c); }
+      if (e.key === "Escape") { setPaletteOpen(false); setExportOpen(false); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const counts = {
+    action: window.INVOICES.filter(r => r.status === "needs_review" || r.status === "awaiting_approval").length,
+    triage: 4,
+  };
+  const actionRows = window.INVOICES.filter(r => r.status === "needs_review" || r.status === "awaiting_approval");
+  const activeRow = window.INVOICES.find(r => r.id === activeId) || actionRows[0];
+
+  if (!auth) {
+    return <Login state={authState} onAuthenticated={() => { setAuth(true); setAuthState("signin"); setPage("dashboard"); }} onSetState={setAuthState} />;
+  }
+
+  let main = null;
+  if (page === "dashboard") main = <Dashboard onNavigate={(p, id) => { if (id) setActiveId(id); setPage(p); }} />;
+  else if (page === "action")     main = <ActionRequiredQueue rows={actionRows} activeId={activeId} onSelect={setActiveId} onOpenDetail={(id) => { setActiveId(id); setPage("invoices"); }} />;
+  else if (page === "invoices")   main = <Invoices activeId={activeId} onSelect={setActiveId} />;
+  else if (page === "vendors")    main = <VendorsV2 />;
+  else if (page === "payments")   main = <Payments />;
+  else if (page === "recon")      main = <Reconciliation />;
+  else if (page === "statements") main = <BankStatements />;
+  else if (page === "tds")        main = <TdsDashboard />;
+  else if (page === "tallysync")  main = <TallySync />;
+  else if (page === "triage")     main = <Triage />;
+  else if (page === "mailboxes")  main = <Mailboxes />;
+  else if (page === "clients")    main = <ClientOrgs />;
+  else if (page === "config")     main = <TenantConfig />;
+  else if (page === "user")       main = <UserSettings initialTab={userSettingsTab} onClose={() => setPage(prevPage)} />;
+  else if (page === "exports")    main = (
+    <div>
+      <div className="page-header"><h1>Tally Export</h1><span className="count">12 ready · 1 batch in progress</span>
+        <div className="page-tools">
+          <button onClick={() => setExportOpen(true)} style={{ height: 30, padding: "0 14px", borderRadius: 8, border: 0, background: "var(--accent)", color: "white", font: "600 12px var(--font-sans)" }}>Export selected (12)</button>
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table className="lbtable">
+          <thead><tr><th>Batch</th><th>Created</th><th>Vouchers</th><th>Result</th><th>Bridge</th><th></th></tr></thead>
+          <tbody>
+            <tr><td className="mono-cell">B-2604-014</td><td className="mono-cell">14-Apr-2026 17:32</td><td className="num-cell">12</td><td><span className="spill s-approved"><span className="dot"></span>SUCCESS</span></td><td>online · AlterID 84,221</td><td className="mono-cell" style={{ color: "var(--accent)" }}>re-download</td></tr>
+            <tr><td className="mono-cell">B-2604-013</td><td className="mono-cell">13-Apr-2026 09:11</td><td className="num-cell">8</td><td><span className="spill s-needs_review"><span className="dot"></span>1 FAILED</span></td><td>online · AlterID 84,201</td><td className="mono-cell" style={{ color: "var(--accent)" }}>retry</td></tr>
+            <tr><td className="mono-cell">B-2604-012</td><td className="mono-cell">12-Apr-2026 18:02</td><td className="num-cell">22</td><td><span className="spill s-approved"><span className="dot"></span>SUCCESS</span></td><td>online · AlterID 84,178</td><td className="mono-cell" style={{ color: "var(--accent)" }}>re-download</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={"app-shell" + (sbCollapsed ? " sb-collapsed" : "")}>
+      <Sidebar active={page} onChange={setPage} counts={counts} collapsed={sbCollapsed} onToggle={() => setSbCollapsed(c => !c)} tenant={tenant} />
+      <TopNav realm={realm} onOpenPalette={() => setPaletteOpen(true)} onToggleTheme={() => setTheme(t => t === "dark" ? "light" : "dark")} dark={dark} theme={theme} onSetTheme={setTheme} onOpenUserSettings={(tab) => { setPrevPage(page); setUserSettingsTab(tab || "profile"); setPage("user"); }} onSignOut={() => { setAuth(false); setAuthState("signed_out"); }} />
+      <main className="app-main">{main}</main>
+      <RealmSwitcher open={paletteOpen} realms={window.REALMS} currentId={"r1"} onPick={(r) => { setRealm(r.name); setPaletteOpen(false); }} onClose={() => setPaletteOpen(false)} />
+      <PreExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
