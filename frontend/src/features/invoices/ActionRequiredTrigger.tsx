@@ -30,8 +30,8 @@ export function ActionRequiredTrigger({ onSelectInvoice }: ActionRequiredTrigger
         <span className="material-symbols-outlined" aria-hidden="true">
           priority_high
         </span>
-        <span style={{ marginLeft: "0.35rem" }}>Action</span>
-        <span style={{ marginLeft: "0.4rem" }}>
+        <span className="action-required-trigger-label">Action</span>
+        <span className="action-required-trigger-badge-wrap">
           <Badge tone={badgeTone} size={BADGE_SIZE.sm} title={`${countLabel} action items`}>
             {countLabel}
           </Badge>
