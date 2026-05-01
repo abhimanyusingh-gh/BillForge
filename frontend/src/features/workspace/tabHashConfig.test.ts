@@ -26,4 +26,10 @@ describe("features/workspace/tabHashConfig — standalone hash routes", () => {
     expect(readStandaloneHashRoute("")).toBeNull();
     expect(readStandaloneHashRoute("#triage")).toBeNull();
   });
+
+  it("matches the registered reports/tds hash, with or without query params", () => {
+    expect(readStandaloneHashRoute("#/reports/tds")).toBe("reportsTds");
+    expect(readStandaloneHashRoute("#/reports/tds?fy=2025-26")).toBe("reportsTds");
+    expect(readStandaloneHashRoute("#/reports/tds?fy=2025-26&quarter=Q1")).toBe("reportsTds");
+  });
 });

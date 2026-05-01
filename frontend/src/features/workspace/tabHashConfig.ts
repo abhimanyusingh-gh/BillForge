@@ -21,7 +21,8 @@ export const LEGACY_QUERY_TABS = Object.keys(TAB_HASH_PATH) as TenantViewTab[];
 
 export const STANDALONE_HASH_PATH = {
   triage: "#/triage",
-  mailboxes: "#/mailboxes"
+  mailboxes: "#/mailboxes",
+  reportsTds: "#/reports/tds"
 } as const;
 
 export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;
@@ -29,6 +30,7 @@ export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;
 export function readStandaloneHashRoute(hash: string): StandaloneHashRoute | null {
   for (const [route, path] of Object.entries(STANDALONE_HASH_PATH)) {
     if (hash === path) return route as StandaloneHashRoute;
+    if (hash.startsWith(`${path}?`)) return route as StandaloneHashRoute;
   }
   return null;
 }

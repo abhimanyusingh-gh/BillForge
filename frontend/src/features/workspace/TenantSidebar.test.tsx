@@ -14,6 +14,7 @@ const ORDERED_LABELS = [
   "Vendors",
   "Payments",
   "Reconciliation",
+  "Reports",
   "Exports",
   "Settings"
 ];
@@ -102,6 +103,19 @@ describe("TenantSidebar", () => {
     renderSidebar({ triageCount: 4 });
     const triageBtn = screen.getByRole("button", { name: "Triage, 4 awaiting" });
     expect(triageBtn).toBeInTheDocument();
+  });
+
+  it("calls onStandaloneRouteChange('reportsTds') when Reports is clicked", () => {
+    const { props } = renderSidebar();
+    fireEvent.click(screen.getByRole("button", { name: /Reports/ }));
+    expect(props.onStandaloneRouteChange).toHaveBeenCalledWith("reportsTds");
+    expect(props.onTabChange).not.toHaveBeenCalled();
+  });
+
+  it("marks Reports as aria-current=page when activeStandaloneRoute is 'reportsTds'", () => {
+    renderSidebar({ activeStandaloneRoute: "reportsTds", activeTab: "overview" });
+    const reportsBtn = screen.getByRole("button", { name: /Reports/ });
+    expect(reportsBtn).toHaveAttribute("aria-current", "page");
   });
 
   it("calls onStandaloneRouteChange('triage') when Triage is clicked", () => {
