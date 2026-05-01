@@ -1,6 +1,5 @@
 import { SlideOverPanel } from "@/components/ds/SlideOverPanel";
 import { Badge, BADGE_SIZE } from "@/components/ds/Badge";
-import { tokens } from "@/components/ds/tokens";
 import { formatMinorAmountWithCurrency } from "@/lib/common/currency";
 import type { ActionQueueGroup, ActionQueueItem } from "@/lib/invoice/actionRequired";
 import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
@@ -33,18 +32,7 @@ function resolveView(args: {
 }
 
 function SkeletonRow() {
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        height: "2.5rem",
-        borderRadius: tokens.radius.sm,
-        background: tokens.color.bg.main,
-        border: `1px solid ${tokens.color.line}`,
-        marginBottom: tokens.space.s2
-      }}
-    />
-  );
+  return <div aria-hidden="true" className="action-panel-skeleton-row" />;
 }
 
 function LoadingState() {
@@ -60,29 +48,15 @@ function LoadingState() {
 
 function EmptyState() {
   return (
-    <div
-      data-testid="action-panel-empty"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: `${tokens.space.s6} ${tokens.space.s4}`,
-        textAlign: "center",
-        color: tokens.color.ink.soft
-      }}
-    >
+    <div data-testid="action-panel-empty" className="action-panel-empty">
       <span
-        className="material-symbols-outlined"
+        className="material-symbols-outlined action-panel-empty-icon"
         aria-hidden="true"
-        style={{ fontSize: "2.25rem", color: tokens.color.status.approved, marginBottom: tokens.space.s3 }}
       >
         task_alt
       </span>
-      <p style={{ margin: 0, fontWeight: tokens.font.weight.semibold, color: tokens.color.ink.base }}>
-        You&rsquo;re all caught up
-      </p>
-      <p style={{ margin: `${tokens.space.s2} 0 0`, fontSize: tokens.font.size.sm }}>
+      <p className="action-panel-empty-title">You&rsquo;re all caught up</p>
+      <p className="action-panel-empty-body">
         No invoices need your attention right now.
       </p>
     </div>
@@ -91,35 +65,9 @@ function EmptyState() {
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div
-      data-testid="action-panel-error"
-      role="alert"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: tokens.space.s3,
-        padding: tokens.space.s4,
-        border: `1px solid ${tokens.color.line}`,
-        borderRadius: tokens.radius.sm,
-        background: tokens.color.bg.main
-      }}
-    >
-      <p style={{ margin: 0, fontWeight: tokens.font.weight.semibold }}>
-        Couldn&rsquo;t load action items.
-      </p>
-      <button
-        type="button"
-        onClick={onRetry}
-        style={{
-          alignSelf: "flex-start",
-          border: `1px solid ${tokens.color.line}`,
-          background: tokens.color.bg.panel,
-          color: tokens.color.ink.base,
-          borderRadius: tokens.radius.sm,
-          padding: `${tokens.space.s1} ${tokens.space.s3}`,
-          cursor: "pointer"
-        }}
-      >
+    <div data-testid="action-panel-error" role="alert" className="action-panel-error">
+      <p className="action-panel-error-title">Couldn&rsquo;t load action items.</p>
+      <button type="button" onClick={onRetry} className="action-panel-error-retry">
         Retry
       </button>
     </div>
@@ -137,27 +85,14 @@ function QueueItemRow({ item, onSelect }: { item: ActionQueueItem; onSelect: (id
       data-testid="action-panel-item"
       data-invoice-id={item.invoiceId}
       onClick={() => onSelect(item.invoiceId)}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: tokens.space.s1,
-        width: "100%",
-        textAlign: "left",
-        padding: `${tokens.space.s2} ${tokens.space.s3}`,
-        marginBottom: tokens.space.s2,
-        border: `1px solid ${tokens.color.line}`,
-        borderRadius: tokens.radius.sm,
-        background: tokens.color.bg.panel,
-        color: tokens.color.ink.base,
-        cursor: "pointer"
-      }}
+      className="action-panel-item"
     >
-      <span style={{ fontWeight: tokens.font.weight.semibold }}>
+      <span className="action-panel-item-vendor">
         {item.vendorName || "Unknown vendor"}
       </span>
-      <span style={{ fontSize: tokens.font.size.sm, color: tokens.color.ink.soft }}>
-        {item.invoiceNumber || "—"}
-        {amount ? ` · ${amount}` : ""}
+      <span className="action-panel-item-meta">
+        <span className="action-panel-item-number">{item.invoiceNumber || "—"}</span>
+        {amount ? <span className="action-panel-item-amount">{amount}</span> : null}
       </span>
     </button>
   );
@@ -171,18 +106,13 @@ function QueueGroup({
   onSelect: (invoiceId: string) => void;
 }) {
   return (
-    <section data-testid="action-panel-group" data-reason={group.reason} style={{ marginBottom: tokens.space.s4 }}>
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: tokens.space.s2,
-          marginBottom: tokens.space.s2
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: tokens.font.size.md, fontWeight: tokens.font.weight.semibold }}>
-          {group.label}
-        </h3>
+    <section
+      data-testid="action-panel-group"
+      data-reason={group.reason}
+      className="action-panel-group"
+    >
+      <header className="action-panel-group-header">
+        <h3 className="action-panel-group-title">{group.label}</h3>
         <Badge tone={group.tone} size={BADGE_SIZE.sm}>
           {group.items.length}
         </Badge>
@@ -231,4 +161,3 @@ export function ActionRequiredPanel({ open, onClose, onSelectInvoice, panelId }:
     </SlideOverPanel>
   );
 }
-
