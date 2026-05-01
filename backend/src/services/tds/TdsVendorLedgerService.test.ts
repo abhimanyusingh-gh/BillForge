@@ -1,11 +1,13 @@
 import { describeHarness } from "@/test-utils";
 import { TdsVendorLedgerModel } from "@/models/compliance/TdsVendorLedger.js";
 import { TdsVendorLedgerService } from "@/services/tds/TdsVendorLedgerService.js";
+import type { UUID } from "@/types/uuid.js";
+import type { TdsSection } from "@/types/tdsSection.js";
 
-const TENANT = "tenant-tds-1";
+const TENANT = "tenant-tds-1" as UUID;
 const VENDOR = "vendor-fingerprint-acme";
 const FY = "2026-27";
-const SECTION = "194C";
+const SECTION = "194C" as TdsSection;
 const APRIL_15_IST = new Date("2026-04-15T05:30:00+05:30");
 
 describeHarness("TdsVendorLedgerService", ({ getHarness }) => {
@@ -137,20 +139,20 @@ describeHarness("TdsVendorLedgerService", ({ getHarness }) => {
 
     it("keeps separate ledgers per section for the same vendor", async () => {
       await service.recordTdsToLedger({
-        tenantId: TENANT, vendorFingerprint: VENDOR, financialYear: FY, section: "194C",
+        tenantId: TENANT, vendorFingerprint: VENDOR, financialYear: FY, section: "194C" as TdsSection,
         invoiceId: "inv-194c", invoiceDate: APRIL_15_IST,
         taxableAmountMinor: 1000_00, tdsAmountMinor: 10_00,
         rateSource: "rateTable", thresholdCrossed: false
       });
       await service.recordTdsToLedger({
-        tenantId: TENANT, vendorFingerprint: VENDOR, financialYear: FY, section: "194J",
+        tenantId: TENANT, vendorFingerprint: VENDOR, financialYear: FY, section: "194J" as TdsSection,
         invoiceId: "inv-194j", invoiceDate: APRIL_15_IST,
         taxableAmountMinor: 2000_00, tdsAmountMinor: 20_00,
         rateSource: "rateTable", thresholdCrossed: false
       });
 
-      const c = await service.getCumulativeForVendor(TENANT, VENDOR, FY, "194C");
-      const j = await service.getCumulativeForVendor(TENANT, VENDOR, FY, "194J");
+      const c = await service.getCumulativeForVendor(TENANT, VENDOR, FY, "194C" as TdsSection);
+      const j = await service.getCumulativeForVendor(TENANT, VENDOR, FY, "194J" as TdsSection);
       expect(c.cumulativeBaseMinor).toBe(1000_00);
       expect(j.cumulativeBaseMinor).toBe(2000_00);
     });
