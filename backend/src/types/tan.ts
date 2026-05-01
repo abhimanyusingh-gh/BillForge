@@ -1,6 +1,8 @@
+import { env } from "@/config/env.js";
+
 export type TAN = string & { readonly __brand: unique symbol };
 
-export const TAN_FORMAT = /^[A-Z]{4}[0-9]{5}[A-Z]$/;
+export const TAN_FORMAT: RegExp = env.TAN_FORMAT_PATTERN;
 
 export function toTAN(value: string): TAN {
   return value as TAN;

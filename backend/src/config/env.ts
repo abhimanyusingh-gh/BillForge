@@ -224,7 +224,12 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 
-  TDS_LEDGER_ENTRIES_CAP: z.coerce.number().int().min(1).default(10000)
+  TDS_LEDGER_ENTRIES_CAP: z.coerce.number().int().min(1).default(10000),
+
+  TAN_FORMAT_PATTERN: z
+    .string()
+    .default("^[A-Z]{4}[0-9]{5}[A-Z]$")
+    .transform((value) => new RegExp(value))
 });
 
 const parsed = envSchema.safeParse(process.env);
