@@ -1,5 +1,6 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 import { validateClientOrgTenantInvariant } from "@/services/auth/tenantScope.js";
+import { exportBatchItemSchema } from "@/models/invoice/exportBatch.item.js";
 
 const exportBatchSchema = new Schema(
   {
@@ -10,7 +11,8 @@ const exportBatchSchema = new Schema(
     successCount: { type: Number, required: true },
     failureCount: { type: Number, required: true },
     requestedBy: { type: String, required: true },
-    fileKey: { type: String }
+    fileKey: { type: String },
+    items: { type: [exportBatchItemSchema], default: undefined }
   },
   {
     timestamps: true
