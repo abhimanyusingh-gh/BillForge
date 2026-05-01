@@ -3,7 +3,19 @@
 - **Source**: `/Users/abhimanyusingh/Downloads/LedgerBuddy Design System.zip` (user-provided 2026-05-01)
 - **Purpose**: Authoritative design ground truth for every Pass 2 author + reviewer.
 - **Excluded**: `frontend/src/` (stale duplicate of repo code; importing would shadow live source).
-- **Imported file count**: 64 (verified via `find docs/design/system -type f | wc -l`, excluding this manifest).
+- **Imported file count**: 70 (verified via `find docs/design/system -type f | wc -l`, excluding this manifest). Includes 6 v2 delta files imported 2026-05-01.
+
+## v2 delta (imported 2026-05-01)
+
+User provided `LedgerBuddy Design System-2.zip` with 6 new Platform Admin files:
+- `ui_kits/app/PlatformAdmin.css`
+- `ui_kits/app/PlatformAdmin.html`
+- `ui_kits/app/PlatformAdmin.jsx`
+- `ui_kits/app/PlatformAdminApp.jsx`
+- `ui_kits/app/PlatformAdminParts1.jsx`
+- `ui_kits/app/PlatformAdminParts2.jsx`
+
+All other v2 files are byte-identical to v1; not re-imported.
 
 > **Do not import any of these files into production code paths.** They are reference only. Pass 2 authors translate the JSX/CSS structure into typed React + DS-token stylesheets in `frontend/src/`; they do not copy or `import` from `docs/design/system/`.
 
@@ -52,6 +64,12 @@ docs/design/system/ui_kits/app/NewClientOrgModal.jsx
 docs/design/system/ui_kits/app/NewTallyModal.jsx
 docs/design/system/ui_kits/app/NewVendorModal.jsx
 docs/design/system/ui_kits/app/Payments.jsx
+docs/design/system/ui_kits/app/PlatformAdmin.css
+docs/design/system/ui_kits/app/PlatformAdmin.html
+docs/design/system/ui_kits/app/PlatformAdmin.jsx
+docs/design/system/ui_kits/app/PlatformAdminApp.jsx
+docs/design/system/ui_kits/app/PlatformAdminParts1.jsx
+docs/design/system/ui_kits/app/PlatformAdminParts2.jsx
 docs/design/system/ui_kits/app/PreExportModal.jsx
 docs/design/system/ui_kits/app/README.md
 docs/design/system/ui_kits/app/RealmSwitcher.jsx
