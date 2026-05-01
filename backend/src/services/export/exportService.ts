@@ -1,12 +1,12 @@
 import { Types } from "mongoose";
 import type { AccountingExporter, ExportResultItem } from "@/core/interfaces/AccountingExporter.js";
 import type { FileStore } from "@/core/interfaces/FileStore.js";
+import { ExportBatchModel } from "@/models/invoice/ExportBatch.js";
 import {
   EXPORT_BATCH_ITEM_STATUS,
-  EXPORT_BATCH_VOUCHER_TYPE,
-  ExportBatchModel
-} from "@/models/invoice/ExportBatch.js";
-import { InvoiceModel } from "@/models/invoice/Invoice.js";
+  EXPORT_BATCH_VOUCHER_TYPE
+} from "@/models/invoice/exportBatch.item.js";
+import { InvoiceModel, type InvoiceDocument } from "@/models/invoice/Invoice.js";
 import { AuditLogModel } from "@/models/core/AuditLog.js";
 import { logger } from "@/utils/logger.js";
 import { EXPORT_SAVE_CONCURRENCY } from "@/constants.js";
@@ -355,126 +355,177 @@ export class ExportService {
         tenantId: request.tenantId,
         clientOrgId: request.clientOrgId
       });
-
       if (!batch) {
         throw new ExportBatchNotFoundError(request.batchId);
       }
 
       const existingItems: ExportBatchItemSnapshot[] = (batch.items ?? []) as ExportBatchItemSnapshot[];
-      const failureItems = existingItems.filter((item) => item.status === EXPORT_BATCH_ITEM_STATUS.FAILURE);
+      const { targetItems, failureItems } = this.#selectRetryTargets(existingItems, request);
 
-      const requestedInvoiceIds = new Set(request.invoiceIds ?? []);
-      const requestedPaymentIds = new Set(request.paymentIds ?? []);
-      const hasFilter = requestedInvoiceIds.size > 0 || requestedPaymentIds.size > 0;
-
-      const targetItems = hasFilter
-        ? failureItems.filter((item) =>
-            requestedInvoiceIds.has(item.invoiceId) ||
-            (item.paymentId !== undefined && requestedPaymentIds.has(item.paymentId)))
-        : failureItems;
-
-      if (targetItems.length === 0) {
-        throw new ExportRetryNoFailuresError(request.batchId);
-      }
-
-      const targetInvoiceIds = targetItems
-        .map((item) => item.invoiceId)
-        .filter((id) => Types.ObjectId.isValid(id));
-
-      const invoices = await InvoiceModel.find({
-        _id: { $in: targetInvoiceIds.map((id) => new Types.ObjectId(id)) },
-        tenantId: request.tenantId,
-        clientOrgId: request.clientOrgId
-      }).select({ ocrText: 0 });
-
-      const orderedInvoices = targetItems
-        .map((item) => invoices.find((inv) => toUUID(String(inv._id)) === item.invoiceId))
-        .filter((inv): inv is NonNullable<typeof inv> => inv !== undefined);
-
+      const orderedInvoices = await this.#fetchOrderedInvoices(targetItems, request);
       const results = await this.exporter.exportInvoices(orderedInvoices, request.tenantId, { forceAlter: true });
-
-      const resultByInvoiceId = new Map<string, ExportResultItem>(
-        results.map((r) => [String(r.invoiceId), r])
-      );
       const now = new Date();
-      const nextItems: ExportBatchItemSnapshot[] = existingItems.map((item) => {
-        const result = resultByInvoiceId.get(item.invoiceId);
-        if (!result) return item;
-        return mergeRetryResultIntoItem(item, result, now);
-      });
+      const { resultByInvoiceId, nextItems, successCount, failureCount } =
+        await this.#mergeRetryResultsIntoBatch(batch, existingItems, results, now);
 
-      const successCount = nextItems.filter((i) => i.status === EXPORT_BATCH_ITEM_STATUS.SUCCESS).length;
-      const failureCountAfter = nextItems.filter((i) => i.status === EXPORT_BATCH_ITEM_STATUS.FAILURE).length;
-
-      batch.set("items", nextItems);
-      batch.set("successCount", successCount);
-      batch.set("failureCount", failureCountAfter);
-      await batch.save();
-
-      const saveResults = await saveBatch(orderedInvoices, EXPORT_SAVE_CONCURRENCY, async (invoice) => {
-        const result = resultByInvoiceId.get(toUUID(String(invoice._id)));
-        if (!result) return;
-        if (result.success) {
-          await InvoiceModel.updateOne(
-            { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
-            {
-              status: INVOICE_STATUS.EXPORTED,
-              export: {
-                system: this.exporter.system,
-                batchId: String(batch._id),
-                exportedAt: now,
-                externalReference: result.externalReference
-              }
-            }
-          );
-        } else {
-          await InvoiceModel.updateOne(
-            { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
-            { $push: { processingIssues: `Export retry failed: ${result.error}` } }
-          );
-        }
-      });
-
-      for (const r of saveResults) {
-        if (r.status === "rejected") {
-          logger.error("export.retry.invoice.save.failed", {
-            error: r.reason instanceof Error ? r.reason.message : String(r.reason)
-          });
-        }
-      }
-
-      AuditLogModel.create({
-        tenantId: request.tenantId,
-        userId: request.requestedBy,
-        entityType: "export",
-        entityId: String(batch._id),
-        action: "export_batch_retry",
-        previousValue: { failureCount: failureItems.length, targetCount: targetItems.length },
-        newValue: { successCount, failureCount: failureCountAfter }
-      }).catch((err) => {
-        logger.error("audit_log.write_failed", {
-          error: String(err),
-          tenantId: request.tenantId,
-          batchId: String(batch._id)
-        });
+      const batchId = String(batch._id);
+      await this.#applyResultsToInvoices(orderedInvoices, resultByInvoiceId, request, batchId, now);
+      this.#writeRetryAuditLog(request, batchId, {
+        priorFailureCount: failureItems.length,
+        targetCount: targetItems.length,
+        successCount,
+        failureCount
       });
 
       logger.info("export.retry.complete", {
         targetSystem: this.exporter.system,
-        batchId: String(batch._id),
+        batchId,
         retriedCount: targetItems.length,
         successCount,
-        failureCount: failureCountAfter
+        failureCount
       });
 
       return {
-        batchId: String(batch._id),
+        batchId,
         retriedCount: targetItems.length,
         total: nextItems.length,
         successCount,
-        failureCount: failureCountAfter,
+        failureCount,
         items: results
       };
+    });
+  }
+
+  #selectRetryTargets(
+    existingItems: ExportBatchItemSnapshot[],
+    request: RetryFailedItemsRequest
+  ): { targetItems: ExportBatchItemSnapshot[]; failureItems: ExportBatchItemSnapshot[] } {
+    const failureItems = existingItems.filter((item) => item.status === EXPORT_BATCH_ITEM_STATUS.FAILURE);
+
+    const requestedInvoiceIds = new Set(request.invoiceIds ?? []);
+    const requestedPaymentIds = new Set(request.paymentIds ?? []);
+    const hasFilter = requestedInvoiceIds.size > 0 || requestedPaymentIds.size > 0;
+
+    const targetItems = hasFilter
+      ? failureItems.filter((item) =>
+          requestedInvoiceIds.has(item.invoiceId) ||
+          (item.paymentId !== undefined && requestedPaymentIds.has(item.paymentId)))
+      : failureItems;
+
+    if (targetItems.length === 0) {
+      throw new ExportRetryNoFailuresError(request.batchId);
+    }
+
+    return { targetItems, failureItems };
+  }
+
+  async #mergeRetryResultsIntoBatch(
+    batch: { set: (key: string, value: unknown) => unknown; save: () => Promise<unknown> },
+    existingItems: ExportBatchItemSnapshot[],
+    results: ExportResultItem[],
+    now: Date
+  ): Promise<{
+    resultByInvoiceId: Map<string, ExportResultItem>;
+    nextItems: ExportBatchItemSnapshot[];
+    successCount: number;
+    failureCount: number;
+  }> {
+    const resultByInvoiceId = new Map<string, ExportResultItem>(
+      results.map((r) => [String(r.invoiceId), r])
+    );
+    const nextItems = existingItems.map((item) => {
+      const result = resultByInvoiceId.get(item.invoiceId);
+      return result ? mergeRetryResultIntoItem(item, result, now) : item;
+    });
+    const successCount = nextItems.filter((i) => i.status === EXPORT_BATCH_ITEM_STATUS.SUCCESS).length;
+    const failureCount = nextItems.filter((i) => i.status === EXPORT_BATCH_ITEM_STATUS.FAILURE).length;
+
+    batch.set("items", nextItems);
+    batch.set("successCount", successCount);
+    batch.set("failureCount", failureCount);
+    await batch.save();
+
+    return { resultByInvoiceId, nextItems, successCount, failureCount };
+  }
+
+  async #fetchOrderedInvoices(
+    targetItems: ExportBatchItemSnapshot[],
+    request: RetryFailedItemsRequest
+  ): Promise<InvoiceDocument[]> {
+    const targetInvoiceIds = targetItems
+      .map((item) => item.invoiceId)
+      .filter((id) => Types.ObjectId.isValid(id));
+
+    const invoices = (await InvoiceModel.find({
+      _id: { $in: targetInvoiceIds.map((id) => new Types.ObjectId(id)) },
+      tenantId: request.tenantId,
+      clientOrgId: request.clientOrgId
+    }).select({ ocrText: 0 })) as InvoiceDocument[];
+
+    return targetItems
+      .map((item) => invoices.find((inv) => toUUID(String(inv._id)) === item.invoiceId))
+      .filter((inv): inv is InvoiceDocument => inv !== undefined);
+  }
+
+  async #applyResultsToInvoices(
+    orderedInvoices: InvoiceDocument[],
+    resultByInvoiceId: Map<string, ExportResultItem>,
+    request: RetryFailedItemsRequest,
+    batchId: string,
+    now: Date
+  ) {
+    const saveResults = await saveBatch(orderedInvoices, EXPORT_SAVE_CONCURRENCY, async (invoice) => {
+      const result = resultByInvoiceId.get(toUUID(String(invoice._id)));
+      if (!result) return;
+      if (result.success) {
+        await InvoiceModel.updateOne(
+          { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
+          {
+            status: INVOICE_STATUS.EXPORTED,
+            export: {
+              system: this.exporter.system,
+              batchId,
+              exportedAt: now,
+              externalReference: result.externalReference
+            }
+          }
+        );
+      } else {
+        await InvoiceModel.updateOne(
+          { _id: invoice._id, tenantId: request.tenantId, clientOrgId: request.clientOrgId },
+          { $push: { processingIssues: `Export retry failed: ${result.error}` } }
+        );
+      }
+    });
+
+    for (const r of saveResults) {
+      if (r.status === "rejected") {
+        logger.error("export.retry.invoice.save.failed", {
+          error: r.reason instanceof Error ? r.reason.message : String(r.reason)
+        });
+      }
+    }
+  }
+
+  #writeRetryAuditLog(
+    request: RetryFailedItemsRequest,
+    batchId: string,
+    summary: { priorFailureCount: number; targetCount: number; successCount: number; failureCount: number }
+  ) {
+    AuditLogModel.create({
+      tenantId: request.tenantId,
+      userId: request.requestedBy,
+      entityType: "export",
+      entityId: batchId,
+      action: "export_batch_retry",
+      previousValue: { failureCount: summary.priorFailureCount, targetCount: summary.targetCount },
+      newValue: { successCount: summary.successCount, failureCount: summary.failureCount }
+    }).catch((err) => {
+      logger.error("audit_log.write_failed", {
+        error: String(err),
+        tenantId: request.tenantId,
+        batchId
+      });
     });
   }
 

@@ -4,7 +4,8 @@ import {
   ExportRetryNoFailuresError,
   ExportService
 } from "@/services/export/exportService.ts";
-import { EXPORT_BATCH_ITEM_STATUS, ExportBatchModel } from "@/models/invoice/ExportBatch.ts";
+import { ExportBatchModel } from "@/models/invoice/ExportBatch.ts";
+import { EXPORT_BATCH_ITEM_STATUS } from "@/models/invoice/exportBatch.item.ts";
 import { InvoiceModel } from "@/models/invoice/Invoice.ts";
 import { AuditLogModel } from "@/models/core/AuditLog.ts";
 import type { AccountingExporter } from "@/core/interfaces/AccountingExporter.ts";
@@ -456,9 +457,14 @@ describe("ExportService", () => {
       });
 
       const itemsUpdate = setSpy.mock.calls.find(([key]) => key === "items")?.[1] as Array<Record<string, unknown>>;
-      const tallyResponse = itemsUpdate[0].tallyResponse as { attempts: unknown[]; lineError: string };
+      const tallyResponse = itemsUpdate[0].tallyResponse as {
+        attempts: Array<{ exportVersion: number }>;
+        lineError: string;
+      };
       expect(tallyResponse.attempts).toHaveLength(2);
       expect(tallyResponse.lineError).toBe("second failure");
+      expect(tallyResponse.attempts[0].exportVersion).toBe(0);
+      expect(tallyResponse.attempts[1].exportVersion).toBe(1);
     });
   });
 });
