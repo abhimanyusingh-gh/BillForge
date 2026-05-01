@@ -8,11 +8,13 @@ import {
   type LedgerKey
 } from "@/services/tds/TdsVendorLedgerArchivalService.js";
 import { env } from "@/config/env.js";
+import type { UUID } from "@/types/uuid.js";
+import type { TdsSection } from "@/types/tdsSection.js";
 
-const TENANT = "tenant-tds-archival";
+const TENANT = "tenant-tds-archival" as UUID;
 const VENDOR = "vendor-fingerprint-archival";
 const FY = "2026-27";
-const SECTION = "194C";
+const SECTION = "194C" as TdsSection;
 const APRIL_15_IST = new Date("2026-04-15T05:30:00+05:30");
 
 const KEY: LedgerKey = {

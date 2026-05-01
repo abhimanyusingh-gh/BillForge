@@ -3,6 +3,8 @@ import type { ParsedInvoiceData } from "@/types/invoice.js";
 import type { TdsCalculationService, TdsCalculationResult, TdsLowerDeductionCert } from "@/services/compliance/TdsCalculationService.js";
 import type { TdsVendorLedgerService } from "@/services/tds/TdsVendorLedgerService.js";
 import { determineFY } from "@/services/tds/fiscalYearUtils.js";
+import type { UUID } from "@/types/uuid.js";
+import type { TdsSection } from "@/types/tdsSection.js";
 
 interface TdsOrchestratorInput {
   tdsCalculation: TdsCalculationService;
@@ -40,7 +42,12 @@ export async function runTdsOrchestrator(input: TdsOrchestratorInput): Promise<T
   const invoiceDate = invoice.invoiceDate ?? evaluatedNow;
   const fy = determineFY(invoiceDate);
 
-  const cumulative = await tdsVendorLedger.getCumulativeForVendor(tenantId, vendorFingerprint, fy, detection.section);
+  const cumulative = await tdsVendorLedger.getCumulativeForVendor(
+    tenantId as UUID,
+    vendorFingerprint,
+    fy,
+    detection.section as TdsSection
+  );
 
   const result = tdsCalculation.computeTds({
     invoice, glCategory, rateLookup, detection,
@@ -61,10 +68,10 @@ export async function runTdsOrchestrator(input: TdsOrchestratorInput): Promise<T
 
   if (shouldRecord) {
     await tdsVendorLedger.recordTdsToLedger({
-      tenantId,
+      tenantId: tenantId as UUID,
       vendorFingerprint,
       financialYear: fy,
-      section: result.tds.section as string,
+      section: result.tds.section as TdsSection,
       invoiceId: invoiceId as string,
       invoiceDate,
       taxableAmountMinor: result.ledgerDelta.taxableAmountMinor,

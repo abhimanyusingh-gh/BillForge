@@ -8,6 +8,8 @@ import {
 import { determineQuarter, type TdsQuarter } from "@/services/tds/fiscalYearUtils.js";
 import { env } from "@/config/env.js";
 import type { TdsRateSource } from "@/types/invoice.js";
+import type { UUID } from "@/types/uuid.js";
+import type { TdsSection } from "@/types/tdsSection.js";
 
 interface TdsCumulativeView {
   cumulativeBaseMinor: number;
@@ -28,10 +30,10 @@ const ZERO_VIEW: TdsCumulativeView = {
 };
 
 interface RecordTdsToLedgerInput {
-  tenantId: string;
+  tenantId: UUID;
   vendorFingerprint: string;
   financialYear: string;
-  section: string;
+  section: TdsSection;
   invoiceId: string;
   invoiceDate: Date;
   taxableAmountMinor: number;
@@ -50,10 +52,10 @@ function assertInteger(field: string, value: number): void {
 
 export class TdsVendorLedgerService {
   async getCumulativeForVendor(
-    tenantId: string,
+    tenantId: UUID,
     vendorFingerprint: string,
     financialYear: string,
-    section: string
+    section: TdsSection
   ): Promise<TdsCumulativeView> {
     const key: LedgerKey = { tenantId, vendorFingerprint, financialYear, section };
 

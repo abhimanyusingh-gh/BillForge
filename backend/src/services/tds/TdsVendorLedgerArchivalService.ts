@@ -1,12 +1,14 @@
 import { TdsVendorLedgerModel, type TdsVendorLedger } from "@/models/compliance/TdsVendorLedger.js";
 import { TdsVendorLedgerArchiveModel } from "@/models/compliance/TdsVendorLedgerArchive.js";
 import { TdsVendorLedgerEntryOverflowModel } from "@/models/compliance/TdsVendorLedgerEntryOverflow.js";
+import type { UUID } from "@/types/uuid.js";
+import type { TdsSection } from "@/types/tdsSection.js";
 
 export interface LedgerKey {
-  tenantId: string;
+  tenantId: UUID;
   vendorFingerprint: string;
   financialYear: string;
-  section: string;
+  section: TdsSection;
 }
 
 interface SplitOptions {

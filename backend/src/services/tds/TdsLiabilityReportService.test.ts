@@ -3,6 +3,8 @@ import { TdsVendorLedgerModel } from "@/models/compliance/TdsVendorLedger.js";
 import { TenantModel } from "@/models/core/Tenant.js";
 import { TdsVendorLedgerService } from "@/services/tds/TdsVendorLedgerService.js";
 import { TdsLiabilityReportService } from "@/services/tds/TdsLiabilityReportService.js";
+import type { UUID } from "@/types/uuid.js";
+import type { TdsSection } from "@/types/tdsSection.js";
 
 const TENANT_A = "tenant-tds-a";
 const TENANT_B = "tenant-tds-b";
@@ -33,27 +35,28 @@ describeHarness("TdsLiabilityReportService", ({ getHarness }) => {
   async function seedTenantA(): Promise<string> {
     const tenant = await TenantModel.create({ name: "Tenant A" });
     const tenantId = tenant._id.toString();
+    const tenantUuid = tenantId as UUID;
 
     await ledgerService.recordTdsToLedger({
-      tenantId, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C",
+      tenantId: tenantUuid, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C" as TdsSection,
       invoiceId: "inv-a-q1", invoiceDate: APRIL_15_IST,
       taxableAmountMinor: 1000_00, tdsAmountMinor: 10_00,
       rateSource: "rateTable", thresholdCrossed: false
     });
     await ledgerService.recordTdsToLedger({
-      tenantId, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C",
+      tenantId: tenantUuid, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C" as TdsSection,
       invoiceId: "inv-a-q2", invoiceDate: JULY_10_IST,
       taxableAmountMinor: 2000_00, tdsAmountMinor: 20_00,
       rateSource: "rateTable", thresholdCrossed: true
     });
     await ledgerService.recordTdsToLedger({
-      tenantId, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194J",
+      tenantId: tenantUuid, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194J" as TdsSection,
       invoiceId: "inv-a-q3", invoiceDate: OCT_05_IST,
       taxableAmountMinor: 5000_00, tdsAmountMinor: 500_00,
       rateSource: "rateTable", thresholdCrossed: false
     });
     await ledgerService.recordTdsToLedger({
-      tenantId, vendorFingerprint: VENDOR_BETA, financialYear: FY, section: "194C",
+      tenantId: tenantUuid, vendorFingerprint: VENDOR_BETA, financialYear: FY, section: "194C" as TdsSection,
       invoiceId: "inv-b-q4", invoiceDate: FEB_20_IST,
       taxableAmountMinor: 3000_00, tdsAmountMinor: 30_00,
       rateSource: "rateTable", thresholdCrossed: false
@@ -145,15 +148,15 @@ describeHarness("TdsLiabilityReportService", ({ getHarness }) => {
       const tenantB = await TenantModel.create({ name: "Tenant B" });
 
       await ledgerService.recordTdsToLedger({
-        tenantId: tenantA._id.toString(),
-        vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C",
+        tenantId: tenantA._id.toString() as UUID,
+        vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C" as TdsSection,
         invoiceId: "inv-a", invoiceDate: APRIL_15_IST,
         taxableAmountMinor: 1000_00, tdsAmountMinor: 10_00,
         rateSource: "rateTable", thresholdCrossed: false
       });
       await ledgerService.recordTdsToLedger({
-        tenantId: tenantB._id.toString(),
-        vendorFingerprint: VENDOR_BETA, financialYear: FY, section: "194J",
+        tenantId: tenantB._id.toString() as UUID,
+        vendorFingerprint: VENDOR_BETA, financialYear: FY, section: "194J" as TdsSection,
         invoiceId: "inv-b", invoiceDate: JULY_10_IST,
         taxableAmountMinor: 9999_00, tdsAmountMinor: 999_00,
         rateSource: "rateTable", thresholdCrossed: false
@@ -176,15 +179,16 @@ describeHarness("TdsLiabilityReportService", ({ getHarness }) => {
     it("does not leak ledger entries from a different financial year", async () => {
       const tenant = await TenantModel.create({ name: "Tenant A" });
       const tenantId = tenant._id.toString();
+      const tenantUuid = tenantId as UUID;
 
       await ledgerService.recordTdsToLedger({
-        tenantId, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C",
+        tenantId: tenantUuid, vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C" as TdsSection,
         invoiceId: "inv-cur", invoiceDate: APRIL_15_IST,
         taxableAmountMinor: 1000_00, tdsAmountMinor: 10_00,
         rateSource: "rateTable", thresholdCrossed: false
       });
       await ledgerService.recordTdsToLedger({
-        tenantId, vendorFingerprint: VENDOR_ACME, financialYear: FY_OTHER, section: "194C",
+        tenantId: tenantUuid, vendorFingerprint: VENDOR_ACME, financialYear: FY_OTHER, section: "194C" as TdsSection,
         invoiceId: "inv-prev", invoiceDate: new Date("2025-06-15T05:30:00+05:30"),
         taxableAmountMinor: 9999_00, tdsAmountMinor: 999_00,
         rateSource: "rateTable", thresholdCrossed: false
@@ -250,8 +254,8 @@ describeHarness("TdsLiabilityReportService", ({ getHarness }) => {
         { $set: { tan: "BLRA12345B" } }
       );
       await ledgerService.recordTdsToLedger({
-        tenantId: tenant._id.toString(),
-        vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C",
+        tenantId: tenant._id.toString() as UUID,
+        vendorFingerprint: VENDOR_ACME, financialYear: FY, section: "194C" as TdsSection,
         invoiceId: "inv-tan", invoiceDate: APRIL_15_IST,
         taxableAmountMinor: 1000_00, tdsAmountMinor: 10_00,
         rateSource: "rateTable", thresholdCrossed: false
