@@ -222,7 +222,9 @@ const envSchema = z.object({
     .string()
     .default("false")
     .transform((value) => value === "true"),
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional()
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
+
+  TDS_LEDGER_ENTRIES_CAP: z.coerce.number().int().min(1).default(10000)
 });
 
 const parsed = envSchema.safeParse(process.env);

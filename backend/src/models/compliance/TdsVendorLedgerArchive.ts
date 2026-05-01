@@ -1,7 +1,7 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 import { tdsVendorLedgerEntrySchema } from "@/models/compliance/tdsVendorLedger.entry.js";
 
-const tdsVendorLedgerSchema = new Schema(
+const tdsVendorLedgerArchiveSchema = new Schema(
   {
     tenantId: { type: String, required: true },
     vendorFingerprint: { type: String, required: true },
@@ -39,21 +39,23 @@ const tdsVendorLedgerSchema = new Schema(
       default: null
     },
     entries: { type: [tdsVendorLedgerEntrySchema], default: [] },
-    hasOverflow: { type: Boolean, default: false }
+    hasOverflow: { type: Boolean, default: false },
+    archivedAt: { type: Date, required: true },
+    archivedFromId: { type: Schema.Types.ObjectId, default: null }
   },
   { timestamps: true }
 );
 
-tdsVendorLedgerSchema.index(
+tdsVendorLedgerArchiveSchema.index(
   { tenantId: 1, vendorFingerprint: 1, financialYear: 1, section: 1 },
   { unique: true }
 );
-tdsVendorLedgerSchema.index({ tenantId: 1, financialYear: 1, section: 1 });
-tdsVendorLedgerSchema.index({ tenantId: 1, financialYear: 1, thresholdCrossedAt: 1 });
+tdsVendorLedgerArchiveSchema.index({ tenantId: 1, financialYear: 1, section: 1 });
+tdsVendorLedgerArchiveSchema.index({ tenantId: 1, archivedAt: 1 });
 
-export type TdsVendorLedger = InferSchemaType<typeof tdsVendorLedgerSchema>;
+export type TdsVendorLedgerArchive = InferSchemaType<typeof tdsVendorLedgerArchiveSchema>;
 
-export const TdsVendorLedgerModel = model<TdsVendorLedger>(
-  "TdsVendorLedger",
-  tdsVendorLedgerSchema
+export const TdsVendorLedgerArchiveModel = model<TdsVendorLedgerArchive>(
+  "TdsVendorLedgerArchive",
+  tdsVendorLedgerArchiveSchema
 );

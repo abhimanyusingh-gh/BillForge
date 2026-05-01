@@ -88,6 +88,29 @@ export const MINOR_FIELD_REGISTRY: readonly CollectionValidatorSpec[] = [
         array: true
       }
     ]
+  },
+  {
+    modelName: "TdsVendorLedgerArchive",
+    groups: [
+      { prefix: "", fields: ["cumulativeBaseMinor", "cumulativeTdsMinor"], nullable: false },
+      {
+        prefix: "entries",
+        fields: ["taxableAmountMinor", "tdsAmountMinor"],
+        nullable: false,
+        array: true
+      }
+    ]
+  },
+  {
+    modelName: "TdsVendorLedgerEntryOverflow",
+    groups: [
+      {
+        prefix: "entries",
+        fields: ["taxableAmountMinor", "tdsAmountMinor"],
+        nullable: false,
+        array: true
+      }
+    ]
   }
 ] as const;
 

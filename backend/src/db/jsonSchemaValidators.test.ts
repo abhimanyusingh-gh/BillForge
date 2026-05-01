@@ -12,6 +12,9 @@ import "@/models/bank/BankTransaction.js";
 import "@/models/core/TenantUserRole.js";
 import "@/models/integration/ClientComplianceConfig.js";
 import "@/models/compliance/TdsRateTable.js";
+import "@/models/compliance/TdsVendorLedger.js";
+import "@/models/compliance/TdsVendorLedgerArchive.js";
+import "@/models/compliance/TdsVendorLedgerEntryOverflow.js";
 
 describe("buildMinorFieldRule", () => {
   it("accepts int, long, and double with multipleOf: 1 for non-nullable fields", () => {
@@ -129,6 +132,8 @@ describe("MINOR_FIELD_REGISTRY", () => {
         "Invoice",
         "TdsRateTable",
         "TdsVendorLedger",
+        "TdsVendorLedgerArchive",
+        "TdsVendorLedgerEntryOverflow",
         "TenantUserRole"
       ].sort()
     );

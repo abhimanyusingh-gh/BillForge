@@ -13,6 +13,8 @@ import "@/models/core/TenantUserRole.js";
 import "@/models/integration/ClientComplianceConfig.js";
 import "@/models/compliance/TdsRateTable.js";
 import "@/models/compliance/TdsVendorLedger.js";
+import "@/models/compliance/TdsVendorLedgerArchive.js";
+import "@/models/compliance/TdsVendorLedgerEntryOverflow.js";
 
 type CommandArg = {
   collMod: string;

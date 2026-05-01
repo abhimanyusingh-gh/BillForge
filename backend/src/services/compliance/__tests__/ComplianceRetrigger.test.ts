@@ -5,6 +5,7 @@ import { runTdsOrchestrator } from "@/services/compliance/tdsOrchestrator";
 import { TdsSectionMappingModel } from "@/models/compliance/TdsSectionMapping";
 import { TdsRateTableModel } from "@/models/compliance/TdsRateTable";
 import { TdsVendorLedgerModel } from "@/models/compliance/TdsVendorLedger";
+import { TdsVendorLedgerArchiveModel } from "@/models/compliance/TdsVendorLedgerArchive";
 import { resolveTdsRatesConfig } from "@/services/compliance/clientConfigResolver";
 import type { ParsedInvoiceData } from "@/types/invoice";
 
@@ -15,6 +16,7 @@ const INVOICE_ID = "invoice-1";
 jest.mock("../../../models/compliance/TdsSectionMapping");
 jest.mock("../../../models/compliance/TdsRateTable");
 jest.mock("../../../models/compliance/TdsVendorLedger");
+jest.mock("../../../models/compliance/TdsVendorLedgerArchive");
 jest.mock("@/services/compliance/clientConfigResolver", () => ({
   resolveTdsRatesConfig: jest.fn()
 }));
@@ -45,6 +47,9 @@ function mockEmptyLedger() {
       cumulativeBaseMinor: 0, cumulativeTdsMinor: 0, invoiceCount: 1,
       thresholdCrossedAt: null, quarter: "Q1", entries: []
     }) })
+  });
+  (TdsVendorLedgerArchiveModel.findOne as jest.Mock).mockReturnValue({
+    lean: () => ({ exec: () => Promise.resolve(null) })
   });
 }
 

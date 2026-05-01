@@ -1,5 +1,12 @@
 import { TdsVendorLedgerModel, type TdsVendorLedger } from "@/models/compliance/TdsVendorLedger.js";
+import { TdsVendorLedgerArchiveModel, type TdsVendorLedgerArchive } from "@/models/compliance/TdsVendorLedgerArchive.js";
+import {
+  mergeOverflowEntries,
+  splitEntriesIfOverflow,
+  type LedgerKey
+} from "@/services/tds/TdsVendorLedgerArchivalService.js";
 import { determineQuarter, type TdsQuarter } from "@/services/tds/fiscalYearUtils.js";
+import { env } from "@/config/env.js";
 import type { TdsRateSource } from "@/types/invoice.js";
 
 interface TdsCumulativeView {
@@ -48,16 +55,21 @@ export class TdsVendorLedgerService {
     financialYear: string,
     section: string
   ): Promise<TdsCumulativeView> {
-    const doc = await TdsVendorLedgerModel.findOne({
-      tenantId,
-      vendorFingerprint,
-      financialYear,
-      section
-    })
-      .lean<TdsVendorLedger | null>()
+    const key: LedgerKey = { tenantId, vendorFingerprint, financialYear, section };
+
+    const primary = await TdsVendorLedgerModel.findOne(key).lean<TdsVendorLedger | null>().exec();
+    if (primary) {
+      return toView(primary, await maybeMergedEntries(key, primary));
+    }
+
+    const archive = await TdsVendorLedgerArchiveModel.findOne(key)
+      .lean<TdsVendorLedgerArchive | null>()
       .exec();
-    if (!doc) return { ...ZERO_VIEW };
-    return toView(doc);
+    if (archive) {
+      return toView(archive, await maybeMergedEntries(key, archive));
+    }
+
+    return { ...ZERO_VIEW };
   }
 
   async recordTdsToLedger(input: RecordTdsToLedgerInput): Promise<TdsCumulativeView> {
@@ -69,12 +81,14 @@ export class TdsVendorLedgerService {
     const recordedAt = input.recordedAt ?? new Date();
     const quarter = determineQuarter(input.invoiceDate);
 
-    const setOnInsert: Record<string, unknown> = {
+    const key: LedgerKey = {
       tenantId: input.tenantId,
       vendorFingerprint: input.vendorFingerprint,
       financialYear: input.financialYear,
       section: input.section
     };
+
+    const setOnInsert: Record<string, unknown> = { ...key };
 
     const set: Record<string, unknown> = {
       lastUpdatedInvoiceId: input.invoiceId,
@@ -85,12 +99,7 @@ export class TdsVendorLedgerService {
     }
 
     const updated = await TdsVendorLedgerModel.findOneAndUpdate(
-      {
-        tenantId: input.tenantId,
-        vendorFingerprint: input.vendorFingerprint,
-        financialYear: input.financialYear,
-        section: input.section
-      },
+      key,
       {
         $setOnInsert: setOnInsert,
         $set: set,
@@ -117,18 +126,36 @@ export class TdsVendorLedgerService {
       .lean<TdsVendorLedger>()
       .exec();
 
-    return toView(updated);
+    const updatedEntriesCount = ((updated.entries as Array<unknown> | undefined) ?? []).length;
+    if (updatedEntriesCount > env.TDS_LEDGER_ENTRIES_CAP) {
+      await splitEntriesIfOverflow(key, { cap: env.TDS_LEDGER_ENTRIES_CAP });
+    }
+
+    const refreshed = await TdsVendorLedgerModel.findOne(key).lean<TdsVendorLedger | null>().exec();
+    const doc = refreshed ?? updated;
+    return toView(doc, await maybeMergedEntries(key, doc));
   }
 }
 
-function toView(doc: TdsVendorLedger): TdsCumulativeView {
-  const rawEntries = (doc.entries as Array<{ rateBps?: number }> | undefined) ?? [];
+async function maybeMergedEntries(
+  key: LedgerKey,
+  doc: TdsVendorLedger | TdsVendorLedgerArchive
+): Promise<Array<Record<string, unknown>>> {
+  const baseEntries = ((doc.entries ?? []) as unknown as Array<Record<string, unknown>>);
+  if (!doc.hasOverflow) return baseEntries;
+  return mergeOverflowEntries(key, baseEntries);
+}
+
+function toView(
+  doc: TdsVendorLedger | TdsVendorLedgerArchive,
+  mergedEntries: Array<Record<string, unknown>>
+): TdsCumulativeView {
   return {
     cumulativeBaseMinor: doc.cumulativeBaseMinor as number,
     cumulativeTdsMinor: doc.cumulativeTdsMinor as number,
     invoiceCount: doc.invoiceCount as number,
     thresholdCrossedAt: doc.thresholdCrossedAt ?? null,
     quarter: (doc.quarter as TdsQuarter | null) ?? null,
-    entries: rawEntries.map(e => ({ rateBps: e.rateBps ?? 0 }))
+    entries: mergedEntries.map((e) => ({ rateBps: (e.rateBps as number | undefined) ?? 0 }))
   };
 }
