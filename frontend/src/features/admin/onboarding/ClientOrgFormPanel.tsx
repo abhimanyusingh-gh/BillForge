@@ -68,7 +68,6 @@ export function ClientOrgFormPanel({
     if (open) {
       setValues(draft ?? buildInitial(initial));
     }
-    // intentionally exclude `draft` to avoid stomping in-flight edits with stale store reads
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
 
@@ -128,14 +127,14 @@ export function ClientOrgFormPanel({
       }
     >
       <form
-        className="client-orgs-form"
+        className="client-orgs-r10-form"
         data-testid="client-org-form"
         onSubmit={(event) => {
           event.preventDefault();
           handleSubmit();
         }}
       >
-        <div className="client-orgs-form-field">
+        <div className="client-orgs-r10-form-field">
           <label htmlFor="client-org-gstin">GSTIN</label>
           <input
             id="client-org-gstin"
@@ -153,18 +152,18 @@ export function ClientOrgFormPanel({
               updateValues({ ...values, gstin: event.target.value.toUpperCase() })
             }
           />
-          <span id={gstinHintId} className="client-orgs-form-field-hint">
+          <span id={gstinHintId} className="client-orgs-r10-form-field-hint">
             15 characters: 2-digit state + 10-char PAN + entity + Z + checksum.
             {isEdit ? " GSTIN is the natural key — locked after creation." : ""}
           </span>
           {showGstinError ? (
-            <span id={gstinErrorId} className="client-orgs-form-field-error" role="alert">
+            <span id={gstinErrorId} className="client-orgs-r10-form-field-error" role="alert">
               GSTIN must be a 15-character format such as 29ABCPK1234F1Z5.
             </span>
           ) : null}
         </div>
 
-        <div className="client-orgs-form-field">
+        <div className="client-orgs-r10-form-field">
           <label htmlFor="client-org-company-name">Company name</label>
           <input
             id="client-org-company-name"
@@ -176,12 +175,12 @@ export function ClientOrgFormPanel({
               updateValues({ ...values, companyName: event.target.value })
             }
           />
-          <span className="client-orgs-form-field-hint">
+          <span className="client-orgs-r10-form-field-hint">
             Friendly name shown in the realm switcher. Required.
           </span>
         </div>
 
-        <div className="client-orgs-form-field">
+        <div className="client-orgs-r10-form-field">
           <label htmlFor="client-org-state-name">State (optional)</label>
           <input
             id="client-org-state-name"
@@ -193,13 +192,13 @@ export function ClientOrgFormPanel({
               updateValues({ ...values, stateName: event.target.value })
             }
           />
-          <span className="client-orgs-form-field-hint">
+          <span className="client-orgs-r10-form-field-hint">
             Drives PLACEOFSUPPLY on Tally exports. Auto-populated from the GSTIN
             prefix once the BE state lookup endpoint ships.
           </span>
         </div>
 
-        <div className="client-orgs-form-checkbox">
+        <div className="client-orgs-r10-form-checkbox">
           <input
             id="client-org-f12-verified"
             data-testid="client-org-f12-checkbox"
@@ -212,17 +211,19 @@ export function ClientOrgFormPanel({
               })
             }
           />
-          <label htmlFor="client-org-f12-verified" className="client-orgs-form-checkbox-label">
-            I have enabled F12 &gt; Voucher Configuration &gt; &ldquo;Overwrite by GUID&rdquo; in
-            Tally for this client.
-            <span className="client-orgs-form-checkbox-hint">
+          <label htmlFor="client-org-f12-verified" className="client-orgs-r10-form-checkbox-label">
+            <span>
+              I have enabled F12 &gt; Voucher Configuration &gt; &ldquo;Overwrite by GUID&rdquo; in
+              Tally for this client.
+            </span>
+            <span className="client-orgs-r10-form-checkbox-hint">
               Required for idempotent re-exports. Automated probe arrives in a follow-up.
             </span>
           </label>
         </div>
 
         {errorMessage ? (
-          <div className="client-orgs-form-field-error" role="alert" data-testid="client-org-form-error">
+          <div className="client-orgs-r10-form-field-error" role="alert" data-testid="client-org-form-error">
             {errorMessage}
           </div>
         ) : null}

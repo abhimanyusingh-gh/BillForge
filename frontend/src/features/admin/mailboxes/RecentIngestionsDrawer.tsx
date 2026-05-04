@@ -72,17 +72,17 @@ export function RecentIngestionsDrawer({
       id="recent-ingestions-drawer"
     >
       <div
-        className="recent-ingestions-drawer"
+        className="mailboxes-r10-drawer"
         data-testid="recent-ingestions-drawer"
         data-view={view}
       >
-        <p className="recent-ingestions-drawer-subtitle lb-mono">
+        <p className="mailboxes-r10-drawer-subtitle">
           {mailboxEmail ?? "(unknown mailbox)"}
         </p>
 
         {view === RECENT_INGESTIONS_DRAWER_VIEW.Loading ? (
           <div
-            className="recent-ingestions-drawer-state"
+            className="mailboxes-r10-drawer-state"
             data-testid="recent-ingestions-loading"
             role="status"
             aria-live="polite"
@@ -94,7 +94,7 @@ export function RecentIngestionsDrawer({
 
         {view === RECENT_INGESTIONS_DRAWER_VIEW.Error ? (
           <div
-            className="recent-ingestions-drawer-state recent-ingestions-drawer-state-error"
+            className="mailboxes-r10-drawer-state mailboxes-r10-drawer-state-error"
             data-testid="recent-ingestions-error"
             role="alert"
           >
@@ -107,7 +107,7 @@ export function RecentIngestionsDrawer({
 
         {view === RECENT_INGESTIONS_DRAWER_VIEW.Empty ? (
           <div
-            className="recent-ingestions-drawer-state"
+            className="mailboxes-r10-drawer-state"
             data-testid="recent-ingestions-empty"
           >
             <p>No ingestions in the last 30 days.</p>
@@ -118,21 +118,21 @@ export function RecentIngestionsDrawer({
           <>
             {showTruncationBanner ? (
               <p
-                className="recent-ingestions-drawer-truncation"
+                className="mailboxes-r10-drawer-truncation"
                 data-testid="recent-ingestions-truncation"
               >
                 Showing first {Math.min(items.length, truncatedAt)} of {total}.
               </p>
             ) : (
               <p
-                className="recent-ingestions-drawer-summary"
+                className="mailboxes-r10-drawer-summary"
                 data-testid="recent-ingestions-summary"
               >
                 {total} ingestion{total === 1 ? "" : "s"} in the last 30 days.
               </p>
             )}
             <ul
-              className="recent-ingestions-drawer-list"
+              className="mailboxes-r10-drawer-list"
               data-testid="recent-ingestions-list"
             >
               {items.map((item) => (
@@ -149,7 +149,7 @@ export function RecentIngestionsDrawer({
         ) : null}
 
         <p
-          className="recent-ingestions-drawer-footnote"
+          className="mailboxes-r10-drawer-footnote"
           data-testid="recent-ingestions-footnote"
         >
           Counts may overlap if the same client organization is mapped to multiple mailboxes (#181).
@@ -173,20 +173,18 @@ function RecentIngestionRow({
   const vendorLabel = item.vendorName ?? "Unknown vendor";
   return (
     <li
-      className="recent-ingestions-drawer-row"
+      className="mailboxes-r10-drawer-row"
       data-testid={`recent-ingestions-row-${item._id}`}
     >
-      <div className="recent-ingestions-drawer-row-main">
+      <div className="mailboxes-r10-drawer-row-main">
         <strong>{headline}</strong>
-        <span className="recent-ingestions-drawer-row-vendor">{vendorLabel}</span>
+        <span className="mailboxes-r10-drawer-row-vendor">{vendorLabel}</span>
       </div>
-      <div className="recent-ingestions-drawer-row-meta">
+      <div className="mailboxes-r10-drawer-row-meta">
         {item.status ? <StatusBadge status={item.status} /> : null}
-        {clientOrgName ? (
-          <span className="recent-ingestions-drawer-row-org">{clientOrgName}</span>
-        ) : null}
+        {clientOrgName ? <span>{clientOrgName}</span> : null}
         <time
-          className="recent-ingestions-drawer-row-time lb-mono"
+          className="mailboxes-r10-drawer-row-time"
           dateTime={ingestedAt ?? undefined}
         >
           {ingestedAtLabel}
