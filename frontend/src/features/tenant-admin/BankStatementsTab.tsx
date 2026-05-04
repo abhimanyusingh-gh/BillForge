@@ -1,32 +1,19 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import type { BankStatementSummary, BankTransactionEntry, ReconciliationMatchItem, Invoice } from "@/types";
-import { subscribeBankParseSSE, type BankParseProgressEvent } from "@/api/bank";
-import { StatementProgressCard } from "@/features/tenant-admin/StatementProgressCard";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import type { BankAccount, BankStatementSummary } from "@/types";
 import {
+  fetchBankAccounts,
   fetchBankStatements,
-  fetchBankTransactions,
-  fetchStatementMatches,
   fetchVendorGstins,
   fetchAccountNames,
-  matchTransactionToInvoice,
-  reconcileStatement,
-  unmatchTransaction,
-  updateStatementGstin
+  subscribeBankParseSSE,
+  updateStatementGstin,
+  type AccountNameOption,
+  type BankParseProgressEvent,
+  type BankStatementFilterParams
 } from "@/api/bank";
-import type { AccountNameOption, BankStatementFilterParams, BankTransactionFilterParams } from "@/api/bank";
-import { apiClient } from "@/api/client";
-import { invoiceUrls } from "@/api/urls/invoiceUrls";
+import { StatementProgressCard } from "@/features/tenant-admin/StatementProgressCard";
+import { StatementDetail } from "@/features/tenant-admin/StatementDetail";
 import { EmptyState } from "@/components/common/EmptyState";
-import { Badge } from "@/components/ds/Badge";
-
-const MATCH_STATUS = {
-  matched: "matched",
-  manual: "manual",
-  suggested: "suggested",
-  unmatched: "unmatched"
-} as const;
-
-type MatchStatus = (typeof MATCH_STATUS)[keyof typeof MATCH_STATUS];
 
 interface BankStatementsTabProps {
   bankStatements: BankStatementSummary[];
@@ -34,438 +21,62 @@ interface BankStatementsTabProps {
   onStatementsChanged?: () => void;
 }
 
-function fmtMinor(amount: number | null, className?: string): JSX.Element | null {
-  if (amount == null) return null;
-  const formatted = (amount / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return <span className={className}>{formatted}</span>;
+interface VendorGstinSuggestion {
+  gstin: string;
+  vendorName: string;
+  label: string;
 }
 
-function formatUploadDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function MatchStatusBadge({ status, confidence }: { status: BankTransactionEntry["matchStatus"]; confidence?: number | null }) {
-  const confSuffix = confidence != null ? ` (${confidence}%)` : "";
-  if (status === MATCH_STATUS.matched) {
-    return <Badge tone="success">Matched{confSuffix}</Badge>;
-  }
-  if (status === MATCH_STATUS.suggested) {
-    return <Badge tone="warning">Suggested{confSuffix}</Badge>;
-  }
-  if (status === MATCH_STATUS.manual) {
-    return <Badge tone="info">Manual</Badge>;
-  }
-  return <Badge tone="neutral">Unmatched</Badge>;
-}
-
-function rowClassForMatchStatus(status: MatchStatus | string): string | undefined {
-  if (status === MATCH_STATUS.matched || status === MATCH_STATUS.manual) return "bank-statements-row-matched";
-  if (status === MATCH_STATUS.suggested) return "bank-statements-row-suggested";
-  return undefined;
-}
-
-function InvoiceSearchPicker({
-  onSelect,
-  onCancel,
-  gstin
-}: {
-  onSelect: (invoiceId: string) => void;
-  onCancel: () => void;
-  gstin: string | null;
-}) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Invoice[]>([]);
-  const [searching, setSearching] = useState(false);
-
-  useEffect(() => {
-    if (query.length < 2) { setResults([]); return; }
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const params: Record<string, unknown> = { limit: 10, page: 1 };
-        if (gstin) params.gstin = gstin;
-        params.search = query;
-        const resp = await apiClient.get<{ items: Invoice[] }>(invoiceUrls.list(), { params });
-        setResults(resp.data.items);
-      } catch {
-        setResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query, gstin]);
-
-  return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-card recon-invoice-picker-card" onClick={(e) => e.stopPropagation()}>
-        <h3>Link Invoice</h3>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by invoice number or vendor name..."
-          autoFocus
-          className="recon-invoice-picker-input"
-        />
-        {searching && <p className="muted">Searching...</p>}
-        {results.length === 0 && !searching && query.length >= 2 && (
-          <p className="muted">No invoices found.</p>
-        )}
-        {results.map(inv => (
-          <div
-            key={inv._id}
-            className="recon-invoice-picker-result"
-            onClick={() => onSelect(inv._id)}
-          >
-            <div>
-              <div className="recon-invoice-picker-result-title">
-                {inv.parsed?.invoiceNumber ?? "No number"} - {inv.parsed?.vendorName ?? "Unknown vendor"}
-              </div>
-              <div className="recon-invoice-picker-result-meta">
-                {inv.parsed?.totalAmountMinor != null
-                  ? (inv.parsed.totalAmountMinor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })
-                  : "-"
-                }
-                {inv.parsed?.invoiceDate ? ` | ${inv.parsed.invoiceDate}` : ""}
-                {` | ${inv.status}`}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="app-button app-button-primary app-button-sm"
-            >
-              Select
-            </button>
-          </div>
-        ))}
-        <div className="recon-invoice-picker-actions">
-          <button type="button" className="app-button app-button-secondary" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface TransactionCache {
-  items: BankTransactionEntry[];
-  total: number;
-  matches: Map<string, ReconciliationMatchItem>;
-  summary: { totalTransactions: number; matched: number; suggested: number; unmatched: number } | null;
-}
-
-interface GlobalFilters {
+interface FilterState {
   accountName: string;
   periodFrom: string;
   periodTo: string;
-  search: string;
-  matchStatus: string;
+  state: "" | "matched" | "active" | "parsing";
 }
 
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-  return debouncedValue;
+const STATE_FILTER_OPTIONS: Array<{ id: FilterState["state"]; label: string }> = [
+  { id: "", label: "All states" },
+  { id: "matched", label: "Reconciled" },
+  { id: "active", label: "To match" },
+  { id: "parsing", label: "Parsing" }
+];
+
+function fmtInr(minor: number | null | undefined): string {
+  if (minor == null) return "—";
+  return (minor / 100).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 }
 
-function StatementTransactionsGroup({
-  statementId,
-  statementGstin,
-  cache,
-  onCacheUpdate,
-  globalFilters
-}: {
-  statementId: string;
-  statementGstin: string | null;
-  cache: TransactionCache | undefined;
-  onCacheUpdate: (statementId: string, data: TransactionCache) => void;
-  globalFilters: GlobalFilters;
-}) {
-  const [transactions, setTransactions] = useState<BankTransactionEntry[]>(cache?.items ?? []);
-  const [matchDetails, setMatchDetails] = useState<Map<string, ReconciliationMatchItem>>(cache?.matches ?? new Map());
-  const [total, setTotal] = useState(cache?.total ?? 0);
-  const [summary, setSummary] = useState(cache?.summary ?? null);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [loading, setLoading] = useState(!cache);
-  const [reconciling, setReconciling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [linkingTxnId, setLinkingTxnId] = useState<string | null>(null);
+function formatUploadDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
 
-  const debouncedSearch = useDebounce(globalFilters.search, 300);
+function formatPeriod(from: string | null, to: string | null): string {
+  if (!from && !to) return "—";
+  if (from && to) return `${from} – ${to}`;
+  return from ?? to ?? "—";
+}
 
-  const buildTxnParams = useCallback((): BankTransactionFilterParams => {
-    const params: BankTransactionFilterParams = { page, limit: pageSize };
-    if (globalFilters.matchStatus) params.matchStatus = globalFilters.matchStatus;
-    if (globalFilters.periodFrom) params.dateFrom = globalFilters.periodFrom;
-    if (globalFilters.periodTo) params.dateTo = globalFilters.periodTo;
-    if (debouncedSearch) params.search = debouncedSearch;
-    return params;
-  }, [page, pageSize, globalFilters.matchStatus, globalFilters.periodFrom, globalFilters.periodTo, debouncedSearch]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = buildTxnParams();
-      const result = await fetchBankTransactions(statementId, params);
-      setTransactions(result.items);
-      setTotal(result.total);
-      return result;
-    } catch {
-      setError("Failed to load transactions.");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [statementId, buildTxnParams]);
-
-  const loadMatches = useCallback(async () => {
-    try {
-      const result = await fetchStatementMatches(statementId);
-      const map = new Map<string, ReconciliationMatchItem>();
-      for (const item of result.items) {
-        map.set(String(item._id), item);
-      }
-      setMatchDetails(map);
-      setSummary(result.summary);
-      return { map, summary: result.summary };
-    } catch {
-      return null;
-    }
-  }, [statementId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const params = buildTxnParams();
-    Promise.all([
-      fetchBankTransactions(statementId, params),
-      fetchStatementMatches(statementId)
-    ]).then(([txnResult, matchResult]) => {
-      if (cancelled) return;
-      setTransactions(txnResult.items);
-      setTotal(txnResult.total);
-      const map = new Map<string, ReconciliationMatchItem>();
-      for (const item of matchResult.items) {
-        map.set(String(item._id), item);
-      }
-      setMatchDetails(map);
-      setSummary(matchResult.summary);
-      setLoading(false);
-      onCacheUpdate(statementId, {
-        items: txnResult.items,
-        total: txnResult.total,
-        matches: map,
-        summary: matchResult.summary
-      });
-    }).catch(() => {
-      if (!cancelled) {
-        setError("Failed to load transactions.");
-        setLoading(false);
-      }
-    });
-    return () => { cancelled = true; };
-  }, [statementId, buildTxnParams, onCacheUpdate]);
-
-  async function refreshAfterAction() {
-    const [txnResult, matchResult] = await Promise.all([load(), loadMatches()]);
-    if (txnResult && matchResult) {
-      onCacheUpdate(statementId, {
-        items: txnResult.items,
-        total: txnResult.total,
-        matches: matchResult.map,
-        summary: matchResult.summary
-      });
-    }
+function StatementStateChip({ statement, suggested }: { statement: BankStatementSummary; suggested: number }) {
+  if (statement.transactionCount === 0) {
+    return <span className="spill s-parsed"><span className="dot" />PARSING</span>;
   }
-
-  async function handleReconcile() {
-    setReconciling(true);
-    setError(null);
-    try {
-      await reconcileStatement(statementId);
-      await refreshAfterAction();
-    } catch {
-      setError("Reconciliation failed.");
-    } finally {
-      setReconciling(false);
-    }
+  if (statement.unmatchedCount === 0 && suggested === 0 && statement.matchedCount > 0) {
+    return <span className="spill s-approved"><span className="dot" />RECONCILED</span>;
   }
+  const toMatch = statement.unmatchedCount + suggested;
+  return <span className="spill s-needs_review"><span className="dot" />{toMatch} TO MATCH</span>;
+}
 
-  async function handleConfirm(txn: BankTransactionEntry) {
-    if (!txn.matchedInvoiceId) return;
-    try {
-      await matchTransactionToInvoice(txn._id, txn.matchedInvoiceId);
-      await refreshAfterAction();
-    } catch {
-      setError("Failed to confirm match.");
-    }
-  }
+function StatementSourceChip({ source }: { source: BankStatementSummary["source"] }) {
+  const label = source === "csv-import" ? "CSV" : "PDF";
+  return <span className="spill s-pending"><span className="dot" />{label}</span>;
+}
 
-  async function handleUnmatch(txnId: string) {
-    try {
-      await unmatchTransaction(txnId);
-      await refreshAfterAction();
-    } catch {
-      setError("Failed to unmatch transaction.");
-    }
-  }
-
-  async function handleManualLink(invoiceId: string) {
-    if (!linkingTxnId) return;
-    try {
-      await matchTransactionToInvoice(linkingTxnId, invoiceId);
-      setLinkingTxnId(null);
-      await refreshAfterAction();
-    } catch {
-      setError("Failed to link invoice.");
-    }
-  }
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const showFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const showTo = Math.min(page * pageSize, total);
-
-  if (loading) {
-    return <tr><td colSpan={10} className="bank-statements-loading"><span className="muted">Loading transactions...</span></td></tr>;
-  }
-
-  if (error) {
-    return <tr><td colSpan={10} className="bank-statements-error">{error}</td></tr>;
-  }
-
-  if (transactions.length === 0) {
-    return <tr><td colSpan={10} className="bank-statements-empty"><span className="muted">No transactions found.</span></td></tr>;
-  }
-
-  return (
-    <>
-      <tr className="bank-statements-summary-row">
-        <td colSpan={10}>
-          <div className="panel-title bank-statements-summary-bar">
-            <div className="bank-statements-status-bar">
-              {summary ? (
-                <>
-                  <span className="status status-approved">{summary.matched} Matched</span>
-                  <span className="status status-needs_review">{summary.suggested} Suggested</span>
-                  <span className="status status-pending">{summary.unmatched} Unmatched</span>
-                </>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              className="app-button app-button-secondary app-button-sm"
-              onClick={() => void handleReconcile()}
-              disabled={reconciling}
-            >
-              {reconciling ? "Reconciling..." : "Reconcile"}
-            </button>
-          </div>
-        </td>
-      </tr>
-      <tr className="bank-statements-txn-header">
-        <th>Date</th>
-        <th colSpan={2}>Description</th>
-        <th>Reference</th>
-        <th className="num-cell">Debit</th>
-        <th className="num-cell">Credit</th>
-        <th className="num-cell">Balance</th>
-        <th>Matched Invoice</th>
-        <th></th>
-      </tr>
-      {transactions.map((txn) => {
-        const detail = matchDetails.get(String(txn._id));
-        return (
-          <tr key={txn._id} className={rowClassForMatchStatus(txn.matchStatus)}>
-            <td className="mono-cell">{txn.date}</td>
-            <td colSpan={2}><div className="table-cell-scroll">{txn.description}</div></td>
-            <td><div className="table-cell-scroll">{txn.reference ?? "-"}</div></td>
-            <td className="num-cell">{fmtMinor(txn.debitMinor, "bank-statements-amount-debit")}</td>
-            <td className="num-cell">{fmtMinor(txn.creditMinor, "bank-statements-amount-credit")}</td>
-            <td className="num-cell">{fmtMinor(txn.balanceMinor)}</td>
-            <td>
-              <div className="bank-statements-status-list">
-                <MatchStatusBadge status={txn.matchStatus} confidence={txn.matchConfidence} />
-                {detail?.invoice ? (
-                  <a
-                    href={`?invoiceDetail=${detail.invoice._id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="file-label"
-                    title={`${detail.invoice.invoiceNumber ?? "-"} - ${detail.invoice.vendorName ?? ""}`}
-                  >
-                    {detail.invoice.invoiceNumber ?? "-"} - {detail.invoice.vendorName ?? ""}
-                  </a>
-                ) : txn.matchedInvoiceId ? (
-                  <a
-                    href={`?invoiceDetail=${txn.matchedInvoiceId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="file-label"
-                  >
-                    {txn.matchedInvoiceId.slice(0, 8)}...
-                  </a>
-                ) : null}
-              </div>
-            </td>
-            <td>
-              {txn.matchStatus === MATCH_STATUS.suggested ? (
-                <div className="bank-statements-actions">
-                  <button type="button" className="row-action-button row-action-approve" title="Confirm" onClick={() => void handleConfirm(txn)}>
-                    <span className="material-symbols-outlined">check_circle</span>
-                  </button>
-                  <button type="button" className="row-action-button" title="Reject" onClick={() => void handleUnmatch(txn._id)}>
-                    <span className="material-symbols-outlined">cancel</span>
-                  </button>
-                </div>
-              ) : txn.matchStatus === MATCH_STATUS.matched || txn.matchStatus === MATCH_STATUS.manual ? (
-                <button type="button" className="row-action-button" title="Unmatch" onClick={() => void handleUnmatch(txn._id)}>
-                  <span className="material-symbols-outlined">link_off</span>
-                </button>
-              ) : txn.debitMinor && txn.debitMinor > 0 ? (
-                <button type="button" className="row-action-button row-action-retry" title="Link Invoice" onClick={() => setLinkingTxnId(txn._id)}>
-                  <span className="material-symbols-outlined">add_link</span>
-                </button>
-              ) : null}
-            </td>
-          </tr>
-        );
-      })}
-      <tr className="bank-statements-pagination-row">
-        <td colSpan={10}>
-          <div className="pagination-bar">
-            <div className="pagination-info">
-              {showFrom}&ndash;{showTo} of {total}
-            </div>
-            <div className="pagination-controls">
-              <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
-              <span className="pagination-page">Page {page} of {totalPages}</span>
-              <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
-            </div>
-            <div className="pagination-size">
-              <span>Rows:</span>
-              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        </td>
-      </tr>
-      {linkingTxnId && (
-        <tr className="bank-statements-summary-row"><td colSpan={10}>
-          <InvoiceSearchPicker
-            gstin={statementGstin}
-            onSelect={(invoiceId) => void handleManualLink(invoiceId)}
-            onCancel={() => setLinkingTxnId(null)}
-          />
-        </td></tr>
-      )}
-    </>
-  );
+function statementUploadKind(fileName: string): string {
+  if (/\.pdf$/i.test(fileName)) return "picture_as_pdf";
+  if (/\.csv$/i.test(fileName)) return "table_view";
+  if (/\.(jpe?g|png)$/i.test(fileName)) return "image";
+  return "draft";
 }
 
 export function BankStatementsTab({
@@ -473,15 +84,30 @@ export function BankStatementsTab({
   onUploadBankStatement,
   onStatementsChanged
 }: BankStatementsTabProps) {
-  const [dragActive, setDragActive] = useState(false);
-  const [expandedStatements, setExpandedStatements] = useState<Set<string>>(new Set());
-  const [txnCache, setTxnCache] = useState<Map<string, TransactionCache>>(new Map());
+  const [drag, setDrag] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [statements, setStatements] = useState<BankStatementSummary[]>(initialStatements);
+  const [statementsTotal, setStatementsTotal] = useState(initialStatements.length);
+  const [statementsPage, setStatementsPage] = useState(1);
+  const [statementsPageSize, setStatementsPageSize] = useState(20);
+  const [statementsLoading, setStatementsLoading] = useState(false);
+
+  const [accountOptions, setAccountOptions] = useState<AccountNameOption[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+
+  const [filters, setFilters] = useState<FilterState>({ accountName: "", periodFrom: "", periodTo: "", state: "" });
+
+  const [parseProgress, setParseProgress] = useState<BankParseProgressEvent | null>(null);
+
+  const [openStatementId, setOpenStatementId] = useState<string | null>(null);
+
   const [gstinMappingStatementId, setGstinMappingStatementId] = useState<string | null>(null);
   const [gstinInput, setGstinInput] = useState("");
-  const [gstinSuggestions, setGstinSuggestions] = useState<Array<{ gstin: string; vendorName: string; label: string }>>([]);
+  const [gstinSuggestions, setGstinSuggestions] = useState<VendorGstinSuggestion[]>([]);
   const [gstinSaving, setGstinSaving] = useState(false);
-  const [parseProgress, setParseProgress] = useState<BankParseProgressEvent | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const hasActiveFilters = filters.accountName !== "" || filters.periodFrom !== "" || filters.periodTo !== "" || filters.state !== "";
 
   useEffect(() => {
     const unsub = subscribeBankParseSSE(
@@ -500,30 +126,10 @@ export function BankStatementsTab({
     return unsub;
   }, [onStatementsChanged]);
 
-  const [accountNames, setAccountNames] = useState<AccountNameOption[]>([]);
-  const [filters, setFilters] = useState<GlobalFilters>({
-    accountName: "",
-    periodFrom: "",
-    periodTo: "",
-    search: "",
-    matchStatus: ""
-  });
-  const [statements, setStatements] = useState<BankStatementSummary[]>(initialStatements);
-  const [statementsTotal, setStatementsTotal] = useState(initialStatements.length);
-  const [statementsPage, setStatementsPage] = useState(1);
-  const [statementsPageSize, setStatementsPageSize] = useState(20);
-  const [statementsLoading, setStatementsLoading] = useState(false);
-
-  const debouncedSearch = useDebounce(filters.search, 300);
-
-  const hasActiveFilters = filters.accountName !== "" || filters.periodFrom !== "" || filters.periodTo !== "" || filters.search !== "" || filters.matchStatus !== "";
-
   useEffect(() => {
-    fetchAccountNames().then(setAccountNames).catch(() => {});
-  }, [initialStatements]);
-
-  useEffect(() => {
+    fetchAccountNames().then(setAccountOptions).catch(() => {});
     fetchVendorGstins().then(setGstinSuggestions).catch(() => {});
+    fetchBankAccounts().then(setBankAccounts).catch(() => setBankAccounts([]));
   }, [initialStatements]);
 
   const loadStatements = useCallback(async () => {
@@ -536,7 +142,6 @@ export function BankStatementsTab({
       if (filters.accountName) params.accountName = filters.accountName;
       if (filters.periodFrom) params.periodFrom = filters.periodFrom;
       if (filters.periodTo) params.periodTo = filters.periodTo;
-
       const result = await fetchBankStatements(params);
       setStatements(result.items);
       setStatementsTotal(result.total);
@@ -552,151 +157,164 @@ export function BankStatementsTab({
     void loadStatements();
   }, [loadStatements]);
 
-  useEffect(() => {
-    if (debouncedSearch && statements.length > 0) {
-      setExpandedStatements(new Set(statements.map(s => s._id)));
-    }
-  }, [debouncedSearch, statements]);
+  function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const list = Array.from(files);
+    list.forEach((f) => onUploadBankStatement(f));
+  }
 
-  const handleCacheUpdate = useCallback((statementId: string, data: TransactionCache) => {
-    setTxnCache((prev) => {
-      const next = new Map(prev);
-      next.set(statementId, data);
-      return next;
-    });
-  }, []);
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDrag(false);
+    handleFiles(event.dataTransfer.files);
+  }
+
+  function clearFilters() {
+    setFilters({ accountName: "", periodFrom: "", periodTo: "", state: "" });
+    setStatementsPage(1);
+  }
+
+  function updateFilter<K extends keyof FilterState>(key: K, value: FilterState[K]) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setStatementsPage(1);
+  }
 
   const handleSaveGstin = useCallback(async () => {
     if (!gstinMappingStatementId || !gstinInput.trim()) return;
     setGstinSaving(true);
     try {
-      const match = gstinSuggestions.find(s => s.gstin === gstinInput.trim());
+      const match = gstinSuggestions.find((s) => s.gstin === gstinInput.trim());
       await updateStatementGstin(gstinMappingStatementId, gstinInput.trim(), match?.label);
       setGstinMappingStatementId(null);
       setGstinInput("");
       onStatementsChanged?.();
-    } catch { /* handled by caller */ }
+    } catch { /* surface via inline state */ }
     setGstinSaving(false);
   }, [gstinMappingStatementId, gstinInput, gstinSuggestions, onStatementsChanged]);
 
-  function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
-    const [file] = Array.from(files);
-    if (file) onUploadBankStatement(file);
-  }
-
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    setDragActive(false);
-    handleFiles(event.dataTransfer.files);
-  }
-
-  function toggleStatement(id: string) {
-    setExpandedStatements((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
+  const visibleStatements = useMemo(() => {
+    if (filters.state === "") return statements;
+    return statements.filter((s) => {
+      const suggested = computeSuggestedCount(s);
+      if (filters.state === "matched") {
+        return s.transactionCount > 0 && s.unmatchedCount === 0 && suggested === 0 && s.matchedCount > 0;
       }
-      return next;
+      if (filters.state === "parsing") {
+        return s.transactionCount === 0;
+      }
+      // active
+      return s.transactionCount > 0 && (s.unmatchedCount > 0 || suggested > 0);
     });
-  }
-
-  function computeSuggestedCount(statement: BankStatementSummary): number {
-    return Math.max(0, statement.transactionCount - statement.matchedCount - statement.unmatchedCount);
-  }
-
-  function clearFilters() {
-    setFilters({ accountName: "", periodFrom: "", periodTo: "", search: "", matchStatus: "" });
-    setStatementsPage(1);
-    setExpandedStatements(new Set());
-    setTxnCache(new Map());
-  }
-
-  function updateFilter<K extends keyof GlobalFilters>(key: K, value: GlobalFilters[K]) {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setStatementsPage(1);
-    setTxnCache(new Map());
-  }
+  }, [statements, filters.state]);
 
   const statementsTotalPages = Math.max(1, Math.ceil(statementsTotal / statementsPageSize));
+  const fyCount = statementsTotal;
+  const accountCount = bankAccounts.length || accountOptions.length;
+
+  const openStatement = openStatementId ? statements.find((s) => s._id === openStatementId) ?? null : null;
 
   return (
-    <div className="bank-statements-tab">
+    <div
+      className="bank-statements-page"
+      onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={handleDrop}
+    >
+      <div className="page-header">
+        <h1>Bank Statements</h1>
+        <span className="count">{accountCount} account{accountCount === 1 ? "" : "s"} · {fyCount} statement{fyCount === 1 ? "" : "s"}</span>
+        <div className="page-tools">
+          <button
+            type="button"
+            className="app-button app-button-primary app-button-sm"
+            onClick={() => fileRef.current?.click()}
+          >
+            + Upload statement
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept=".csv,.pdf,.jpg,.jpeg,.png,text/csv,application/pdf,image/jpeg,image/png"
+            className="hidden-file-input"
+            onChange={(event) => {
+              handleFiles(event.target.files);
+              event.currentTarget.value = "";
+            }}
+          />
+        </div>
+      </div>
+
+      {bankAccounts.length > 0 && (
+        <div className="bank-statements-account-grid">
+          {bankAccounts.map((acct) => (
+            <div key={acct._id} className="bank-statements-account-card">
+              <span className="bank-statements-account-icon">
+                <span className="material-symbols-outlined">account_balance</span>
+              </span>
+              <div className="bank-statements-account-body">
+                <div className="bank-statements-account-name">
+                  {acct.displayName ?? acct.bankName ?? acct.aaAddress}
+                  {acct.maskedAccNumber ? (
+                    <span className="bank-statements-account-tail"> {acct.maskedAccNumber}</span>
+                  ) : null}
+                </div>
+                <div className="bank-statements-account-meta">
+                  Feed · {acct.status === "active" ? "auto" : acct.status.replace("_", " ")}
+                  {acct.balanceFetchedAt ? ` · as of ${new Date(acct.balanceFetchedAt).toLocaleString()}` : ""}
+                </div>
+              </div>
+              <div className="bank-statements-account-balance">
+                {acct.balanceMinor != null ? fmtInr(acct.balanceMinor) : "—"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div
-        className={dragActive ? "file-dropzone file-dropzone-active" : "file-dropzone"}
+        className={`bank-statements-dropzone${drag ? " bank-statements-dropzone-active" : ""}`}
         role="button"
         tabIndex={0}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => fileRef.current?.click()}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            fileInputRef.current?.click();
+            fileRef.current?.click();
           }
         }}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setDragActive(true);
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragActive(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          if (event.currentTarget === event.target) setDragActive(false);
-        }}
-        onDrop={handleDrop}
       >
-        <span className="material-symbols-outlined" aria-hidden="true">upload_file</span>
-        <div>
-          <strong>Drop bank statements here</strong>
-          <p>CSV, PDF, JPEG, and PNG supported. Click to browse.</p>
+        <span className="bank-statements-dropzone-icon">
+          <span className="material-symbols-outlined">upload_file</span>
+        </span>
+        <div className="bank-statements-dropzone-body">
+          <div className="bank-statements-dropzone-title">Drop statement files here</div>
+          <div className="bank-statements-dropzone-sub">PDF, CSV, JPEG, PNG — auto-detected · multiple files OK</div>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,.pdf,.jpg,.jpeg,.png,text/csv,application/pdf,image/jpeg,image/png"
-          className="hidden-file-input"
-          onChange={(event) => {
-            handleFiles(event.target.files);
-            event.currentTarget.value = "";
-          }}
-        />
+        <button type="button" className="app-button app-button-secondary app-button-sm" onClick={(ev) => { ev.stopPropagation(); fileRef.current?.click(); }}>
+          Browse files
+        </button>
       </div>
 
       {parseProgress && <StatementProgressCard event={parseProgress} />}
 
-      <div className="editor-card bank-statements-filter-card">
-        <div className="editor-header">
-          <h3>Filters</h3>
-          {hasActiveFilters && (
-            <button
-              type="button"
-              className="app-button app-button-secondary bank-statements-clear"
-              onClick={clearFilters}
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-        <div className="bank-statements-filters">
+      <div className="bank-statements-toolbar">
+        <div className="bank-statements-toolbar-fields">
           <div className="bank-statements-filter-field">
             <label className="bank-statements-filter-label">Account</label>
             <select
               value={filters.accountName}
               onChange={(e) => updateFilter("accountName", e.target.value)}
-              className="bank-statements-filter-input bank-statements-filter-input-account"
+              className="bank-statements-filter-input"
             >
-              <option value="">All Accounts</option>
-              {accountNames.map(a => (
+              <option value="">All accounts</option>
+              {accountOptions.map((a) => (
                 <option key={a.label} value={a.label}>{a.label}</option>
               ))}
             </select>
           </div>
           <div className="bank-statements-filter-field">
-            <label className="bank-statements-filter-label">Date From</label>
+            <label className="bank-statements-filter-label">From</label>
             <input
               type="date"
               value={filters.periodFrom}
@@ -705,7 +323,7 @@ export function BankStatementsTab({
             />
           </div>
           <div className="bank-statements-filter-field">
-            <label className="bank-statements-filter-label">Date To</label>
+            <label className="bank-statements-filter-label">To</label>
             <input
               type="date"
               value={filters.periodTo}
@@ -714,126 +332,153 @@ export function BankStatementsTab({
             />
           </div>
           <div className="bank-statements-filter-field">
-            <label className="bank-statements-filter-label">Search Transactions</label>
-            <input
-              type="text"
-              placeholder="Description or reference..."
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="bank-statements-filter-input bank-statements-filter-input-search"
-            />
-          </div>
-          <div className="bank-statements-filter-field">
-            <label className="bank-statements-filter-label">Match Status</label>
+            <label className="bank-statements-filter-label">State</label>
             <select
-              value={filters.matchStatus}
-              onChange={(e) => updateFilter("matchStatus", e.target.value)}
+              value={filters.state}
+              onChange={(e) => updateFilter("state", e.target.value as FilterState["state"])}
               className="bank-statements-filter-input"
             >
-              <option value="">All</option>
-              <option value="matched">Matched</option>
-              <option value="suggested">Suggested</option>
-              <option value="unmatched">Unmatched</option>
+              {STATE_FILTER_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
             </select>
           </div>
         </div>
+        {hasActiveFilters && (
+          <button type="button" className="app-button app-button-secondary app-button-sm bank-statements-clear" onClick={clearFilters}>
+            Clear filters
+          </button>
+        )}
       </div>
 
-      {statementsLoading ? (
-        <section className="panel list-panel">
-          <div className="panel-title">
-            <h2>Statements</h2>
-            <span className="muted">Loading...</span>
+      <div className="table-wrap bank-statements-table-wrap">
+        {statementsLoading ? (
+          <div className="bank-statements-loading-overlay">
+            <span className="muted">Loading statements...</span>
           </div>
-          <div className="bank-statements-loading">
-            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
-          </div>
-        </section>
-      ) : statements.length === 0 && !hasActiveFilters ? (
-        <section className="panel list-panel">
-          <div className="panel-title">
-            <h2>Statements</h2>
-            <span>0 records</span>
-          </div>
-          <EmptyState icon="receipt_long" heading="No bank statements uploaded" description="Upload bank statements to reconcile them against ingested invoices." />
-        </section>
-      ) : statements.length === 0 && hasActiveFilters ? (
-        <section className="panel list-panel">
-          <div className="panel-title">
-            <h2>Statements</h2>
-            <span>0 records</span>
-          </div>
-          <EmptyState icon="filter_list_off" heading="No results" description="No statements match the current filters. Try adjusting your search criteria."
-            action={<button type="button" className="app-button app-button-secondary" onClick={clearFilters}>Clear Filters</button>}
-          />
-        </section>
-      ) : (
-        <section className="panel list-panel">
-          <div className="panel-title">
-            <h2>Statements</h2>
-            <span>{statementsTotal} record{statementsTotal !== 1 ? "s" : ""}</span>
-          </div>
-          <div className={`list-scroll${statementsLoading ? " list-scroll-loading" : ""}`}>
-            <table>
-              <thead>
-                <tr>
-                  <th className="bank-statements-toggle-col"></th>
-                  <th>Bank / Account</th>
-                  <th>Uploaded</th>
-                  <th>Period</th>
-                  <th>Transactions</th>
-                  <th>Status</th>
-                  <th>GSTIN</th>
-                  <th>File</th>
-                  <th>Source</th>
-                  <th></th>
+        ) : null}
+        <table className={`lbtable${statementsLoading ? " tq-loading" : ""}`}>
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th className="bank-statements-col-period">Period</th>
+              <th>File</th>
+              <th className="bank-statements-col-uploaded">Uploaded</th>
+              <th className="num-cell bank-statements-col-lines">Lines</th>
+              <th className="bank-statements-col-recon">Reconciliation</th>
+              <th className="bank-statements-col-state">State</th>
+              <th className="bank-statements-col-source">Source</th>
+              <th className="bank-statements-col-action" />
+            </tr>
+          </thead>
+          <tbody>
+            {visibleStatements.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="bank-statements-empty-cell">
+                  {hasActiveFilters ? (
+                    <EmptyState icon="filter_list_off" heading="No statements match" description="Clear filters to see all uploads."
+                      action={<button type="button" className="app-button app-button-secondary" onClick={clearFilters}>Clear filters</button>} />
+                  ) : (
+                    <EmptyState icon="receipt_long" heading="No bank statements uploaded" description="Drop or upload a CSV / PDF / image to start reconciling against ingested invoices." />
+                  )}
+                </td>
+              </tr>
+            ) : visibleStatements.map((s) => {
+              const suggested = computeSuggestedCount(s);
+              const matchedRatio = s.transactionCount > 0 ? s.matchedCount / s.transactionCount : 0;
+              return (
+                <tr key={s._id} className="bank-statements-row" onClick={() => setOpenStatementId(s._id)}>
+                  <td className="mono-cell">{[s.bankName, s.accountNumberMasked].filter(Boolean).join(" ") || "—"}</td>
+                  <td>{formatPeriod(s.periodFrom, s.periodTo)}</td>
+                  <td className="bank-statements-file-cell">
+                    <span className="material-symbols-outlined bank-statements-file-icon">{statementUploadKind(s.fileName)}</span>
+                    <span className="bank-statements-file-name">{s.fileName}</span>
+                  </td>
+                  <td className="mono-cell bank-statements-uploaded-cell">{formatUploadDate(s.createdAt)}</td>
+                  <td className="num-cell">{s.transactionCount || "—"}</td>
+                  <td>
+                    {s.transactionCount === 0 ? <span className="muted">—</span> : (
+                      <div className="bank-statements-recon-bar">
+                        <div className="bank-statements-recon-track">
+                          <div
+                            className={`bank-statements-recon-fill${(s.unmatchedCount + suggested) > 0 ? " bank-statements-recon-fill-warn" : " bank-statements-recon-fill-ok"}`}
+                            style={{ width: `${Math.round(matchedRatio * 100)}%` }}
+                          />
+                        </div>
+                        <div className="bank-statements-recon-label">{s.matchedCount} matched · {s.unmatchedCount + suggested} unmatched</div>
+                      </div>
+                    )}
+                  </td>
+                  <td><StatementStateChip statement={s} suggested={suggested} /></td>
+                  <td><StatementSourceChip source={s.source} /></td>
+                  <td className="bank-statements-action-cell" onClick={(ev) => { ev.stopPropagation(); }}>
+                    {s.gstin ? (
+                      <span className="bank-statements-gstin-tag" title={s.gstinLabel ?? s.gstin}>{s.gstin}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="row-action-button bank-statements-gstin-link"
+                        title="Map GSTIN"
+                        onClick={() => { setGstinMappingStatementId(s._id); setGstinInput(""); }}
+                      >
+                        <span className="material-symbols-outlined">link</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="bank-statements-open-link"
+                      onClick={() => setOpenStatementId(s._id)}
+                    >
+                      open →
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {statements.map((statement) => {
-                  const expanded = expandedStatements.has(statement._id);
-                  const suggested = computeSuggestedCount(statement);
-                  return (
-                    <StatementGroupRows
-                      key={statement._id}
-                      statement={statement}
-                      expanded={expanded}
-                      suggestedCount={suggested}
-                      txnCache={txnCache.get(statement._id)}
-                      onToggle={() => toggleStatement(statement._id)}
-                      onCacheUpdate={handleCacheUpdate}
-                      onMapGstin={() => setGstinMappingStatementId(statement._id)}
-                      globalFilters={filters}
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {statementsTotal > 0 && (
+        <div className="pagination-bar">
+          <div className="pagination-info">
+            {Math.min((statementsPage - 1) * statementsPageSize + 1, statementsTotal)}–{Math.min(statementsPage * statementsPageSize, statementsTotal)} of {statementsTotal}
           </div>
-          {statementsTotal > 0 && (
-            <div className="pagination-bar">
-              <div className="pagination-info">
-                {Math.min((statementsPage - 1) * statementsPageSize + 1, statementsTotal)}&ndash;{Math.min(statementsPage * statementsPageSize, statementsTotal)} of {statementsTotal}
-              </div>
-              <div className="pagination-controls">
-                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage <= 1} onClick={() => setStatementsPage(1)}>First</button>
-                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage <= 1} onClick={() => setStatementsPage((p) => p - 1)}>Prev</button>
-                <span className="pagination-page">Page {statementsPage} of {statementsTotalPages}</span>
-                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage >= statementsTotalPages} onClick={() => setStatementsPage((p) => p + 1)}>Next</button>
-                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage >= statementsTotalPages} onClick={() => setStatementsPage(Math.ceil(statementsTotal / statementsPageSize))}>Last</button>
-              </div>
-              <div className="pagination-size">
-                <span>Rows:</span>
-                <select value={statementsPageSize} onChange={(e) => { setStatementsPageSize(Number(e.target.value)); setStatementsPage(1); }}>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </section>
+          <div className="pagination-controls">
+            <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage <= 1} onClick={() => setStatementsPage(1)}>First</button>
+            <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage <= 1} onClick={() => setStatementsPage((p) => p - 1)}>Prev</button>
+            <span className="pagination-page">Page {statementsPage} of {statementsTotalPages}</span>
+            <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage >= statementsTotalPages} onClick={() => setStatementsPage((p) => p + 1)}>Next</button>
+            <button type="button" className="app-button app-button-secondary app-button-sm" disabled={statementsPage >= statementsTotalPages} onClick={() => setStatementsPage(statementsTotalPages)}>Last</button>
+          </div>
+          <div className="pagination-size">
+            <span>Rows:</span>
+            <select value={statementsPageSize} onChange={(e) => { setStatementsPageSize(Number(e.target.value)); setStatementsPage(1); }}>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {drag && (
+        <div className="bank-statements-drag-veil">
+          <div className="bank-statements-drag-veil-body">
+            <span className="material-symbols-outlined bank-statements-drag-veil-icon">cloud_upload</span>
+            <div className="bank-statements-drag-veil-title">Drop bank statements anywhere</div>
+            <div className="bank-statements-drag-veil-sub">PDF, CSV, JPEG, PNG · matched against open invoices.</div>
+          </div>
+        </div>
+      )}
+
+      {openStatement && (
+        <StatementDetail
+          statement={openStatement}
+          onClose={() => setOpenStatementId(null)}
+          onChanged={() => { void loadStatements(); onStatementsChanged?.(); }}
+        />
       )}
 
       {gstinMappingStatementId && (
@@ -876,94 +521,6 @@ export function BankStatementsTab({
   );
 }
 
-function StatementGroupRows({
-  statement,
-  expanded,
-  suggestedCount,
-  txnCache,
-  onToggle,
-  onCacheUpdate,
-  onMapGstin,
-  globalFilters
-}: {
-  statement: BankStatementSummary;
-  expanded: boolean;
-  suggestedCount: number;
-  txnCache: TransactionCache | undefined;
-  onToggle: () => void;
-  onCacheUpdate: (statementId: string, data: TransactionCache) => void;
-  onMapGstin: () => void;
-  globalFilters: GlobalFilters;
-}) {
-  const period = statement.periodFrom && statement.periodTo
-    ? `${statement.periodFrom} - ${statement.periodTo}`
-    : "-";
-
-  const bankLabel = [statement.bankName, statement.accountNumberMasked]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <>
-      <tr
-        className={expanded ? "row-active" : undefined}
-        onClick={onToggle}
-      >
-        <td>
-          <span className="material-symbols-outlined bank-statements-toggle-icon">
-            {expanded ? "expand_more" : "chevron_right"}
-          </span>
-        </td>
-        <td className="extracted-value-cell">
-          <span className="extracted-value-display bank-statements-row-name">
-            {bankLabel || "-"}
-          </span>
-        </td>
-        <td>{formatUploadDate(statement.createdAt)}</td>
-        <td>{period}</td>
-        <td>{statement.transactionCount}</td>
-        <td>
-          <div className="bank-statements-status-list">
-            <span className="status status-approved">{statement.matchedCount} Matched</span>
-            {suggestedCount > 0 ? <span className="status status-needs_review">{suggestedCount} Suggested</span> : null}
-            <span className="status status-pending">{statement.unmatchedCount} Unmatched</span>
-          </div>
-        </td>
-        <td>
-          {statement.gstin ? (
-            <span className="extracted-value-display" title={statement.gstinLabel ?? statement.gstin}>{statement.gstin}</span>
-          ) : (
-            <button
-              type="button"
-              className="row-action-button bank-statements-gstin-link"
-              title="Map GSTIN"
-              onClick={(ev) => { ev.stopPropagation(); onMapGstin(); }}
-            >
-              <span className="material-symbols-outlined">link</span>
-            </button>
-          )}
-        </td>
-        <td className="file-name-cell">
-          <button type="button" className="file-label" onClick={(ev) => { ev.stopPropagation(); onToggle(); }}>{statement.fileName}</button>
-        </td>
-        <td>
-          <span className="status status-parsed">{statement.source}</span>
-        </td>
-        <td onClick={(ev) => ev.stopPropagation()}>
-          <button type="button" className="row-action-button" title={expanded ? "Collapse" : "Expand"} onClick={onToggle}>
-            <span className="material-symbols-outlined">{expanded ? "unfold_less" : "unfold_more"}</span>
-          </button>
-        </td>
-      </tr>
-      {expanded ? (
-        <StatementTransactionsGroup
-          statementId={statement._id}
-          statementGstin={statement.gstin}
-          cache={txnCache}
-          onCacheUpdate={onCacheUpdate}
-          globalFilters={globalFilters}
-        />
-      ) : null}
-    </>
-  );
+function computeSuggestedCount(statement: BankStatementSummary): number {
+  return Math.max(0, statement.transactionCount - statement.matchedCount - statement.unmatchedCount);
 }

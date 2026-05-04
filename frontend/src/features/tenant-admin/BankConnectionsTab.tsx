@@ -65,37 +65,38 @@ export function BankConnectionsTab({
       <div className="editor-card">
         <div className="editor-header">
           <h3>Email Inboxes</h3>
-          <button type="button" className="app-button app-button-secondary" onClick={onAddGmailInbox}>
-            Add Gmail Inbox
+          <button type="button" className="app-button app-button-secondary app-button-sm" onClick={onAddGmailInbox}>
+            <span className="material-symbols-outlined connections-icon-inline">add</span>
+            Add Gmail inbox
           </button>
         </div>
         {mailboxes.length === 0 ? (
           <EmptyState icon="mail" heading="No inboxes connected" description="Connect a Gmail inbox to automatically receive and process invoices." />
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
+          <div className="connections-mailbox-list">
             {mailboxes.map((mailbox) => (
-              <div key={mailbox._id} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "0.75rem 1rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-                  <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>{mailbox.emailAddress ?? "(unknown)"}</span>
+              <div key={mailbox._id} className="connections-mailbox-card">
+                <div className="connections-mailbox-row">
+                  <span className="material-symbols-outlined connections-mailbox-icon">mail</span>
+                  <span className="connections-mailbox-email">{mailbox.emailAddress ?? "(unknown)"}</span>
                   <span className={`bank-status-badge ${mailbox.status === "connected" ? "bank-status-active" : "bank-status-error"}`}>
                     {mailbox.status}
                   </span>
                   {mailbox.lastSyncedAt ? (
-                    <span style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>
+                    <span className="connections-mailbox-meta">
                       Last synced: {new Date(mailbox.lastSyncedAt).toLocaleString()}
                     </span>
                   ) : null}
                   <button
                     type="button"
-                    className="app-button app-button-danger"
-                    style={{ marginLeft: "auto", fontSize: "0.8rem", padding: "0.25rem 0.75rem" }}
+                    className="app-button app-button-danger app-button-sm connections-mailbox-remove"
                     onClick={() => onRemoveMailbox(mailbox._id)}
                   >
                     Remove inbox
                   </button>
                 </div>
-                <div style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "0.82rem", color: "var(--ink-soft)" }}>
+                <div className="connections-mailbox-assignments">
+                  <span className="connections-mailbox-meta">
                     Assigned to:{" "}
                     {mailbox.assignments === "all" ? (
                       <strong>All users</strong>
@@ -103,13 +104,13 @@ export function BankConnectionsTab({
                       <em>No one</em>
                     ) : (
                       mailbox.assignments.map((a) => (
-                        <span key={a.userId} style={{ marginRight: "0.4rem" }}>
+                        <span key={a.userId} className="connections-assignment-pill">
                           {a.email}
                           <button
                             type="button"
-                            className="app-button app-button-secondary"
-                            style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem", marginLeft: "0.25rem" }}
+                            className="connections-assignment-remove"
                             onClick={() => onRemoveMailboxAssignment(mailbox._id, a.userId)}
+                            aria-label={`Remove ${a.email}`}
                           >
                             ×
                           </button>
@@ -119,7 +120,7 @@ export function BankConnectionsTab({
                   </span>
                   {mailbox.assignments !== "all" && (
                     <select
-                      style={{ fontSize: "0.82rem" }}
+                      className="connections-assignment-add"
                       defaultValue=""
                       onChange={(e) => {
                         if (e.target.value) onAssignMailboxUser(mailbox._id, e.target.value);
@@ -140,8 +141,7 @@ export function BankConnectionsTab({
                   {mailbox.assignments === "all" && (
                     <button
                       type="button"
-                      className="app-button app-button-secondary"
-                      style={{ fontSize: "0.8rem", padding: "0.25rem 0.75rem" }}
+                      className="app-button app-button-secondary app-button-sm"
                       onClick={() => onRemoveMailboxAssignment(mailbox._id, "all")}
                     >
                       Restrict to specific users
@@ -159,22 +159,22 @@ export function BankConnectionsTab({
         <div className="editor-header">
           <h3>Bank Accounts</h3>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem", marginBottom: "1rem" }}>
+        <div className="connections-bank-form">
           <input
             value={aaAddress}
             onChange={(e) => setAaAddress(e.target.value)}
             placeholder="AA address (e.g. user@bankaa)"
-            style={{ flex: "1 1 200px" }}
+            className="connections-bank-input connections-bank-input-aa"
           />
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Display name (optional)"
-            style={{ flex: "1 1 160px" }}
+            className="connections-bank-input connections-bank-input-name"
           />
           <button
             type="button"
-            className="app-button app-button-secondary"
+            className="app-button app-button-secondary app-button-sm"
             disabled={!aaAddress.trim()}
             onClick={handleAddBank}
           >
@@ -185,37 +185,37 @@ export function BankConnectionsTab({
         {bankAccounts.length === 0 ? (
           <EmptyState icon="account_balance" heading="No bank accounts connected" description="Link a bank account via Account Aggregator to view balances." />
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div className="connections-bank-list">
             {bankAccounts.map((account) => (
               <div key={account._id} className="bank-account-card">
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 600 }}>{account.displayName ?? account.aaAddress}</span>
+                <span className="connections-bank-icon">
+                  <span className="material-symbols-outlined">account_balance</span>
+                </span>
+                <div className="connections-bank-body">
+                  <div className="connections-bank-headline">
+                    <span className="connections-bank-name">{account.displayName ?? account.aaAddress}</span>
                     {account.bankName ? <span className="bank-account-meta">{account.bankName}</span> : null}
                     {account.maskedAccNumber ? <span className="bank-account-meta">{account.maskedAccNumber}</span> : null}
                     <BankStatusBadge status={account.status} />
                   </div>
                   {account.balanceMinor != null ? (
-                    <div style={{ marginTop: "0.25rem" }}>
+                    <div className="connections-bank-balance-row">
                       <span className="bank-account-balance">{fmtInr(account.balanceMinor)}</span>
                       {account.balanceFetchedAt ? (
-                        <span className="bank-account-meta" style={{ marginLeft: "0.5rem" }}>
+                        <span className="bank-account-meta connections-bank-asof">
                           as of {new Date(account.balanceFetchedAt).toLocaleString()}
                         </span>
                       ) : null}
                     </div>
                   ) : null}
                   {account.lastErrorReason ? (
-                    <div className="bank-account-meta" style={{ color: "#991b1b", marginTop: "0.2rem" }}>
-                      {account.lastErrorReason}
-                    </div>
+                    <div className="connections-bank-error">{account.lastErrorReason}</div>
                   ) : null}
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                <div className="connections-bank-actions">
                   <button
                     type="button"
-                    className="app-button app-button-secondary"
-                    style={{ fontSize: "0.8rem", padding: "0.25rem 0.75rem" }}
+                    className="app-button app-button-secondary app-button-sm"
                     onClick={() => onRefreshBankBalance(account._id)}
                     disabled={account.status !== "active"}
                   >
@@ -223,8 +223,7 @@ export function BankConnectionsTab({
                   </button>
                   <button
                     type="button"
-                    className="app-button app-button-danger"
-                    style={{ fontSize: "0.8rem", padding: "0.25rem 0.75rem" }}
+                    className="app-button app-button-danger app-button-sm"
                     onClick={() => onRevokeBankAccount(account._id)}
                   >
                     Disconnect
@@ -235,11 +234,11 @@ export function BankConnectionsTab({
           </div>
         )}
       </div>
-    ),
+    )
   };
 
   return (
-    <div className="bank-connections" style={{ overflowY: "auto", maxHeight: "calc(100vh - 7rem)", paddingBottom: "2rem" }}>
+    <div className="bank-connections">
       {order.map((sectionId) => {
         const node = sectionMap[sectionId];
         if (!node) return null;
