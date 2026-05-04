@@ -212,6 +212,9 @@ describe("features/invoices/InvoiceView — snapshot baseline", () => {
     expect(panel).toMatchSnapshot();
   });
 
+  // Re-mock the filter response rather than driving the filter UI:
+  // snapshot baseline values determinism over user-flow fidelity; the W3-7
+  // decomp PR validates same input -> same render.
   it("renders the filtered-empty state when filters yield no rows", async () => {
     apiMock.fetchInvoices.mockResolvedValueOnce(makeListResponse(MIXED_STATUS_INVOICES));
     apiMock.fetchInvoices.mockResolvedValue(EMPTY_LIST_RESPONSE);

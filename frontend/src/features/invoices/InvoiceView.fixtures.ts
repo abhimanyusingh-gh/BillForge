@@ -19,7 +19,7 @@ function makeInvoice(overrides: MakeInvoiceOverrides): Invoice {
     totalAmountMinor: 100000,
     customerGstin: "29ABCDE1234F1Z5"
   };
-  return {
+  const base: Invoice = {
     _id: id,
     tenantId: FIXTURE_TENANT_ID,
     workloadTier: "standard",
@@ -36,9 +36,9 @@ function makeInvoice(overrides: MakeInvoiceOverrides): Invoice {
     processingIssues: [],
     createdAt: FIXTURE_CREATED_AT,
     updatedAt: FIXTURE_UPDATED_AT,
-    parsed: { ...baseParsed, ...(parsed ?? {}) },
-    ...rest
-  } as Invoice;
+    parsed: { ...baseParsed, ...(parsed ?? {}) }
+  };
+  return { ...base, ...rest };
 }
 
 export const NEEDS_REVIEW_INVOICES: ReadonlyArray<Invoice> = [
