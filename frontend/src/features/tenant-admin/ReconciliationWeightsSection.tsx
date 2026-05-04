@@ -132,11 +132,11 @@ export function ReconciliationWeightsSection() {
         Control how bank transactions are matched to invoices. Each weight determines the score contribution for that signal.
       </p>
 
-      <div className="recon-weights-stack">
+      <section className="section">
         {FIELD_META.map(({ key, label, description }) => (
-          <label key={key} className="recon-weights-field">
-            <span className="recon-weights-field-label">{label}</span>
-            <span className="recon-weights-field-hint">{description}</span>
+          <label key={key} className="field">
+            <span className="field-row">{label}</span>
+            <span className="field-hint">{description}</span>
             <input
               type="number"
               min={0}
@@ -145,11 +145,11 @@ export function ReconciliationWeightsSection() {
               onChange={e => handleFieldChange(key, e.target.value)}
               disabled={saving}
               aria-label={label}
-              className="recon-weights-input"
+              className="input"
             />
           </label>
         ))}
-      </div>
+      </section>
 
       <p className={budgetClass} data-testid="weight-budget">
         Total weight budget: {totalBudget}/{MAX_BUDGET}

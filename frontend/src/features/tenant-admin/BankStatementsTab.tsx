@@ -482,8 +482,8 @@ export function BankStatementsTab({
       )}
 
       {gstinMappingStatementId && (
-        <div className="modal-overlay" onClick={() => setGstinMappingStatementId(null)}>
-          <div className="modal-card recon-gstin-modal" onClick={(ev) => ev.stopPropagation()}>
+        <div className="scrim" onClick={() => setGstinMappingStatementId(null)}>
+          <div className="modal-card" onClick={(ev) => ev.stopPropagation()}>
             <h3>Map GSTIN to Statement</h3>
             <input
               type="text"
@@ -491,24 +491,24 @@ export function BankStatementsTab({
               value={gstinInput}
               onChange={(ev) => setGstinInput(ev.target.value.toUpperCase())}
               maxLength={15}
-              className="recon-invoice-picker-input"
+              className="input"
             />
             {gstinSuggestions.length > 0 && (
-              <div className="recon-gstin-suggestions">
-                <span className="recon-gstin-suggestions-label">Known vendors:</span>
+              <div className="kvgrid">
+                <label className="lb-caption">Known vendors:</label>
                 <div className="recon-gstin-suggestions-list">
                   {gstinSuggestions.slice(0, 8).map((s) => (
                     <button
                       key={s.gstin}
                       type="button"
-                      className="app-button app-button-secondary recon-gstin-suggestion"
+                      className="app-button app-button-secondary"
                       onClick={() => setGstinInput(s.gstin)}
                     >{s.vendorName} ({s.gstin.slice(0, 4)}...)</button>
                   ))}
                 </div>
               </div>
             )}
-            <div className="recon-modal-actions">
+            <div className="modal-foot">
               <button type="button" className="app-button app-button-secondary" onClick={() => { setGstinMappingStatementId(null); setGstinInput(""); }}>Cancel</button>
               <button type="button" className="app-button app-button-primary" disabled={gstinInput.trim().length !== 15 || gstinSaving} onClick={() => void handleSaveGstin()}>
                 {gstinSaving ? "Saving..." : "Save"}
