@@ -558,7 +558,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders compact den
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -809,7 +809,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders compact den
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -1505,7 +1505,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders rows scoped
           <span
             class="invoice-list-cell-mono"
           >
-            20/4/2026, 3:30:00 pm
+            4/20/2026, 10:00:00 AM
           </span>
         </td>
         <td
@@ -1756,7 +1756,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders rows scoped
           <span
             class="invoice-list-cell-mono"
           >
-            20/4/2026, 3:30:00 pm
+            4/20/2026, 10:00:00 AM
           </span>
         </td>
         <td
@@ -2187,13 +2187,217 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the EXPORTE
     <tbody
       class="lb-datatable-tbody"
     >
-      <tr>
+      <tr
+        class="lb-datatable-row row-exported"
+        data-invoice-id="inv-401"
+        data-row-key="inv-401"
+        data-testid="lb-datatable-row"
+      >
         <td
-          class="lb-datatable-state lb-datatable-state-empty"
-          colspan="15"
-          data-testid="lb-datatable-empty"
+          class="lb-datatable-td lb-datatable-checkbox-cell"
         >
-          Nothing here yet.
+          <input
+            aria-label="Select row"
+            data-testid="lb-datatable-select-row-inv-401"
+            disabled=""
+            type="checkbox"
+          />
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="file-name-cell"
+          >
+            <button
+              class="file-label"
+              type="button"
+            >
+              inv-401.pdf
+            </button>
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="extracted-value-cell"
+          >
+            <span
+              class="extracted-value-display"
+            >
+              Vendor inv-401
+            </span>
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="extracted-value-cell"
+          >
+            <span
+              class="extracted-value-display"
+            >
+              INV-inv-401
+            </span>
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="extracted-value-cell"
+          >
+            <span
+              class="extracted-value-display"
+            >
+              2026-04-15
+            </span>
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td lb-datatable-cell-right"
+        >
+          <span
+            class="extracted-value-cell"
+          >
+            <span
+              class="extracted-value-display"
+            >
+              ₹1,000.00
+            </span>
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td lb-datatable-cell-right"
+        >
+          <span
+            class="muted"
+          >
+            -
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <div
+            class="invoice-list-cell-shield"
+          >
+            <span
+              class="gl-code-cell invoice-list-cell-compact"
+            >
+              <span
+                title=""
+              >
+                <span
+                  class="muted"
+                >
+                  —
+                </span>
+              </span>
+            </span>
+          </div>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="invoice-list-cell-compact"
+          >
+            <span
+              class="muted"
+            >
+              —
+            </span>
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            aria-label="No risk signals"
+            class="risk-dot"
+            role="img"
+            style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+            title="No risk signals"
+          >
+            <span
+              aria-hidden="true"
+              class="material-symbols-outlined"
+              style="font-size: var(--fs-xs);"
+            >
+              check_circle
+            </span>
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="confidence confidence-green"
+          >
+            85%
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="status status-exported"
+          >
+            <span
+              class="material-symbols-outlined status-badge-icon"
+            >
+              cloud_done
+            </span>
+            Exported
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="invoice-list-cell-compact invoice-list-cell-muted"
+            title=""
+          >
+            -
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td"
+        >
+          <span
+            class="invoice-list-cell-mono"
+          >
+            4/20/2026, 10:00:00 AM
+          </span>
+        </td>
+        <td
+          class="lb-datatable-td lb-datatable-cell-right"
+        >
+          <div
+            class="invoice-list-cell-shield"
+          >
+            <div
+              class="row-actions-cell"
+            >
+              <span
+                class="action-hint-badge action-hint-done"
+                style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--bg-main); color: var(--ink-soft); border: 1px solid var(--line);"
+                title="Exported"
+              >
+                <span
+                  aria-hidden="true"
+                  class="material-symbols-outlined"
+                  style="font-size: var(--fs-xs);"
+                >
+                  cloud_done
+                </span>
+                Exported
+              </span>
+            </div>
+          </div>
         </td>
       </tr>
     </tbody>
@@ -2215,36 +2419,9 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
     <span
       class="invoice-list-meta"
     >
-      Loading...
+      5
+       records
     </span>
-  </div>
-  <div
-    class="invoice-list-skeleton"
-  >
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
   </div>
   <div
     class="list-scroll"
@@ -2293,7 +2470,6 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
               <input
                 aria-label="Select all"
                 data-testid="lb-datatable-select-all"
-                disabled=""
                 type="checkbox"
               />
             </th>
@@ -2605,17 +2781,1294 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
         <tbody
           class="lb-datatable-tbody"
         >
-          <tr>
+          <tr
+            class="lb-datatable-row"
+            data-invoice-id="inv-001"
+            data-row-key="inv-001"
+            data-testid="lb-datatable-row"
+          >
             <td
-              class="lb-datatable-state lb-datatable-state-empty"
-              colspan="15"
-              data-testid="lb-datatable-empty"
+              class="lb-datatable-td lb-datatable-checkbox-cell"
             >
-              Nothing here yet.
+              <input
+                aria-label="Select row"
+                data-testid="lb-datatable-select-row-inv-001"
+                type="checkbox"
+              />
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="file-name-cell"
+              >
+                <button
+                  class="file-label"
+                  type="button"
+                >
+                  inv-001.pdf
+                </button>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  Vendor inv-001
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  INV-inv-001
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  2026-04-15
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  ₹1,000.00
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="muted"
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <span
+                  class="gl-code-cell invoice-list-cell-compact"
+                >
+                  <span
+                    title=""
+                  >
+                    <span
+                      class="muted"
+                    >
+                      —
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact"
+              >
+                <span
+                  class="muted"
+                >
+                  —
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                aria-label="No risk signals"
+                class="risk-dot"
+                role="img"
+                style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                title="No risk signals"
+              >
+                <span
+                  aria-hidden="true"
+                  class="material-symbols-outlined"
+                  style="font-size: var(--fs-xs);"
+                >
+                  check_circle
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="confidence confidence-green"
+              >
+                85%
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="status status-parsed"
+              >
+                <span
+                  class="material-symbols-outlined status-badge-icon"
+                >
+                  task_alt
+                </span>
+                Processed
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact invoice-list-cell-muted"
+                title=""
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-mono"
+              >
+                4/20/2026, 10:00:00 AM
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <div
+                  class="row-actions-cell"
+                >
+                  <span
+                    class="action-hint-badge action-hint-ready"
+                    style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                    title="Ready to approve"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                      style="font-size: var(--fs-xs);"
+                    >
+                      check_circle
+                    </span>
+                    Ready to approve
+                  </span>
+                  <button
+                    aria-label="Approve invoice inv-001.pdf"
+                    class="row-action-button row-action-approve"
+                    title="Approve"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      check_circle
+                    </span>
+                  </button>
+                  <button
+                    aria-label="Reingest invoice inv-001.pdf"
+                    class="row-action-button row-action-retry"
+                    title="Reingest"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      replay
+                    </span>
+                  </button>
+                  <button
+                    aria-label="Delete invoice inv-001.pdf"
+                    class="row-action-button"
+                    title="Delete"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      delete
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr
+            class="lb-datatable-row"
+            data-invoice-id="inv-101"
+            data-row-key="inv-101"
+            data-testid="lb-datatable-row"
+          >
+            <td
+              class="lb-datatable-td lb-datatable-checkbox-cell"
+            >
+              <input
+                aria-label="Select row"
+                data-testid="lb-datatable-select-row-inv-101"
+                type="checkbox"
+              />
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="file-name-cell"
+              >
+                <button
+                  class="file-label"
+                  type="button"
+                >
+                  inv-101.pdf
+                </button>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  Vendor inv-101
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  INV-inv-101
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  2026-04-15
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  ₹1,000.00
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="muted"
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <span
+                  class="gl-code-cell invoice-list-cell-compact"
+                >
+                  <span
+                    title=""
+                  >
+                    <span
+                      class="muted"
+                    >
+                      —
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact"
+              >
+                <span
+                  class="muted"
+                >
+                  —
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                aria-label="No risk signals"
+                class="risk-dot"
+                role="img"
+                style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                title="No risk signals"
+              >
+                <span
+                  aria-hidden="true"
+                  class="material-symbols-outlined"
+                  style="font-size: var(--fs-xs);"
+                >
+                  check_circle
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="confidence confidence-yellow"
+              >
+                60%
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="status status-needs_review"
+              >
+                <span
+                  class="material-symbols-outlined status-badge-icon"
+                >
+                  flag
+                </span>
+                Needs Review
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact invoice-list-cell-muted"
+                title=""
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-mono"
+              >
+                4/20/2026, 10:00:00 AM
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <div
+                  class="row-actions-cell"
+                >
+                  <span
+                    class="action-hint-badge action-hint-ready"
+                    style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                    title="Ready to approve"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                      style="font-size: var(--fs-xs);"
+                    >
+                      check_circle
+                    </span>
+                    Ready to approve
+                  </span>
+                  <button
+                    aria-label="Approve invoice inv-101.pdf"
+                    class="row-action-button row-action-approve"
+                    title="Approve"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      check_circle
+                    </span>
+                  </button>
+                  <button
+                    aria-label="Reingest invoice inv-101.pdf"
+                    class="row-action-button row-action-retry"
+                    title="Reingest"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      replay
+                    </span>
+                  </button>
+                  <button
+                    aria-label="Delete invoice inv-101.pdf"
+                    class="row-action-button"
+                    title="Delete"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      delete
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr
+            class="lb-datatable-row"
+            data-invoice-id="inv-201"
+            data-row-key="inv-201"
+            data-testid="lb-datatable-row"
+          >
+            <td
+              class="lb-datatable-td lb-datatable-checkbox-cell"
+            >
+              <input
+                aria-label="Select row"
+                data-testid="lb-datatable-select-row-inv-201"
+                type="checkbox"
+              />
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="file-name-cell"
+              >
+                <button
+                  class="file-label"
+                  type="button"
+                >
+                  inv-201.pdf
+                </button>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  Vendor inv-201
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  INV-inv-201
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  2026-04-15
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  ₹1,000.00
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="muted"
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <span
+                  class="gl-code-cell invoice-list-cell-compact"
+                >
+                  <span
+                    title=""
+                  >
+                    <span
+                      class="muted"
+                    >
+                      —
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact"
+              >
+                <span
+                  class="muted"
+                >
+                  —
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                aria-label="No risk signals"
+                class="risk-dot"
+                role="img"
+                style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                title="No risk signals"
+              >
+                <span
+                  aria-hidden="true"
+                  class="material-symbols-outlined"
+                  style="font-size: var(--fs-xs);"
+                >
+                  check_circle
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="confidence confidence-green"
+              >
+                85%
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="status status-awaiting_approval"
+              >
+                <span
+                  class="material-symbols-outlined status-badge-icon"
+                >
+                  pending_actions
+                </span>
+                Awaiting Approval
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact invoice-list-cell-muted"
+                title=""
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-mono"
+              >
+                4/20/2026, 10:00:00 AM
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <div
+                  class="row-actions-cell"
+                >
+                  <span
+                    class="action-hint-badge action-hint-pending"
+                    style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-cross-checked-bg); color: var(--badge-cross-checked-fg);"
+                    title="In approval"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                      style="font-size: var(--fs-xs);"
+                    >
+                      hourglass_empty
+                    </span>
+                    In approval
+                  </span>
+                  <button
+                    aria-label="Approve invoice inv-201.pdf"
+                    class="row-action-button row-action-approve"
+                    title="Approve"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      check_circle
+                    </span>
+                  </button>
+                  <button
+                    aria-label="Reingest invoice inv-201.pdf"
+                    class="row-action-button row-action-retry"
+                    title="Reingest"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      replay
+                    </span>
+                  </button>
+                  <button
+                    aria-label="Delete invoice inv-201.pdf"
+                    class="row-action-button"
+                    title="Delete"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      delete
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr
+            class="lb-datatable-row"
+            data-invoice-id="inv-301"
+            data-row-key="inv-301"
+            data-testid="lb-datatable-row"
+          >
+            <td
+              class="lb-datatable-td lb-datatable-checkbox-cell"
+            >
+              <input
+                aria-label="Select row"
+                data-testid="lb-datatable-select-row-inv-301"
+                type="checkbox"
+              />
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="file-name-cell"
+              >
+                <button
+                  class="file-label"
+                  type="button"
+                >
+                  inv-301.pdf
+                </button>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  Vendor inv-301
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  INV-inv-301
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  2026-04-15
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  ₹1,000.00
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="muted"
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <span
+                  class="gl-code-cell invoice-list-cell-compact"
+                >
+                  <span
+                    title=""
+                  >
+                    <span
+                      class="muted"
+                    >
+                      —
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact"
+              >
+                <span
+                  class="muted"
+                >
+                  —
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                aria-label="No risk signals"
+                class="risk-dot"
+                role="img"
+                style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                title="No risk signals"
+              >
+                <span
+                  aria-hidden="true"
+                  class="material-symbols-outlined"
+                  style="font-size: var(--fs-xs);"
+                >
+                  check_circle
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="confidence confidence-green"
+              >
+                85%
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="status status-approved"
+              >
+                <span
+                  class="material-symbols-outlined status-badge-icon"
+                >
+                  check_circle
+                </span>
+                Approved
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact invoice-list-cell-muted"
+                title="alice@example.com"
+              >
+                Alice
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-mono"
+              >
+                4/20/2026, 10:00:00 AM
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <div
+                  class="row-actions-cell"
+                >
+                  <span
+                    class="action-hint-badge action-hint-ready"
+                    style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                    title="Ready to export"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                      style="font-size: var(--fs-xs);"
+                    >
+                      check_circle
+                    </span>
+                    Ready to export
+                  </span>
+                  <button
+                    aria-label="Reingest invoice inv-301.pdf"
+                    class="row-action-button row-action-retry"
+                    title="Reingest"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      replay
+                    </span>
+                  </button>
+                  <button
+                    aria-label="Delete invoice inv-301.pdf"
+                    class="row-action-button"
+                    title="Delete"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                    >
+                      delete
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr
+            class="lb-datatable-row row-exported"
+            data-invoice-id="inv-401"
+            data-row-key="inv-401"
+            data-testid="lb-datatable-row"
+          >
+            <td
+              class="lb-datatable-td lb-datatable-checkbox-cell"
+            >
+              <input
+                aria-label="Select row"
+                data-testid="lb-datatable-select-row-inv-401"
+                disabled=""
+                type="checkbox"
+              />
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="file-name-cell"
+              >
+                <button
+                  class="file-label"
+                  type="button"
+                >
+                  inv-401.pdf
+                </button>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  Vendor inv-401
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  INV-inv-401
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  2026-04-15
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="extracted-value-cell"
+              >
+                <span
+                  class="extracted-value-display"
+                >
+                  ₹1,000.00
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <span
+                class="muted"
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <span
+                  class="gl-code-cell invoice-list-cell-compact"
+                >
+                  <span
+                    title=""
+                  >
+                    <span
+                      class="muted"
+                    >
+                      —
+                    </span>
+                  </span>
+                </span>
+              </div>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact"
+              >
+                <span
+                  class="muted"
+                >
+                  —
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                aria-label="No risk signals"
+                class="risk-dot"
+                role="img"
+                style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--badge-valid-bg); color: var(--badge-valid-fg);"
+                title="No risk signals"
+              >
+                <span
+                  aria-hidden="true"
+                  class="material-symbols-outlined"
+                  style="font-size: var(--fs-xs);"
+                >
+                  check_circle
+                </span>
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="confidence confidence-green"
+              >
+                85%
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="status status-exported"
+              >
+                <span
+                  class="material-symbols-outlined status-badge-icon"
+                >
+                  cloud_done
+                </span>
+                Exported
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-compact invoice-list-cell-muted"
+                title=""
+              >
+                -
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td"
+            >
+              <span
+                class="invoice-list-cell-mono"
+              >
+                4/20/2026, 10:00:00 AM
+              </span>
+            </td>
+            <td
+              class="lb-datatable-td lb-datatable-cell-right"
+            >
+              <div
+                class="invoice-list-cell-shield"
+              >
+                <div
+                  class="row-actions-cell"
+                >
+                  <span
+                    class="action-hint-badge action-hint-done"
+                    style="display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; background: var(--bg-main); color: var(--ink-soft); border: 1px solid var(--line);"
+                    title="Exported"
+                  >
+                    <span
+                      aria-hidden="true"
+                      class="material-symbols-outlined"
+                      style="font-size: var(--fs-xs);"
+                    >
+                      cloud_done
+                    </span>
+                    Exported
+                  </span>
+                </div>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+  <div
+    class="pagination-bar"
+  >
+    <div
+      class="pagination-info"
+    >
+      1
+      –
+      5
+       of 
+      5
+    </div>
+    <div
+      class="pagination-controls"
+    >
+      <button
+        class="app-button app-button-secondary app-button-sm"
+        disabled=""
+        type="button"
+      >
+        First
+      </button>
+      <button
+        class="app-button app-button-secondary app-button-sm"
+        disabled=""
+        type="button"
+      >
+        Prev
+      </button>
+      <span
+        class="pagination-page"
+      >
+        Page 
+        1
+         of 
+        1
+      </span>
+      <button
+        class="app-button app-button-secondary app-button-sm"
+        disabled=""
+        type="button"
+      >
+        Next
+      </button>
+      <button
+        class="app-button app-button-secondary app-button-sm"
+        disabled=""
+        type="button"
+      >
+        Last
+      </button>
+    </div>
+    <div
+      class="pagination-size"
+    >
+      <span>
+        Rows:
+      </span>
+      <select>
+        <option
+          value="10"
+        >
+          10
+        </option>
+        <option
+          value="20"
+        >
+          20
+        </option>
+        <option
+          value="50"
+        >
+          50
+        </option>
+        <option
+          value="100"
+        >
+          100
+        </option>
+      </select>
     </div>
   </div>
 </section>
@@ -2635,408 +4088,34 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the empty s
     <span
       class="invoice-list-meta"
     >
-      Loading...
+      0
+       records
     </span>
   </div>
   <div
-    class="invoice-list-skeleton"
+    class="empty-state"
   >
     <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-    <div
-      class="skeleton skeleton-row"
-    />
-  </div>
-  <div
-    class="list-scroll"
-  >
-    <div
-      class="lb-datatable-wrap"
-      data-testid="invoice-list-table"
+      class="empty-state-icon-wrap"
     >
-      <table
-        aria-describedby=":r3:-caption"
-        class="lb-datatable lb-datatable-density-comfortable lb-datatable-sticky lb-datatable-clickable"
+      <span
+        class="material-symbols-outlined"
       >
-        <caption
-          class="lb-datatable-caption"
-          id=":r3:-caption"
-        >
-          Invoices
-        </caption>
-        <colgroup>
-          <col
-            class="lb-datatable-checkbox-col"
-          />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-          <col />
-        </colgroup>
-        <thead
-          class="lb-datatable-thead"
-        >
-          <tr>
-            <th
-              class="lb-datatable-th lb-datatable-checkbox-cell"
-              scope="col"
-            >
-              <input
-                aria-label="Select all"
-                data-testid="lb-datatable-select-all"
-                disabled=""
-                type="checkbox"
-              />
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-file"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  File
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-vendor"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Vendor
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-invoiceNumber"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Invoice #
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-invoiceDate"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Invoice Date
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th lb-datatable-cell-right"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-total"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Total
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th lb-datatable-cell-right"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-tax"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Tax
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-glCode"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  GL Code
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-tds"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  TDS
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-signals"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Signals
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-confidence"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Score
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-status"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Status
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-approvedBy"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Approved By
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              aria-sort="none"
-              class="lb-datatable-th"
-              scope="col"
-            >
-              <button
-                class="lb-datatable-th-sort"
-                data-testid="lb-datatable-th-received"
-                type="button"
-              >
-                <span
-                  class="lb-datatable-th-label"
-                >
-                  Received
-                </span>
-                <span
-                  aria-hidden="true"
-                  class="material-symbols-outlined lb-datatable-th-sort-icon"
-                >
-                  unfold_more
-                </span>
-              </button>
-            </th>
-            <th
-              class="lb-datatable-th lb-datatable-cell-right"
-              scope="col"
-            />
-          </tr>
-        </thead>
-        <tbody
-          class="lb-datatable-tbody"
-        >
-          <tr>
-            <td
-              class="lb-datatable-state lb-datatable-state-empty"
-              colspan="15"
-              data-testid="lb-datatable-empty"
-            >
-              Nothing here yet.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        receipt_long
+      </span>
     </div>
+    <h4>
+      No invoices yet
+    </h4>
+    <p>
+      Upload invoice PDFs or connect a Gmail inbox to start processing.
+    </p>
+    <button
+      class="app-button app-button-primary"
+      type="button"
+    >
+      Upload Files
+    </button>
   </div>
 </section>
 `;
@@ -3607,7 +4686,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -3858,7 +4937,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -4109,7 +5188,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -4360,7 +5439,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -4599,7 +5678,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
