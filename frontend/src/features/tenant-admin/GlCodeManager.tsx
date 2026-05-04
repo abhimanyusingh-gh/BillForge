@@ -114,26 +114,30 @@ export function GlCodeManager() {
     URL.revokeObjectURL(url);
   };
 
+  const importBannerClass = importResult && importResult.errors.length > 0
+    ? "gl-code-import-banner gl-code-import-banner-warn"
+    : "gl-code-import-banner";
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.75rem" }}>
+      <div className="gl-code-toolbar">
         <input
           type="text"
           placeholder="Search GL codes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, padding: "0.4rem 0.6rem", fontSize: "0.85rem", border: "1px solid var(--border-color, #ccc)", borderRadius: "0.25rem" }}
+          className="gl-code-search-input"
         />
         <button
           onClick={() => setShowAdd(!showAdd)}
-          style={{ padding: "0.4rem 0.75rem", fontSize: "0.85rem", cursor: "pointer" }}
+          className="gl-code-toolbar-btn"
         >
           {showAdd ? "Cancel" : "Add"}
         </button>
         <button
           onClick={handleImportClick}
           disabled={importing}
-          style={{ padding: "0.4rem 0.75rem", fontSize: "0.85rem", cursor: importing ? "wait" : "pointer", opacity: importing ? 0.6 : 1 }}
+          className="gl-code-toolbar-btn"
         >
           {importing ? "Importing..." : "Import CSV"}
         </button>
@@ -142,43 +146,36 @@ export function GlCodeManager() {
           type="file"
           accept=".csv"
           onChange={handleFileChange}
-          style={{ display: "none" }}
+          hidden
         />
         <button
           onClick={handleDownloadTemplate}
-          style={{ padding: "0.4rem 0.75rem", fontSize: "0.85rem", cursor: "pointer", background: "none", border: "1px solid var(--border-color, #ccc)", borderRadius: "0.25rem", color: "var(--text-secondary, #666)" }}
+          className="gl-code-template-btn"
         >
           Download Template
         </button>
       </div>
 
-      {error && <div style={{ color: "var(--color-error, #ef4444)", fontSize: "0.85rem", marginBottom: "0.5rem" }}>{error}</div>}
+      {error && <div className="gl-code-error-text">{error}</div>}
 
       {importResult && (
-        <div style={{
-          fontSize: "0.85rem",
-          marginBottom: "0.75rem",
-          padding: "0.5rem 0.75rem",
-          borderRadius: "0.25rem",
-          background: importResult.errors.length > 0 ? "var(--color-warning-bg, #fef3c7)" : "var(--color-success-bg, #d1fae5)",
-          border: `1px solid ${importResult.errors.length > 0 ? "var(--color-warning-border, #f59e0b)" : "var(--color-success-border, #10b981)"}`
-        }}>
-          <div style={{ fontWeight: 500 }}>
+        <div className={importBannerClass}>
+          <div className="gl-code-import-summary">
             Import complete: {importResult.imported} imported, {importResult.skipped} skipped
             {importResult.errors.length > 0 && `, ${importResult.errors.length} error${importResult.errors.length === 1 ? "" : "s"}`}.
           </div>
           {importResult.errors.length > 0 && (
-            <div style={{ marginTop: "0.35rem" }}>
+            <div>
               <button
                 onClick={() => setShowImportErrors(!showImportErrors)}
-                style={{ fontSize: "0.8rem", cursor: "pointer", background: "none", border: "none", padding: 0, textDecoration: "underline", color: "var(--text-primary, #333)" }}
+                className="gl-code-import-toggle-errors"
               >
                 {showImportErrors ? "Hide errors" : "Show errors"}
               </button>
               {showImportErrors && (
-                <ul style={{ margin: "0.35rem 0 0 1rem", padding: 0, listStyle: "disc" }}>
+                <ul className="gl-code-import-error-list">
                   {importResult.errors.map((e: { row: number; message: string }, i: number) => (
-                    <li key={i} style={{ fontSize: "0.8rem", color: "var(--color-error, #ef4444)" }}>
+                    <li key={i}>
                       Row {e.row}: {e.message}
                     </li>
                   ))}
@@ -190,44 +187,44 @@ export function GlCodeManager() {
       )}
 
       {showAdd && (
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem", flexWrap: "wrap" }}>
-          <input placeholder="Code" value={newCode} onChange={(e) => setNewCode(e.target.value)} style={{ width: "5rem", padding: "0.3rem", fontSize: "0.85rem" }} />
-          <input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} style={{ flex: 1, minWidth: "8rem", padding: "0.3rem", fontSize: "0.85rem" }} />
-          <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} style={{ padding: "0.3rem", fontSize: "0.85rem" }}>
+        <div className="gl-code-add-row">
+          <input placeholder="Code" value={newCode} onChange={(e) => setNewCode(e.target.value)} className="gl-code-add-input gl-code-add-input-code" />
+          <input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} className="gl-code-add-input gl-code-add-input-name" />
+          <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="gl-code-add-input">
             {GL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input placeholder="TDS Section (optional)" value={newLinkedTds} onChange={(e) => setNewLinkedTds(e.target.value)} style={{ width: "8rem", padding: "0.3rem", fontSize: "0.85rem" }} />
-          <button onClick={handleAdd} style={{ padding: "0.3rem 0.75rem", fontSize: "0.85rem", cursor: "pointer" }}>Save</button>
+          <input placeholder="TDS Section (optional)" value={newLinkedTds} onChange={(e) => setNewLinkedTds(e.target.value)} className="gl-code-add-input gl-code-add-input-tds" />
+          <button onClick={handleAdd} className="gl-code-add-save">Save</button>
         </div>
       )}
 
       {loading ? (
-        <div style={{ fontSize: "0.85rem", color: "var(--text-secondary, #999)" }}>Loading...</div>
+        <div className="gl-code-empty">Loading...</div>
       ) : glCodes.length === 0 ? (
-        <div style={{ fontSize: "0.85rem", color: "var(--text-secondary, #999)" }}>No GL codes configured. Add one or import from CSV.</div>
+        <div className="gl-code-empty">No GL codes configured. Add one or import from CSV.</div>
       ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+        <table className="gl-code-table">
           <thead>
-            <tr style={{ borderBottom: "1px solid var(--border-color, #e0e0e0)" }}>
-              <th style={{ textAlign: "left", padding: "0.4rem 0.25rem" }}>Code</th>
-              <th style={{ textAlign: "left", padding: "0.4rem 0.25rem" }}>Name</th>
-              <th style={{ textAlign: "left", padding: "0.4rem 0.25rem" }}>Category</th>
-              <th style={{ textAlign: "left", padding: "0.4rem 0.25rem" }}>TDS</th>
-              <th style={{ textAlign: "center", padding: "0.4rem 0.25rem", width: "4rem" }}></th>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>TDS</th>
+              <th className="gl-code-action-cell"></th>
             </tr>
           </thead>
           <tbody>
             {glCodes.map((gl) => (
-              <tr key={gl.code} style={{ borderBottom: "1px solid var(--border-color, #f0f0f0)", opacity: gl.isActive ? 1 : 0.5 }}>
-                <td style={{ padding: "0.35rem 0.25rem", fontFamily: "monospace" }}>{gl.code}</td>
-                <td style={{ padding: "0.35rem 0.25rem" }}>{gl.name}</td>
-                <td style={{ padding: "0.35rem 0.25rem" }}>{gl.category}</td>
-                <td style={{ padding: "0.35rem 0.25rem" }}>{gl.linkedTdsSection ?? "\u2014"}</td>
-                <td style={{ padding: "0.35rem 0.25rem", textAlign: "center" }}>
+              <tr key={gl.code} className={gl.isActive ? undefined : "gl-code-row-inactive"}>
+                <td className="gl-code-cell-mono">{gl.code}</td>
+                <td>{gl.name}</td>
+                <td>{gl.category}</td>
+                <td>{gl.linkedTdsSection ?? "—"}</td>
+                <td className="gl-code-action-cell">
                   {gl.isActive && (
                     <button
                       onClick={() => handleDelete(gl.code)}
-                      style={{ fontSize: "0.75rem", color: "var(--color-error, #ef4444)", background: "none", border: "none", cursor: "pointer" }}
+                      className="gl-code-remove-btn"
                     >
                       Remove
                     </button>

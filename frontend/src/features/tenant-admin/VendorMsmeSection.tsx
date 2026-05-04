@@ -4,20 +4,28 @@ import { EmptyState } from "@/components/common/EmptyState";
 
 const MSME_STATUTORY_MAX_DAYS = 45;
 
-function computeDeadlineStatus(invoiceDate: string, effectiveDays: number): { label: string; color: string } | null {
+type DeadlineTone = "overdue" | "soon" | "ok";
+
+function computeDeadlineStatus(invoiceDate: string, effectiveDays: number): { label: string; tone: DeadlineTone } | null {
   const invDate = new Date(invoiceDate);
   if (isNaN(invDate.getTime())) return null;
   const deadline = new Date(invDate.getTime() + effectiveDays * 86400000);
   const now = new Date();
   const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / 86400000);
   if (daysRemaining < 0) {
-    return { label: `${Math.abs(daysRemaining)} days overdue`, color: "var(--warn, #ef4444)" };
+    return { label: `${Math.abs(daysRemaining)} days overdue`, tone: "overdue" };
   }
   if (daysRemaining <= 10) {
-    return { label: `${daysRemaining} days remaining`, color: "var(--warn, #f59e0b)" };
+    return { label: `${daysRemaining} days remaining`, tone: "soon" };
   }
-  return { label: `${daysRemaining} days remaining`, color: "var(--status-approved, #22c55e)" };
+  return { label: `${daysRemaining} days remaining`, tone: "ok" };
 }
+
+const DEADLINE_TONE_CLASS: Record<DeadlineTone, string> = {
+  overdue: "vendor-msme-deadline vendor-msme-deadline-overdue",
+  soon: "vendor-msme-deadline vendor-msme-deadline-soon",
+  ok: "vendor-msme-deadline vendor-msme-deadline-ok"
+};
 
 export function VendorMsmeSection() {
   const [vendors, setVendors] = useState<VendorListItem[]>([]);
@@ -78,8 +86,10 @@ export function VendorMsmeSection() {
   );
 
   return (
-    <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-      <h3 style={{ marginBottom: "0.75rem" }}>MSME Vendor Payment Terms</h3>
+    <div className="editor-card tenant-config-section-spacer">
+      <div className="editor-header">
+        <h3>MSME Vendor Payment Terms</h3>
+      </div>
       {loading ? <p className="muted">Loading...</p> : null}
 
       {!loading && msmeVendors.length === 0 ? (
@@ -113,7 +123,7 @@ export function VendorMsmeSection() {
                   return (
                     <tr key={v._id}>
                       <td>{v.name}</td>
-                      <td style={{ textTransform: "capitalize" }}>{v.msme?.classification ?? "-"}</td>
+                      <td className="vendor-msme-classification">{v.msme?.classification ?? "-"}</td>
                       <td>
                         {isEditing ? (
                           <input
@@ -128,13 +138,13 @@ export function VendorMsmeSection() {
                             }}
                             disabled={saving}
                             autoFocus
-                            style={{ width: "4rem", fontSize: "0.82rem" }}
+                            className="vendor-msme-input"
                           />
                         ) : (
                           <span>
                             {v.msme?.agreedPaymentDays != null ? v.msme.agreedPaymentDays : "-"}
                             {exceedsCap ? (
-                              <span style={{ fontSize: "0.72rem", color: "var(--warn, #f59e0b)", marginLeft: "0.3rem" }}>
+                              <span className="vendor-msme-cap-note">
                                 (capped at 45)
                               </span>
                             ) : null}
@@ -143,23 +153,23 @@ export function VendorMsmeSection() {
                       </td>
                       <td>
                         {deadline ? (
-                          <span style={{ fontSize: "0.82rem", fontWeight: deadline.label.includes("overdue") ? 700 : 400, color: deadline.color }}>
+                          <span className={DEADLINE_TONE_CLASS[deadline.tone]}>
                             {deadline.label}
                           </span>
                         ) : "-"}
                       </td>
                       <td>
                         {isEditing ? (
-                          <span style={{ display: "flex", gap: "0.3rem" }}>
-                            <button type="button" className="app-button app-button-primary" style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }} onClick={() => void saveEdit(v._id)} disabled={saving}>
+                          <span className="vendor-msme-row-actions">
+                            <button type="button" className="app-button app-button-primary vendor-msme-row-action-btn" onClick={() => void saveEdit(v._id)} disabled={saving}>
                               Save
                             </button>
-                            <button type="button" className="app-button app-button-secondary" style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }} onClick={cancelEdit} disabled={saving}>
+                            <button type="button" className="app-button app-button-secondary vendor-msme-row-action-btn" onClick={cancelEdit} disabled={saving}>
                               Cancel
                             </button>
                           </span>
                         ) : (
-                          <button type="button" className="app-button app-button-secondary" style={{ fontSize: "0.72rem", padding: "0.15rem 0.4rem" }} onClick={() => startEdit(v)}>
+                          <button type="button" className="app-button app-button-secondary vendor-msme-row-action-btn" onClick={() => startEdit(v)}>
                             Edit
                           </button>
                         )}
@@ -170,10 +180,10 @@ export function VendorMsmeSection() {
               </tbody>
             </table>
           </div>
-          <p style={{ fontSize: "0.75rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem" }}>
+          <p className="vendor-msme-footnote">
             Statutory limit: 45 days (MSMED Act). Agreed terms cannot exceed this.
           </p>
-          {error ? <span style={{ color: "var(--warn)", fontSize: "0.82rem" }}>{error}</span> : null}
+          {error ? <span className="approval-workflow-status-error">{error}</span> : null}
         </>
       ) : null}
     </div>

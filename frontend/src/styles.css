@@ -9135,3 +9135,447 @@ pre {
   justify-content: flex-end;
 }
 
+
+/* ---- W3-15: Tenant config (Pass 2 design overhaul) ---- */
+.tenant-config-section-spacer { margin-top: 1.5rem; }
+.tenant-config-section-lead {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+.tenant-config-loading,
+.tenant-config-error-text {
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.tenant-config-error-text { color: var(--warn); }
+.tenant-config-status-error { color: var(--warn); font-size: 0.85rem; margin-top: 0.5rem; }
+.tenant-config-status-success { color: var(--status-approved); font-size: 0.85rem; margin-top: 0.5rem; }
+.tenant-config-save-bar { margin-top: 1rem; }
+.tenant-config-actions-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; align-items: center; }
+.tenant-config-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.tenant-config-toggle-label { font-size: 0.875rem; }
+.tenant-config-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; }
+.tenant-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+.tenant-config-field-spacer { margin-top: 0.75rem; }
+.tenant-config-field-row { display: flex; align-items: center; gap: 0.375rem; }
+.tenant-config-field-suffix { color: var(--ink-soft); font-size: 0.85rem; }
+.tenant-config-field-input-narrow { width: 7rem; font-size: 0.85rem; }
+.tenant-config-field-input-medium { width: 12rem; font-size: 0.85rem; }
+.tenant-config-field-input-num { width: 4.5rem; font-size: 0.85rem; }
+.tenant-config-field-input-money {
+  width: 7rem;
+  font-size: 0.85rem;
+  text-align: right;
+}
+.tenant-config-textarea {
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.5rem;
+}
+.tenant-config-meta {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
+}
+.tenant-config-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.tenant-config-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.tenant-config-section-hint {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: 0.25rem;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* compliance: risk signals + rate row */
+.compliance-config-signal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.compliance-config-signal-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.compliance-config-signal-row input { margin-top: 0.15rem; }
+.compliance-config-signal-name { font-weight: 500; }
+.compliance-config-signal-meta {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.compliance-config-signal-category {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  background: var(--bg-sunken);
+  color: var(--ink-muted);
+}
+.compliance-config-section-cell {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+.compliance-config-add-section-card {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.375rem;
+}
+.compliance-config-add-section-grid-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 0.5rem; }
+.compliance-config-add-section-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-top: 0.5rem; }
+.compliance-config-add-section-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.compliance-config-add-section-input { width: 100%; font-size: 0.85rem; margin-top: 0.25rem; }
+.compliance-config-rate-cell { width: 100%; min-width: 8rem; font-size: 0.85rem; }
+
+/* approval limits */
+.approval-limits-cell-readonly { font-size: 0.85rem; color: var(--ink-soft); }
+.approval-limits-input { width: 7rem; font-size: 0.82rem; }
+.approval-limits-role-cell { font-size: 0.85rem; }
+
+/* notifications */
+.notification-prefs-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.notification-prefs-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+.notification-prefs-toggle-label-disabled { opacity: 0.5; }
+.notification-prefs-recipient-block { margin-top: 1rem; }
+.notification-prefs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.notification-prefs-field + .notification-prefs-field { margin-top: 0.5rem; }
+.notification-prefs-field-label { font-size: 0.875rem; font-weight: 500; }
+.notification-prefs-select { max-width: 16rem; font-size: 0.875rem; }
+.notification-prefs-log-divider {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+.notification-prefs-log-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--accent);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.notification-prefs-log-body { margin-top: 0.75rem; }
+.notification-prefs-log-table { font-size: 0.8rem; width: 100%; }
+.notification-prefs-log-table td.muted-cell { color: var(--ink-soft); }
+.notification-prefs-log-pager {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  align-items: center;
+}
+.notification-prefs-log-pager-info { font-size: 0.8rem; color: var(--ink-soft); }
+
+/* reconciliation weights */
+.recon-weights-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.recon-weights-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.recon-weights-field-label { font-size: 0.875rem; font-weight: 500; }
+.recon-weights-field-hint { font-size: 0.75rem; color: var(--ink-soft); }
+.recon-weights-input { width: 5rem; font-size: 0.875rem; margin-top: 0.25rem; }
+.recon-weights-budget {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.recon-weights-budget-over { color: var(--warn); }
+
+/* vendor MSME */
+.vendor-msme-classification { text-transform: capitalize; }
+.vendor-msme-cap-note {
+  font-size: 0.72rem;
+  color: var(--warn);
+  margin-left: 0.3rem;
+}
+.vendor-msme-deadline { font-size: 0.82rem; }
+.vendor-msme-deadline-overdue { font-weight: 700; color: var(--warn); }
+.vendor-msme-deadline-soon { color: var(--warn); }
+.vendor-msme-deadline-ok { color: var(--status-approved); }
+.vendor-msme-input { width: 4rem; font-size: 0.82rem; }
+.vendor-msme-row-actions { display: inline-flex; gap: 0.3rem; }
+.vendor-msme-row-action-btn { font-size: 0.72rem; padding: 0.15rem 0.4rem; }
+.vendor-msme-footnote {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  margin-top: 0.5rem;
+}
+
+/* TCS */
+.tcs-config-history-pager {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+.tcs-config-history-cell-nowrap { white-space: nowrap; }
+.tcs-config-history-reason { color: var(--ink-soft); }
+
+/* GL Code Manager */
+.gl-code-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.gl-code-search-input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  background: var(--bg-main);
+  color: var(--ink);
+}
+.gl-code-toolbar-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+.gl-code-template-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.gl-code-import-banner {
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.25rem;
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--line);
+}
+.gl-code-import-banner-warn {
+  background: var(--warn-soft-bg);
+  border-color: var(--warn);
+}
+.gl-code-import-summary { font-weight: 500; }
+.gl-code-import-toggle-errors {
+  font-size: 0.8rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  color: var(--ink);
+}
+.gl-code-import-error-list {
+  margin: 0.35rem 0 0 1rem;
+  padding: 0;
+  list-style: disc;
+}
+.gl-code-import-error-list li {
+  font-size: 0.8rem;
+  color: var(--warn);
+}
+.gl-code-add-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.gl-code-add-input { padding: 0.3rem; font-size: 0.85rem; }
+.gl-code-add-input-code { width: 5rem; }
+.gl-code-add-input-name { flex: 1; min-width: 8rem; }
+.gl-code-add-input-tds { width: 8rem; }
+.gl-code-add-save { padding: 0.3rem 0.75rem; font-size: 0.85rem; }
+.gl-code-error-text {
+  color: var(--warn);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.gl-code-empty {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.gl-code-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.gl-code-table th { text-align: left; padding: 0.4rem 0.25rem; border-bottom: 1px solid var(--line); }
+.gl-code-table td { padding: 0.35rem 0.25rem; }
+.gl-code-table .gl-code-action-cell { text-align: center; width: 4rem; }
+.gl-code-table tr.gl-code-row-inactive { opacity: 0.5; }
+.gl-code-table .gl-code-cell-mono { font-family: var(--font-mono); }
+.gl-code-table tbody tr { border-bottom: 1px solid var(--line-soft); }
+.gl-code-remove-btn {
+  font-size: 0.75rem;
+  color: var(--warn);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* approval workflow */
+.approval-workflow-disabled { opacity: 0.5; pointer-events: none; }
+.approval-workflow-loading { color: var(--ink-soft); font-size: 0.85rem; margin: 0.5rem 0; }
+.approval-workflow-step-tag {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 0.2rem;
+}
+.approval-workflow-step-tag-escalation { background: var(--ink-soft); }
+.approval-workflow-add-step-btn { font-size: 0.8rem; }
+.approval-workflow-save-btn { font-size: 0.85rem; }
+.approval-workflow-status-error { color: var(--warn); font-size: 0.82rem; }
+.approval-workflow-status-success { color: var(--status-approved); font-size: 0.82rem; }
+.approval-workflow-option-icon { font-size: 1rem; color: var(--accent); }
+.approval-workflow-option-text { font-size: 0.88rem; }
+.approval-workflow-advanced-toggle {
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+.approval-workflow-advanced-body {
+  margin-top: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--line);
+}
+.approval-workflow-advanced-body label { display: block; }
+.approval-workflow-narrow-input {
+  width: 5rem;
+  font-size: 0.82rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  background: var(--bg-main);
+  color: var(--ink);
+}
+.approval-workflow-helper-text {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  margin: 0.15rem 0 0.5rem;
+}
+.approval-workflow-warning-text {
+  font-size: 0.75rem;
+  color: var(--warn);
+  margin: 0.25rem 0 0;
+}
+.approval-workflow-compliance-empty {
+  padding: 0.5rem 0.75rem;
+  background: var(--warn-soft-bg);
+  border: 1px solid var(--warn);
+  border-radius: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+.approval-workflow-compliance-empty a { color: var(--accent); }
+.approval-workflow-compliance-block { margin-top: 0.75rem; }
+.approval-workflow-eligible-heading {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  margin-bottom: 0.35rem;
+}
+.approval-workflow-eligible-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.82rem;
+}
+.approval-workflow-multi-select { min-height: 2.5rem; }
+.approval-workflow-condition-input {
+  width: 6rem;
+  font-size: 0.82rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+  background: var(--bg-main);
+  color: var(--ink);
+}
+
+/* Tenant config shell + Security slot (post-MVP SSO/2FA placeholder per #385/#386) */
+.tenant-config-shell {
+  overflow-y: auto;
+  max-height: calc(100vh - 7rem);
+  padding-bottom: 2rem;
+}
+.tenant-config-security-slot {
+  /* reserved by W3-15 for post-MVP SSO (#385) and 2FA (#386) cards */
+  display: none;
+}
+
+/* status delivery badges (notifications log) — neutral classnames replacing inline style helper */
+.notification-status-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #fff;
+}
+.notification-status-badge--delivered { background: var(--status-approved); }
+.notification-status-badge--failed { background: var(--warn); }
+.notification-status-badge--pending { background: var(--status-parsed); }
+.notification-status-badge--skipped { background: var(--ink-soft); }
+
+[data-theme="dark"] .gl-code-template-btn { background: var(--bg-panel); }
+[data-theme="dark"] .gl-code-search-input { background: var(--bg-panel); }
+[data-theme="dark"] .approval-workflow-narrow-input,
+[data-theme="dark"] .approval-workflow-condition-input { background: var(--bg-panel); }
+[data-theme="dark"] .gl-code-table th,
+[data-theme="dark"] .gl-code-table tbody tr { border-color: var(--line); }
+.tenant-config-role-select { min-width: 220px; }

@@ -208,16 +208,16 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
 
   if (loading) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)" }}>Loading compliance configuration...</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-loading">Loading compliance configuration...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.875rem" }}>{loadError}</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-error-text">{loadError}</p>
         <button type="button" className="app-button app-button-secondary" onClick={loadConfig}>Retry</button>
       </div>
     );
@@ -225,22 +225,22 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
 
   return (
     <>
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+      <div className="editor-card tenant-config-section-spacer">
         <div className="editor-header">
           <h3>TDS Configuration</h3>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem", marginBottom: "0.5rem" }}>
+        <div className="tenant-config-toggle-row">
           <label className="toggle-switch">
             <input type="checkbox" checked={tdsEnabled} onChange={(e) => setTdsEnabled(e.target.checked)} disabled={tdsSaving} />
             <span className="toggle-track" />
           </label>
-          <span style={{ fontSize: "0.875rem" }}>TDS Calculation Enabled</span>
+          <span className="tenant-config-toggle-label">TDS Calculation Enabled</span>
         </div>
 
         {tdsEnabled ? (
           <>
-            <div className="list-scroll" style={{ marginTop: "0.75rem" }}>
+            <div className="list-scroll tenant-config-field-spacer">
               <table>
                 <thead>
                   <tr>
@@ -257,18 +257,18 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                 <tbody>
                   {tdsRates.map((rate, idx) => (
                     <tr key={rate.section + idx}>
-                      <td style={{ fontFamily: "monospace", fontSize: "0.85rem" }}>{rate.section}</td>
+                      <td className="compliance-config-section-cell">{rate.section}</td>
                       <td>
                         <input
                           type="text"
                           value={rate.description}
                           onChange={(e) => updateTdsRate(idx, "description", e.target.value)}
                           disabled={tdsSaving}
-                          style={{ width: "100%", minWidth: "8rem", fontSize: "0.85rem" }}
+                          className="compliance-config-rate-cell"
                         />
                       </td>
                       <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <div className="tenant-config-field-row">
                           <input
                             type="number"
                             min="0"
@@ -277,13 +277,13 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                             value={bpsToPercent(rate.rateIndividual)}
                             onChange={(e) => updateTdsRate(idx, "rateIndividual", percentToBps(e.target.value))}
                             disabled={tdsSaving}
-                            style={{ width: "4.5rem", fontSize: "0.85rem" }}
+                            className="tenant-config-field-input-num"
                           />
-                          <span style={{ color: "var(--ink-soft, #666)", fontSize: "0.8rem" }}>%</span>
+                          <span className="tenant-config-field-suffix">%</span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <div className="tenant-config-field-row">
                           <input
                             type="number"
                             min="0"
@@ -292,13 +292,13 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                             value={bpsToPercent(rate.rateCompany)}
                             onChange={(e) => updateTdsRate(idx, "rateCompany", percentToBps(e.target.value))}
                             disabled={tdsSaving}
-                            style={{ width: "4.5rem", fontSize: "0.85rem" }}
+                            className="tenant-config-field-input-num"
                           />
-                          <span style={{ color: "var(--ink-soft, #666)", fontSize: "0.8rem" }}>%</span>
+                          <span className="tenant-config-field-suffix">%</span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <div className="tenant-config-field-row">
                           <input
                             type="number"
                             min="0"
@@ -307,20 +307,20 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                             value={bpsToPercent(rate.rateNoPan)}
                             onChange={(e) => updateTdsRate(idx, "rateNoPan", percentToBps(e.target.value))}
                             disabled={tdsSaving}
-                            style={{ width: "4.5rem", fontSize: "0.85rem" }}
+                            className="tenant-config-field-input-num"
                           />
-                          <span style={{ color: "var(--ink-soft, #666)", fontSize: "0.8rem" }}>%</span>
+                          <span className="tenant-config-field-suffix">%</span>
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                          <span style={{ color: "var(--ink-soft, #666)", fontSize: "0.8rem" }}>INR</span>
+                        <div className="tenant-config-field-row">
+                          <span className="tenant-config-field-suffix">INR</span>
                           <input
                             type="text"
                             value={formatThreshold(rate.threshold)}
                             onChange={(e) => updateTdsRate(idx, "threshold", parseThreshold(e.target.value))}
                             disabled={tdsSaving}
-                            style={{ width: "7rem", fontSize: "0.85rem", textAlign: "right" }}
+                            className="tenant-config-field-input-money"
                           />
                         </div>
                       </td>
@@ -352,68 +352,68 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
             </div>
 
             {addingSection ? (
-              <div style={{ marginTop: "0.75rem", padding: "0.75rem", border: "1px solid var(--border, #e5e7eb)", borderRadius: "0.375rem" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "0.5rem" }}>
-                  <label style={{ fontSize: "0.85rem" }}>
+              <div className="compliance-config-add-section-card">
+                <div className="compliance-config-add-section-grid-2">
+                  <label className="tenant-config-field">
                     Section
                     <input
                       type="text"
                       value={newSection.section}
                       onChange={(e) => setNewSection((p) => ({ ...p, section: e.target.value.toUpperCase() }))}
                       placeholder="e.g. 194K"
-                      style={{ width: "100%", fontSize: "0.85rem", marginTop: "0.25rem" }}
+                      className="compliance-config-add-section-input"
                     />
                   </label>
-                  <label style={{ fontSize: "0.85rem" }}>
+                  <label className="tenant-config-field">
                     Description
                     <input
                       type="text"
                       value={newSection.description}
                       onChange={(e) => setNewSection((p) => ({ ...p, description: e.target.value }))}
                       placeholder="e.g. Payment type"
-                      style={{ width: "100%", fontSize: "0.85rem", marginTop: "0.25rem" }}
+                      className="compliance-config-add-section-input"
                     />
                   </label>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.5rem", marginTop: "0.5rem" }}>
-                  <label style={{ fontSize: "0.85rem" }}>
+                <div className="compliance-config-add-section-grid-4">
+                  <label className="tenant-config-field">
                     Rate Individual (%)
                     <input
                       type="number" min="0" max="100" step="0.01"
                       value={bpsToPercent(newSection.rateIndividual)}
                       onChange={(e) => setNewSection((p) => ({ ...p, rateIndividual: percentToBps(e.target.value) }))}
-                      style={{ width: "100%", fontSize: "0.85rem", marginTop: "0.25rem" }}
+                      className="compliance-config-add-section-input"
                     />
                   </label>
-                  <label style={{ fontSize: "0.85rem" }}>
+                  <label className="tenant-config-field">
                     Rate Company (%)
                     <input
                       type="number" min="0" max="100" step="0.01"
                       value={bpsToPercent(newSection.rateCompany)}
                       onChange={(e) => setNewSection((p) => ({ ...p, rateCompany: percentToBps(e.target.value) }))}
-                      style={{ width: "100%", fontSize: "0.85rem", marginTop: "0.25rem" }}
+                      className="compliance-config-add-section-input"
                     />
                   </label>
-                  <label style={{ fontSize: "0.85rem" }}>
+                  <label className="tenant-config-field">
                     Rate No PAN (%)
                     <input
                       type="number" min="0" max="100" step="0.01"
                       value={bpsToPercent(newSection.rateNoPan)}
                       onChange={(e) => setNewSection((p) => ({ ...p, rateNoPan: percentToBps(e.target.value) }))}
-                      style={{ width: "100%", fontSize: "0.85rem", marginTop: "0.25rem" }}
+                      className="compliance-config-add-section-input"
                     />
                   </label>
-                  <label style={{ fontSize: "0.85rem" }}>
+                  <label className="tenant-config-field">
                     Threshold (INR)
                     <input
                       type="text"
                       value={formatThreshold(newSection.threshold)}
                       onChange={(e) => setNewSection((p) => ({ ...p, threshold: parseThreshold(e.target.value) }))}
-                      style={{ width: "100%", fontSize: "0.85rem", marginTop: "0.25rem" }}
+                      className="compliance-config-add-section-input"
                     />
                   </label>
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+                <div className="compliance-config-add-section-actions">
                   <button type="button" className="app-button app-button-primary app-button-sm" onClick={handleAddSection}>
                     Add
                   </button>
@@ -424,7 +424,7 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
               </div>
             ) : null}
 
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+            <div className="tenant-config-actions-row">
               <button
                 type="button"
                 className="app-button app-button-secondary app-button-sm"
@@ -446,14 +446,14 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
         ) : null}
 
         {tdsError ? (
-          <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem", marginTop: "0.5rem" }}>{tdsError}</p>
+          <p className="tenant-config-status-error">{tdsError}</p>
         ) : null}
         {tdsSuccess ? (
-          <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>TDS configuration saved.</p>
+          <p className="tenant-config-status-success">TDS configuration saved.</p>
         ) : null}
 
         {tdsDirty ? (
-          <div style={{ marginTop: "1rem" }}>
+          <div className="tenant-config-save-bar">
             <button type="button" className="app-button app-button-primary" onClick={handleSaveTds} disabled={tdsSaving}>
               {tdsSaving ? "Saving..." : "Save TDS Config"}
             </button>
@@ -461,28 +461,28 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
         ) : null}
       </div>
 
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+      <div className="editor-card tenant-config-section-spacer">
         <div className="editor-header">
           <h3>PAN Validation</h3>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem", marginBottom: "0.5rem" }}>
+        <div className="tenant-config-toggle-row">
           <label className="toggle-switch">
             <input type="checkbox" checked={panEnabled} onChange={(e) => setPanEnabled(e.target.checked)} disabled={panSaving} />
             <span className="toggle-track" />
           </label>
-          <span style={{ fontSize: "0.875rem" }}>PAN Validation Enabled</span>
+          <span className="tenant-config-toggle-label">PAN Validation Enabled</span>
         </div>
 
         {panEnabled ? (
-          <div style={{ marginTop: "0.5rem" }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem" }}>
+          <div className="tenant-config-field-spacer">
+            <label className="tenant-config-field">
               Validation Level
               <select
                 value={panLevel}
                 onChange={(e) => setPanLevel(e.target.value as ClientComplianceConfig["panValidationLevel"])}
                 disabled={panSaving}
-                style={{ width: "14rem" }}
+                className="tenant-config-field-input-medium"
               >
                 {PAN_LEVEL_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -493,14 +493,14 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
         ) : null}
 
         {panError ? (
-          <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem", marginTop: "0.5rem" }}>{panError}</p>
+          <p className="tenant-config-status-error">{panError}</p>
         ) : null}
         {panSuccess ? (
-          <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>PAN validation settings saved.</p>
+          <p className="tenant-config-status-success">PAN validation settings saved.</p>
         ) : null}
 
         {panDirty ? (
-          <div style={{ marginTop: "1rem" }}>
+          <div className="tenant-config-save-bar">
             <button type="button" className="app-button app-button-primary" onClick={handleSavePan} disabled={panSaving}>
               {panSaving ? "Saving..." : "Save PAN Settings"}
             </button>
@@ -508,45 +508,34 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
         ) : null}
       </div>
 
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+      <div className="editor-card tenant-config-section-spacer">
         <div className="editor-header">
           <h3>Risk Signals</h3>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem", marginBottom: "0.5rem" }}>
+        <div className="tenant-config-toggle-row">
           <label className="toggle-switch">
             <input type="checkbox" checked={riskEnabled} onChange={(e) => setRiskEnabled(e.target.checked)} disabled={riskSaving} />
             <span className="toggle-track" />
           </label>
-          <span style={{ fontSize: "0.875rem" }}>Risk Signal Evaluation Enabled</span>
+          <span className="tenant-config-toggle-label">Risk Signal Evaluation Enabled</span>
         </div>
 
         {riskEnabled ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" }}>
+          <div className="compliance-config-signal-list">
             {availableSignals.map((signal) => (
-              <label
-                key={signal.code}
-                style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.875rem", cursor: "pointer" }}
-              >
+              <label key={signal.code} className="compliance-config-signal-row">
                 <input
                   type="checkbox"
                   checked={activeSignals.includes(signal.code)}
                   onChange={() => toggleSignal(signal.code)}
                   disabled={riskSaving}
-                  style={{ marginTop: "0.15rem" }}
                 />
                 <span>
-                  <span style={{ fontWeight: 500 }}>{signal.code.replace(/_/g, " ")}</span>
-                  <span style={{ display: "block", fontSize: "0.8rem", color: "var(--ink-soft, #666)" }}>
+                  <span className="compliance-config-signal-name">{signal.code.replace(/_/g, " ")}</span>
+                  <span className="compliance-config-signal-meta">
                     {signal.description}
-                    <span style={{
-                      marginLeft: "0.5rem",
-                      padding: "0.1rem 0.3rem",
-                      borderRadius: "0.25rem",
-                      fontSize: "0.7rem",
-                      background: "var(--surface-alt, #f3f4f6)",
-                      color: "var(--ink-soft, #888)"
-                    }}>
+                    <span className="compliance-config-signal-category">
                       {signal.category}
                     </span>
                   </span>
@@ -557,14 +546,14 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
         ) : null}
 
         {riskError ? (
-          <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem", marginTop: "0.5rem" }}>{riskError}</p>
+          <p className="tenant-config-status-error">{riskError}</p>
         ) : null}
         {riskSuccess ? (
-          <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>Risk signal settings saved.</p>
+          <p className="tenant-config-status-success">Risk signal settings saved.</p>
         ) : null}
 
         {riskDirty ? (
-          <div style={{ marginTop: "1rem" }}>
+          <div className="tenant-config-save-bar">
             <button type="button" className="app-button app-button-primary" onClick={handleSaveRisk} disabled={riskSaving}>
               {riskSaving ? "Saving..." : "Save Risk Signal Settings"}
             </button>
@@ -573,7 +562,7 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
       </div>
 
       {config?.updatedBy ? (
-        <p style={{ fontSize: "0.8rem", color: "var(--ink-soft, #666)", marginTop: "0.75rem" }}>
+        <p className="tenant-config-meta">
           Last updated by {config.updatedBy}
           {config.updatedAt ? ` on ${new Date(config.updatedAt).toLocaleString("en-IN", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}
         </p>

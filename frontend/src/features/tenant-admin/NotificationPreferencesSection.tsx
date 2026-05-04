@@ -20,34 +20,20 @@ const RECIPIENT_OPTIONS: Array<{ value: NotificationConfig["primaryRecipientType
   { value: "specific_user", label: "Specific user" }
 ];
 
-function deriveDeliveryStatus(event: NotificationLogEvent): "delivered" | "failed" | "pending" | "skipped" {
+const DELIVERY_STATUS = {
+  delivered: "delivered",
+  failed: "failed",
+  pending: "pending",
+  skipped: "skipped"
+} as const;
+
+type DeliveryStatus = keyof typeof DELIVERY_STATUS;
+
+function deriveDeliveryStatus(event: NotificationLogEvent): DeliveryStatus {
   if (event.skippedReason) return "skipped";
   if (event.delivered) return "delivered";
   if (event.deliveryFailed) return "failed";
   return "pending";
-}
-
-function statusBadgeStyle(status: string): React.CSSProperties {
-  const base: React.CSSProperties = {
-    display: "inline-block",
-    padding: "0.125rem 0.5rem",
-    borderRadius: "0.75rem",
-    fontSize: "0.75rem",
-    fontWeight: 500
-  };
-
-  switch (status) {
-    case "delivered":
-      return { ...base, backgroundColor: "var(--chart-emerald, #10b981)", color: "#fff" };
-    case "failed":
-      return { ...base, backgroundColor: "var(--danger, #ef4444)", color: "#fff" };
-    case "pending":
-      return { ...base, backgroundColor: "var(--warn, #f59e0b)", color: "#fff" };
-    case "skipped":
-      return { ...base, backgroundColor: "var(--ink-soft, #666)", color: "#fff" };
-    default:
-      return base;
-  }
 }
 
 function formatTimestamp(iso: string): string {
@@ -157,16 +143,16 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
 
   if (loading) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)" }}>Loading notification preferences...</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-loading">Loading notification preferences...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.875rem" }}>{loadError}</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-error-text">{loadError}</p>
         <button type="button" className="app-button app-button-secondary" onClick={loadConfig}>Retry</button>
       </div>
     );
@@ -175,17 +161,17 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
   const logTotalPages = logData ? Math.ceil(logData.total / logData.limit) : 0;
 
   return (
-    <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+    <div className="editor-card tenant-config-section-spacer">
       <div className="editor-header">
         <h3>Notification Preferences</h3>
       </div>
 
-      <p style={{ fontSize: "0.8rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem", marginBottom: "1rem" }}>
+      <p className="tenant-config-section-lead">
         Control which notifications are sent and who receives them.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
+      <div className="notification-prefs-stack">
+        <label className="notification-prefs-toggle-label">
           <span className="toggle-switch">
             <input
               type="checkbox"
@@ -199,7 +185,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
           Mailbox reauth notifications
         </label>
 
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem" }}>
+        <label className="notification-prefs-toggle-label">
           <span className="toggle-switch">
             <input
               type="checkbox"
@@ -214,7 +200,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </label>
 
         <label
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", opacity: 0.5 }}
+          className="notification-prefs-toggle-label notification-prefs-toggle-label-disabled"
           title="Coming soon"
         >
           <span className="toggle-switch">
@@ -230,9 +216,9 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </label>
       </div>
 
-      <div style={{ marginTop: "1rem" }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Primary notification recipient</span>
+      <div className="notification-prefs-recipient-block">
+        <label className="notification-prefs-field">
+          <span className="notification-prefs-field-label">Primary notification recipient</span>
           <select
             value={config.primaryRecipientType}
             onChange={(e) =>
@@ -244,7 +230,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
             }
             disabled={saving}
             aria-label="Primary notification recipient"
-            style={{ maxWidth: "16rem", fontSize: "0.875rem" }}
+            className="notification-prefs-select"
           >
             {RECIPIENT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -253,8 +239,8 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </label>
 
         {config.primaryRecipientType === "specific_user" ? (
-          <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", marginTop: "0.5rem" }}>
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Select user</span>
+          <label className="notification-prefs-field">
+            <span className="notification-prefs-field-label">Select user</span>
             <select
               value={config.specificRecipientUserId ?? ""}
               onChange={(e) =>
@@ -262,7 +248,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
               }
               disabled={saving}
               aria-label="Specific user selector"
-              style={{ maxWidth: "16rem", fontSize: "0.875rem" }}
+              className="notification-prefs-select"
             >
               <option value="">-- Select a user --</option>
               {tenantUsers.map((user) => (
@@ -274,57 +260,46 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
       </div>
 
       {saveError ? (
-        <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem", marginTop: "0.5rem" }} role="alert">{saveError}</p>
+        <p className="tenant-config-status-error" role="alert">{saveError}</p>
       ) : null}
       {saveSuccess ? (
-        <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>Notification preferences saved.</p>
+        <p className="tenant-config-status-success">Notification preferences saved.</p>
       ) : null}
 
       {dirty ? (
-        <div style={{ marginTop: "1rem" }}>
+        <div className="tenant-config-save-bar">
           <button type="button" className="app-button app-button-primary" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Preferences"}
           </button>
         </div>
       ) : null}
 
-      <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--line, #e5e7eb)", paddingTop: "1rem" }}>
+      <div className="notification-prefs-log-divider">
         <button
           type="button"
           onClick={handleToggleLog}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            color: "var(--accent, #2563eb)",
-            padding: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "0.25rem"
-          }}
+          className="notification-prefs-log-toggle"
           aria-expanded={logExpanded}
           aria-label="Toggle notification log"
         >
-          Notification Log {logExpanded ? "\u25B4" : "\u25BE"}
+          Notification Log {logExpanded ? "▴" : "▾"}
         </button>
 
         {logExpanded ? (
-          <div style={{ marginTop: "0.75rem" }}>
+          <div className="notification-prefs-log-body">
             {logLoading ? (
-              <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)" }}>Loading notification log...</p>
+              <p className="tenant-config-loading">Loading notification log...</p>
             ) : logError ? (
               <div>
-                <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem" }}>{logError}</p>
+                <p className="tenant-config-error-text">{logError}</p>
                 <button type="button" className="app-button app-button-secondary" onClick={() => loadLog(logPage)}>Retry</button>
               </div>
             ) : logData && logData.items.length === 0 ? (
-              <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)" }}>No notification events recorded yet.</p>
+              <p className="tenant-config-loading">No notification events recorded yet.</p>
             ) : logData ? (
               <>
                 <div className="list-scroll" style={{ maxHeight: "300px" }}>
-                  <table style={{ fontSize: "0.8rem", width: "100%" }}>
+                  <table className="notification-prefs-log-table">
                     <thead>
                       <tr>
                         <th>Timestamp</th>
@@ -343,11 +318,14 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
                             <td>{formatEventType(event.eventType)}</td>
                             <td>{event.recipient ?? "-"}</td>
                             <td>
-                              <span style={statusBadgeStyle(status)} data-testid="status-badge">
+                              <span
+                                className={`notification-status-badge notification-status-badge--${status}`}
+                                data-testid="status-badge"
+                              >
                                 {status}
                               </span>
                             </td>
-                            <td style={{ color: "var(--ink-soft, #666)" }}>
+                            <td className="muted-cell">
                               {event.failureReason ?? event.skippedReason ?? "-"}
                             </td>
                           </tr>
@@ -358,7 +336,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
                 </div>
 
                 {logTotalPages > 1 ? (
-                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", alignItems: "center" }}>
+                  <div className="notification-prefs-log-pager">
                     <button
                       type="button"
                       className="app-button app-button-secondary"
@@ -367,7 +345,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
                     >
                       Previous
                     </button>
-                    <span style={{ fontSize: "0.8rem", color: "var(--ink-soft, #666)" }}>
+                    <span className="notification-prefs-log-pager-info">
                       Page {logPage} of {logTotalPages}
                     </span>
                     <button

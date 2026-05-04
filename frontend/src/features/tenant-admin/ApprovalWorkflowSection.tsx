@@ -118,7 +118,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
     return (
       <div className="editor-card">
         <div className="editor-header"><h3>Approval Workflow</h3></div>
-        <p style={{ color: "var(--ink-soft)", fontSize: "0.85rem", margin: "0.5rem 0" }}>Loading…</p>
+        <p className="approval-workflow-loading">Loading…</p>
       </div>
     );
   }
@@ -126,7 +126,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
   const noUsers = tenantUsers.length === 0;
 
   return (
-    <div className="editor-card" style={noUsers ? { opacity: 0.5, pointerEvents: "none" } : undefined}>
+    <div className={`editor-card${noUsers ? " approval-workflow-disabled" : ""}`}>
       <div className="editor-header"><h3>Approval Workflow</h3></div>
 
       {noUsers ? (
@@ -152,8 +152,8 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       {config.enabled && config.mode === "simple" ? (
         <div className="workflow-simple-options">
           <div className="workflow-option-row">
-            <span className="material-symbols-outlined" style={{ fontSize: "1rem", color: "var(--accent)" }}>check_circle</span>
-            <span style={{ fontSize: "0.88rem" }}>Step 1: Approved by any team member</span>
+            <span className="material-symbols-outlined approval-workflow-option-icon">check_circle</span>
+            <span className="approval-workflow-option-text">Step 1: Approved by any team member</span>
           </div>
 
           <div className="workflow-option-row">
@@ -209,7 +209,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
           ))}
 
           <div className="workflow-actions">
-            <button type="button" className="app-button app-button-secondary" style={{ fontSize: "0.8rem" }} onClick={addStep}>
+            <button type="button" className="app-button app-button-secondary approval-workflow-add-step-btn" onClick={addStep}>
               + Add Step
             </button>
             <button type="button" className="workflow-mode-switch" onClick={() => update({ mode: "simple" })}>
@@ -221,11 +221,11 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
 
       {dirty && isValid ? (
         <div className="workflow-actions">
-          <button type="button" className="app-button app-button-primary" style={{ fontSize: "0.85rem" }} onClick={() => void handleSave()} disabled={saving}>
+          <button type="button" className="app-button app-button-primary approval-workflow-save-btn" onClick={() => void handleSave()} disabled={saving}>
             {saving ? "Saving…" : "Save Workflow"}
           </button>
-          {error ? <span style={{ color: "var(--warn)", fontSize: "0.82rem" }}>{error}</span> : null}
-          {success ? <span style={{ color: "var(--status-approved)", fontSize: "0.82rem" }}>Saved</span> : null}
+          {error ? <span className="approval-workflow-status-error">{error}</span> : null}
+          {success ? <span className="approval-workflow-status-success">Saved</span> : null}
         </div>
       ) : null}
         </>
