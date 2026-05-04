@@ -142,6 +142,12 @@ function getListPanel(container: HTMLElement): Element {
   return panel;
 }
 
+async function waitForDataRows(container: HTMLElement) {
+  await waitFor(() =>
+    expect(container.querySelector("[data-testid='lb-datatable-row']")).not.toBeNull()
+  );
+}
+
 describe("features/invoices/InvoiceView — snapshot baseline", () => {
   it("renders the loading skeleton while invoices load", async () => {
     apiMock.fetchInvoices.mockImplementation(() => new Promise(() => {}));
@@ -153,7 +159,7 @@ describe("features/invoices/InvoiceView — snapshot baseline", () => {
   it("renders the empty state when no invoices and no filters", async () => {
     apiMock.fetchInvoices.mockResolvedValue(EMPTY_LIST_RESPONSE);
     const { container } = render(<InvoiceView {...BASE_PROPS} />);
-    await waitFor(() => expect(apiMock.fetchInvoices).toHaveBeenCalled());
+    await waitFor(() => expect(container.querySelector(".empty-state")).not.toBeNull());
     await flushAsync();
     expect(getListPanel(container)).toMatchSnapshot();
   });
@@ -169,9 +175,7 @@ describe("features/invoices/InvoiceView — snapshot baseline", () => {
   it("renders the data state with mixed-status invoices", async () => {
     apiMock.fetchInvoices.mockResolvedValue(makeListResponse(MIXED_STATUS_INVOICES));
     const { container } = render(<InvoiceView {...BASE_PROPS} />);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='invoice-list-table']")).not.toBeNull()
-    );
+    await waitForDataRows(container);
     await flushAsync();
     expect(getListPanel(container)).toMatchSnapshot();
   });
@@ -179,9 +183,7 @@ describe("features/invoices/InvoiceView — snapshot baseline", () => {
   it("renders rows scoped to NEEDS_REVIEW invoices", async () => {
     apiMock.fetchInvoices.mockResolvedValue(makeListResponse(NEEDS_REVIEW_INVOICES));
     const { container } = render(<InvoiceView {...BASE_PROPS} />);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='invoice-list-table']")).not.toBeNull()
-    );
+    await waitForDataRows(container);
     await flushAsync();
     expect(container.querySelector("[data-testid='invoice-list-table']")).toMatchSnapshot();
   });
@@ -189,9 +191,7 @@ describe("features/invoices/InvoiceView — snapshot baseline", () => {
   it("renders the EXPORTED row class when invoice is exported", async () => {
     apiMock.fetchInvoices.mockResolvedValue(makeListResponse(EXPORTED_INVOICES));
     const { container } = render(<InvoiceView {...BASE_PROPS} />);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='invoice-list-table']")).not.toBeNull()
-    );
+    await waitForDataRows(container);
     await flushAsync();
     expect(container.querySelector("[data-testid='invoice-list-table']")).toMatchSnapshot();
   });
@@ -203,9 +203,7 @@ describe("features/invoices/InvoiceView — snapshot baseline", () => {
     }));
     apiMock.fetchInvoices.mockResolvedValue(makeListResponse(AWAITING_APPROVAL_INVOICES));
     const { container } = render(<InvoiceView {...BASE_PROPS} />);
-    await waitFor(() =>
-      expect(container.querySelector("[data-testid='invoice-list-table']")).not.toBeNull()
-    );
+    await waitForDataRows(container);
     await flushAsync();
     const panel = getListPanel(container);
     expect(panel.getAttribute("data-density")).toBe("compact");
