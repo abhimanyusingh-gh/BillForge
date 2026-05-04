@@ -4435,6 +4435,26 @@ pre {
   background: var(--accent-soft-bg);
 }
 
+.lb-datatable-clickable .lb-datatable-row {
+  cursor: pointer;
+}
+
+.lb-datatable-row.is-active {
+  background: var(--accent-soft-bg);
+  box-shadow: inset 2px 0 0 0 var(--accent);
+}
+
+.lb-datatable-checkbox-cell {
+  width: 2.25rem;
+  text-align: center;
+  padding-left: var(--sp-2);
+  padding-right: var(--sp-2);
+}
+
+.lb-datatable-checkbox-col {
+  width: 2.25rem;
+}
+
 .lb-datatable-td {
   padding: 0.5rem 0.65rem;
   border-bottom: 1px solid var(--line-soft);
