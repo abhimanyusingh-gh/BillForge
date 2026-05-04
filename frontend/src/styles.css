@@ -3182,3 +3182,131 @@ body {
 .client-orgs-r10-archive-dialog-body { display: flex; flex-direction: column; gap: 8px; }
 .client-orgs-r10-archive-dialog-loading { display: inline-flex; gap: 8px; align-items: center; font: 500 12px var(--font-sans); color: var(--ink-soft); }
 .client-orgs-r10-archive-dialog-list { list-style: disc; padding-left: 18px; margin: 0; font: 500 12px var(--font-sans); color: var(--ink-soft); display: flex; flex-direction: column; gap: 2px; }
+
+/* ===== R6 — Triage page (bundle Triage.jsx) ===== */
+.triage-page { display: flex; flex-direction: column; gap: 12px; }
+.triage-state { padding: 24px 12px; }
+.triage-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 500 13px var(--font-sans);
+  color: var(--ink-soft);
+}
+.triage-info-banner .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--accent);
+}
+.triage-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+}
+.triage-bulk-count {
+  font: 700 12px var(--font-sans);
+  color: var(--accent);
+}
+.triage-bulk-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  display: inline-block;
+}
+.triage-bulk-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+  align-items: center;
+}
+.triage-bulk-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--warn-soft-bg, rgba(225, 29, 72, 0.08));
+  border: 1px solid var(--warn, #b91c4d);
+  border-radius: 10px;
+  color: var(--ink);
+  font: 500 13px var(--font-sans);
+}
+.triage-bulk-banner p { margin: 0; }
+.triage-table th.triage-th-select { width: 32px; }
+.triage-table th.triage-th-amount { text-align: right; }
+.triage-table th.triage-th-actions { width: 160px; }
+.triage-page table.lbtable tbody tr.triage-row-selected { background: var(--accent-soft-bg); }
+.triage-cell-select { width: 32px; }
+.triage-cell-actions { white-space: nowrap; }
+.triage-row-actions { display: inline-flex; gap: 4px; }
+.triage-cell-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.triage-cell-primary { font: 600 12.5px var(--font-sans); color: var(--ink); }
+.triage-cell-secondary { font: 500 11px var(--font-mono); color: var(--ink-soft); }
+
+/* ===== R6 — Vendors list page (bundle VendorsV2.jsx) ===== */
+.vendors-page { display: flex; flex-direction: column; gap: 12px; }
+.vendors-page .page-tools .vendors-subhead {
+  font: 500 12px var(--font-sans);
+  color: var(--ink-soft);
+}
+.vendors-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vendors-state { padding: 24px 12px; }
+.vendors-table-wrap { padding: 0; }
+
+/* ===== R6 — Vendor detail page (bundle Vendors.jsx detail patterns) ===== */
+.vendor-detail-page { display: flex; flex-direction: column; gap: 12px; }
+.vendor-detail-state { padding: 24px 12px; }
+.vendor-detail-header { display: flex; flex-direction: column; gap: 8px; }
+.vendor-detail-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.vendor-detail-summary-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.vendor-detail-meta { margin: 0; }
+.vendor-detail-tabs-section { padding: 0; }
+.vendor-detail-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0 12px;
+}
+.vendor-detail-tab {
+  background: transparent;
+  border: 0;
+  padding: 10px 14px;
+  font: 600 12px var(--font-sans);
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.vendor-detail-tab:hover { color: var(--ink); }
+.vendor-detail-tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.vendor-detail-tab-body { padding: 14px; }
+
+/* Vendors merge placeholder card sizing */
+.vendors-merge-placeholder-card { width: 480px; max-width: 90vw; }

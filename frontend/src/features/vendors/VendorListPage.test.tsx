@@ -148,7 +148,7 @@ describe("features/vendors/VendorListPage — actions", () => {
       fireEvent.click(screen.getByTestId("vendors-row-merge"));
     });
     expect(screen.getByTestId("vendors-merge-placeholder")).toBeInTheDocument();
-    expect(screen.getByTestId("vendors-merge-placeholder")).toHaveTextContent(/#264/);
+    expect(screen.getByTestId("vendors-merge-placeholder")).toHaveTextContent(/#372/);
 
     act(() => {
       fireEvent.click(screen.getByTestId("vendors-merge-placeholder-close"));
