@@ -63,6 +63,18 @@ function findMatchingPresetId(
   return null;
 }
 
+function getTriggerText(
+  value: DateRangeValue,
+  presets: ReadonlyArray<DateRangePreset>,
+  triggerLabel: string | undefined
+): string {
+  if (triggerLabel) return triggerLabel;
+  if (value.label) return value.label;
+  const activeId = findMatchingPresetId(value, presets);
+  const matched = activeId ? presets.find((p) => p.id === activeId) : undefined;
+  return matched?.label ?? "Custom";
+}
+
 function pickInitialTab(
   value: DateRangeValue,
   presets: ReadonlyArray<DateRangePreset>,
@@ -253,19 +265,15 @@ export function DateRange({
     [onChange]
   );
 
-  const onPickPreset = (kind: DateRangePresetKind) => (preset: DateRangePreset) => {
+  const onPickPreset = (preset: DateRangePreset) => {
     commit({ from: preset.from, to: preset.to, presetId: preset.id, label: preset.label });
-    void kind;
   };
 
   const onApplyCustom = (from: string, to: string) => {
     commit({ from, to, label: "Custom" });
   };
 
-  const triggerText =
-    triggerLabel ?? value.label ?? (presetActiveId
-      ? presets.find((p) => p.id === presetActiveId)?.label
-      : undefined) ?? "Custom";
+  const triggerText = getTriggerText(value, presets, triggerLabel);
 
   const tabs = useMemo(() => {
     const out: Array<{ id: DateRangePresetKind; label: string; visible: boolean }> = [
@@ -339,7 +347,7 @@ export function DateRange({
             <PresetGrid
               presets={presets}
               activeId={presetActiveId}
-              onPick={onPickPreset(DATE_RANGE_PRESET_KIND.preset)}
+              onPick={onPickPreset}
               testIdPrefix="lb-daterange-preset"
             />
           ) : null}
@@ -348,7 +356,7 @@ export function DateRange({
             <PresetGrid
               presets={quarterPresets}
               activeId={quarterActiveId}
-              onPick={onPickPreset(DATE_RANGE_PRESET_KIND.quarter)}
+              onPick={onPickPreset}
               testIdPrefix="lb-daterange-quarter"
             />
           ) : null}
@@ -357,7 +365,7 @@ export function DateRange({
             <YearList
               presets={yearPresets}
               activeId={yearActiveId}
-              onPick={onPickPreset(DATE_RANGE_PRESET_KIND.year)}
+              onPick={onPickPreset}
             />
           ) : null}
 
