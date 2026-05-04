@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { type Invoice, type GlCode, type TdsRate } from "@/types";
 import { minorUnitsToMajorString } from "@/lib/common/currency";
-import { GlCodeDropdown } from "@/components/compliance/GlCodeDropdown";
+import { Combobox, type ComboboxOption } from "@/components/ds";
 
 interface CompliancePanelProps {
   invoice: Invoice;
@@ -14,6 +14,14 @@ interface CompliancePanelProps {
   isReadOnly: boolean;
 }
 
+function buildGlOptions(glCodes: GlCode[]): ReadonlyArray<ComboboxOption<string>> {
+  return glCodes
+    .filter((g) => g.isActive)
+    .map((g) => ({ value: g.code, label: g.name, description: g.code }));
+}
+
+const GL_CODE_KEY = (value: string): string => value;
+
 export function CompliancePanel({
   invoice,
   glCodes,
@@ -24,8 +32,9 @@ export function CompliancePanel({
   onOverrideTdsSection,
   isReadOnly
 }: CompliancePanelProps) {
-  const [glDropdownOpen, setGlDropdownOpen] = useState(false);
   const compliance = invoice.compliance;
+  const glOptions = useMemo(() => buildGlOptions(glCodes), [glCodes]);
+
   if (!compliance) return null;
 
   const hasTds = compliance.tds?.section;
@@ -71,7 +80,7 @@ export function CompliancePanel({
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", fontSize: "0.85rem", position: "relative" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem", fontSize: "0.85rem" }}>
         <span style={{ fontWeight: 500 }}>GL:</span>
         {glReadOnly ? (
           hasGl ? (
@@ -80,43 +89,20 @@ export function CompliancePanel({
             <span style={{ color: "var(--ink-soft, #999)" }}>Not assigned</span>
           )
         ) : (
-          <>
-            <span
-              role="button"
-              tabIndex={0}
-              style={{ cursor: "pointer", borderBottom: "1px dashed var(--border-color, #ccc)" }}
-              onClick={() => setGlDropdownOpen(true)}
-              onKeyDown={(e) => { if (e.key === "Enter") setGlDropdownOpen(true); }}
-            >
-              {hasGl ? `${compliance.glCode!.name} (${compliance.glCode!.code})` : "Select GL code..."}
-            </span>
-            <button
-              type="button"
-              className="row-action-button field-edit-button"
-              style={{ opacity: 1 }}
-              title="Edit GL code"
-              onClick={() => setGlDropdownOpen(true)}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "1rem" }}>edit</span>
-            </button>
-            {glDropdownOpen ? (
-              <div className="gl-code-inline-dropdown" style={{ position: "absolute", top: "1.5rem", left: "2rem" }}>
-                <GlCodeDropdown
-                  glCodes={glCodes}
-                  currentCode={compliance.glCode?.code ?? null}
-                  onSelect={(code, name) => {
-                    setGlDropdownOpen(false);
-                    onOverrideGlCode(code, name);
-                  }}
-                  onClear={() => {
-                    setGlDropdownOpen(false);
-                    onOverrideGlCode("", "");
-                  }}
-                  onClose={() => setGlDropdownOpen(false)}
-                />
-              </div>
-            ) : null}
-          </>
+          <Combobox<string>
+            options={glOptions}
+            value={compliance.glCode?.code ?? null}
+            onChange={(code) => {
+              const match = glOptions.find((opt) => opt.value === code);
+              onOverrideGlCode(code, match?.label);
+            }}
+            onClear={() => onOverrideGlCode("", "")}
+            optionKey={GL_CODE_KEY}
+            placeholder="Select GL code..."
+            searchPlaceholder="Search GL codes..."
+            emptyText="No matching GL codes"
+            clearLabel="Clear GL code"
+          />
         )}
         {hasGl && compliance.glCode!.confidence != null && (
           <span style={{ fontSize: "0.75rem", color: "var(--text-secondary, #999)" }}>
