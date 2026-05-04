@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RealmSwitcher } from "@/features/workspace/RealmSwitcher";
 import { useTenantClientOrgs } from "@/hooks/useTenantClientOrgs";
 import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
+import { useModalDismiss } from "@/hooks/useModalDismiss";
 
 const REALM_SWITCHER_SHORTCUT = {
   key: "k",
@@ -44,6 +45,8 @@ export function WorkspaceTopNav({
 }: WorkspaceTopNavProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchPlaceholderOpen, setSearchPlaceholderOpen] = useState(false);
+  const [notificationsPlaceholderOpen, setNotificationsPlaceholderOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const { clientOrgs, isLoading, isError, refetch } = useTenantClientOrgs();
   const { activeClientOrgId } = useActiveClientOrg();
@@ -123,10 +126,9 @@ export function WorkspaceTopNav({
         <button
           type="button"
           className="topnav-icon-btn"
-          title="Search (coming soon)"
+          title="Search"
           aria-label="Search"
-          onClick={onOpenSearch}
-          disabled={!onOpenSearch}
+          onClick={onOpenSearch ?? (() => setSearchPlaceholderOpen(true))}
         >
           <span className="material-symbols-outlined" aria-hidden="true">search</span>
         </button>
@@ -135,8 +137,7 @@ export function WorkspaceTopNav({
           className="topnav-icon-btn"
           title="Notifications"
           aria-label={notificationCount > 0 ? `Notifications, ${notificationCount} unread` : "Notifications"}
-          onClick={onOpenNotifications}
-          disabled={!onOpenNotifications}
+          onClick={onOpenNotifications ?? (() => setNotificationsPlaceholderOpen(true))}
         >
           <span className="material-symbols-outlined" aria-hidden="true">notifications</span>
           {notificationCount > 0 ? (
@@ -193,6 +194,55 @@ export function WorkspaceTopNav({
         onRetry={() => { void refetch(); }}
         onGoToOnboarding={onGoToOnboarding}
       />
+
+      <PlaceholderDialog
+        open={searchPlaceholderOpen}
+        title="Search"
+        message="Search coming soon — try ⌘K to switch realms instead."
+        testId="topnav-search-placeholder"
+        onClose={() => setSearchPlaceholderOpen(false)}
+      />
+
+      <PlaceholderDialog
+        open={notificationsPlaceholderOpen}
+        title="Notifications"
+        message="No notifications."
+        testId="topnav-notifications-placeholder"
+        onClose={() => setNotificationsPlaceholderOpen(false)}
+      />
     </header>
+  );
+}
+
+interface PlaceholderDialogProps {
+  open: boolean;
+  title: string;
+  message: string;
+  testId: string;
+  onClose: () => void;
+}
+
+function PlaceholderDialog({ open, title, message, testId, onClose }: PlaceholderDialogProps) {
+  useModalDismiss({ open, onClose });
+  if (!open) return null;
+  return (
+    <div className="popup-overlay" role="presentation" onClick={onClose}>
+      <section
+        className="popup-card popup-card-narrow"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        data-testid={testId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="popup-header">
+          <h2>{title}</h2>
+        </div>
+        <p className="topnav-placeholder-message">{message}</p>
+        <div className="confirm-actions">
+          <button type="button" className="app-button app-button-secondary" onClick={onClose}>Close</button>
+        </div>
+      </section>
+    </div>
   );
 }

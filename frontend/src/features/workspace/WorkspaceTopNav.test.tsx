@@ -149,6 +149,18 @@ describe("WorkspaceTopNav — bundle-aligned chrome", () => {
     expect(props.onLogout).toHaveBeenCalledTimes(1);
   });
 
+  it("opens placeholder dialogs for search + bell when no handlers are wired", async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { items: [] } });
+    renderTopNav();
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: /^Search$/i }));
+    expect(screen.getByTestId("topnav-search-placeholder")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId("topnav-search-placeholder")).getByRole("button", { name: /Close/i }));
+    expect(screen.queryByTestId("topnav-search-placeholder")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Notifications$/i }));
+    expect(screen.getByTestId("topnav-notifications-placeholder")).toBeInTheDocument();
+  });
+
   it("invokes onChangePassword from the avatar menu", async () => {
     apiClient.get.mockResolvedValueOnce({ data: { items: [] } });
     const { props } = renderTopNav();

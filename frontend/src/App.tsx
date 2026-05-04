@@ -343,19 +343,19 @@ export function App() {
         )}
 
         {standaloneRoute === "payments" && (
-          <EmptyState icon="payments" heading="Payments" description="Payments tracking is coming soon." />
+          <EmptyState icon="payments" heading="Payments" description="Payments aren't enabled for this client org yet." />
         )}
 
         {standaloneRoute === "bankStatements" && (
-          <EmptyState icon="description" heading="Bank Statements" description="A dedicated bank-statements browser is coming soon. Use Reconciliation in the meantime." />
+          <EmptyState icon="description" heading="Bank Statements" description="No bank statements connected. Add a connection in Setup → Connections." />
         )}
 
         {standaloneRoute === "tallySync" && (
-          <EmptyState icon="cable" heading="Tally Sync" description="Live Tally sync status is coming soon. Use Tally Export to push vouchers." />
+          <EmptyState icon="cable" heading="Tally Sync" description="Tally sync not configured. Connect a Tally instance in Setup." />
         )}
 
         {standaloneRoute === "inboxRouting" && (
-          <EmptyState icon="alt_route" heading="Inbox Routing" description="Inbox routing rules are coming soon. Manage mailbox owners under Mailboxes." />
+          <EmptyState icon="alt_route" heading="Inbox Routing" description="Inbox routing rules not configured." />
         )}
 
         {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}

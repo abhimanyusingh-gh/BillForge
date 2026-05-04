@@ -2639,6 +2639,16 @@ pre {
   max-width: 25rem;
 }
 
+.popup-card-narrow {
+  max-width: 27.5rem;
+}
+
+.topnav-placeholder-message {
+  margin: 0.75rem 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
 .shortcuts-help-list {
   list-style: none;
   margin: 0.75rem 0 0;
