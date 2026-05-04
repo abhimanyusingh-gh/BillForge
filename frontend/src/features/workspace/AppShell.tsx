@@ -37,8 +37,8 @@ export function AppShell({
   children
 }: AppShellProps) {
   return (
-    <div className="app-shell">
-      <aside className="app-shell-sidebar" aria-label="Primary navigation">
+    <div className="bundle-chrome app-shell">
+      <aside className="app-shell-sidebar app-sidebar" aria-label="Primary navigation">
         <TenantSidebar
           tenantName={tenantName}
           activeTab={activeTab}
@@ -51,16 +51,14 @@ export function AppShell({
           invoiceActionRequiredCount={invoiceActionRequiredCount}
         />
       </aside>
-      <div className="app-shell-column">
+      {topNav}
+      <main className="app-shell-main app-main" id="main-content" tabIndex={-1}>
         {migration ? (
           <UrlMigrationBanner oldPath={migration.oldPath} newPath={migration.newPath} />
         ) : null}
-        {topNav}
         {subNav}
-        <main className="app-shell-main" id="main-content" tabIndex={-1}>
-          {children}
-        </main>
-      </div>
+        {children}
+      </main>
     </div>
   );
 }
