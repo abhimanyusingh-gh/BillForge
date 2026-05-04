@@ -118,7 +118,7 @@ export function StepConditionEditor({ condition, onChange }: StepConditionEditor
                     onChange({ ...condition, value: Math.round(major * 100) });
                   }
                 }}
-                style={{ width: "6rem", fontSize: "0.82rem", padding: "0.2rem 0.4rem", border: "1px solid var(--line)", borderRadius: "0.25rem", background: "var(--bg-main)", color: "var(--ink)" }}
+                className="approval-workflow-condition-input"
               />
             </label>
           ) : null}
@@ -163,7 +163,7 @@ export function StepConditionEditor({ condition, onChange }: StepConditionEditor
                     value: Array.from(e.target.selectedOptions).map((o) => o.value),
                   })
                 }
-                style={{ minHeight: "2.5rem" }}
+                className="approval-workflow-multi-select"
               >
                 {GL_CODE_SOURCE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>

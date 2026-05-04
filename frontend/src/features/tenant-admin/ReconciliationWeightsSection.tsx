@@ -105,36 +105,38 @@ export function ReconciliationWeightsSection() {
 
   if (loading) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)" }}>Loading reconciliation weights...</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-loading">Loading reconciliation weights...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.875rem" }}>{loadError}</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-error-text">{loadError}</p>
         <button type="button" className="app-button app-button-secondary" onClick={loadConfig}>Retry</button>
       </div>
     );
   }
 
+  const budgetClass = `recon-weights-budget${totalBudget > MAX_BUDGET ? " recon-weights-budget-over" : ""}`;
+
   return (
-    <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+    <div className="editor-card tenant-config-section-spacer">
       <div className="editor-header">
         <h3>Reconciliation Scoring Weights</h3>
       </div>
 
-      <p style={{ fontSize: "0.8rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem", marginBottom: "1rem" }}>
+      <p className="tenant-config-section-lead">
         Control how bank transactions are matched to invoices. Each weight determines the score contribution for that signal.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <div className="recon-weights-stack">
         {FIELD_META.map(({ key, label, description }) => (
-          <label key={key} style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>{label}</span>
-            <span style={{ fontSize: "0.75rem", color: "var(--ink-soft, #666)" }}>{description}</span>
+          <label key={key} className="recon-weights-field">
+            <span className="recon-weights-field-label">{label}</span>
+            <span className="recon-weights-field-hint">{description}</span>
             <input
               type="number"
               min={0}
@@ -143,33 +145,25 @@ export function ReconciliationWeightsSection() {
               onChange={e => handleFieldChange(key, e.target.value)}
               disabled={saving}
               aria-label={label}
-              style={{ width: "5rem", fontSize: "0.875rem", marginTop: "0.25rem" }}
+              className="recon-weights-input"
             />
           </label>
         ))}
       </div>
 
-      <p
-        style={{
-          marginTop: "1rem",
-          fontSize: "0.85rem",
-          fontWeight: 500,
-          color: totalBudget > MAX_BUDGET ? "var(--danger, #ef4444)" : "var(--ink-soft, #666)"
-        }}
-        data-testid="weight-budget"
-      >
+      <p className={budgetClass} data-testid="weight-budget">
         Total weight budget: {totalBudget}/{MAX_BUDGET}
       </p>
 
       {saveError ? (
-        <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem", marginTop: "0.5rem" }} role="alert">{saveError}</p>
+        <p className="tenant-config-status-error" role="alert">{saveError}</p>
       ) : null}
       {saveSuccess ? (
-        <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>Reconciliation weights saved.</p>
+        <p className="tenant-config-status-success">Reconciliation weights saved.</p>
       ) : null}
 
       {dirty ? (
-        <div style={{ marginTop: "1rem" }}>
+        <div className="tenant-config-save-bar">
           <button type="button" className="app-button app-button-primary" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Weights"}
           </button>

@@ -155,8 +155,8 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
 
   if (loadError) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.875rem" }}>{loadError}</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-error-text">{loadError}</p>
         <button type="button" className="app-button app-button-secondary" onClick={loadConfig}>
           Retry
         </button>
@@ -168,12 +168,12 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
 
   return (
     <>
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+      <div className="editor-card tenant-config-section-spacer">
         <div className="editor-header">
           <h3>TCS Configuration</h3>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.75rem", marginBottom: "0.5rem" }}>
+        <div className="tenant-config-toggle-row">
           <label className="toggle-switch">
             <input
               type="checkbox"
@@ -183,15 +183,15 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
             />
             <span className="toggle-track" />
           </label>
-          <span style={{ fontSize: "0.875rem" }}>TCS Enabled</span>
+          <span className="tenant-config-toggle-label">TCS Enabled</span>
         </div>
 
         {enabled ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem" }}>
+            <div className="tenant-config-field-grid">
+              <label className="tenant-config-field">
                 TCS Rate (%)
-                <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                <div className="tenant-config-field-row">
                   <input
                     type="number"
                     min="0"
@@ -200,25 +200,25 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
                     value={rateInput}
                     onChange={(e) => setRateInput(e.target.value)}
                     disabled={saving}
-                    style={{ width: "7rem" }}
+                    className="tenant-config-field-input-narrow"
                   />
-                  <span style={{ color: "var(--ink-soft, #666)" }}>%</span>
+                  <span className="tenant-config-field-suffix">%</span>
                 </div>
               </label>
 
-              <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem" }}>
+              <label className="tenant-config-field">
                 Effective From
                 <input
                   type="date"
                   value={effectiveFrom}
                   onChange={(e) => setEffectiveFrom(e.target.value)}
                   disabled={saving}
-                  style={{ width: "12rem" }}
+                  className="tenant-config-field-input-medium"
                 />
               </label>
             </div>
 
-            <label style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.875rem", marginTop: "0.75rem" }}>
+            <label className="tenant-config-field tenant-config-field-spacer">
               Reason for change (optional)
               <textarea
                 value={reason}
@@ -226,27 +226,27 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
                 disabled={saving}
                 rows={2}
                 placeholder="e.g. Finance Act 2025 amendment"
-                style={{ resize: "vertical", fontFamily: "inherit", fontSize: "0.875rem", padding: "0.375rem 0.5rem" }}
+                className="tenant-config-textarea"
               />
             </label>
           </>
         ) : null}
 
         {config?.updatedBy ? (
-          <p style={{ fontSize: "0.8rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem" }}>
+          <p className="tenant-config-meta">
             Last updated by {config.updatedBy} on {formatDateTime(config.updatedAt)}
           </p>
         ) : null}
 
         {saveError ? (
-          <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem", marginTop: "0.5rem" }}>{saveError}</p>
+          <p className="tenant-config-status-error">{saveError}</p>
         ) : null}
         {saveSuccess ? (
-          <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>TCS configuration saved.</p>
+          <p className="tenant-config-status-success">TCS configuration saved.</p>
         ) : null}
 
         {dirty ? (
-          <div style={{ marginTop: "1rem" }}>
+          <div className="tenant-config-save-bar">
             <button
               type="button"
               className="app-button app-button-primary"
@@ -260,20 +260,20 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
       </div>
 
       {canConfigureCompliance ? (
-        <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+        <div className="editor-card tenant-config-section-spacer">
           <div className="editor-header">
             <h3>TCS Modify Access</h3>
           </div>
-          <p style={{ fontSize: "0.85rem", color: "var(--ink-soft, #666)", marginTop: "0.25rem", whiteSpace: "normal", overflowWrap: "break-word" }}>
+          <p className="tenant-config-section-hint">
             Select which roles are permitted to change the TCS rate and effective date.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" }}>
+          <div className="tenant-config-checkbox-list">
             {ALL_MODIFIABLE_ROLES.map((role) => {
               const label = role === "TENANT_ADMIN"
                 ? "Tenant Admin"
                 : TENANT_ROLE_OPTIONS.find((o) => o.value === role)?.label ?? role;
               return (
-                <label key={role} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", cursor: "pointer" }}>
+                <label key={role} className="tenant-config-checkbox-row">
                   <input
                     type="checkbox"
                     checked={selectedModifyRoles.includes(role)}
@@ -287,14 +287,14 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
           </div>
 
           {rolesError ? (
-            <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.85rem", marginTop: "0.5rem" }}>{rolesError}</p>
+            <p className="tenant-config-status-error">{rolesError}</p>
           ) : null}
           {rolesSuccess ? (
-            <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>Access roles saved.</p>
+            <p className="tenant-config-status-success">Access roles saved.</p>
           ) : null}
 
           {rolesDirty ? (
-            <div style={{ marginTop: "0.75rem" }}>
+            <div className="tenant-config-actions-row">
               <button
                 type="button"
                 className="app-button app-button-primary"
@@ -308,17 +308,17 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
         </div>
       ) : null}
 
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+      <div className="editor-card tenant-config-section-spacer">
         <div className="editor-header">
           <h3>Rate Change History</h3>
         </div>
 
         {historyLoading ? (
-          <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem" }}>Loading…</p>
+          <p className="tenant-config-loading">Loading…</p>
         ) : history.length === 0 ? (
-          <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem" }}>No rate changes recorded yet.</p>
+          <p className="tenant-config-loading">No rate changes recorded yet.</p>
         ) : (
-          <div className="list-scroll" style={{ marginTop: "0.75rem" }}>
+          <div className="list-scroll tenant-config-field-spacer">
             <table>
               <thead>
                 <tr>
@@ -333,12 +333,12 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
               <tbody>
                 {history.map((entry, idx) => (
                   <tr key={idx}>
-                    <td style={{ whiteSpace: "nowrap" }}>{formatDateTime(entry.changedAt)}</td>
+                    <td className="tcs-config-history-cell-nowrap">{formatDateTime(entry.changedAt)}</td>
                     <td>{entry.previousRate}%</td>
                     <td>{entry.newRate}%</td>
-                    <td style={{ whiteSpace: "nowrap" }}>{formatDate(entry.effectiveFrom)}</td>
+                    <td className="tcs-config-history-cell-nowrap">{formatDate(entry.effectiveFrom)}</td>
                     <td>{entry.changedByName || entry.changedBy}</td>
-                    <td style={{ color: "var(--ink-soft, #666)" }}>{entry.reason ?? "-"}</td>
+                    <td className="tcs-config-history-reason">{entry.reason ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -347,7 +347,7 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
         )}
 
         {totalPages > 1 ? (
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.75rem", fontSize: "0.875rem" }}>
+          <div className="tcs-config-history-pager">
             <button
               type="button"
               className="app-button app-button-secondary app-button-sm"

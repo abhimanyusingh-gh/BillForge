@@ -107,28 +107,28 @@ export function ApprovalLimitsSection({ currentUserId, currentUserRole }: Approv
 
   if (loading) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ fontSize: "0.875rem", color: "var(--ink-soft, #666)" }}>Loading approval limits...</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-loading">Loading approval limits...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-        <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.875rem" }} role="alert">{loadError}</p>
+      <div className="editor-card tenant-config-section-spacer">
+        <p className="tenant-config-error-text" role="alert">{loadError}</p>
         <button type="button" className="app-button app-button-secondary" onClick={loadLimits}>Retry</button>
       </div>
     );
   }
 
   return (
-    <div className="editor-card" style={{ marginTop: "1.5rem" }}>
+    <div className="editor-card tenant-config-section-spacer">
       <div className="editor-header">
         <h3>Approval Limits</h3>
       </div>
 
-      <p style={{ fontSize: "0.8rem", color: "var(--ink-soft, #666)", marginTop: "0.5rem", marginBottom: "1rem" }}>
+      <p className="tenant-config-section-lead">
         Set the maximum invoice amount each role can approve. Unlimited means no cap.
       </p>
 
@@ -137,7 +137,7 @@ export function ApprovalLimitsSection({ currentUserId, currentUserRole }: Approv
           <thead>
             <tr>
               <th>Role</th>
-              <th>Limit ({"\u20B9"})</th>
+              <th>Limit ({"₹"})</th>
               <th>Unlimited</th>
             </tr>
           </thead>
@@ -146,14 +146,14 @@ export function ApprovalLimitsSection({ currentUserId, currentUserRole }: Approv
               const isCurrentUserRole = row.role === currentUserRole;
               return (
                 <tr key={row.role}>
-                  <td style={{ fontSize: "0.85rem" }}>{row.label}</td>
+                  <td className="approval-limits-role-cell">{row.label}</td>
                   <td>
                     {isCurrentUserRole ? (
                       <span
-                        style={{ fontSize: "0.85rem", color: "var(--ink-soft, #666)" }}
+                        className="approval-limits-cell-readonly"
                         title="You cannot modify your own approval limit"
                       >
-                        {row.unlimited ? "Unlimited" : `\u20B9 ${formatRupees(row.approvalLimitMinor!)}`}
+                        {row.unlimited ? "Unlimited" : `₹ ${formatRupees(row.approvalLimitMinor!)}`}
                       </span>
                     ) : (
                       <input
@@ -164,7 +164,7 @@ export function ApprovalLimitsSection({ currentUserId, currentUserRole }: Approv
                         onChange={(e) => handleLimitChange(row.role, e.target.value)}
                         disabled={row.unlimited || saving}
                         aria-label={`${row.label} approval limit`}
-                        style={{ width: "7rem", fontSize: "0.82rem" }}
+                        className="approval-limits-input"
                       />
                     )}
                   </td>
@@ -195,14 +195,14 @@ export function ApprovalLimitsSection({ currentUserId, currentUserRole }: Approv
       </div>
 
       {saveError ? (
-        <p style={{ color: "var(--warn, #f59e0b)", fontSize: "0.85rem", marginTop: "0.5rem" }} role="alert">{saveError}</p>
+        <p className="tenant-config-status-error" role="alert">{saveError}</p>
       ) : null}
       {saveSuccess ? (
-        <p style={{ color: "var(--chart-emerald, #10b981)", fontSize: "0.85rem", marginTop: "0.5rem" }}>Approval limits saved.</p>
+        <p className="tenant-config-status-success">Approval limits saved.</p>
       ) : null}
 
       {dirty ? (
-        <div style={{ marginTop: "1rem" }}>
+        <div className="tenant-config-save-bar">
           <button type="button" className="app-button app-button-primary" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Limits"}
           </button>

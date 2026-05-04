@@ -69,8 +69,10 @@ export function TenantConfigTab({
     "gl-codes": {
       visible: canConfigureGlCodes,
       node: (
-        <div className="editor-card" style={{ marginTop: "1.5rem" }}>
-          <h3 style={{ marginBottom: "0.75rem" }}>Chart of Accounts (GL Codes)</h3>
+        <div className="editor-card tenant-config-section-spacer">
+          <div className="editor-header">
+            <h3>Chart of Accounts (GL Codes)</h3>
+          </div>
           <GlCodeManager />
         </div>
       ),
@@ -102,7 +104,7 @@ export function TenantConfigTab({
           <div className="editor-header">
             <h3>Users</h3>
           </div>
-          <div className="invite-row" style={{ marginTop: "0.5rem" }}>
+          <div className="invite-row">
             <label className="invite-label">
               Invite by email
               <input
@@ -123,7 +125,7 @@ export function TenantConfigTab({
           {tenantUsers.filter((u) => u.userId !== currentUserId).length === 0 ? (
             <EmptyState icon="group" heading="No team members yet" description="Invite users by email to collaborate on invoice processing." />
           ) : (
-            <div className="list-scroll" style={{ maxHeight: "200px", marginTop: "0.75rem" }}>
+            <div className="list-scroll tenant-config-field-spacer" style={{ maxHeight: "200px" }}>
               <table>
                 <thead>
                   <tr>
@@ -147,7 +149,7 @@ export function TenantConfigTab({
                         <select
                           value={user.role}
                           onChange={(event) => onRoleChange(user.userId, event.target.value as TenantRole)}
-                          style={{ minWidth: "220px" }}
+                          className="tenant-config-role-select"
                         >
                           {TENANT_ROLE_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -173,7 +175,7 @@ export function TenantConfigTab({
   };
 
   return (
-    <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 7rem)", paddingBottom: "2rem" }}>
+    <div className="tenant-config-shell">
       {gmailNeedsReauth && canManageConnections ? (
         <div className="mailbox-banner" role="alert">
           <strong>We lost access to your mailbox. Please reconnect.</strong>
@@ -202,6 +204,9 @@ export function TenantConfigTab({
           </div>
         );
       })}
+
+      {/* reserved by W3-15 for post-MVP SSO (#385) and 2FA (#386) cards */}
+      <div className="tenant-config-security-slot" data-testid="tenant-config-security-slot" />
     </div>
   );
 }

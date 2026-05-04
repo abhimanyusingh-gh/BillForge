@@ -73,7 +73,7 @@ export function ApproverSelector({
                 approverUserIds: Array.from(e.target.selectedOptions).map((o) => o.value),
               })
             }
-            style={{ minHeight: "2.5rem" }}
+            className="approval-workflow-multi-select"
           >
             {tenantUsers.map((u) => (
               <option key={u.userId} value={u.userId}>

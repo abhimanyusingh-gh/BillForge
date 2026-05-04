@@ -46,20 +46,19 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
       <div className="workflow-step-card-header">
         <span>Step {step.order}</span>
         {isComplianceSignoff ? (
-          <span style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem", background: "var(--accent)", color: "#fff", borderRadius: "0.2rem" }}>
+          <span className="approval-workflow-step-tag">
             Compliance Sign-off
           </span>
         ) : null}
         {isEscalation ? (
-          <span style={{ fontSize: "0.72rem", padding: "0.1rem 0.4rem", background: "var(--ink-soft, #666)", color: "#fff", borderRadius: "0.2rem" }}>
+          <span className="approval-workflow-step-tag approval-workflow-step-tag-escalation">
             Escalation
           </span>
         ) : null}
         {stepCount > 1 ? (
           <button
             type="button"
-            className="app-button app-button-secondary"
-            style={{ fontSize: "0.72rem", padding: "0.15rem 0.5rem" }}
+            className="app-button app-button-secondary vendor-msme-row-action-btn"
             onClick={onRemove}
           >
             Remove
@@ -98,24 +97,13 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
         <button
           type="button"
           onClick={() => setAdvancedOpen((prev) => !prev)}
-          style={{
-            background: "none",
-            border: "none",
-            padding: "0.25rem 0",
-            fontSize: "0.8rem",
-            color: "var(--accent)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.25rem",
-            marginTop: "0.5rem",
-          }}
+          className="approval-workflow-advanced-toggle"
         >
-          Advanced options {advancedOpen ? "\u25B4" : "\u25BE"}
+          Advanced options {advancedOpen ? "▴" : "▾"}
         </button>
 
         {advancedOpen ? (
-          <div style={{ marginTop: "0.5rem", paddingLeft: "0.5rem", borderLeft: "2px solid var(--line, #e0e0e0)" }}>
+          <div className="approval-workflow-advanced-body">
             <label>
               Step type:
               <select
@@ -150,10 +138,10 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
                       if (val !== null && (val < 1 || val > 720 || !Number.isInteger(val))) return;
                       onUpdate({ timeoutHours: val });
                     }}
-                    style={{ width: "5rem", fontSize: "0.82rem", padding: "0.2rem 0.4rem", border: "1px solid var(--line)", borderRadius: "0.25rem", background: "var(--bg-main)", color: "var(--ink)" }}
+                    className="approval-workflow-narrow-input"
                   />
                 </label>
-                <p style={{ fontSize: "0.75rem", color: "var(--ink-soft, #666)", margin: "0.15rem 0 0.5rem" }}>
+                <p className="approval-workflow-helper-text">
                   Time before this step auto-escalates. Uses wall-clock hours.
                 </p>
                 <label>
@@ -169,7 +157,7 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
                   </select>
                 </label>
                 {step.timeoutHours != null && !step.escalateTo ? (
-                  <p role="alert" style={{ fontSize: "0.75rem", color: "var(--warn, #f59e0b)", margin: "0.25rem 0 0" }}>
+                  <p role="alert" className="approval-workflow-warning-text">
                     Escalation target is required when a timeout is set.
                   </p>
                 ) : null}
@@ -177,30 +165,20 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
             ) : null}
 
             {isComplianceSignoff ? (
-              <div style={{ marginTop: "0.75rem" }}>
+              <div className="approval-workflow-compliance-block">
                 {eligibleUsers.length === 0 ? (
-                  <div
-                    role="alert"
-                    style={{
-                      padding: "0.5rem 0.75rem",
-                      background: "var(--warn-bg, #fef3cd)",
-                      border: "1px solid var(--warn, #f59e0b)",
-                      borderRadius: "0.25rem",
-                      fontSize: "0.82rem",
-                      color: "var(--ink, #333)",
-                    }}
-                  >
+                  <div role="alert" className="approval-workflow-compliance-empty">
                     No users have compliance sign-off capability.{" "}
-                    <a href="#users" style={{ color: "var(--accent)" }}>
+                    <a href="#users">
                       Grant capability in Users section
                     </a>
                   </div>
                 ) : (
                   <div>
-                    <p style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--ink-soft, #666)", marginBottom: "0.35rem" }}>
+                    <p className="approval-workflow-eligible-heading">
                       Eligible compliance sign-off users:
                     </p>
-                    <ul style={{ margin: 0, paddingLeft: "1.2rem", fontSize: "0.82rem" }}>
+                    <ul className="approval-workflow-eligible-list">
                       {eligibleUsers.map((u) => (
                         <li key={u.userId}>
                           {resolveEmail(u.userId, tenantUsers)} ({u.role})
