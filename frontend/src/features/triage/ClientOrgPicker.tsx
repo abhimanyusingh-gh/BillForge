@@ -143,7 +143,7 @@ export function ClientOrgPicker({
         <input
           ref={inputRef}
           type="text"
-          className="search-input realm-switcher-input"
+          className="input realm-switcher-input"
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}

@@ -70,40 +70,43 @@ export function RejectDialog({ open, invoiceCount, isSubmitting, onCancel, onCon
             Close
           </button>
         </div>
-        <p className="reject-dialog-description">
-          Choose a reason. Rejected invoices are archived and removed from the triage queue.
-        </p>
-        <fieldset className="reject-dialog-fieldset">
-          <legend className="reject-dialog-legend">Reason</legend>
-          {TRIAGE_REJECT_REASON_OPTIONS.map((option, idx) => (
-            <label key={option.value} className="reject-dialog-option">
-              <input
-                ref={idx === 0 ? undefined : undefined}
-                type="radio"
-                name="triage-reject-reason"
-                value={option.value}
-                checked={reason === option.value}
-                onChange={() => setReason(option.value)}
-                data-testid={`reject-dialog-reason-${option.value}`}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </fieldset>
-        <label className="reject-dialog-freetext">
-          <span>
-            Notes
-            {TRIAGE_REJECT_REASON_OPTIONS.find((opt) => opt.value === reason)?.requiresFreeText
-              ? " (required)"
-              : " (optional)"}
-          </span>
-          <textarea
-            value={freeText}
-            onChange={(e) => setFreeText(e.target.value)}
-            data-testid="reject-dialog-freetext"
-            rows={3}
-          />
-        </label>
+        <div className="modal-body">
+          <p className="sub">
+            Choose a reason. Rejected invoices are archived and removed from the triage queue.
+          </p>
+          <fieldset>
+            <legend className="stitle">Reason</legend>
+            {TRIAGE_REJECT_REASON_OPTIONS.map((option, idx) => (
+              <label key={option.value} className="field-row">
+                <input
+                  ref={idx === 0 ? undefined : undefined}
+                  type="radio"
+                  name="triage-reject-reason"
+                  value={option.value}
+                  checked={reason === option.value}
+                  onChange={() => setReason(option.value)}
+                  data-testid={`reject-dialog-reason-${option.value}`}
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </fieldset>
+          <label>
+            <span>
+              Notes
+              {TRIAGE_REJECT_REASON_OPTIONS.find((opt) => opt.value === reason)?.requiresFreeText
+                ? " (required)"
+                : " (optional)"}
+            </span>
+            <textarea
+              className="input"
+              value={freeText}
+              onChange={(e) => setFreeText(e.target.value)}
+              data-testid="reject-dialog-freetext"
+              rows={3}
+            />
+          </label>
+        </div>
         <div className="confirm-actions">
           <button
             ref={firstButtonRef}
