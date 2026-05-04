@@ -53,13 +53,13 @@ function formatDate(iso: string | null): string {
 
 export function VendorRow({ vendor, onView, onMerge }: VendorRowProps) {
   return (
-    <div className="vendors-row" data-testid="vendors-row" data-vendor-id={vendor._id}>
-      <div className="vendors-row-cell vendors-row-cell-name">
-        <span className="vendors-row-name-row">
-          <span className="vendors-row-name">{vendor.name}</span>
+    <div className="vendor" data-testid="vendors-row" data-vendor-id={vendor._id}>
+      <div className="vendor-cell vendor-cell-name">
+        <span className="vendor-name-row">
+          <span className="vendor-name">{vendor.name}</span>
           {vendor.msme ? (
             <span
-              className="vendors-row-msme-pill"
+              className="spill s-pending"
               title={`MSME: ${vendor.msme.classification}`}
               data-testid="vendors-row-msme"
             >
@@ -67,16 +67,16 @@ export function VendorRow({ vendor, onView, onMerge }: VendorRowProps) {
             </span>
           ) : null}
         </span>
-        <span className="vendors-row-ids">
+        <span className="lb-caption">
           {vendor.gstin ? (
-            <span className="vendors-row-id lb-mono">GSTIN {vendor.gstin}</span>
+            <span className="mono-cell">GSTIN {vendor.gstin}</span>
           ) : null}
           {vendor.pan ? (
-            <span className="vendors-row-id lb-mono">PAN {vendor.pan}</span>
+            <span className="mono-cell">PAN {vendor.pan}</span>
           ) : null}
         </span>
       </div>
-      <div className="vendors-row-cell vendors-row-cell-status">
+      <div className="vendor-cell vendor-cell-status">
         <VendorStatusBadge status={vendor.vendorStatus} />
         {vendor.section197Cert ? (
           <Badge tone="info" size="sm" icon="badge" title="Section 197 certificate on file">
@@ -84,13 +84,13 @@ export function VendorRow({ vendor, onView, onMerge }: VendorRowProps) {
           </Badge>
         ) : null}
       </div>
-      <div className="vendors-row-cell vendors-row-cell-numeric">{formatDate(vendor.lastInvoiceDate)}</div>
-      <div className="vendors-row-cell vendors-row-cell-numeric">{formatRupeesMinor(vendor.fytdSpendMinor)}</div>
-      <div className="vendors-row-cell vendors-row-cell-numeric">{formatRupeesMinor(vendor.fytdTdsMinor)}</div>
-      <div className="vendors-row-cell vendors-row-cell-actions">
+      <div className="vendor-cell num-cell">{formatDate(vendor.lastInvoiceDate)}</div>
+      <div className="vendor-cell num-cell">{formatRupeesMinor(vendor.fytdSpendMinor)}</div>
+      <div className="vendor-cell num-cell">{formatRupeesMinor(vendor.fytdTdsMinor)}</div>
+      <div className="vendor-cell vendor-cell-actions">
         <button
           type="button"
-          className="app-button app-button-secondary app-button-sm"
+          className="btn ghost"
           onClick={() => onView(vendor)}
           data-testid="vendors-row-view"
         >
@@ -98,7 +98,7 @@ export function VendorRow({ vendor, onView, onMerge }: VendorRowProps) {
         </button>
         <button
           type="button"
-          className="app-button app-button-secondary app-button-sm"
+          className="btn ghost"
           onClick={() => onMerge(vendor)}
           data-testid="vendors-row-merge"
         >
