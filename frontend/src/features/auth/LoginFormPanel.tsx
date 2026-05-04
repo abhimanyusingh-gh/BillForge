@@ -10,14 +10,6 @@ interface LoginFormPanelProps {
   onSubmit: () => void;
 }
 
-const PLATFORM_DOMAIN_PATTERN = /@ledgerbuddy\.in$/i;
-
-type LoginRole = "tenant" | "platform";
-
-function roleForEmail(email: string): LoginRole {
-  return PLATFORM_DOMAIN_PATTERN.test(email.trim()) ? "platform" : "tenant";
-}
-
 export function LoginFormPanel({
   email,
   password,
@@ -29,7 +21,6 @@ export function LoginFormPanel({
 }: LoginFormPanelProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const role = roleForEmail(email);
   const errorId = "auth-signin-error";
 
   return (
@@ -59,7 +50,7 @@ export function LoginFormPanel({
             <span className="material-symbols-outlined auth-lead-icon">alternate_email</span>
             <input
               id="auth-signin-email"
-              className="auth-input auth-input-mono auth-input-with-pill"
+              className="auth-input auth-input-mono"
               type="email"
               autoComplete="email"
               value={email}
@@ -68,15 +59,6 @@ export function LoginFormPanel({
               aria-invalid={error ? true : undefined}
               required
             />
-            <span
-              className={`auth-role-pill auth-role-pill-${role}`}
-              title={role === "platform" ? "Platform admin scope" : "Tenant scope"}
-            >
-              <span className="material-symbols-outlined">
-                {role === "platform" ? "admin_panel_settings" : "business_center"}
-              </span>
-              {role === "platform" ? "Platform" : "Tenant"}
-            </span>
           </div>
         </div>
 
