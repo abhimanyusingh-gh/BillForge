@@ -57,29 +57,34 @@ export function TdsDashboardPage() {
     setVendor(null);
   }
 
+  const periodLabel = state.quarter ? `FY ${state.fy} · ${state.quarter}` : `FY ${state.fy}`;
+
   return (
     <section className="tds-dashboard-page" data-testid="tds-dashboard-page">
       <header className="tds-dashboard-header">
-        <div>
+        <div className="tds-dashboard-header-titles">
           <h2>TDS Liability Dashboard</h2>
-          <p className="tds-dashboard-subtitle" data-testid="tds-dashboard-tan">
-            TAN: {query.data?.tan ?? "—"}
-          </p>
+          <span className="tds-dashboard-period-pill">{periodLabel}</span>
         </div>
+        <p className="tds-dashboard-subtitle" data-testid="tds-dashboard-tan">
+          TAN: <span className="lb-mono">{query.data?.tan ?? "—"}</span>
+        </p>
       </header>
 
-      <FyQuarterFilter
-        fy={state.fy}
-        quarter={state.quarter}
-        fyOptions={fyOptionList}
-        onFyChange={setFy}
-        onQuarterChange={setQuarter}
-      />
+      <div className="tds-dashboard-toolbar">
+        <FyQuarterFilter
+          fy={state.fy}
+          quarter={state.quarter}
+          fyOptions={fyOptionList}
+          onFyChange={setFy}
+          onQuarterChange={setQuarter}
+        />
+      </div>
 
       {state.vendorFingerprint ? (
         <div className="tds-active-vendor-banner" data-testid="tds-active-vendor-banner">
           <span>
-            Filtered to vendor: <strong>{state.vendorFingerprint}</strong>
+            Filtered to vendor: <strong className="lb-mono">{state.vendorFingerprint}</strong>
           </span>
           <button type="button" className="app-button app-button-secondary" onClick={() => setVendor(null)}>
             Clear vendor
@@ -127,24 +132,30 @@ export function TdsDashboardPage() {
             vendorsAboveThresholdCount={kpis.vendorsAboveThresholdCount}
           />
 
-          <div className="tds-dashboard-section">
-            <h3>Quarterly Cumulative TDS by Section</h3>
+          <section className="tds-dashboard-section">
+            <header className="tds-dashboard-section-header">
+              <h3>Quarterly Cumulative TDS by Section</h3>
+              <span className="tds-dashboard-section-hint">FY {state.fy}</span>
+            </header>
             <TdsCumulativeChart
               byQuarter={query.data.byQuarter}
               isFiltered={isFiltered}
               onClearFilters={handleClearFilters}
             />
-          </div>
+          </section>
 
-          <div className="tds-dashboard-section">
-            <h3>Vendor Liability Breakdown</h3>
+          <section className="tds-dashboard-section">
+            <header className="tds-dashboard-section-header">
+              <h3>Vendor Liability Breakdown</h3>
+              <span className="tds-dashboard-section-hint">Sorted by cumulative TDS</span>
+            </header>
             <TdsLiabilityTable
               rows={query.data.byVendor}
               isFiltered={isFiltered}
               onClearFilters={handleClearFilters}
               onSelectVendor={setVendor}
             />
-          </div>
+          </section>
         </>
       ) : null}
     </section>

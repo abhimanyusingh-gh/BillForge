@@ -5632,6 +5632,8 @@ pre {
   flex: 1;
 }
 
+/* ---- W3-6: TDS Dashboard ---- */
+
 .tds-dashboard-page {
   display: flex;
   flex-direction: column;
@@ -5639,30 +5641,77 @@ pre {
   padding: var(--sp-4);
 }
 
+.tds-dashboard-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.tds-dashboard-header-titles {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
 .tds-dashboard-header h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--ink);
 }
 
+.tds-dashboard-period-pill {
+  font: 600 var(--fs-xxs)/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: var(--accent-soft-bg);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-pill);
+}
+
 .tds-dashboard-subtitle {
-  margin: 0.15rem 0 0;
-  font-size: 0.85rem;
+  margin: 0;
+  font-size: var(--fs-sm);
   color: var(--ink-soft);
+}
+
+.tds-dashboard-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
 }
 
 .tds-dashboard-section {
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: var(--shadow-sm);
 }
 
-.tds-dashboard-section h3 {
+.tds-dashboard-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.tds-dashboard-section-header h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--ink);
+}
+
+.tds-dashboard-section-hint {
+  font: 500 var(--fs-xs)/1 var(--font-mono);
+  color: var(--ink-soft);
 }
 
 .tds-filter-bar {
@@ -5678,10 +5727,10 @@ pre {
   justify-content: space-between;
   gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--bg-soft);
+  background: var(--accent-soft-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--ink);
 }
 
@@ -5700,31 +5749,30 @@ pre {
   align-items: flex-start;
   gap: var(--sp-2);
   padding: var(--sp-4);
-  background: var(--bg-soft);
+  background: var(--bg-sunken);
   border: 1px dashed var(--line);
   border-radius: var(--radius-sm);
   color: var(--ink-soft);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
-.tds-liability-table {
+.tds-liability-table-wrap {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
 }
 
-.tds-liability-table th,
-.tds-liability-table td {
-  text-align: left;
-  padding: 0.4rem 0.55rem;
-  border-bottom: 1px solid var(--line);
+.tds-liability-table-wrap .lb-datatable-row[data-threshold-crossed="true"] {
+  background: var(--warn-soft-bg);
 }
 
-.tds-liability-table tbody tr[data-threshold-crossed="true"] {
-  background: var(--warn-soft-bg, rgba(234, 88, 12, 0.05));
+.tds-liability-table-wrap .lb-datatable-row[data-threshold-crossed="true"]:hover {
+  background: var(--warn-soft-bg);
 }
 
-.tds-sort-button,
+.tds-section-cell {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .tds-vendor-link {
   background: transparent;
   border: 0;
@@ -5735,17 +5783,21 @@ pre {
   text-align: left;
 }
 
-.tds-sort-button[data-active="true"] {
-  font-weight: 600;
-}
-
-.tds-sort-button:hover,
 .tds-vendor-link:hover {
   text-decoration: underline;
 }
 
 .tds-cumulative-chart {
   width: 100%;
+}
+
+.tds-chart-card {
+  background: var(--bg-panel);
+  border-radius: var(--radius-sm);
+}
+
+.tds-kpi-grid {
+  margin-top: 0;
 }
 
 /* Invoice list (#347, design pass — canvas Invoices.jsx) */
