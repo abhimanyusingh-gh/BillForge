@@ -73,7 +73,7 @@ export function ApproverSelector({
                 approverUserIds: Array.from(e.target.selectedOptions).map((o) => o.value),
               })
             }
-            className="approval-workflow-multi-select"
+            className=""
           >
             {tenantUsers.map((u) => (
               <option key={u.userId} value={u.userId}>

@@ -42,16 +42,16 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
   const eligibleUsers = complianceSignoffUsers ?? [];
 
   return (
-    <div className="workflow-step-card">
-      <div className="workflow-step-card-header">
+    <div className="panel">
+      <div className="stitle">
         <span>Step {step.order}</span>
         {isComplianceSignoff ? (
-          <span className="approval-workflow-step-tag">
+          <span className="spill s-pending">
             Compliance Sign-off
           </span>
         ) : null}
         {isEscalation ? (
-          <span className="approval-workflow-step-tag approval-workflow-step-tag-escalation">
+          <span className="spill s-pending spill s-needs_review">
             Escalation
           </span>
         ) : null}
@@ -65,7 +65,7 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
           </button>
         ) : null}
       </div>
-      <div className="workflow-step-card-body">
+      <div className="">
         <ApproverSelector
           approver={{
             approverType: step.approverType,
@@ -138,10 +138,10 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
                       if (val !== null && (val < 1 || val > 720 || !Number.isInteger(val))) return;
                       onUpdate({ timeoutHours: val });
                     }}
-                    className="approval-workflow-narrow-input"
+                    className="input"
                   />
                 </label>
-                <p className="approval-workflow-helper-text">
+                <p className="field-hint">
                   Time before this step auto-escalates. Uses wall-clock hours.
                 </p>
                 <label>
@@ -157,7 +157,7 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
                   </select>
                 </label>
                 {step.timeoutHours != null && !step.escalateTo ? (
-                  <p role="alert" className="approval-workflow-warning-text">
+                  <p role="alert" className="field-error">
                     Escalation target is required when a timeout is set.
                   </p>
                 ) : null}
@@ -165,9 +165,9 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
             ) : null}
 
             {isComplianceSignoff ? (
-              <div className="approval-workflow-compliance-block">
+              <div className="panel">
                 {eligibleUsers.length === 0 ? (
-                  <div role="alert" className="approval-workflow-compliance-empty">
+                  <div role="alert" className="panel">
                     No users have compliance sign-off capability.{" "}
                     <a href="#users">
                       Grant capability in Users section
@@ -175,10 +175,10 @@ export function StepCard({ step, stepCount, tenantUsers, complianceSignoffUsers,
                   </div>
                 ) : (
                   <div>
-                    <p className="approval-workflow-eligible-heading">
+                    <p className="stitle">
                       Eligible compliance sign-off users:
                     </p>
-                    <ul className="approval-workflow-eligible-list">
+                    <ul className="kvgrid">
                       {eligibleUsers.map((u) => (
                         <li key={u.userId}>
                           {resolveEmail(u.userId, tenantUsers)} ({u.role})

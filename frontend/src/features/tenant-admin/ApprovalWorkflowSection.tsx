@@ -118,7 +118,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
     return (
       <div className="editor-card">
         <div className="editor-header"><h3>Approval Workflow</h3></div>
-        <p className="approval-workflow-loading">Loading…</p>
+        <p className="skeleton-row">Loading…</p>
       </div>
     );
   }
@@ -130,10 +130,10 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       <div className="editor-header"><h3>Approval Workflow</h3></div>
 
       {noUsers ? (
-        <p className="workflow-hint">Add team members before configuring approval workflows.</p>
+        <p className="field-hint">Add team members before configuring approval workflows.</p>
       ) : (
         <>
-      <div className="workflow-toggle-row">
+      <div className="realm-pill-group">
         <label>
           <input
             type="checkbox"
@@ -143,20 +143,20 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
           Require approval workflow
         </label>
       </div>
-      <p className="workflow-hint">
+      <p className="field-hint">
         {config.enabled
           ? "Invoices will require step-by-step approval before export."
           : "Any member or admin can approve invoices directly."}
       </p>
 
       {config.enabled && config.mode === "simple" ? (
-        <div className="workflow-simple-options">
-          <div className="workflow-option-row">
-            <span className="material-symbols-outlined approval-workflow-option-icon">check_circle</span>
-            <span className="approval-workflow-option-text">Step 1: Approved by any team member</span>
+        <div className="field-row">
+          <div className="field-row">
+            <span className="material-symbols-outlined material-symbols-outlined">check_circle</span>
+            <span>Step 1: Approved by any team member</span>
           </div>
 
-          <div className="workflow-option-row">
+          <div className="field-row">
             <label>
               <input
                 type="checkbox"
@@ -170,7 +170,7 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
             <small>(A Tenant Admin must approve after the team member)</small>
           </div>
 
-          <div className="workflow-option-row">
+          <div className="field-row">
             <label>
               <input
                 type="checkbox"
@@ -184,8 +184,8 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
             <small>(A second Tenant Admin confirms after manager review)</small>
           </div>
 
-          <div className="workflow-actions">
-            <button type="button" className="workflow-mode-switch" onClick={switchToAdvanced}>
+          <div className="field-row">
+            <button type="button" className="realm-pill-group" onClick={switchToAdvanced}>
               Switch to Advanced Workflow →
             </button>
           </div>
@@ -193,10 +193,10 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       ) : null}
 
       {config.enabled && config.mode === "advanced" ? (
-        <div className="workflow-simple-options">
+        <div className="field-row">
           {config.steps.map((step, idx) => (
             <div key={step.order}>
-              {idx > 0 ? <div className="workflow-step-connector">↓</div> : null}
+              {idx > 0 ? <div className="workflow-connector">↓</div> : null}
               <StepCard
                 step={step}
                 stepCount={config.steps.length}
@@ -208,11 +208,11 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
             </div>
           ))}
 
-          <div className="workflow-actions">
-            <button type="button" className="app-button app-button-secondary approval-workflow-add-step-btn" onClick={addStep}>
+          <div className="field-row">
+            <button type="button" className="btn primary" onClick={addStep}>
               + Add Step
             </button>
-            <button type="button" className="workflow-mode-switch" onClick={() => update({ mode: "simple" })}>
+            <button type="button" className="realm-pill-group" onClick={() => update({ mode: "simple" })}>
               ← Back to Simple Mode
             </button>
           </div>
@@ -220,12 +220,12 @@ export function ApprovalWorkflowSection({ tenantUsers }: ApprovalWorkflowSection
       ) : null}
 
       {dirty && isValid ? (
-        <div className="workflow-actions">
-          <button type="button" className="app-button app-button-primary approval-workflow-save-btn" onClick={() => void handleSave()} disabled={saving}>
+        <div className="field-row">
+          <button type="button" className="btn ghost" onClick={() => void handleSave()} disabled={saving}>
             {saving ? "Saving…" : "Save Workflow"}
           </button>
-          {error ? <span className="approval-workflow-status-error">{error}</span> : null}
-          {success ? <span className="approval-workflow-status-success">Saved</span> : null}
+          {error ? <span className="alert warn">{error}</span> : null}
+          {success ? <span className="alert ok">Saved</span> : null}
         </div>
       ) : null}
         </>

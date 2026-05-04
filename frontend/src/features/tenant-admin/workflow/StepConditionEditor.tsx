@@ -118,7 +118,7 @@ export function StepConditionEditor({ condition, onChange }: StepConditionEditor
                     onChange({ ...condition, value: Math.round(major * 100) });
                   }
                 }}
-                className="approval-workflow-condition-input"
+                className="input"
               />
             </label>
           ) : null}
@@ -163,7 +163,7 @@ export function StepConditionEditor({ condition, onChange }: StepConditionEditor
                     value: Array.from(e.target.selectedOptions).map((o) => o.value),
                   })
                 }
-                className="approval-workflow-multi-select"
+                className=""
               >
                 {GL_CODE_SOURCE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
