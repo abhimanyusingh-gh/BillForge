@@ -30,7 +30,8 @@ export const STANDALONE_HASH_PATH = {
   tallySync: "#/tally-sync",
   inboxRouting: "#/inbox-routing",
   clientOrgs: "#/client-orgs",
-  actionRequired: "#/action-required"
+  actionRequired: "#/action-required",
+  userSettings: "#/user-settings"
 } as const;
 
 export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;
