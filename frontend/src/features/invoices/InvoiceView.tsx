@@ -20,24 +20,20 @@ import {
 } from "@/api";
 import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import type { IngestionJobStatus, Invoice, TenantUser, UserCapabilities } from "@/types";
-import { ConfidenceBadge } from "@/components/invoice/ConfidenceBadge";
 import { IngestionProgressCard } from "@/components/invoice/IngestionProgressCard";
 import { getExtractedFieldRows } from "@/lib/invoice/extractedFields";
 import { getInvoiceSourceHighlights } from "@/lib/invoice/sourceHighlights";
 import {
-  getAvailableRowActions,
   isInvoiceApprovable,
   isInvoiceExportable,
   isInvoiceRetryable,
   isInvoiceSelectable
 } from "@/lib/common/selection";
 import { getInvoiceTallyMappings } from "@/lib/invoice/tallyMapping";
-import { formatMinorAmountWithCurrency } from "@/lib/common/currency";
 import { fetchGlCodes, fetchTdsRates, updateInvoiceComplianceOverride } from "@/api";
 import type { GlCode, TdsRate } from "@/types";
 import {
   buildFieldCropSourceMap,
-  STATUS_LABELS,
   STATUSES
 } from "@/lib/invoice/invoiceView";
 import { useInvoiceDetail } from "@/hooks/useInvoiceDetail";
@@ -51,40 +47,16 @@ import { KeyboardShortcutsOverlay } from "@/components/common/KeyboardShortcutsO
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { InvoiceToolbar } from "@/components/invoice/InvoiceToolbar";
 import { InvoiceDetailPanel } from "@/components/invoice/InvoiceDetailPanel";
-import { RiskDot, RISK_SEVERITY, type RiskSeverity } from "@/components/compliance/RiskDot";
 import { InvoicePopup } from "@/components/invoice/InvoicePopup";
-import { Combobox, type ComboboxOption } from "@/components/ds";
-import { ActionHintBadge } from "@/components/invoice/ActionHintBadge";
+import {
+  DataTable,
+  DATATABLE_DENSITY,
+  DATATABLE_SORT_DIRECTION,
+  type ComboboxOption,
+  type DataTableSort
+} from "@/components/ds";
 import { PreExportValidationPanel } from "@/features/invoices/PreExportValidationPanel";
-
-function formatTaxSummary(invoice: { parsed?: { gst?: { cgstMinor?: number; sgstMinor?: number; igstMinor?: number; totalTaxMinor?: number }; currency?: string } }): string {
-  const gst = invoice.parsed?.gst;
-  if (!gst) return "-";
-  const cur = invoice.parsed?.currency;
-  if (gst.totalTaxMinor) return formatMinorAmountWithCurrency(gst.totalTaxMinor, cur);
-  const sum = (gst.cgstMinor ?? 0) + (gst.sgstMinor ?? 0) + (gst.igstMinor ?? 0);
-  return sum > 0 ? formatMinorAmountWithCurrency(sum, cur) : "-";
-}
-
-function formatApproverName(value?: string): string {
-  if (!value) return "-";
-  const atIdx = value.indexOf("@");
-  if (atIdx <= 0) return value;
-  return value.slice(0, atIdx).replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-const GL_CODE_OPTION_KEY = (value: string): string => value;
-
-const STATUS_ICONS: Record<string, string> = {
-  PENDING: "hourglass_empty",
-  PARSED: "task_alt",
-  NEEDS_REVIEW: "flag",
-  AWAITING_APPROVAL: "pending_actions",
-  FAILED_OCR: "error",
-  FAILED_PARSE: "error",
-  APPROVED: "check_circle",
-  EXPORTED: "cloud_done"
-};
+import { buildInvoiceColumns } from "@/features/invoices/invoiceColumns";
 
 function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): Invoice | null {
   if (!summary) return detail;
@@ -151,7 +123,6 @@ export function InvoiceView({
     setSortDirection,
     selectedIds,
     toggleSelection,
-    toggleSelectAllVisible: toggleSelectAllVisibleRaw,
     clearSelection,
     removeFromSelection,
     reconcileWithLoaded,
@@ -168,7 +139,6 @@ export function InvoiceView({
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
   const persistedPanelSplit = useUserPrefsStore((state) => state.invoiceView.panelSplitPercent);
   const persistedTableDensity = useUserPrefsStore((state) => state.invoiceView.tableDensity);
-  const persistedColumnWidths = useUserPrefsStore((state) => state.invoiceView.columnWidths);
   const setInvoiceViewPref = useUserPrefsStore((state) => state.setInvoiceView);
   const [listPanelPercent, setListPanelPercent] = useState(() => persistedPanelSplit);
   const contentRef = useRef<HTMLElement>(null);
@@ -191,14 +161,6 @@ export function InvoiceView({
         .filter((g) => g.isActive)
         .map((g) => ({ value: g.code, label: g.name, description: g.code })),
     [tenantGlCodes]
-  );
-  const columnWidths: Record<string, number> = persistedColumnWidths;
-  const setColumnWidths = useCallback(
-    (updater: (prev: Record<string, number>) => Record<string, number>) => {
-      const prev = useUserPrefsStore.getState().invoiceView.columnWidths;
-      setInvoiceViewPref({ columnWidths: updater(prev) });
-    },
-    [setInvoiceViewPref]
   );
   const [sectionExpanded, setSectionExpanded] = useState<Record<string, boolean>>({
     popupExtractedFields: true,
@@ -480,19 +442,6 @@ export function InvoiceView({
     );
   }, [invoices, debouncedSearch]);
 
-  const selectableVisibleIds = useMemo(
-    () => filteredInvoices.filter((invoice) => isInvoiceSelectable(invoice)).map((invoice) => invoice._id),
-    [filteredInvoices]
-  );
-
-  const areAllVisibleSelectableSelected = useMemo(() => {
-    if (selectableVisibleIds.length === 0) {
-      return false;
-    }
-    const selectedIdSet = new Set(selectedIds);
-    return selectableVisibleIds.every((id) => selectedIdSet.has(id));
-  }, [selectableVisibleIds, selectedIds]);
-
   const contentClassName = detailsPanelVisible ? "content" : "content content-list-expanded";
 
   const contentStyle = useMemo(() => {
@@ -563,29 +512,6 @@ export function InvoiceView({
     },
     onShowHelp: () => setShowShortcutsHelp(true)
   });
-
-  const handleColumnResize = useCallback((colKey: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const th = (e.target as HTMLElement).parentElement;
-    if (!th) return;
-    const startX = e.clientX;
-    const startWidth = th.offsetWidth;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    const onMove = (ev: MouseEvent) => {
-      const newWidth = Math.max(60, startWidth + ev.clientX - startX);
-      setColumnWidths((prev) => ({ ...prev, [colKey]: newWidth }));
-    };
-    const onUp = () => {
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [setColumnWidths]);
 
   const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -1198,10 +1124,78 @@ export function InvoiceView({
     }
   }
 
-  const toggleSelectAllVisible = useCallback(
-    () => toggleSelectAllVisibleRaw(selectableVisibleIds, areAllVisibleSelectableSelected),
-    [toggleSelectAllVisibleRaw, selectableVisibleIds, areAllVisibleSelectableSelected]
+  const selectedRowKeys = useMemo<ReadonlySet<string>>(() => new Set(selectedIds), [selectedIds]);
+
+  const dataTableSort = useMemo<DataTableSort | null>(() => {
+    if (!sortColumn) return null;
+    return {
+      id: sortColumn,
+      direction:
+        sortDirection === "asc" ? DATATABLE_SORT_DIRECTION.ASC : DATATABLE_SORT_DIRECTION.DESC
+    };
+  }, [sortColumn, sortDirection]);
+
+  const handleDataTableSortChange = useCallback(
+    (next: DataTableSort | undefined) => {
+      if (!next) return;
+      if (sortColumn === next.id) {
+        setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+        return;
+      }
+      setSortColumn(next.id);
+      setSortDirection(next.direction === DATATABLE_SORT_DIRECTION.ASC ? "asc" : "desc");
+    },
+    [sortColumn, setSortColumn, setSortDirection]
   );
+
+  const handleSelectionChange = useCallback(
+    (next: ReadonlySet<string>) => {
+      const additions: Invoice[] = [];
+      const removals: string[] = [];
+      for (const invoice of filteredInvoices) {
+        const wasSelected = selectedRowKeys.has(invoice._id);
+        const isSelected = next.has(invoice._id);
+        if (isSelected && !wasSelected && isInvoiceSelectable(invoice)) {
+          additions.push(invoice);
+        } else if (!isSelected && wasSelected) {
+          removals.push(invoice._id);
+        }
+      }
+      for (const invoice of additions) toggleSelection(invoice);
+      if (removals.length > 0) removeFromSelection(removals);
+    },
+    [filteredInvoices, selectedRowKeys, toggleSelection, removeFromSelection]
+  );
+
+  const invoiceColumns = useMemo(() => buildInvoiceColumns({
+    editingListCell,
+    editListValue,
+    setEditListValue,
+    setEditingListCell,
+    handleSaveListCell,
+    setPopupInvoiceId,
+    glCodeEditingInvoiceId,
+    setGlCodeEditingInvoiceId,
+    tenantGlComboOptions,
+    handleTableGlCodeSelect,
+    handleTableGlCodeClear,
+    ingestingIds,
+    canApproveInvoices,
+    canRetryInvoices,
+    canDeleteInvoices,
+    handleApproveSingle,
+    handleRetrySingle,
+    handleDeleteSingle
+  }), [
+    editingListCell,
+    editListValue,
+    glCodeEditingInvoiceId,
+    tenantGlComboOptions,
+    ingestingIds,
+    canApproveInvoices,
+    canRetryInvoices,
+    canDeleteInvoices
+  ]);
 
   return (
     <>
@@ -1296,253 +1290,27 @@ export function InvoiceView({
             ) : null}
 
             {invoices.length > 0 || loading ? (
-            <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
-              <table className="invoice-list-table">
-                <thead>
-                  <tr>
-                    <th><input type="checkbox" aria-label="Select all visible invoices" checked={areAllVisibleSelectableSelected && selectableVisibleIds.length > 0} disabled={selectableVisibleIds.length === 0} onChange={toggleSelectAllVisible} /></th>
-                    {([["file", "File"], ["vendor", "Vendor"], ["invoiceNumber", "Invoice #"], ["invoiceDate", "Invoice Date"], ["total", "Total"], ["tax", "Tax"], ["glCode", "GL Code"], ["tds", "TDS"], ["signals", "Signals"], ["confidence", "Score"], ["status", "Status"], ["approvedBy", "Approved By"], ["received", "Received"]] as const).map(([key, label]) => (
-                      <th
-                        key={key}
-                        className="sortable-th"
-                        aria-sort={sortColumn === key ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
-                        style={columnWidths[key] ? { width: columnWidths[key], position: "relative" } : { position: "relative" }}
-                        onClick={() => { if (sortColumn === key) { setSortDirection((d) => d === "asc" ? "desc" : "asc"); } else { setSortColumn(key); setSortDirection("asc"); } }}
-                      >
-                        {label}
-                        {sortColumn === key ? <span className="sort-indicator" aria-hidden="true">{sortDirection === "asc" ? " \u25B2" : " \u25BC"}</span> : null}
-                        <span className="col-resize-handle" onMouseDown={(e) => handleColumnResize(key, e)} />
-                      </th>
-                    ))}
-                    <th aria-label="Row actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInvoices.map((invoice) => {
-                    const rowClasses = [
-                      invoice._id === activeId ? "row-active" : null,
-                      invoice.status === "EXPORTED" ? "row-exported" : null
-                    ]
-                      .filter(Boolean)
-                      .join(" ");
-                    const canEditCell = invoice.actions?.canEditFields === true;
-
-                    return (
-                      <tr key={invoice._id} data-invoice-id={invoice._id} className={rowClasses || undefined} onClick={() => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`Select invoice ${invoice.attachmentName}`}
-                            checked={selectedIds.includes(invoice._id)}
-                            disabled={!isInvoiceSelectable(invoice)}
-                            onChange={() => toggleSelection(invoice)}
-                            onClick={(event) => event.stopPropagation()}
-                          />
-                        </td>
-                        <td className="file-name-cell">
-                          {editingListCell?.invoiceId === invoice._id && editingListCell.field === "attachmentName" ? (
-                            <>
-                              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" aria-label="Save file name" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                            </>
-                          ) : (
-                            <>
-                              <button type="button" className="file-label" onClick={(event) => { event.stopPropagation(); setPopupInvoiceId(invoice._id); }}>{invoice.attachmentName}</button>
-                              {canEditCell && (
-                                <button type="button" className="row-action-button file-rename-button" title="Rename" aria-label={`Rename file ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
-                                  <span className="material-symbols-outlined">edit</span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </td>
-                        <td className="extracted-value-cell">
-                          {editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName" ? (
-                            <>
-                              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" aria-label="Save vendor" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="extracted-value-display">{invoice.parsed?.vendorName ?? "-"}</span>
-                              {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit vendor" aria-label={`Edit vendor on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
-                                  <span className="material-symbols-outlined">edit</span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </td>
-                        <td className="extracted-value-cell">
-                          {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceNumber" ? (
-                            <>
-                              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" aria-label="Save invoice number" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="extracted-value-display">{invoice.parsed?.invoiceNumber ?? "-"}</span>
-                              {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit invoice number" aria-label={`Edit invoice number on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
-                                  <span className="material-symbols-outlined">edit</span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </td>
-                        <td className="extracted-value-cell">
-                          {editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceDate" ? (
-                            <>
-                              <input className="extracted-value-input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" aria-label="Save invoice date" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="extracted-value-display">{invoice.parsed?.invoiceDate ?? "-"}</span>
-                              {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit date" aria-label={`Edit invoice date on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); const raw = invoice.parsed?.invoiceDate ?? ""; const d = raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw) : null; setEditListValue(d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : raw); }}>
-                                  <span className="material-symbols-outlined">edit</span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </td>
-                        <td
-                          className={
-                            [invoice.compliance?.riskSignals?.some(s => s.code === "TOTAL_AMOUNT_ABOVE_EXPECTED" && s.status === "open") ? "value-risk" : null, "extracted-value-cell"].filter(Boolean).join(" ")
-                          }
-                        >
-                          {editingListCell?.invoiceId === invoice._id && editingListCell.field === "totalAmountMinor" ? (
-                            <>
-                              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-                              <button type="button" className="field-save-button" aria-label="Save amount" onClick={() => void handleSaveListCell()}>&#10003;</button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="extracted-value-display">{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
-                              {canEditCell && (
-                                <button type="button" className="row-action-button field-edit-button" title="Edit amount" aria-label={`Edit amount on ${invoice.attachmentName}`} onClick={() => { setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
-                                  <span className="material-symbols-outlined">edit</span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </td>
-                        <td className="muted">{formatTaxSummary(invoice)}</td>
-                        <td className="gl-code-cell invoice-list-cell-compact" onClick={(e) => e.stopPropagation()}>
-                          {glCodeEditingInvoiceId === invoice._id ? (
-                            <Combobox<string>
-                              options={tenantGlComboOptions}
-                              value={invoice.compliance?.glCode?.code ?? null}
-                              onChange={(code) => {
-                                const match = tenantGlComboOptions.find((opt) => opt.value === code);
-                                void handleTableGlCodeSelect(invoice._id, code, match?.label ?? "");
-                              }}
-                              onClear={() => void handleTableGlCodeClear(invoice._id)}
-                              optionKey={GL_CODE_OPTION_KEY}
-                              placeholder="Select GL code..."
-                              searchPlaceholder="Search GL codes..."
-                              emptyText="No matching GL codes"
-                              clearLabel="Clear GL code"
-                              autoOpen
-                              onOpenChange={(isOpen) => {
-                                if (!isOpen) setGlCodeEditingInvoiceId(null);
-                              }}
-                            />
-                          ) : (
-                            <>
-                              <span title={invoice.compliance?.glCode?.code ?? ""}>
-                                {invoice.complianceSummary?.glCode ?? invoice.compliance?.glCode?.name ?? ""}
-                                {!invoice.complianceSummary?.glCode && !invoice.compliance?.glCode?.name ? <span className="muted">—</span> : null}
-                              </span>
-                              {invoice.actions?.canOverrideGlCode === true ? (
-                                <button
-                                  type="button"
-                                  className="row-action-button field-edit-button"
-                                  title="Edit GL code"
-                                  aria-label={`Edit GL code on ${invoice.attachmentName}`}
-                                  onClick={() => setGlCodeEditingInvoiceId(invoice._id)}
-                                >
-                                  <span className="material-symbols-outlined">edit</span>
-                                </button>
-                              ) : null}
-                            </>
-                          )}
-                        </td>
-                        <td className="invoice-list-cell-compact">
-                          {invoice.complianceSummary?.tdsSection ?? invoice.compliance?.tds?.section
-                            ? <span>{invoice.complianceSummary?.tdsSection ?? invoice.compliance?.tds?.section} {invoice.compliance?.tds?.rate ? `${invoice.compliance.tds.rate / 100}%` : ""}</span>
-                            : <span className="muted">—</span>}
-                        </td>
-                        <td>
-                          {(() => {
-                            const count = invoice.complianceSummary?.riskSignalCount ?? invoice.compliance?.riskSignals?.filter(s => s.status === "open").length ?? 0;
-                            const rawMaxSev = invoice.complianceSummary?.riskSignalMaxSeverity ?? (invoice.compliance?.riskSignals?.length ? invoice.compliance.riskSignals.reduce((m, s) => s.severity === "critical" ? "critical" : s.severity === "warning" && m !== "critical" ? "warning" : m, "info" as string) : null);
-                            const severity: RiskSeverity = count === 0 || rawMaxSev == null
-                              ? RISK_SEVERITY.CLEAN
-                              : rawMaxSev === "critical" ? RISK_SEVERITY.CRITICAL
-                              : rawMaxSev === "warning" ? RISK_SEVERITY.WARNING
-                              : RISK_SEVERITY.INFO;
-                            return <RiskDot severity={severity} count={count} />;
-                          })()}
-                        </td>
-                        <td>
-                          <ConfidenceBadge score={invoice.confidenceScore ?? 0} tone={invoice.confidenceTone} />
-                        </td>
-                        <td>
-                          {ingestingIds.has(invoice._id) ? (
-                            <span className="status status-reprocessing">Reprocessing</span>
-                          ) : (
-                            <span className={`status status-${invoice.status.toLowerCase()}`}>
-                              {STATUS_ICONS[invoice.status] ? <span className="material-symbols-outlined status-badge-icon">{STATUS_ICONS[invoice.status]}</span> : null}
-                              {invoice.status === "AWAITING_APPROVAL" && invoice.workflowState?.currentStep
-                                ? `Step ${invoice.workflowState.currentStep}`
-                                : (STATUS_LABELS[invoice.status] ?? invoice.status)}
-                            </span>
-                          )}
-                          {invoice.possibleDuplicate ? (
-                            <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
-                          ) : null}
-                        </td>
-                        <td className="invoice-list-cell-compact invoice-list-cell-muted" title={invoice.approval?.email ?? invoice.approval?.approvedBy ?? ""}>{formatApproverName(invoice.approval?.email ?? invoice.approval?.approvedBy)}</td>
-                        <td className="invoice-list-cell-mono">{new Date(invoice.receivedAt).toLocaleString()}</td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          {(() => {
-                            const actions = getAvailableRowActions(invoice).filter((action) => {
-                              if (action === "approve") return canApproveInvoices;
-                              if (action === "reingest") return canRetryInvoices;
-                              if (action === "delete") return canDeleteInvoices;
-                              return false;
-                            });
-                            const ingesting = ingestingIds.has(invoice._id);
-                            return (
-                              <div className="row-actions-cell">
-                                <ActionHintBadge invoice={invoice} />
-                                {actions.includes("approve") && !ingesting && (
-                                  <button type="button" className="row-action-button row-action-approve" title="Approve" aria-label={`Approve invoice ${invoice.attachmentName}`} onClick={() => void handleApproveSingle(invoice._id)}>
-                                    <span className="material-symbols-outlined" aria-hidden="true">check_circle</span>
-                                  </button>
-                                )}
-                                {actions.includes("reingest") && !ingesting && (
-                                  <button type="button" className="row-action-button row-action-retry" title="Reingest" aria-label={`Reingest invoice ${invoice.attachmentName}`} onClick={() => void handleRetrySingle(invoice._id)}>
-                                    <span className="material-symbols-outlined" aria-hidden="true">replay</span>
-                                  </button>
-                                )}
-                                {actions.includes("delete") && !ingesting && (
-                                  <button type="button" className="row-action-button" title="Delete" aria-label={`Delete invoice ${invoice.attachmentName}`} onClick={() => handleDeleteSingle(invoice._id, invoice.attachmentName)}>
-                                    <span className="material-symbols-outlined" aria-hidden="true">delete</span>
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
+                <DataTable<Invoice>
+                  columns={invoiceColumns}
+                  rows={filteredInvoices}
+                  getRowKey={(invoice) => invoice._id}
+                  density={tableDensity === "compact" ? DATATABLE_DENSITY.COMPACT : DATATABLE_DENSITY.COMFORTABLE}
+                  stickyHeader
+                  sortBy={dataTableSort}
+                  onSortChange={handleDataTableSortChange}
+                  onRowClick={(invoice) => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}
+                  activeRowId={activeId ?? undefined}
+                  getRowClassName={(invoice) => (invoice.status === "EXPORTED" ? "row-exported" : undefined)}
+                  getRowAttributes={(invoice) => ({ "data-invoice-id": invoice._id })}
+                  selectable
+                  selectedRowIds={selectedRowKeys}
+                  onSelectionChange={handleSelectionChange}
+                  isRowSelectable={(invoice) => isInvoiceSelectable(invoice)}
+                  caption="Invoices"
+                  testId="invoice-list-table"
+                />
+              </div>
             ) : null}
             {selectedIds.length > 0 && (canApproveInvoices || canExportToTally || canDeleteInvoices) ? (
               <div className="bulk-action-bar">

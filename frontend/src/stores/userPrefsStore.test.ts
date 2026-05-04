@@ -22,7 +22,6 @@ describe("userPrefsStore", () => {
     const state = useUserPrefsStore.getState();
     expect(state.invoiceView.panelSplitPercent).toBe(58);
     expect(state.invoiceView.tableDensity).toBe(TABLE_DENSITY.COMFORTABLE);
-    expect(state.invoiceView.columnWidths).toEqual({});
     expect(state.invoiceView.sortColumn).toBeNull();
     expect(state.invoiceView.sortDirection).toBe(SORT_DIRECTION.ASC);
     expect(state.theme.mode).toBeNull();
