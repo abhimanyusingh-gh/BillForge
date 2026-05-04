@@ -118,7 +118,7 @@ export function TenantConfigTab({
       summary: "GL codes used to map invoice lines to ledgers.",
       visible: canConfigureGlCodes,
       node: (
-        <div className="editor-card tenant-config-section-spacer">
+        <div className="editor-card">
           <GlCodeManager />
         </div>
       ),
@@ -218,7 +218,7 @@ export function TenantConfigTab({
                         <select
                           value={user.role}
                           onChange={(event) => onRoleChange(user.userId, event.target.value as TenantRole)}
-                          className="tenant-config-role-select"
+                          className="input"
                         >
                           {TENANT_ROLE_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
