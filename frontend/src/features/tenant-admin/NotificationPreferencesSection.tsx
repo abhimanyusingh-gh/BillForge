@@ -143,16 +143,16 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
 
   if (loading) {
     return (
-      <div className="editor-card tenant-config-section-spacer">
-        <p className="tenant-config-loading">Loading notification preferences...</p>
+      <div className="editor-card">
+        <p className="skeleton-row">Loading notification preferences...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="editor-card tenant-config-section-spacer">
-        <p className="tenant-config-error-text">{loadError}</p>
+      <div className="editor-card">
+        <p className="field-error">{loadError}</p>
         <button type="button" className="app-button app-button-secondary" onClick={loadConfig}>Retry</button>
       </div>
     );
@@ -161,12 +161,12 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
   const logTotalPages = logData ? Math.ceil(logData.total / logData.limit) : 0;
 
   return (
-    <div className="editor-card tenant-config-section-spacer">
+    <div className="editor-card">
       <div className="editor-header">
         <h3>Notification Preferences</h3>
       </div>
 
-      <p className="tenant-config-section-lead">
+      <p className="sub">
         Control which notifications are sent and who receives them.
       </p>
 
@@ -260,14 +260,14 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
       </div>
 
       {saveError ? (
-        <p className="tenant-config-status-error" role="alert">{saveError}</p>
+        <div className="alert warn" role="alert">{saveError}</div>
       ) : null}
       {saveSuccess ? (
-        <p className="tenant-config-status-success">Notification preferences saved.</p>
+        <div className="alert ok">Notification preferences saved.</div>
       ) : null}
 
       {dirty ? (
-        <div className="tenant-config-save-bar">
+        <div className="tc-save-bar">
           <button type="button" className="app-button app-button-primary" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Preferences"}
           </button>
@@ -288,14 +288,14 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         {logExpanded ? (
           <div className="notification-prefs-log-body">
             {logLoading ? (
-              <p className="tenant-config-loading">Loading notification log...</p>
+              <p className="skeleton-row">Loading notification log...</p>
             ) : logError ? (
               <div>
-                <p className="tenant-config-error-text">{logError}</p>
+                <p className="field-error">{logError}</p>
                 <button type="button" className="app-button app-button-secondary" onClick={() => loadLog(logPage)}>Retry</button>
               </div>
             ) : logData && logData.items.length === 0 ? (
-              <p className="tenant-config-loading">No notification events recorded yet.</p>
+              <p className="skeleton-row">No notification events recorded yet.</p>
             ) : logData ? (
               <>
                 <div className="list-scroll" style={{ maxHeight: "300px" }}>

@@ -107,28 +107,28 @@ export function ApprovalLimitsSection({ currentUserId, currentUserRole }: Approv
 
   if (loading) {
     return (
-      <div className="editor-card tenant-config-section-spacer">
-        <p className="tenant-config-loading">Loading approval limits...</p>
+      <div className="editor-card">
+        <p className="skeleton-row">Loading approval limits...</p>
       </div>
     );
   }
 
   if (loadError) {
     return (
-      <div className="editor-card tenant-config-section-spacer">
-        <p className="tenant-config-error-text" role="alert">{loadError}</p>
+      <div className="editor-card">
+        <p className="field-error" role="alert">{loadError}</p>
         <button type="button" className="app-button app-button-secondary" onClick={loadLimits}>Retry</button>
       </div>
     );
   }
 
   return (
-    <div className="editor-card tenant-config-section-spacer">
+    <div className="editor-card">
       <div className="editor-header">
         <h3>Approval Limits</h3>
       </div>
 
-      <p className="tenant-config-section-lead">
+      <p className="sub">
         Set the maximum invoice amount each role can approve. Unlimited means no cap.
       </p>
 
@@ -195,14 +195,14 @@ export function ApprovalLimitsSection({ currentUserId, currentUserRole }: Approv
       </div>
 
       {saveError ? (
-        <p className="tenant-config-status-error" role="alert">{saveError}</p>
+        <div className="alert warn" role="alert">{saveError}</div>
       ) : null}
       {saveSuccess ? (
-        <p className="tenant-config-status-success">Approval limits saved.</p>
+        <div className="alert ok">Approval limits saved.</div>
       ) : null}
 
       {dirty ? (
-        <div className="tenant-config-save-bar">
+        <div className="tc-save-bar">
           <button type="button" className="app-button app-button-primary" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Limits"}
           </button>
