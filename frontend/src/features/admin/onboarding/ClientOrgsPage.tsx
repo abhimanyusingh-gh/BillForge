@@ -142,6 +142,8 @@ export function ClientOrgsPage() {
     return CLIENT_ORGS_PAGE_VIEW.Data;
   })();
 
+  const items = query.data ?? [];
+
   const openAddForm = useCallback(() => {
     setFormState({ open: true, mode: CLIENT_ORG_FORM_MODE.Add, target: null, errorMessage: null });
   }, []);
@@ -167,31 +169,36 @@ export function ClientOrgsPage() {
 
   const submitting = createMutation.isPending || updateMutation.isPending;
 
+  const onboardingCount = items.filter((o) => !o.f12OverwriteByGuidVerified).length;
+
   return (
     <section
-      className="client-orgs-page"
+      className="client-orgs-r10"
       data-testid="client-orgs-page"
       data-view={view}
       aria-busy={view === CLIENT_ORGS_PAGE_VIEW.Loading || undefined}
     >
-      <header className="client-orgs-page-header">
-        <div>
-          <h1>Client Organizations</h1>
-          <p>
-            Each client your firm services lives here. Onboarding gates every
-            accounting surface until at least one is created.
-          </p>
-        </div>
+      <div className="page-header">
+        <h1>Client Orgs</h1>
+        <span className="count">
+          {view === CLIENT_ORGS_PAGE_VIEW.Data
+            ? `${items.length} client orgs · ${onboardingCount} onboarding`
+            : view === CLIENT_ORGS_PAGE_VIEW.Loading
+              ? "loading…"
+              : "0 client orgs"}
+        </span>
         {view === CLIENT_ORGS_PAGE_VIEW.Data ? (
-          <Button onClick={openAddForm} icon="add" data-testid="client-orgs-add-button">
-            Add Client Organization
-          </Button>
+          <div className="page-tools">
+            <Button onClick={openAddForm} icon="add" data-testid="client-orgs-add-button">
+              Add Client Organization
+            </Button>
+          </div>
         ) : null}
-      </header>
+      </div>
 
       {view === CLIENT_ORGS_PAGE_VIEW.Loading ? (
         <div
-          className="client-orgs-state"
+          className="client-orgs-r10-state"
           data-testid="client-orgs-loading"
           role="status"
           aria-live="polite"
@@ -203,7 +210,7 @@ export function ClientOrgsPage() {
 
       {view === CLIENT_ORGS_PAGE_VIEW.Error ? (
         <div
-          className="client-orgs-state client-orgs-state-error"
+          className="client-orgs-r10-state client-orgs-r10-state-error"
           data-testid="client-orgs-error"
           role="alert"
         >
@@ -215,7 +222,7 @@ export function ClientOrgsPage() {
       ) : null}
 
       {view === CLIENT_ORGS_PAGE_VIEW.Empty ? (
-        <div className="client-orgs-state client-orgs-state-empty" data-testid="client-orgs-empty">
+        <div className="client-orgs-r10-state" data-testid="client-orgs-empty">
           <h2>Add your first Client Organization</h2>
           <p>
             Capture the GSTIN, friendly name, and (optionally) the state for the
@@ -237,9 +244,9 @@ export function ClientOrgsPage() {
 
       {view === CLIENT_ORGS_PAGE_VIEW.Data ? (
         <>
-          <div className="client-orgs-toolbar">
+          <div className="client-orgs-r10-toolbar">
             <input
-              className="client-orgs-search"
+              className="client-orgs-r10-search"
               type="search"
               value={searchTerm}
               placeholder="Search by name or GSTIN"
@@ -249,7 +256,7 @@ export function ClientOrgsPage() {
             />
           </div>
           <ClientOrgsTable
-            items={query.data ?? []}
+            items={items}
             searchTerm={searchTerm}
             activeClientOrgId={activeClientOrgId}
             onEdit={openEditForm}
@@ -326,7 +333,7 @@ function ArchiveDialogBody({
 }: ArchiveDialogBodyProps) {
   if (archiveError) {
     return (
-      <p className="client-orgs-archive-dialog-message" data-testid="client-orgs-archive-dialog-error">
+      <p data-testid="client-orgs-archive-dialog-error">
         {archiveError}
       </p>
     );
@@ -335,7 +342,7 @@ function ArchiveDialogBody({
   if (previewStatus === PREVIEW_STATUS.Pending) {
     return (
       <div
-        className="client-orgs-archive-dialog-loading"
+        className="client-orgs-r10-archive-dialog-loading"
         data-testid="client-orgs-archive-dialog-loading"
         role="status"
         aria-live="polite"
@@ -348,7 +355,7 @@ function ArchiveDialogBody({
 
   if (previewStatus === PREVIEW_STATUS.Error || !previewData) {
     return (
-      <p className="client-orgs-archive-dialog-message" data-testid="client-orgs-archive-dialog-fallback">
+      <p data-testid="client-orgs-archive-dialog-fallback">
         {`Archiving "${companyName}" hides it from the realm switcher. All linked accounting records (invoices, vendors, bank statements, etc.) remain read-accessible. An exact per-record-type breakdown is shown after confirmation.`}
       </p>
     );
@@ -360,15 +367,15 @@ function ArchiveDialogBody({
   if (previewData.archivedAt !== null) {
     return (
       <div
-        className="client-orgs-archive-dialog-body"
+        className="client-orgs-r10-archive-dialog-body"
         data-testid="client-orgs-archive-dialog-already-archived"
       >
-        <p className="client-orgs-archive-dialog-message">
+        <p>
           {`"${companyName}" was already archived on ${formatArchivedAt(previewData.archivedAt)}. Confirming will refresh the dependent counts but leave the original archive timestamp intact.`}
         </p>
         {breakdown.length > 0 ? (
           <ul
-            className="client-orgs-archive-dialog-list"
+            className="client-orgs-r10-archive-dialog-list"
             data-testid="client-orgs-archive-dialog-list"
           >
             {breakdown.map((entry) => (
@@ -387,22 +394,19 @@ function ArchiveDialogBody({
 
   if (willDelete) {
     return (
-      <p
-        className="client-orgs-archive-dialog-message"
-        data-testid="client-orgs-archive-dialog-empty"
-      >
+      <p data-testid="client-orgs-archive-dialog-empty">
         {`No linked accounting records were found for "${companyName}". The org will be deleted outright.`}
       </p>
     );
   }
 
   return (
-    <div className="client-orgs-archive-dialog-body" data-testid="client-orgs-archive-dialog-body">
-      <p className="client-orgs-archive-dialog-message">
+    <div className="client-orgs-r10-archive-dialog-body" data-testid="client-orgs-archive-dialog-body">
+      <p>
         {`Archiving "${companyName}" hides it from the realm switcher. The following linked accounting records will remain read-accessible:`}
       </p>
       <ul
-        className="client-orgs-archive-dialog-list"
+        className="client-orgs-r10-archive-dialog-list"
         data-testid="client-orgs-archive-dialog-list"
       >
         {breakdown.map((entry) => (
@@ -446,17 +450,17 @@ function ArchiveNoticeBanner({ notice, onDismiss }: ArchiveNoticeBannerProps) {
 
   return (
     <div
-      className="client-orgs-archive-notice"
+      className="client-orgs-r10-archive-notice"
       role="status"
       aria-live="polite"
       data-testid="client-orgs-archive-notice"
       data-status={notice.result.status}
     >
-      <div className="client-orgs-archive-notice-body">
+      <div className="client-orgs-r10-archive-notice-body">
         <strong>{wasDeleted ? "Deleted" : "Archived"}.</strong>
         <p>{summaryText}</p>
         {breakdown.length > 0 && !wasDeleted ? (
-          <ul className="client-orgs-archive-notice-list" data-testid="client-orgs-archive-notice-list">
+          <ul className="client-orgs-r10-archive-notice-list" data-testid="client-orgs-archive-notice-list">
             {breakdown.map((entry) => (
               <li key={entry.label} data-testid={`client-orgs-archive-notice-item-${entry.label}`}>
                 {entry.text}

@@ -116,9 +116,11 @@ export function MailboxesPage() {
     return MAILBOXES_PAGE_VIEW.Data;
   })();
 
+  const items = query.data ?? [];
+
   const assignmentIds = useMemo(
-    () => (query.data ?? []).map((a) => a._id),
-    [query.data]
+    () => items.map((a) => a._id),
+    [items]
   );
   const { countsById: ingestionCounts } = useRecentIngestionCounts({
     assignmentIds,
@@ -158,31 +160,43 @@ export function MailboxesPage() {
 
   const submitting = createMutation.isPending || updateMutation.isPending;
 
+  const totalIngested = useMemo(() => {
+    let sum = 0;
+    for (const id of assignmentIds) {
+      const count = ingestionCounts[id];
+      if (typeof count === "number") sum += count;
+    }
+    return sum;
+  }, [assignmentIds, ingestionCounts]);
+
   return (
     <section
-      className="mailboxes-page"
+      className="mailboxes-r10"
       data-testid="mailboxes-page"
       data-view={view}
       aria-busy={view === MAILBOXES_PAGE_VIEW.Loading || undefined}
     >
-      <header className="mailboxes-page-header">
-        <div className="mailboxes-page-header-text">
-          <h1 className="lb-h1">Mailboxes</h1>
-          <p className="lb-caption">
-            Map each connected Gmail mailbox to one or more Client Organizations.
-            Polled invoices auto-route by GSTIN; ambiguous matches land in Triage.
-          </p>
-        </div>
+      <div className="page-header">
+        <h1>Mailboxes</h1>
+        <span className="count">
+          {view === MAILBOXES_PAGE_VIEW.Data
+            ? `${items.length} connected · ${totalIngested} ingested (30d)`
+            : view === MAILBOXES_PAGE_VIEW.Loading
+              ? "loading…"
+              : "0 connected"}
+        </span>
         {view === MAILBOXES_PAGE_VIEW.Data ? (
-          <Button onClick={openAddForm} icon="add" data-testid="mailboxes-add-button">
-            Add mailbox assignment
-          </Button>
+          <div className="page-tools">
+            <Button onClick={openAddForm} icon="add" data-testid="mailboxes-add-button">
+              Add mailbox assignment
+            </Button>
+          </div>
         ) : null}
-      </header>
+      </div>
 
       {view === MAILBOXES_PAGE_VIEW.Loading ? (
         <div
-          className="mailboxes-state"
+          className="mailboxes-r10-state"
           data-testid="mailboxes-loading"
           role="status"
           aria-live="polite"
@@ -194,7 +208,7 @@ export function MailboxesPage() {
 
       {view === MAILBOXES_PAGE_VIEW.Error ? (
         <div
-          className="mailboxes-state mailboxes-state-error"
+          className="mailboxes-r10-state mailboxes-r10-state-error"
           data-testid="mailboxes-error"
           role="alert"
         >
@@ -206,7 +220,7 @@ export function MailboxesPage() {
       ) : null}
 
       {view === MAILBOXES_PAGE_VIEW.Empty ? (
-        <div className="mailboxes-state mailboxes-state-empty" data-testid="mailboxes-empty">
+        <div className="mailboxes-r10-state" data-testid="mailboxes-empty">
           <h2>No mailboxes connected yet</h2>
           <p>
             Connect a Gmail mailbox in Settings &gt; Integrations, then map it
@@ -220,7 +234,7 @@ export function MailboxesPage() {
 
       {view === MAILBOXES_PAGE_VIEW.Data ? (
         <MailboxesTable
-          items={query.data ?? []}
+          items={items}
           clientOrgs={tenantClientOrgs.clientOrgs}
           ingestionCounts={ingestionCounts}
           onEdit={openEditForm}

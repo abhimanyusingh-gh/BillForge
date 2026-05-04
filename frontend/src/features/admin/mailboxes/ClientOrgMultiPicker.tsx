@@ -102,16 +102,16 @@ export function ClientOrgMultiPicker({
   };
 
   return (
-    <div className="mailbox-multi-picker" data-testid={testIdPrefix}>
+    <div className="mailboxes-r10-picker" data-testid={testIdPrefix}>
       <div
-        className="mailbox-multi-picker-chips"
+        className="mailboxes-r10-picker-chips"
         data-testid={`${testIdPrefix}-chips`}
         role="list"
         aria-label="Selected client organizations"
       >
         {selectedChips.length === 0 ? (
           <span
-            className="mailbox-multi-picker-empty"
+            className="mailboxes-r10-picker-empty"
             data-testid={`${testIdPrefix}-chips-empty`}
           >
             No client organizations selected yet.
@@ -121,7 +121,7 @@ export function ClientOrgMultiPicker({
             <span
               key={chip.id}
               role="listitem"
-              className="mailbox-multi-picker-chip"
+              className="mailboxes-r10-picker-chip"
               data-testid={`${testIdPrefix}-chip-${chip.id}`}
               data-orphan={chip.orphan ? "true" : undefined}
             >
@@ -130,10 +130,10 @@ export function ClientOrgMultiPicker({
                   Removed
                 </Badge>
               ) : null}
-              <span className="mailbox-multi-picker-chip-label">{chip.label}</span>
+              <span>{chip.label}</span>
               <button
                 type="button"
-                className="mailbox-multi-picker-chip-remove"
+                className="mailboxes-r10-picker-chip-remove"
                 aria-label={`Remove ${chip.label}`}
                 data-testid={`${testIdPrefix}-chip-remove-${chip.id}`}
                 onClick={() => removeChip(chip.id)}
@@ -145,7 +145,7 @@ export function ClientOrgMultiPicker({
         )}
       </div>
 
-      <div className="mailbox-multi-picker-search">
+      <div className="mailboxes-r10-picker-search">
         <label htmlFor={inputId} className="visually-hidden">
           Search client organizations
         </label>
@@ -162,7 +162,7 @@ export function ClientOrgMultiPicker({
 
       {isLoading ? (
         <p
-          className="mailbox-multi-picker-status"
+          className="mailboxes-r10-picker-status"
           role="status"
           data-testid={`${testIdPrefix}-loading`}
         >
@@ -172,7 +172,7 @@ export function ClientOrgMultiPicker({
 
       {isError ? (
         <div
-          className="mailbox-multi-picker-status mailbox-multi-picker-status-error"
+          className="mailboxes-r10-picker-status mailboxes-r10-picker-status-error"
           role="alert"
           data-testid={`${testIdPrefix}-error`}
         >
@@ -186,7 +186,7 @@ export function ClientOrgMultiPicker({
       {!isLoading && !isError ? (
         <ul
           id={listboxId}
-          className="mailbox-multi-picker-list"
+          className="mailboxes-r10-picker-list"
           role="listbox"
           aria-multiselectable="true"
           aria-label="Client organizations"
@@ -197,7 +197,7 @@ export function ClientOrgMultiPicker({
         >
           {visibleOptions.length === 0 ? (
             <li
-              className="mailbox-multi-picker-list-empty"
+              className="mailboxes-r10-picker-list-empty"
               data-testid={`${testIdPrefix}-list-empty`}
             >
               {query.trim().length > 0
@@ -214,7 +214,7 @@ export function ClientOrgMultiPicker({
                   id={optionDomId(org.id)}
                   role="option"
                   aria-selected={checked}
-                  className="mailbox-multi-picker-option"
+                  className="mailboxes-r10-picker-option"
                   data-testid={`${testIdPrefix}-option-${org.id}`}
                   data-checked={checked ? "true" : undefined}
                   data-active={isActive ? "true" : undefined}
@@ -225,14 +225,12 @@ export function ClientOrgMultiPicker({
                   }}
                 >
                   <span
-                    className="mailbox-multi-picker-option-indicator"
+                    className="mailboxes-r10-picker-option-indicator"
                     aria-hidden="true"
                     data-checked={checked ? "true" : undefined}
                     data-testid={`${testIdPrefix}-checkbox-${org.id}`}
                   />
-                  <span className="mailbox-multi-picker-option-label">
-                    {org.companyName}
-                  </span>
+                  <span>{org.companyName}</span>
                 </li>
               );
             })

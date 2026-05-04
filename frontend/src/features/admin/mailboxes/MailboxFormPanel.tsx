@@ -105,7 +105,6 @@ export function MailboxFormPanel({
     if (open) {
       setValues(draft ?? buildInitial(initial));
     }
-    // intentionally exclude `draft` to avoid stomping in-flight edits with stale store reads
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
 
@@ -165,14 +164,14 @@ export function MailboxFormPanel({
       }
     >
       <form
-        className="mailboxes-form"
+        className="mailboxes-r10-form"
         data-testid="mailbox-form"
         onSubmit={(event) => {
           event.preventDefault();
           handleSubmit();
         }}
       >
-        <div className="mailboxes-form-field">
+        <div className="mailboxes-r10-form-field">
           <label htmlFor="mailbox-form-email">Mailbox</label>
           <input
             id="mailbox-form-email"
@@ -183,7 +182,7 @@ export function MailboxFormPanel({
             value={initial?.email ?? ""}
             placeholder={isEdit ? "" : "Connect Gmail in Settings to populate."}
           />
-          <span className="mailboxes-form-field-hint">
+          <span className="mailboxes-r10-form-field-hint">
             {isEdit
               ? "Email is the natural key for this mapping — locked after creation."
               : "Connect a Gmail mailbox via Settings > Integrations first."}
@@ -191,11 +190,11 @@ export function MailboxFormPanel({
         </div>
 
         {!isEdit ? (
-          <div className="mailboxes-form-field">
+          <div className="mailboxes-r10-form-field">
             <label htmlFor="mailbox-form-integration-id">Integration</label>
             {integrationsQuery.status === "pending" ? (
               <div
-                className="mailboxes-form-field-loading"
+                className="mailboxes-r10-form-field-loading"
                 data-testid="mailbox-form-integration-loading"
                 role="status"
                 aria-live="polite"
@@ -206,7 +205,7 @@ export function MailboxFormPanel({
             ) : null}
             {integrationsQuery.status === "success" && integrationsQuery.data.length === 0 ? (
               <span
-                className="mailboxes-form-field-hint"
+                className="mailboxes-r10-form-field-hint"
                 data-testid="mailbox-form-integration-empty"
               >
                 {INTEGRATIONS_EMPTY_MESSAGE}
@@ -231,7 +230,7 @@ export function MailboxFormPanel({
             ) : null}
             {integrationsQuery.status === "error" ? (
               <div
-                className="mailboxes-form-field-error"
+                className="mailboxes-r10-form-field-error"
                 role="alert"
                 data-testid="mailbox-form-integration-error"
               >
@@ -251,13 +250,12 @@ export function MailboxFormPanel({
           </div>
         ) : null}
 
-        <div className="mailboxes-form-field">
+        <div className="mailboxes-r10-form-field">
           <label>Client organizations</label>
-          <span className="mailboxes-form-field-hint">
+          <span className="mailboxes-r10-form-field-hint">
             Pick every client whose invoices may arrive at this mailbox.
             Validation requires at least one.
           </span>
-          {/* composite-key write contract: array contents validated tenant-side, see #174 */}
           <ClientOrgMultiPicker
             clientOrgs={clientOrgs}
             isLoading={clientOrgsLoading}
@@ -269,7 +267,7 @@ export function MailboxFormPanel({
         </div>
 
         <div
-          className="mailboxes-form-routing-preview"
+          className="mailboxes-r10-form-routing-preview"
           data-testid="mailbox-form-routing-preview"
           role="note"
         >
@@ -279,7 +277,7 @@ export function MailboxFormPanel({
 
         {errorMessage ? (
           <div
-            className="mailboxes-form-field-error"
+            className="mailboxes-r10-form-field-error"
             role="alert"
             data-testid="mailbox-form-error"
           >
