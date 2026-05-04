@@ -38,21 +38,19 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="app-shell">
-      <aside className="app-shell-sidebar app-sidebar" aria-label="Primary navigation">
-        <TenantSidebar
-          tenantName={tenantName}
-          activeTab={activeTab}
-          activeStandaloneRoute={activeStandaloneRoute}
-          onTabChange={onTabChange}
-          onStandaloneRouteChange={onStandaloneRouteChange}
-          onOpenActionRequired={onOpenActionRequired}
-          canViewTenantConfig={canViewTenantConfig}
-          canViewConnections={canViewConnections}
-          invoiceActionRequiredCount={invoiceActionRequiredCount}
-        />
-      </aside>
+      <TenantSidebar
+        tenantName={tenantName}
+        activeTab={activeTab}
+        activeStandaloneRoute={activeStandaloneRoute}
+        onTabChange={onTabChange}
+        onStandaloneRouteChange={onStandaloneRouteChange}
+        onOpenActionRequired={onOpenActionRequired}
+        canViewTenantConfig={canViewTenantConfig}
+        canViewConnections={canViewConnections}
+        invoiceActionRequiredCount={invoiceActionRequiredCount}
+      />
       {topNav}
-      <main className="app-shell-main app-main" id="main-content" tabIndex={-1}>
+      <main className="app-main" id="main-content" tabIndex={-1}>
         {migration ? (
           <UrlMigrationBanner oldPath={migration.oldPath} newPath={migration.newPath} />
         ) : null}
