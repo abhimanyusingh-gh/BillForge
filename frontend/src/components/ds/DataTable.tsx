@@ -1,4 +1,22 @@
-import { useId, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode
+} from "react";
+
+import {
+  computeHeaderState,
+  DATATABLE_HEADER_SELECTION_STATE,
+  EMPTY_SELECTION,
+  getSelectableRowKeys,
+  toggleAll,
+  toggleRow,
+  type DataTableHeaderSelectionState
+} from "./DataTableSelection";
 
 export const DATATABLE_DENSITY = {
   COMPACT: "compact",
@@ -33,6 +51,10 @@ export const DATATABLE_SORT_CYCLE = {
 type DataTableSortCycle =
   (typeof DATATABLE_SORT_CYCLE)[keyof typeof DATATABLE_SORT_CYCLE];
 
+const DATATABLE_ROW_STATE = {
+  ACTIVE: "is-active"
+} as const;
+
 export interface DataTableSort {
   id: string;
   direction: DataTableSortDirection;
@@ -47,6 +69,8 @@ export interface DataTableColumn<TRow> {
   align?: DataTableAlign;
 }
 
+type DataTableRowAttributeValue = string | number;
+
 interface DataTableProps<TRow> {
   columns: ReadonlyArray<DataTableColumn<TRow>>;
   rows: ReadonlyArray<TRow>;
@@ -60,6 +84,14 @@ interface DataTableProps<TRow> {
   error?: string;
   emptyText?: string;
   caption?: string;
+  onRowClick?: (row: TRow, event: ReactMouseEvent<HTMLTableRowElement>) => void;
+  activeRowId?: string;
+  getRowClassName?: (row: TRow) => string | undefined;
+  getRowAttributes?: (row: TRow) => Record<string, DataTableRowAttributeValue> | undefined;
+  selectable?: boolean;
+  selectedRowIds?: ReadonlySet<string>;
+  onSelectionChange?: (selected: ReadonlySet<string>) => void;
+  isRowSelectable?: (row: TRow) => boolean;
   renderRows?: (args: {
     rows: ReadonlyArray<TRow>;
     columns: ReadonlyArray<DataTableColumn<TRow>>;
@@ -204,13 +236,17 @@ function StateRow({
 }
 
 function ColGroup<TRow>({
-  columns
+  columns,
+  selectable
 }: {
   columns: ReadonlyArray<DataTableColumn<TRow>>;
+  selectable: boolean;
 }) {
-  if (!columns.some((c) => c.width)) return null;
+  const hasAnyWidth = selectable || columns.some((c) => c.width);
+  if (!hasAnyWidth) return null;
   return (
     <colgroup>
+      {selectable ? <col className="lb-datatable-checkbox-col" /> : null}
       {columns.map((column) => (
         <col
           key={column.id}
@@ -219,6 +255,76 @@ function ColGroup<TRow>({
       ))}
     </colgroup>
   );
+}
+
+function HeaderCheckboxCell({
+  state,
+  onToggle,
+  disabled
+}: {
+  state: DataTableHeaderSelectionState;
+  onToggle: () => void;
+  disabled: boolean;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate =
+        state === DATATABLE_HEADER_SELECTION_STATE.INDETERMINATE;
+    }
+  }, [state]);
+  return (
+    <th scope="col" className="lb-datatable-th lb-datatable-checkbox-cell">
+      <input
+        ref={ref}
+        type="checkbox"
+        aria-label="Select all"
+        checked={state === DATATABLE_HEADER_SELECTION_STATE.ALL}
+        disabled={disabled}
+        onChange={onToggle}
+        data-testid="lb-datatable-select-all"
+      />
+    </th>
+  );
+}
+
+function RowCheckboxCell({
+  rowKey,
+  checked,
+  disabled,
+  onToggle
+}: {
+  rowKey: string;
+  checked: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <td
+      className="lb-datatable-td lb-datatable-checkbox-cell"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <input
+        type="checkbox"
+        aria-label="Select row"
+        checked={checked}
+        disabled={disabled}
+        onChange={onToggle}
+        data-testid={`lb-datatable-select-row-${rowKey}`}
+      />
+    </td>
+  );
+}
+
+function composeRowClassName(
+  base: string,
+  isActive: boolean,
+  extra: string | undefined
+): string {
+  let className = base;
+  if (isActive) className += " " + DATATABLE_ROW_STATE.ACTIVE;
+  if (extra) className += " " + extra;
+  return className;
 }
 
 export function DataTable<TRow>({
@@ -234,23 +340,74 @@ export function DataTable<TRow>({
   error,
   emptyText = DEFAULT_EMPTY_TEXT,
   caption,
+  onRowClick,
+  activeRowId,
+  getRowClassName,
+  getRowAttributes,
+  selectable = false,
+  selectedRowIds = EMPTY_SELECTION,
+  onSelectionChange,
+  isRowSelectable,
   renderRows,
   testId
 }: DataTableProps<TRow>) {
   const reactId = useId();
   const captionId = caption ? `${reactId}-caption` : undefined;
-  const colCount = columns.length;
+  const colCount = columns.length + (selectable ? 1 : 0);
 
   const tableClassName =
     "lb-datatable" +
     " lb-datatable-density-" +
     density +
-    (stickyHeader ? " lb-datatable-sticky" : "");
+    (stickyHeader ? " lb-datatable-sticky" : "") +
+    (onRowClick ? " lb-datatable-clickable" : "");
+
+  const selectableRowKeys = useMemo<ReadonlyArray<string>>(
+    () =>
+      selectable ? getSelectableRowKeys(rows, getRowKey, isRowSelectable) : [],
+    [selectable, rows, getRowKey, isRowSelectable]
+  );
+
+  const headerSelectionState = computeHeaderState(selectableRowKeys, selectedRowIds);
+
+  function toggleRowSelection(rowKey: string): void {
+    if (!onSelectionChange) return;
+    onSelectionChange(toggleRow(selectedRowIds, rowKey));
+  }
+
+  function toggleAllSelection(): void {
+    if (!onSelectionChange) return;
+    onSelectionChange(toggleAll(selectedRowIds, selectableRowKeys, headerSelectionState));
+  }
 
   function renderRow(row: TRow, _index: number): ReactNode {
     const key = getRowKey(row);
+    const isActive = activeRowId === key;
+    const extraClass = getRowClassName?.(row);
+    const className = composeRowClassName("lb-datatable-row", isActive, extraClass);
+    const attrs = getRowAttributes?.(row);
+    const handleClick = onRowClick
+      ? (event: ReactMouseEvent<HTMLTableRowElement>) => onRowClick(row, event)
+      : undefined;
+    const selectableForRow = selectable && (isRowSelectable ? isRowSelectable(row) : true);
     return (
-      <tr key={key} className="lb-datatable-row" data-testid="lb-datatable-row">
+      <tr
+        key={key}
+        className={className}
+        data-testid="lb-datatable-row"
+        data-row-key={key}
+        aria-selected={isActive || undefined}
+        onClick={handleClick}
+        {...(attrs ?? {})}
+      >
+        {selectable ? (
+          <RowCheckboxCell
+            rowKey={key}
+            checked={selectedRowIds.has(key)}
+            disabled={!selectableForRow}
+            onToggle={() => toggleRowSelection(key)}
+          />
+        ) : null}
         {columns.map((column) => (
           <td
             key={column.id}
@@ -292,6 +449,13 @@ export function DataTable<TRow>({
   const headHtml = (
     <thead className="lb-datatable-thead">
       <tr>
+        {selectable ? (
+          <HeaderCheckboxCell
+            state={headerSelectionState}
+            onToggle={toggleAllSelection}
+            disabled={selectableRowKeys.length === 0}
+          />
+        ) : null}
         {columns.map((column) => (
           <HeaderCell
             key={column.id}
@@ -320,7 +484,7 @@ export function DataTable<TRow>({
           aria-busy={loading || undefined}
         >
           {captionHtml}
-          <ColGroup columns={columns} />
+          <ColGroup columns={columns} selectable={selectable} />
           {headHtml}
           <tbody className="lb-datatable-tbody">{stateRow}</tbody>
         </table>
@@ -339,7 +503,7 @@ export function DataTable<TRow>({
         aria-busy={loading || undefined}
       >
         {captionHtml}
-        <ColGroup columns={columns} />
+        <ColGroup columns={columns} selectable={selectable} />
         {headHtml}
         <tbody className="lb-datatable-tbody">
           {stateRow ?? rows.map((row, index) => renderRow(row, index))}

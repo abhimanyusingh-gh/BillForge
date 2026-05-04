@@ -288,6 +288,235 @@ describe("ds/DataTable", () => {
     expect(table.querySelector("colgroup")).not.toBeNull();
   });
 
+  it("invokes onRowClick with the clicked row when a row is clicked", async () => {
+    const user = userEvent.setup();
+    const onRowClick = jest.fn();
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        onRowClick={onRowClick}
+      />
+    );
+    await user.click(screen.getByText("INV-001"));
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    expect(onRowClick.mock.calls[0]![0]).toEqual(ROWS[0]);
+  });
+
+  it("applies is-active class only to the row whose key matches activeRowId", () => {
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        activeRowId="i2"
+      />
+    );
+    const rows = screen.getAllByTestId("lb-datatable-row");
+    expect(rows[0]).not.toHaveClass("is-active");
+    expect(rows[1]).toHaveClass("is-active");
+    expect(rows[1]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("composes per-row className from getRowClassName with the default row class", () => {
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        getRowClassName={(row) => (row.amount > 200 ? "row-exported" : undefined)}
+      />
+    );
+    const rows = screen.getAllByTestId("lb-datatable-row");
+    expect(rows[0]).toHaveClass("lb-datatable-row");
+    expect(rows[0]).not.toHaveClass("row-exported");
+    expect(rows[1]).toHaveClass("lb-datatable-row");
+    expect(rows[1]).toHaveClass("row-exported");
+  });
+
+  it("applies per-row HTML attributes from getRowAttributes onto the <tr>", () => {
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        getRowAttributes={(row) => ({ "data-invoice-id": row.id })}
+      />
+    );
+    const rows = screen.getAllByTestId("lb-datatable-row");
+    expect(rows[0]).toHaveAttribute("data-invoice-id", "i1");
+    expect(rows[1]).toHaveAttribute("data-invoice-id", "i2");
+  });
+
+  it("renders no checkbox column when selectable is false (default)", () => {
+    render(<DataTable columns={COLUMNS} rows={ROWS} getRowKey={getRowKey} />);
+    expect(screen.queryByTestId("lb-datatable-select-all")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("lb-datatable-select-row-i1")).not.toBeInTheDocument();
+  });
+
+  it("renders header + per-row checkboxes and emits selection updates when selectable", async () => {
+    const user = userEvent.setup();
+    const onSelectionChange = jest.fn();
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        selectable
+        selectedRowIds={new Set<string>()}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+    const rowCheckbox = screen.getByTestId("lb-datatable-select-row-i1");
+    await user.click(rowCheckbox);
+    expect(onSelectionChange).toHaveBeenCalledTimes(1);
+    expect(Array.from(onSelectionChange.mock.calls[0]![0] as Set<string>)).toEqual(["i1"]);
+  });
+
+  it("header checkbox shows none/indeterminate/all states based on selection size", () => {
+    const { rerender } = render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        selectable
+        selectedRowIds={new Set<string>()}
+        onSelectionChange={jest.fn()}
+      />
+    );
+    let header = screen.getByTestId("lb-datatable-select-all") as HTMLInputElement;
+    expect(header.checked).toBe(false);
+    expect(header.indeterminate).toBe(false);
+
+    rerender(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        selectable
+        selectedRowIds={new Set<string>(["i1"])}
+        onSelectionChange={jest.fn()}
+      />
+    );
+    header = screen.getByTestId("lb-datatable-select-all") as HTMLInputElement;
+    expect(header.checked).toBe(false);
+    expect(header.indeterminate).toBe(true);
+
+    rerender(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        selectable
+        selectedRowIds={new Set<string>(["i1", "i2"])}
+        onSelectionChange={jest.fn()}
+      />
+    );
+    header = screen.getByTestId("lb-datatable-select-all") as HTMLInputElement;
+    expect(header.checked).toBe(true);
+    expect(header.indeterminate).toBe(false);
+  });
+
+  it("header checkbox toggle selects all when none/partial and clears all when all selected", async () => {
+    const user = userEvent.setup();
+    const onSelectionChange = jest.fn();
+    const { rerender } = render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        selectable
+        selectedRowIds={new Set<string>()}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+    await user.click(screen.getByTestId("lb-datatable-select-all"));
+    expect(Array.from(onSelectionChange.mock.calls[0]![0] as Set<string>).sort()).toEqual([
+      "i1",
+      "i2"
+    ]);
+
+    onSelectionChange.mockClear();
+    rerender(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        selectable
+        selectedRowIds={new Set<string>(["i1", "i2"])}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+    await user.click(screen.getByTestId("lb-datatable-select-all"));
+    expect(Array.from(onSelectionChange.mock.calls[0]![0] as Set<string>)).toEqual([]);
+  });
+
+  it("isRowSelectable disables the per-row checkbox and excludes it from select-all", async () => {
+    const user = userEvent.setup();
+    const onSelectionChange = jest.fn();
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        selectable
+        selectedRowIds={new Set<string>()}
+        onSelectionChange={onSelectionChange}
+        isRowSelectable={(row) => row.id !== "i2"}
+      />
+    );
+    expect(screen.getByTestId("lb-datatable-select-row-i2")).toBeDisabled();
+    await user.click(screen.getByTestId("lb-datatable-select-all"));
+    expect(Array.from(onSelectionChange.mock.calls[0]![0] as Set<string>)).toEqual(["i1"]);
+  });
+
+  it("row checkbox click does not bubble to onRowClick", async () => {
+    const user = userEvent.setup();
+    const onRowClick = jest.fn();
+    const onSelectionChange = jest.fn();
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        onRowClick={onRowClick}
+        selectable
+        selectedRowIds={new Set<string>()}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+    await user.click(screen.getByTestId("lb-datatable-select-row-i1"));
+    expect(onSelectionChange).toHaveBeenCalledTimes(1);
+    expect(onRowClick).not.toHaveBeenCalled();
+  });
+
+  it("threads row-interaction props through renderRow in renderRows mode", () => {
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        activeRowId="i1"
+        getRowAttributes={(row) => ({ "data-invoice-id": row.id })}
+        getRowClassName={(row) => (row.id === "i2" ? "row-exported" : undefined)}
+        renderRows={({ rows, renderRow }) => (
+          <table>
+            <tbody data-testid="slot-tbody">
+              {rows.map((row, idx) => renderRow(row, idx))}
+            </tbody>
+          </table>
+        )}
+      />
+    );
+    const tbody = screen.getByTestId("slot-tbody");
+    const rows = within(tbody).getAllByTestId("lb-datatable-row");
+    expect(rows[0]).toHaveClass("is-active");
+    expect(rows[0]).toHaveAttribute("data-invoice-id", "i1");
+    expect(rows[1]).toHaveClass("row-exported");
+    expect(rows[1]).toHaveAttribute("data-invoice-id", "i2");
+  });
+
   it("supports a custom row type via the generic parameter (compile-time)", () => {
     interface VendorRow {
       readonly _id: string;
