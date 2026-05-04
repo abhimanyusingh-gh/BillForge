@@ -125,14 +125,14 @@ describe("features/vendors/VendorListPage — URL-as-state", () => {
     await waitFor(() => expect(screen.getByText("Acme")).toBeInTheDocument());
 
     act(() => {
-      fireEvent.click(screen.getByTestId("vendors-th-name"));
+      fireEvent.click(screen.getByTestId("lb-datatable-th-name"));
     });
     await waitFor(() => expect(window.location.hash).toContain("sort=name"));
     expect(window.location.hash).not.toContain("dir=");
 
-    await waitFor(() => expect(screen.queryByTestId("vendors-th-name")).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByTestId("lb-datatable-th-name")).toBeInTheDocument());
     act(() => {
-      fireEvent.click(screen.getByTestId("vendors-th-name"));
+      fireEvent.click(screen.getByTestId("lb-datatable-th-name"));
     });
     await waitFor(() => expect(window.location.hash).toContain("dir=asc"));
   });
