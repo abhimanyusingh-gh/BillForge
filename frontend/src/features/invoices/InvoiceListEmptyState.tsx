@@ -19,8 +19,8 @@ export function InvoiceListEmptyState({
       heading={hasActiveFilters ? "No matching invoices" : "No invoices yet"}
       description={hasActiveFilters ? "Try adjusting your filters or date range." : "Upload invoice PDFs or connect a Gmail inbox to start processing."}
       action={hasActiveFilters
-        ? <button type="button" className="app-button app-button-secondary" onClick={onClearAllFilters}>Clear Filters</button>
-        : (canUploadFiles ? <button type="button" className="app-button app-button-primary" onClick={onUploadClick}>Upload Files</button> : undefined)}
+        ? <button type="button" className="btn ghost" onClick={onClearAllFilters}>Clear Filters</button>
+        : (canUploadFiles ? <button type="button" className="btn primary" onClick={onUploadClick}>Upload Files</button> : undefined)}
     />
   );
 }

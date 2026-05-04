@@ -120,19 +120,19 @@ export function InvoiceDetailHost({
           onToggleRiskSignalsExpanded={() => toggleRiskSignalsExpanded(activeInvoice._id)}
         />
       ) : (
-        <section className="panel detail-panel invoice-detail-panel">
-          <div className="panel-title">
-            <h2>Invoice Details</h2>
+        <section className="panel" data-testid="invoice-detail-panel">
+          <div className="modal-head">
+            <h2 className="stitle">Invoice Details</h2>
             <button
               type="button"
-              className="collapse-button"
+              className="iconbtn"
               onClick={onCloseDetailsPanel}
               aria-label="Close details panel"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
           </div>
-          <p className="muted invoice-detail-empty">Select an invoice to inspect details.</p>
+          <p className="sub">Select an invoice to inspect details.</p>
         </section>
       )}
     </>

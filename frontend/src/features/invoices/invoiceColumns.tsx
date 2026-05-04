@@ -45,7 +45,7 @@ const GL_CODE_OPTION_KEY = (value: string): string => value;
 
 function CellShield({ children }: { children: ReactNode }) {
   return (
-    <div className="invoice-list-cell-shield" onClick={(event) => event.stopPropagation()}>
+    <div onClick={(event) => event.stopPropagation()}>
       {children}
     </div>
   );
@@ -120,16 +120,16 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
         if (editingListCell?.invoiceId === invoice._id && editingListCell.field === "attachmentName") {
           return (
             <CellShield>
-              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-              <button type="button" className="field-save-button" aria-label="Save file name" onClick={() => void handleSaveListCell()}>&#10003;</button>
+              <input className="input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+              <button type="button" className="btn primary" aria-label="Save file name" onClick={() => void handleSaveListCell()}>&#10003;</button>
             </CellShield>
           );
         }
         return (
-          <span className="file-name-cell">
-            <button type="button" className="file-label" onClick={(event) => { event.stopPropagation(); setPopupInvoiceId(invoice._id); }}>{invoice.attachmentName}</button>
+          <span>
+            <button type="button" className="lb-caption" onClick={(event) => { event.stopPropagation(); setPopupInvoiceId(invoice._id); }}>{invoice.attachmentName}</button>
             {canEditCell ? (
-              <button type="button" className="row-action-button file-rename-button" title="Rename" aria-label={`Rename file ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
+              <button type="button" className="btn ghost" title="Rename" aria-label={`Rename file ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "attachmentName" }); setEditListValue(invoice.attachmentName); }}>
                 <span className="material-symbols-outlined">edit</span>
               </button>
             ) : null}
@@ -146,16 +146,16 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
         if (editingListCell?.invoiceId === invoice._id && editingListCell.field === "vendorName") {
           return (
             <CellShield>
-              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-              <button type="button" className="field-save-button" aria-label="Save vendor" onClick={() => void handleSaveListCell()}>&#10003;</button>
+              <input className="input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+              <button type="button" className="btn primary" aria-label="Save vendor" onClick={() => void handleSaveListCell()}>&#10003;</button>
             </CellShield>
           );
         }
         return (
-          <span className="extracted-value-cell">
-            <span className="extracted-value-display">{invoice.parsed?.vendorName ?? "-"}</span>
+          <span className="mono-cell">
+            <span className="mono-cell">{invoice.parsed?.vendorName ?? "-"}</span>
             {canEditCell ? (
-              <button type="button" className="row-action-button field-edit-button" title="Edit vendor" aria-label={`Edit vendor on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
+              <button type="button" className="btn ghost" title="Edit vendor" aria-label={`Edit vendor on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "vendorName" }); setEditListValue(invoice.parsed?.vendorName ?? ""); }}>
                 <span className="material-symbols-outlined">edit</span>
               </button>
             ) : null}
@@ -172,16 +172,16 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
         if (editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceNumber") {
           return (
             <CellShield>
-              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-              <button type="button" className="field-save-button" aria-label="Save invoice number" onClick={() => void handleSaveListCell()}>&#10003;</button>
+              <input className="input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+              <button type="button" className="btn primary" aria-label="Save invoice number" onClick={() => void handleSaveListCell()}>&#10003;</button>
             </CellShield>
           );
         }
         return (
-          <span className="extracted-value-cell">
-            <span className="extracted-value-display">{invoice.parsed?.invoiceNumber ?? "-"}</span>
+          <span className="mono-cell">
+            <span className="mono-cell">{invoice.parsed?.invoiceNumber ?? "-"}</span>
             {canEditCell ? (
-              <button type="button" className="row-action-button field-edit-button" title="Edit invoice number" aria-label={`Edit invoice number on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
+              <button type="button" className="btn ghost" title="Edit invoice number" aria-label={`Edit invoice number on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "invoiceNumber" }); setEditListValue(invoice.parsed?.invoiceNumber ?? ""); }}>
                 <span className="material-symbols-outlined">edit</span>
               </button>
             ) : null}
@@ -198,16 +198,16 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
         if (editingListCell?.invoiceId === invoice._id && editingListCell.field === "invoiceDate") {
           return (
             <CellShield>
-              <input className="extracted-value-input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-              <button type="button" className="field-save-button" aria-label="Save invoice date" onClick={() => void handleSaveListCell()}>&#10003;</button>
+              <input className="input" type="date" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+              <button type="button" className="btn primary" aria-label="Save invoice date" onClick={() => void handleSaveListCell()}>&#10003;</button>
             </CellShield>
           );
         }
         return (
-          <span className="extracted-value-cell">
-            <span className="extracted-value-display">{invoice.parsed?.invoiceDate ?? "-"}</span>
+          <span className="mono-cell">
+            <span className="mono-cell">{invoice.parsed?.invoiceDate ?? "-"}</span>
             {canEditCell ? (
-              <button type="button" className="row-action-button field-edit-button" title="Edit date" aria-label={`Edit invoice date on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); const raw = invoice.parsed?.invoiceDate ?? ""; const d = raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw) : null; setEditListValue(d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : raw); }}>
+              <button type="button" className="btn ghost" title="Edit date" aria-label={`Edit invoice date on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "invoiceDate" }); const raw = invoice.parsed?.invoiceDate ?? ""; const d = raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(raw) : null; setEditListValue(d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : raw); }}>
                 <span className="material-symbols-outlined">edit</span>
               </button>
             ) : null}
@@ -226,16 +226,16 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
         if (editingListCell?.invoiceId === invoice._id && editingListCell.field === "totalAmountMinor") {
           return (
             <CellShield>
-              <input className="extracted-value-input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
-              <button type="button" className="field-save-button" aria-label="Save amount" onClick={() => void handleSaveListCell()}>&#10003;</button>
+              <input className="input" value={editListValue} onChange={(e) => setEditListValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void handleSaveListCell(); if (e.key === "Escape") setEditingListCell(null); }} autoFocus />
+              <button type="button" className="btn primary" aria-label="Save amount" onClick={() => void handleSaveListCell()}>&#10003;</button>
             </CellShield>
           );
         }
         return (
-          <span className={`extracted-value-cell${isRisk ? " value-risk" : ""}`}>
-            <span className="extracted-value-display">{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
+          <span className={`mono-cell${isRisk ? " value-risk" : ""}`}>
+            <span className="mono-cell">{formatMinorAmountWithCurrency(invoice.parsed?.totalAmountMinor, invoice.parsed?.currency)}</span>
             {canEditCell ? (
-              <button type="button" className="row-action-button field-edit-button" title="Edit amount" aria-label={`Edit amount on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
+              <button type="button" className="btn ghost" title="Edit amount" aria-label={`Edit amount on ${invoice.attachmentName}`} onClick={(event) => { event.stopPropagation(); setEditingListCell({ invoiceId: invoice._id, field: "totalAmountMinor" }); setEditListValue(invoice.parsed?.totalAmountMinor != null ? String(invoice.parsed.totalAmountMinor / 100) : ""); }}>
                 <span className="material-symbols-outlined">edit</span>
               </button>
             ) : null}
@@ -256,7 +256,7 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
       sortable: true,
       render: (invoice) => (
         <CellShield>
-          <span className="gl-code-cell invoice-list-cell-compact">
+          <span className="mono-cell">
             {glCodeEditingInvoiceId === invoice._id ? (
               <Combobox<string>
                 options={tenantGlComboOptions}
@@ -285,7 +285,7 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
                 {invoice.actions?.canOverrideGlCode === true ? (
                   <button
                     type="button"
-                    className="row-action-button field-edit-button"
+                    className="btn ghost"
                     title="Edit GL code"
                     aria-label={`Edit GL code on ${invoice.attachmentName}`}
                     onClick={() => setGlCodeEditingInvoiceId(invoice._id)}
@@ -304,7 +304,7 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
       header: "TDS",
       sortable: true,
       render: (invoice) => (
-        <span className="invoice-list-cell-compact">
+        <span className="mono-cell">
           {invoice.complianceSummary?.tdsSection ?? invoice.compliance?.tds?.section
             ? <span>{invoice.complianceSummary?.tdsSection ?? invoice.compliance?.tds?.section} {invoice.compliance?.tds?.rate ? `${invoice.compliance.tds.rate / 100}%` : ""}</span>
             : <span className="muted">—</span>}
@@ -349,7 +349,7 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
             </span>
           )}
           {invoice.possibleDuplicate ? (
-            <span className="material-symbols-outlined duplicate-warning" title="Possible duplicate — another invoice has identical file contents">warning</span>
+            <span className="material-symbols-outlined" title="Possible duplicate — another invoice has identical file contents">warning</span>
           ) : null}
         </>
       )
@@ -359,7 +359,7 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
       header: "Approved By",
       sortable: true,
       render: (invoice) => (
-        <span className="invoice-list-cell-compact invoice-list-cell-muted" title={invoice.approval?.email ?? invoice.approval?.approvedBy ?? ""}>
+        <span className="sub" title={invoice.approval?.email ?? invoice.approval?.approvedBy ?? ""}>
           {formatApproverName(invoice.approval?.email ?? invoice.approval?.approvedBy)}
         </span>
       )
@@ -368,7 +368,7 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
       id: INVOICE_COLUMN_ID.RECEIVED,
       header: "Received",
       sortable: true,
-      render: (invoice) => <span className="invoice-list-cell-mono">{new Date(invoice.receivedAt).toLocaleString()}</span>
+      render: (invoice) => <span className="mono-cell">{new Date(invoice.receivedAt).toLocaleString()}</span>
     },
     {
       id: INVOICE_COLUMN_ID.ACTIONS,

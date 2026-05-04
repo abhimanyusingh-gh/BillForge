@@ -155,7 +155,7 @@ async function flushAsync() {
 }
 
 function getListPanel(container: HTMLElement): Element {
-  const panel = container.querySelector(".invoice-list-panel");
+  const panel = container.querySelector("[data-testid='invoice-list-panel']");
   if (!panel) throw new Error("invoice-list-panel not found");
   return panel;
 }

@@ -104,8 +104,8 @@ export function InvoiceListPanel({
 }: InvoiceListPanelProps) {
   const meta = pageHeaderMeta;
   return (
-    <section className="panel list-panel invoice-list-panel" data-density={tableDensity}>
-      <div className="page-header invoice-list-page-header">
+    <section className="panel" data-testid="invoice-list-panel" data-density={tableDensity}>
+      <div className="page-header">
         <h1>Invoices</h1>
         <span className="count">
           {meta?.isLoading
@@ -121,8 +121,8 @@ export function InvoiceListPanel({
       </div>
 
       {loading && invoices.length === 0 ? (
-        <div className="invoice-list-skeleton">
-          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
+        <div>
+          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton-row" />)}
         </div>
       ) : null}
 
@@ -136,7 +136,7 @@ export function InvoiceListPanel({
       ) : null}
 
       {invoices.length > 0 || loading ? (
-        <div className={`list-scroll inv-table-wrap${loading && invoices.length > 0 ? " list-scroll-loading is-loading" : ""}`}>
+        <div className={`table-wrap${loading && invoices.length > 0 ? " is-loading" : ""}`}>
           {loading && invoices.length > 0 ? (
             <FetchOverlay
               isLoading
