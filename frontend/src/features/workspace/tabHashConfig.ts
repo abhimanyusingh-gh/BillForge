@@ -29,7 +29,8 @@ export const STANDALONE_HASH_PATH = {
   bankStatements: "#/bank-statements",
   tallySync: "#/tally-sync",
   inboxRouting: "#/inbox-routing",
-  clientOrgs: "#/client-orgs"
+  clientOrgs: "#/client-orgs",
+  actionRequired: "#/action-required"
 } as const;
 
 export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;

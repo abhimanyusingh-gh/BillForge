@@ -31,7 +31,6 @@ function renderSidebar(overrides: Partial<React.ComponentProps<typeof TenantSide
     activeStandaloneRoute: null,
     onTabChange: jest.fn(),
     onStandaloneRouteChange: jest.fn(),
-    onOpenActionRequired: jest.fn(),
     canViewTenantConfig: true,
     canViewConnections: true,
     invoiceActionRequiredCount: 0,
@@ -106,12 +105,11 @@ describe("TenantSidebar — bundle-aligned IA", () => {
     expect(props.onStandaloneRouteChange).toHaveBeenCalledWith("bankStatements");
   });
 
-  it("invokes onOpenActionRequired when the Action Required item is clicked", () => {
+  it("routes Action Required to the actionRequired standalone hash route", () => {
     const { props } = renderSidebar();
     fireEvent.click(screen.getByRole("button", { name: /Action Required/ }));
-    expect(props.onOpenActionRequired).toHaveBeenCalledTimes(1);
+    expect(props.onStandaloneRouteChange).toHaveBeenCalledWith("actionRequired");
     expect(props.onTabChange).not.toHaveBeenCalled();
-    expect(props.onStandaloneRouteChange).not.toHaveBeenCalled();
   });
 
   it("disables Config when canViewTenantConfig is false", () => {
