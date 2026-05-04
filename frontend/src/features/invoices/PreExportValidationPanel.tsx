@@ -44,13 +44,13 @@ function resolveView(args: {
 }
 
 function SkeletonRow() {
-  return <div aria-hidden="true" className="pre-export-skeleton-row" />;
+  return <div aria-hidden="true" className="skeleton-row" />;
 }
 
 function LoadingState() {
   return (
     <div data-testid="pre-export-loading" aria-busy="true" aria-live="polite">
-      <p className="pre-export-loading-label">Validating invoices…</p>
+      <p className="sub">Validating invoices…</p>
       <SkeletonRow />
       <SkeletonRow />
       <SkeletonRow />
@@ -60,8 +60,8 @@ function LoadingState() {
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div data-testid="pre-export-error" role="alert" className="pre-export-error">
-      <p className="pre-export-error-title">Validation failed to run.</p>
+    <div data-testid="pre-export-error" role="alert" className="alert warn">
+      <p className="stitle">Validation failed to run.</p>
       <Button variant={BUTTON_VARIANT.secondary} size={BUTTON_SIZE.sm} onClick={onRetry}>
         Retry
       </Button>
@@ -71,14 +71,14 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyState({ count }: { count: number }) {
   return (
-    <div data-testid="pre-export-empty" className="pre-export-empty">
-      <span className="material-symbols-outlined pre-export-empty-icon" aria-hidden="true">
+    <div data-testid="pre-export-empty" className="panel">
+      <span className="material-symbols-outlined material-symbols-outlined" aria-hidden="true">
         task_alt
       </span>
-      <p className="pre-export-empty-title">
+      <p className="stitle">
         Ready to export {count} invoice{count === 1 ? "" : "s"}
       </p>
-      <p className="pre-export-empty-detail">No validation issues detected.</p>
+      <p className="sub">No validation issues detected.</p>
     </div>
   );
 }
@@ -96,18 +96,18 @@ function FailureRow({
     <div
       data-testid="pre-export-failure"
       data-invoice-id={failure.invoiceId}
-      className="pre-export-row"
+      className="expected-row"
     >
-      <div className="pre-export-row-main">
-        <span className="pre-export-row-heading">
+      <div className="v">
+        <span className="kv">
           <Badge tone={tone} size={BADGE_SIZE.sm}>
             {failure.invoiceNumber || "—"}
           </Badge>
-          <span className="pre-export-row-vendor">
+          <span className="mono-cell">
             {failure.vendorName || "Unknown vendor"}
           </span>
         </span>
-        <span className="pre-export-row-detail">{failure.detail}</span>
+        <span className="sub">{failure.detail}</span>
       </div>
       <Button
         variant={BUTTON_VARIANT.secondary}
@@ -132,10 +132,10 @@ function FailureGroupSection({
     <section
       data-testid="pre-export-group"
       data-reason={group.reason}
-      className="pre-export-group"
+      className="section"
     >
-      <header className="pre-export-group-header">
-        <h3 className="pre-export-group-title">{group.label}</h3>
+      <header className="">
+        <h3 className="stitle">{group.label}</h3>
         <Badge tone={group.tone} size={BADGE_SIZE.sm}>
           {group.failures.length}
         </Badge>
