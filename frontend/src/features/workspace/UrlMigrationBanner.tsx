@@ -53,16 +53,16 @@ export function UrlMigrationBanner({ oldPath, newPath }: UrlMigrationBannerProps
   };
 
   return (
-    <div className="url-migration-banner" role="status" aria-live="polite">
-      <span className="material-symbols-outlined url-migration-banner-icon" aria-hidden="true">
+    <div className="alert warn" role="status" aria-live="polite">
+      <span className="material-symbols-outlined" aria-hidden="true">
         info
       </span>
-      <p className="url-migration-banner-text">
+      <p>
         This page has moved to <code>{newPath}</code>. Your bookmark has been updated.
       </p>
       <button
         type="button"
-        className="app-button app-button-secondary url-migration-banner-dismiss"
+        className="app-button app-button-secondary"
         onClick={handleDismiss}
         aria-label="Dismiss URL migration notice"
       >

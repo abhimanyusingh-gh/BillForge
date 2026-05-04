@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { TenantViewTab } from "@/types";
 import { Badge, BADGE_SIZE, BADGE_TONE } from "@/components/ds/Badge";
 import type { StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
@@ -172,67 +173,64 @@ export function TenantSidebar({
   const trimmedTenant = tenantName.trim();
   return (
     <nav className="app-sidebar" aria-label="Primary">
-      <div className="sidebar-brand">
-        <span className="sidebar-brand-mark" aria-hidden="true">₹</span>
-        <span className="sidebar-brand-name">LedgerBuddy</span>
+      <div className="brand">
+        <span className="mark" aria-hidden="true">₹</span>
+        <span className="name">LedgerBuddy</span>
       </div>
       {trimmedTenant.length > 0 ? (
-        <div className="sidebar-tenant-sub" title={trimmedTenant}>
-          <span className="material-symbols-outlined sidebar-tenant-sub-icon" aria-hidden="true">business</span>
-          <span className="sidebar-tenant-sub-label">{trimmedTenant}</span>
+        <div className="nav-section" title={trimmedTenant}>
+          <span className="material-symbols-outlined" aria-hidden="true">business</span>
+          {trimmedTenant}
         </div>
       ) : null}
       {SIDEBAR_SECTIONS.map((section) => (
-        <section key={section.id} className="sidebar-section" aria-label={section.eyebrow ?? undefined}>
+        <Fragment key={section.id}>
           {section.eyebrow !== null ? (
-            <h6 className="sidebar-section-eyebrow">{section.eyebrow}</h6>
+            <div className="nav-section">{section.eyebrow}</div>
           ) : null}
-          <ul className="sidebar-section-list">
-            {section.items.map((item) => {
-              const allowed = isItemAllowed(item, canViewTenantConfig, canViewConnections);
-              const isActive = allowed && isItemActive(item, activeTab, activeStandaloneRoute);
-              const showActionBadge = item.id === SIDEBAR_ITEM_ID.ActionRequired && actionCount > 0;
-              const showInboxBadge = item.id === SIDEBAR_ITEM_ID.InboxRouting && inboxRoutingPendingCount > 0;
-              const ariaLabel = item.id === SIDEBAR_ITEM_ID.ActionRequired
-                ? badgeAriaLabel(item.label, actionCount, "action required")
-                : item.id === SIDEBAR_ITEM_ID.InboxRouting
-                  ? badgeAriaLabel(item.label, inboxRoutingPendingCount, "pending")
-                  : undefined;
-              return (
-                <li key={item.id} className="sidebar-section-item">
-                  <button
-                    type="button"
-                    className={isActive ? "sidebar-link sidebar-link-active" : "sidebar-link"}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-disabled={!allowed || undefined}
-                    aria-label={ariaLabel}
-                    disabled={!allowed}
-                    data-item-id={item.id}
-                    onClick={() => {
-                      if (!allowed) return;
-                      activateTarget(item.target, onTabChange, onStandaloneRouteChange);
-                    }}
-                  >
-                    <span className="material-symbols-outlined sidebar-link-icon" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <span className="sidebar-link-label">{item.label}</span>
-                    {showActionBadge ? (
-                      <Badge tone={BADGE_TONE.danger} size={BADGE_SIZE.sm} title={`${actionCount} action required`}>
-                        {actionCount}
-                      </Badge>
-                    ) : null}
-                    {showInboxBadge ? (
-                      <Badge tone={BADGE_TONE.warning} size={BADGE_SIZE.sm} title={`${inboxRoutingPendingCount} pending`}>
-                        {inboxRoutingPendingCount}
-                      </Badge>
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+          {section.items.map((item) => {
+            const allowed = isItemAllowed(item, canViewTenantConfig, canViewConnections);
+            const isActive = allowed && isItemActive(item, activeTab, activeStandaloneRoute);
+            const showActionBadge = item.id === SIDEBAR_ITEM_ID.ActionRequired && actionCount > 0;
+            const showInboxBadge = item.id === SIDEBAR_ITEM_ID.InboxRouting && inboxRoutingPendingCount > 0;
+            const ariaLabel = item.id === SIDEBAR_ITEM_ID.ActionRequired
+              ? badgeAriaLabel(item.label, actionCount, "action required")
+              : item.id === SIDEBAR_ITEM_ID.InboxRouting
+                ? badgeAriaLabel(item.label, inboxRoutingPendingCount, "pending")
+                : undefined;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={isActive ? "nav-link active" : "nav-link"}
+                aria-current={isActive ? "page" : undefined}
+                aria-disabled={!allowed || undefined}
+                aria-label={ariaLabel}
+                disabled={!allowed}
+                data-item-id={item.id}
+                onClick={() => {
+                  if (!allowed) return;
+                  activateTarget(item.target, onTabChange, onStandaloneRouteChange);
+                }}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  {item.icon}
+                </span>
+                {item.label}
+                {showActionBadge ? (
+                  <Badge tone={BADGE_TONE.danger} size={BADGE_SIZE.sm} title={`${actionCount} action required`}>
+                    {actionCount}
+                  </Badge>
+                ) : null}
+                {showInboxBadge ? (
+                  <Badge tone={BADGE_TONE.warning} size={BADGE_SIZE.sm} title={`${inboxRoutingPendingCount} pending`}>
+                    {inboxRoutingPendingCount}
+                  </Badge>
+                ) : null}
+              </button>
+            );
+          })}
+        </Fragment>
       ))}
     </nav>
   );
