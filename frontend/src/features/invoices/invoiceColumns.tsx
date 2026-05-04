@@ -368,7 +368,7 @@ export function buildInvoiceColumns(deps: InvoiceColumnsDeps): ReadonlyArray<Dat
       id: INVOICE_COLUMN_ID.RECEIVED,
       header: "Received",
       sortable: true,
-      render: (invoice) => <span className="invoice-list-cell-mono">{new Date(invoice.receivedAt).toLocaleString()}</span>
+      render: (invoice) => <span className="mono-cell">{new Date(invoice.receivedAt).toLocaleString()}</span>
     },
     {
       id: INVOICE_COLUMN_ID.ACTIONS,
