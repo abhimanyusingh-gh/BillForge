@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { RealmSwitcher } from "@/features/workspace/RealmSwitcher";
 import { useTenantClientOrgs } from "@/hooks/useTenantClientOrgs";
 import { useActiveClientOrg } from "@/hooks/useActiveClientOrg";
@@ -13,7 +13,7 @@ interface WorkspaceTopNavProps {
   userEmail: string;
   onLogout: () => void;
   onChangePassword: () => void;
-  themeToggle?: React.ReactNode;
+  themeToggle?: ReactNode;
   notificationCount?: number;
   onOpenNotifications?: () => void;
   onOpenSearch?: () => void;
@@ -103,11 +103,11 @@ export function WorkspaceTopNav({
 
   return (
     <header className="app-topnav">
-      <div className="topnav-realm-group">
+      <div className="realm-pill-group">
         <span className="topnav-eyebrow">Client org</span>
         <button
           type="button"
-          className="topnav-realm-pill"
+          className="realm-pill"
           data-testid="active-realm-badge"
           onClick={openSwitcher}
           aria-haspopup="dialog"
@@ -118,14 +118,14 @@ export function WorkspaceTopNav({
             account_tree
           </span>
           <span className="topnav-realm-pill-label">{pillLabel}</span>
-          <span className="topnav-realm-pill-kbd" aria-hidden="true">⌘K</span>
+          <span className="kbd" aria-hidden="true">⌘K</span>
         </button>
       </div>
 
       <div className="topnav-actions">
         <button
           type="button"
-          className="topnav-icon-btn"
+          className="iconbtn"
           title="Search"
           aria-label="Search"
           onClick={onOpenSearch ?? (() => setSearchPlaceholderOpen(true))}
@@ -134,14 +134,14 @@ export function WorkspaceTopNav({
         </button>
         <button
           type="button"
-          className="topnav-icon-btn"
+          className="iconbtn topnav-bell"
           title="Notifications"
           aria-label={notificationCount > 0 ? `Notifications, ${notificationCount} unread` : "Notifications"}
           onClick={onOpenNotifications ?? (() => setNotificationsPlaceholderOpen(true))}
         >
           <span className="material-symbols-outlined" aria-hidden="true">notifications</span>
           {notificationCount > 0 ? (
-            <span className="topnav-icon-badge" aria-hidden="true">{notificationCount}</span>
+            <span className="topnav-bell-badge" aria-hidden="true">{notificationCount}</span>
           ) : null}
         </button>
         {themeToggle ?? null}
@@ -226,20 +226,22 @@ function PlaceholderDialog({ open, title, message, testId, onClose }: Placeholde
   useModalDismiss({ open, onClose });
   if (!open) return null;
   return (
-    <div className="popup-overlay" role="presentation" onClick={onClose}>
+    <div className="scrim" role="presentation" onClick={onClose}>
       <section
-        className="popup-card popup-card-narrow"
+        className="modal-card topnav-placeholder-card"
         role="dialog"
         aria-modal="true"
         aria-label={title}
         data-testid={testId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="popup-header">
+        <div className="modal-head">
           <h2>{title}</h2>
         </div>
-        <p className="topnav-placeholder-message">{message}</p>
-        <div className="confirm-actions">
+        <div className="modal-body">
+          <p className="topnav-placeholder-message">{message}</p>
+        </div>
+        <div className="modal-foot">
           <button type="button" className="app-button app-button-secondary" onClick={onClose}>Close</button>
         </div>
       </section>
