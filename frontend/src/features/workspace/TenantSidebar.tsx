@@ -1,4 +1,5 @@
 import type { TenantViewTab } from "@/types";
+import { Badge, BADGE_SIZE, BADGE_TONE } from "@/components/ds/Badge";
 import type { StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 
 const SIDEBAR_ITEM_ID = {
@@ -22,20 +23,12 @@ type SidebarItemId = (typeof SIDEBAR_ITEM_ID)[keyof typeof SIDEBAR_ITEM_ID];
 
 const SIDEBAR_TARGET_KIND = {
   Tab: "tab",
-  StandaloneHash: "standalone-hash",
-  Action: "action"
+  StandaloneHash: "standalone-hash"
 } as const;
-
-const SIDEBAR_ACTION = {
-  OpenActionRequired: "openActionRequired"
-} as const;
-
-type SidebarAction = (typeof SIDEBAR_ACTION)[keyof typeof SIDEBAR_ACTION];
 
 type SidebarTarget =
   | { kind: typeof SIDEBAR_TARGET_KIND.Tab; tab: TenantViewTab }
-  | { kind: typeof SIDEBAR_TARGET_KIND.StandaloneHash; route: StandaloneHashRoute }
-  | { kind: typeof SIDEBAR_TARGET_KIND.Action; action: SidebarAction };
+  | { kind: typeof SIDEBAR_TARGET_KIND.StandaloneHash; route: StandaloneHashRoute };
 
 const SIDEBAR_REQUIRES = {
   Always: "always",
@@ -74,7 +67,7 @@ const SIDEBAR_SECTIONS: readonly SidebarSectionConfig[] = [
     eyebrow: null,
     items: [
       { id: SIDEBAR_ITEM_ID.Overview, label: "Overview", icon: "dashboard", target: { kind: SIDEBAR_TARGET_KIND.Tab, tab: "overview" }, requires: SIDEBAR_REQUIRES.Always },
-      { id: SIDEBAR_ITEM_ID.ActionRequired, label: "Action Required", icon: "priority_high", target: { kind: SIDEBAR_TARGET_KIND.Action, action: SIDEBAR_ACTION.OpenActionRequired }, requires: SIDEBAR_REQUIRES.Always },
+      { id: SIDEBAR_ITEM_ID.ActionRequired, label: "Action Required", icon: "priority_high", target: { kind: SIDEBAR_TARGET_KIND.StandaloneHash, route: "actionRequired" }, requires: SIDEBAR_REQUIRES.Always },
       { id: SIDEBAR_ITEM_ID.Invoices, label: "Invoices", icon: "receipt_long", target: { kind: SIDEBAR_TARGET_KIND.Tab, tab: "dashboard" }, requires: SIDEBAR_REQUIRES.Always },
       { id: SIDEBAR_ITEM_ID.Vendors, label: "Vendors", icon: "business", target: { kind: SIDEBAR_TARGET_KIND.StandaloneHash, route: "vendors" }, requires: SIDEBAR_REQUIRES.Always },
       { id: SIDEBAR_ITEM_ID.Payments, label: "Payments", icon: "payments", target: { kind: SIDEBAR_TARGET_KIND.StandaloneHash, route: "payments" }, requires: SIDEBAR_REQUIRES.Always }
@@ -115,7 +108,6 @@ interface TenantSidebarProps {
   activeStandaloneRoute: StandaloneHashRoute | null;
   onTabChange: (tab: TenantViewTab) => void;
   onStandaloneRouteChange: (route: StandaloneHashRoute) => void;
-  onOpenActionRequired: () => void;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
   invoiceActionRequiredCount: number | null;
@@ -149,8 +141,7 @@ function isItemActive(
 function activateTarget(
   target: SidebarTarget,
   onTabChange: (tab: TenantViewTab) => void,
-  onStandaloneRouteChange: (route: StandaloneHashRoute) => void,
-  onOpenActionRequired: () => void
+  onStandaloneRouteChange: (route: StandaloneHashRoute) => void
 ): void {
   switch (target.kind) {
     case SIDEBAR_TARGET_KIND.Tab:
@@ -158,11 +149,6 @@ function activateTarget(
       return;
     case SIDEBAR_TARGET_KIND.StandaloneHash:
       onStandaloneRouteChange(target.route);
-      return;
-    case SIDEBAR_TARGET_KIND.Action:
-      if (target.action === SIDEBAR_ACTION.OpenActionRequired) {
-        onOpenActionRequired();
-      }
       return;
     default: {
       const _exhaustive: never = target;
@@ -177,7 +163,6 @@ export function TenantSidebar({
   activeStandaloneRoute,
   onTabChange,
   onStandaloneRouteChange,
-  onOpenActionRequired,
   canViewTenantConfig,
   canViewConnections,
   invoiceActionRequiredCount,
@@ -187,60 +172,67 @@ export function TenantSidebar({
   const trimmedTenant = tenantName.trim();
   return (
     <nav className="app-sidebar" aria-label="Primary">
-      <div className="brand">
-        <span className="mark" aria-hidden="true">₹</span>
-        <span className="name">LedgerBuddy</span>
+      <div className="sidebar-brand">
+        <span className="sidebar-brand-mark" aria-hidden="true">₹</span>
+        <span className="sidebar-brand-name">LedgerBuddy</span>
       </div>
       {trimmedTenant.length > 0 ? (
-        <div className="sidebar-tenant-row" title={trimmedTenant}>
-          <span className="material-symbols-outlined sidebar-tenant-icon" aria-hidden="true">business</span>
-          <span className="sidebar-tenant-label">{trimmedTenant}</span>
+        <div className="sidebar-tenant-sub" title={trimmedTenant}>
+          <span className="material-symbols-outlined sidebar-tenant-sub-icon" aria-hidden="true">business</span>
+          <span className="sidebar-tenant-sub-label">{trimmedTenant}</span>
         </div>
       ) : null}
       {SIDEBAR_SECTIONS.map((section) => (
-        <div key={section.id} className="sidebar-section-group" aria-label={section.eyebrow ?? undefined}>
+        <section key={section.id} className="sidebar-section" aria-label={section.eyebrow ?? undefined}>
           {section.eyebrow !== null ? (
-            <h6 className="nav-section">{section.eyebrow}</h6>
+            <h6 className="sidebar-section-eyebrow">{section.eyebrow}</h6>
           ) : null}
-          {section.items.map((item) => {
-            const allowed = isItemAllowed(item, canViewTenantConfig, canViewConnections);
-            const isActive = allowed && isItemActive(item, activeTab, activeStandaloneRoute);
-            const showActionBadge = item.id === SIDEBAR_ITEM_ID.ActionRequired && actionCount > 0;
-            const showInboxBadge = item.id === SIDEBAR_ITEM_ID.InboxRouting && inboxRoutingPendingCount > 0;
-            const ariaLabel = item.id === SIDEBAR_ITEM_ID.ActionRequired
-              ? badgeAriaLabel(item.label, actionCount, "action required")
-              : item.id === SIDEBAR_ITEM_ID.InboxRouting
-                ? badgeAriaLabel(item.label, inboxRoutingPendingCount, "pending")
-                : undefined;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={isActive ? "nav-link active" : "nav-link"}
-                aria-current={isActive ? "page" : undefined}
-                aria-disabled={!allowed || undefined}
-                aria-label={ariaLabel}
-                disabled={!allowed}
-                data-item-id={item.id}
-                onClick={() => {
-                  if (!allowed) return;
-                  activateTarget(item.target, onTabChange, onStandaloneRouteChange, onOpenActionRequired);
-                }}
-              >
-                <span className="material-symbols-outlined" aria-hidden="true">
-                  {item.icon}
-                </span>
-                <span className="sidebar-link-label">{item.label}</span>
-                {showActionBadge ? (
-                  <span className="nav-badge" title={`${actionCount} action required`}>{actionCount}</span>
-                ) : null}
-                {showInboxBadge ? (
-                  <span className="nav-badge" title={`${inboxRoutingPendingCount} pending`}>{inboxRoutingPendingCount}</span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+          <ul className="sidebar-section-list">
+            {section.items.map((item) => {
+              const allowed = isItemAllowed(item, canViewTenantConfig, canViewConnections);
+              const isActive = allowed && isItemActive(item, activeTab, activeStandaloneRoute);
+              const showActionBadge = item.id === SIDEBAR_ITEM_ID.ActionRequired && actionCount > 0;
+              const showInboxBadge = item.id === SIDEBAR_ITEM_ID.InboxRouting && inboxRoutingPendingCount > 0;
+              const ariaLabel = item.id === SIDEBAR_ITEM_ID.ActionRequired
+                ? badgeAriaLabel(item.label, actionCount, "action required")
+                : item.id === SIDEBAR_ITEM_ID.InboxRouting
+                  ? badgeAriaLabel(item.label, inboxRoutingPendingCount, "pending")
+                  : undefined;
+              return (
+                <li key={item.id} className="sidebar-section-item">
+                  <button
+                    type="button"
+                    className={isActive ? "sidebar-link sidebar-link-active" : "sidebar-link"}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-disabled={!allowed || undefined}
+                    aria-label={ariaLabel}
+                    disabled={!allowed}
+                    data-item-id={item.id}
+                    onClick={() => {
+                      if (!allowed) return;
+                      activateTarget(item.target, onTabChange, onStandaloneRouteChange);
+                    }}
+                  >
+                    <span className="material-symbols-outlined sidebar-link-icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    <span className="sidebar-link-label">{item.label}</span>
+                    {showActionBadge ? (
+                      <Badge tone={BADGE_TONE.danger} size={BADGE_SIZE.sm} title={`${actionCount} action required`}>
+                        {actionCount}
+                      </Badge>
+                    ) : null}
+                    {showInboxBadge ? (
+                      <Badge tone={BADGE_TONE.warning} size={BADGE_SIZE.sm} title={`${inboxRoutingPendingCount} pending`}>
+                        {inboxRoutingPendingCount}
+                      </Badge>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       ))}
     </nav>
   );

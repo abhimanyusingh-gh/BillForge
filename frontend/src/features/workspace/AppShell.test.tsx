@@ -12,7 +12,6 @@ function renderShell(overrides: Partial<React.ComponentProps<typeof AppShell>> =
     activeStandaloneRoute: null,
     onTabChange: jest.fn(),
     onStandaloneRouteChange: jest.fn(),
-    onOpenActionRequired: jest.fn(),
     canViewTenantConfig: true,
     canViewConnections: true,
     invoiceActionRequiredCount: 0,
@@ -50,10 +49,10 @@ describe("AppShell", () => {
     expect(props.onTabChange).toHaveBeenCalledWith("exports");
   });
 
-  it("invokes onOpenActionRequired when the Action Required item is clicked", () => {
+  it("routes Action Required to the actionRequired standalone hash route", () => {
     const { props } = renderShell();
     fireEvent.click(screen.getByRole("button", { name: /Action Required/ }));
-    expect(props.onOpenActionRequired).toHaveBeenCalledTimes(1);
+    expect(props.onStandaloneRouteChange).toHaveBeenCalledWith("actionRequired");
   });
 
   it("renders the URL migration banner when migration prop is provided", () => {

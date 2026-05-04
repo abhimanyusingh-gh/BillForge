@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useId, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
@@ -22,7 +22,7 @@ import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
 import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";
 import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
 import { TriagePage } from "@/features/triage/TriagePage";
-import { ActionRequiredPanel } from "@/features/invoices/ActionRequiredPanel";
+import { ActionRequiredPage } from "@/features/invoices/ActionRequiredPage";
 const MailboxesPage = lazy(() =>
   import("@/features/admin/mailboxes/MailboxesPage").then((m) => ({ default: m.MailboxesPage }))
 );
@@ -287,9 +287,6 @@ export function App() {
         canViewConnections={canViewConnections}
         topNav={topNav}
         subNav={subNav}
-        onSelectActionInvoice={(invoiceId) => {
-          window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
-        }}
       >
         {requiresTenantSetup && canManageUsers && (
           <div className="editor-card">
@@ -358,7 +355,22 @@ export function App() {
           <EmptyState icon="alt_route" heading="Inbox Routing" description="Inbox routing rules not configured." />
         )}
 
-        {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}
+        {standaloneRoute === "actionRequired" && (
+          <ActionRequiredPage
+            onSelectInvoice={(invoiceId) => {
+              window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
+            }}
+          />
+        )}
+
+        {!standaloneRoute && activeTab === "overview" && (
+          <OverviewDashboard
+            onNavigateActionRequired={() => {
+              window.location.hash = STANDALONE_HASH_PATH.actionRequired;
+            }}
+            onNavigateExports={() => setActiveTab("exports")}
+          />
+        )}
 
         {!standaloneRoute && activeTab === "dashboard" && (
           <InvoiceView
@@ -437,7 +449,6 @@ interface TenantAppShellProps {
   canViewConnections: boolean;
   topNav: ReactNode;
   subNav: ReactNode;
-  onSelectActionInvoice: (invoiceId: string) => void;
   children: ReactNode;
 }
 
@@ -458,38 +469,27 @@ function VendorDetailRoute() {
   );
 }
 
-function TenantAppShell({ tenantName, activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, topNav, subNav, onSelectActionInvoice, children }: TenantAppShellProps) {
+function TenantAppShell({ tenantName, activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, topNav, subNav, children }: TenantAppShellProps) {
   const { migration } = useTabHashRouting({ activeTab, onTabChange });
   const { totalCount: actionRequiredCount } = useActionRequiredQueue();
-  const [actionPanelOpen, setActionPanelOpen] = useState(false);
-  const actionPanelId = useId();
   const navigateToStandaloneRoute = useCallback((route: StandaloneHashRoute) => {
     window.location.hash = STANDALONE_HASH_PATH[route];
   }, []);
   return (
-    <>
-      <AppShell
-        tenantName={tenantName}
-        activeTab={activeTab}
-        activeStandaloneRoute={activeStandaloneRoute}
-        onTabChange={onTabChange}
-        onStandaloneRouteChange={navigateToStandaloneRoute}
-        onOpenActionRequired={() => setActionPanelOpen(true)}
-        canViewTenantConfig={canViewTenantConfig}
-        canViewConnections={canViewConnections}
-        invoiceActionRequiredCount={actionRequiredCount}
-        topNav={topNav}
-        subNav={subNav}
-        migration={migration}
-      >
-        {children}
-      </AppShell>
-      <ActionRequiredPanel
-        open={actionPanelOpen}
-        panelId={actionPanelId}
-        onClose={() => setActionPanelOpen(false)}
-        onSelectInvoice={onSelectActionInvoice}
-      />
-    </>
+    <AppShell
+      tenantName={tenantName}
+      activeTab={activeTab}
+      activeStandaloneRoute={activeStandaloneRoute}
+      onTabChange={onTabChange}
+      onStandaloneRouteChange={navigateToStandaloneRoute}
+      canViewTenantConfig={canViewTenantConfig}
+      canViewConnections={canViewConnections}
+      invoiceActionRequiredCount={actionRequiredCount}
+      topNav={topNav}
+      subNav={subNav}
+      migration={migration}
+    >
+      {children}
+    </AppShell>
   );
 }

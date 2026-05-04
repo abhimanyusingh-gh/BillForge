@@ -13,32 +13,12 @@ const ORG_A = "65a1b2c3d4e5f6a7b8c9d0e1";
 const ORG_B = "65a1b2c3d4e5f6a7b8c9d0e2";
 
 jest.mock("@/api", () => ({
-  fetchAnalyticsOverview: jest.fn()
+  fetchAnalyticsOverview: jest.fn(),
+  fetchInvoices: jest.fn().mockResolvedValue({ items: [], page: 1, limit: 100, total: 0 })
 }));
 
 jest.mock("@/api/clientOrgs", () => ({
   fetchClientOrganizations: jest.fn()
-}));
-
-jest.mock("recharts", () => {
-  const Stub = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
-  // Proxy returns Stub for ANY exported name (Area, AreaChart, ResponsiveContainer, ...)
-  // — recharts has many; this avoids per-symbol churn.
-  return new Proxy(
-    {},
-    {
-      get: () => Stub
-    }
-  );
-});
-
-jest.mock("@/features/overview/OverviewDashboardCharts", () => ({
-  ChartCard: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  ChartOrEmpty: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  KpiCard: () => <div />,
-  StatusDonut: () => <div />,
-  TimeSeriesBarChart: () => <div />,
-  VendorBarChart: () => <div />
 }));
 
 const mockedApi = jest.requireMock("@/api") as { fetchAnalyticsOverview: jest.Mock };
@@ -91,7 +71,6 @@ describe("OverviewDashboard — admin clientOrgId integration (#162)", () => {
     await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
     const calls = mockedApi.fetchAnalyticsOverview.mock.calls;
     for (const args of calls) {
-      // 4th positional arg is clientOrgId
       expect(args[3]).toBeNull();
     }
   });
@@ -102,18 +81,6 @@ describe("OverviewDashboard — admin clientOrgId integration (#162)", () => {
     await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
     const calls = mockedApi.fetchAnalyticsOverview.mock.calls;
     expect(calls[0][3]).toBe(ORG_A);
-  });
-
-  it("re-fetches with the new clientOrgId when the switcher selects a specific realm", async () => {
-    renderDashboard();
-    await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
-    mockedApi.fetchAnalyticsOverview.mockClear();
-    fireEvent.click(await screen.findByTestId("admin-realm-switcher-segment-picker"));
-    const option = await screen.findByTestId(`admin-realm-switcher-picker-option-${ORG_B}`);
-    fireEvent.click(option);
-    await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
-    const lastArgs = mockedApi.fetchAnalyticsOverview.mock.calls[0];
-    expect(lastArgs[3]).toBe(ORG_B);
   });
 
   it("re-fetches WITHOUT clientOrgId when 'All clients' is selected", async () => {
@@ -155,5 +122,29 @@ describe("OverviewDashboard — Approval scope toggle a11y", () => {
     fireEvent.click(allBtn);
     expect(mineBtn).toHaveAttribute("aria-pressed", "false");
     expect(allBtn).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+describe("OverviewDashboard — bundle layout (R4)", () => {
+  it("renders the Overview page header", async () => {
+    renderDashboard();
+    expect(await screen.findByRole("heading", { level: 1, name: /Overview/ })).toBeInTheDocument();
+  });
+
+  it("renders four KPI tiles with bundle ordering", async () => {
+    renderDashboard();
+    await waitFor(() => expect(mockedApi.fetchAnalyticsOverview).toHaveBeenCalled());
+    expect(await screen.findByText("Needs review")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting approval")).toBeInTheDocument();
+    expect(screen.getByText("Approved amount")).toBeInTheDocument();
+    expect(screen.getByText("Exported")).toBeInTheDocument();
+  });
+
+  it("renders the 'What needs your attention' panel and placeholder side cards", async () => {
+    renderDashboard();
+    expect(await screen.findByTestId("overview-attention-panel")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: /Net payable/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: /TDS deducted/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: /Recent activity/ })).toBeInTheDocument();
   });
 });

@@ -72,7 +72,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
-export function ChartCard({ title, subtitle, children, relative }: { title: string; subtitle: string; children: ReactNode; relative?: boolean }) {
+function ChartCard({ title, subtitle, children, relative }: { title: string; subtitle: string; children: ReactNode; relative?: boolean }) {
   return (
     <div className={`overview-chart-card${relative ? " overview-chart-card-relative" : ""}`}>
       <h4>{title}<span className="chart-subtitle">{subtitle}</span></h4>
@@ -81,12 +81,12 @@ export function ChartCard({ title, subtitle, children, relative }: { title: stri
   );
 }
 
-export function ChartOrEmpty({ hasData, children }: { hasData: boolean; children: ReactNode }) {
+function ChartOrEmpty({ hasData, children }: { hasData: boolean; children: ReactNode }) {
   if (!hasData) return <div className="chart-empty-state"><span className="material-symbols-outlined">bar_chart</span><p>No data for this period</p></div>;
   return <>{children}</>;
 }
 
-export function TimeSeriesBarChart({ data, dataKey, fill, yWidth = 32, yFormatter }: { data: DailyStat[]; dataKey: string; fill: string; yWidth?: number; yFormatter?: (v: number) => string }) {
+function TimeSeriesBarChart({ data, dataKey, fill, yWidth = 32, yFormatter }: { data: DailyStat[]; dataKey: string; fill: string; yWidth?: number; yFormatter?: (v: number) => string }) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
@@ -100,7 +100,7 @@ export function TimeSeriesBarChart({ data, dataKey, fill, yWidth = 32, yFormatte
   );
 }
 
-export function VendorBarChart({ vendors, tooltipLabel }: { vendors: VendorStat[]; tooltipLabel: string }) {
+function VendorBarChart({ vendors, tooltipLabel }: { vendors: VendorStat[]; tooltipLabel: string }) {
   const collapsed = collapseVendors(vendors);
   return (
     <ResponsiveContainer width="100%" height={Math.max(160, collapsed.length * 36)}>
@@ -117,7 +117,7 @@ export function VendorBarChart({ vendors, tooltipLabel }: { vendors: VendorStat[
   );
 }
 
-export function StatusDonut({ data, total, statusColors, statusLabels }: { data: Array<{ status: string; count: number }>; total: number; statusColors: Record<string, string>; statusLabels: Record<string, string> }) {
+function StatusDonut({ data, total, statusColors, statusLabels }: { data: Array<{ status: string; count: number }>; total: number; statusColors: Record<string, string>; statusLabels: Record<string, string> }) {
   return (
     <div className="status-donut-wrap">
       <ResponsiveContainer width="100%" height={200}>

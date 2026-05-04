@@ -27,15 +27,6 @@ function lastMonthRange(): { from: string; to: string } {
 
 export type PresetKey = "this-month" | "last-month" | "7d" | "30d" | "quarter" | null;
 
-export function priorPeriodRange(from: string, to: string): { from: string; to: string } {
-  const start = new Date(from);
-  const end = new Date(to);
-  const priorEnd = new Date(start.getTime() - 1);
-  return {
-    from: new Date(priorEnd.getTime() - (end.getTime() - start.getTime())).toISOString().slice(0, 10),
-    to: priorEnd.toISOString().slice(0, 10)
-  };
-}
 
 export function fmtInr(minor: number): string {
   return (minor / 100).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
@@ -53,23 +44,6 @@ export function fmtDate(dateStr: string): string {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function computeTrend(current: number, prior: number): { label: string; direction: "up" | "down" | "neutral" } {
-  if (prior === 0 && current === 0) return { label: "\u2014", direction: "neutral" };
-  if (prior === 0) return { label: "+100%", direction: "up" };
-  const pct = Math.round(((current - prior) / prior) * 100);
-  if (pct === 0) return { label: "0%", direction: "neutral" };
-  return { label: pct > 0 ? `+${pct}%` : `${pct}%`, direction: pct > 0 ? "up" : "down" };
-}
-
-export const STATUS_COLORS: Record<string, string> = {
-  APPROVED: "var(--status-approved)",
-  EXPORTED: "var(--status-exported)",
-  PARSED: "var(--status-parsed)",
-  NEEDS_REVIEW: "var(--status-needs-review)",
-  PENDING: "var(--status-pending)",
-  FAILED_OCR: "var(--status-failed-ocr)",
-  FAILED_PARSE: "var(--status-failed-ocr)"
-};
 
 export const VENDOR_COLORS = [
   "var(--chart-blue)",
