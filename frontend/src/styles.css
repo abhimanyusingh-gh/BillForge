@@ -7839,8 +7839,21 @@ pre {
   font-weight: 600;
 }
 
+/* Reserved for post-MVP SSO buttons (#385). */
 .login-idp-slot {
-  /* reserved for post-MVP SSO buttons (#385) */
+}
+
+.verified-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--badge-valid-bg);
+  color: var(--badge-valid-fg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  font: 600 13px/1.4 var(--font-sans);
 }
 
 .auth-form {
