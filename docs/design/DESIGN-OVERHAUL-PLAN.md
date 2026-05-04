@@ -167,3 +167,58 @@ Average files/PR: each ≤20 per `feedback_pr_workflow.md`. W3-7-pre, W4-1, and 
 - `feedback_pr_workflow.md` — ≤20 files per PR; never merge; raise PR and stop for user review.
 - `feedback_full_test_suite_before_pr.md` — full BE + FE jest before push.
 - `feedback_reviewer_per_pr.md` — bot reviewer agent per PR; opens side-by-side diff vs bundle reference.
+
+## Rebuild complete (2026-05-04)
+
+The W3 wave-of-passes accumulated visual drift between the canvas bundle and the live FE faster than Pass 2 patch slices could close it. After the W3-9b chrome rewrite landed, the team pivoted to a full rebuild — replace each surface from the v3 bundle JSX rather than diff-patch it. Twelve R-slices later, the rebuild is complete.
+
+### R-slices merged
+
+| Slice | Issue / PR | Surface(s) |
+|---|---|---|
+| R0 | #457 / #458 | docs — v3 bundle import (TableQuery + 20 refreshed surfaces) |
+| R1 | #459 / #460 | styles.css full replace from bundle |
+| R2 | #461 / #466 | chrome (sidebar + topbar) rebuild |
+| R3 | #464 / #465 | Auth (Login) rebuild |
+| R4 | #462 / #468 | Overview Dashboard + Action Required as page |
+| R5 | #463 / #467 | Invoices list + Invoice Detail visual refresh + TableQuery primitive |
+| R6 | #474 / #480 | Triage + Vendors |
+| R7 | #475 / #481 | TDS Dashboard + Tally Export |
+| R8 | #476 / #479 | Tenant Config + User Settings |
+| R9 | #477 / #482 | Bank Statements + Reconciliation + Connections |
+| R10 | #478 / #483 | Mailboxes + Client Orgs |
+| R11 | #484 / #485 | Platform Admin |
+| R12 | #486 / this PR | final cleanup, restore test suite, recalibrate gates |
+
+### Bundle-faithful surfaces
+
+All thirteen surface families above are now sourced from the v3 bundle and rendered through the design-system tokens. Specifically:
+
+- Chrome (sidebar, topbar, breadcrumbs, layout shell)
+- Auth (Login, password reset)
+- Overview Dashboard + Action Required
+- Invoices list + Invoice Detail
+- Triage queue + Triage detail
+- Vendors list + Vendor detail
+- TDS Dashboard + TDS Liability + TDS Cumulative
+- Tally Export + Export History
+- Tenant Config (incl. Vendor MSME)
+- User Settings
+- Bank Statements + Reconciliation + Connections
+- Mailboxes + Client Orgs
+- Platform Admin
+
+### Open follow-ups (carry forward)
+
+These items are deliberately deferred — they do not block declaring the rebuild complete, but should be drained before the initiative is fully closed:
+
+- **#469 — R5b**: full Invoices DataTable migration to bundle `lbtable` primitive (R5 shipped a partial swap; remaining columns + filter chrome carry forward).
+- **#420 — Pass 3 polish**: tertiary visual polish (microcopy, empty states, motion) deferred from W3.
+- **#419 — DataTable extension**: column-state, density toggle, and saved-view scaffolding (depends on R5b landing first).
+- **#448 — W4-1 cumulative CSS reconcile**: reconcile the cumulative `styles.css` against current DOM consumers; drop unused selectors left behind by the R-slice append-blocks. Deferred from R12 to avoid expanding R12 scope.
+
+### Discipline lift
+
+- The rebuild-pace exception in `feedback_pr_workflow.md` is lifted as of 2026-05-04. Standard autopilot — CI green required before stop-for-review — resumes for all subsequent FE work.
+- Bundle-size gate verified clean at R12 with 94.5 KiB headroom (1143.0 KiB initial-load vs 1237.5 KiB budget). No recalibration required.
+- Knip clean. Full FE jest suite green (914 tests, 110 suites).

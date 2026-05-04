@@ -1,5 +1,3 @@
-import type { DailyStat, VendorStat } from "@/types";
-
 function toLocalDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -38,36 +36,6 @@ export function fmtInrShort(minor: number): string {
   if (major >= 100_000) return `\u20B9${(major / 100_000).toFixed(1)}L`;
   if (major >= 1_000) return `\u20B9${(major / 1_000).toFixed(1)}K`;
   return `\u20B9${major.toFixed(0)}`;
-}
-
-export function fmtDate(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-
-export const VENDOR_COLORS = [
-  "var(--chart-blue)",
-  "var(--chart-emerald)",
-  "var(--chart-amber)",
-  "var(--chart-rose)",
-  "var(--chart-violet)",
-  "#94a3b8"
-];
-
-const TOP_VENDOR_COUNT = 5;
-
-export function collapseVendors(vendors: VendorStat[]): VendorStat[] {
-  if (vendors.length <= TOP_VENDOR_COUNT) return vendors;
-  const top = vendors.slice(0, TOP_VENDOR_COUNT);
-  const rest = vendors.slice(TOP_VENDOR_COUNT);
-  return [
-    ...top,
-    {
-      vendor: `Others (${rest.length})`,
-      count: rest.reduce((s, v) => s + v.count, 0),
-      amountMinor: rest.reduce((s, v) => s + v.amountMinor, 0)
-    }
-  ];
 }
 
 export const PRESETS: Array<{ key: PresetKey; label: string; range: () => { from: string; to: string } }> = [

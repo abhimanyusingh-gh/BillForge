@@ -82,7 +82,7 @@ describe("features/admin/onboarding/ClientOrgsTable", () => {
         onSelect={jest.fn()}
       />
     );
-    const activeRow = screen.getByText("Bose Steel").closest("tr");
+    const activeRow = screen.getByText("Bose Steel").closest("[data-testid='client-orgs-table-row']");
     expect(activeRow).toHaveAttribute("data-active", "true");
     expect(screen.getAllByTestId("client-orgs-table-select")).toHaveLength(1);
   });

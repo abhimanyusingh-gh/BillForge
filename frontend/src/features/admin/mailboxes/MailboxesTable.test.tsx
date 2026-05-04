@@ -199,6 +199,6 @@ describe("features/admin/mailboxes/MailboxesTable", () => {
       />
     );
     expect(screen.queryByTestId("mailboxes-table-view-recent-a-1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("mailboxes-table-count-a-1").tagName.toLowerCase()).toBe("span");
+    expect(screen.getByTestId("mailboxes-table-count-a-1").tagName.toLowerCase()).toBe("b");
   });
 });
