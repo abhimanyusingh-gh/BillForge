@@ -31,8 +31,12 @@ export function TriageRow({
   isMutating
 }: TriageRowProps) {
   return (
-    <tr data-testid={`triage-row-${invoice._id}`} data-mutating={isMutating ? "true" : undefined}>
-      <td>
+    <tr
+      className={selected ? "triage-row triage-row-selected" : "triage-row"}
+      data-testid={`triage-row-${invoice._id}`}
+      data-mutating={isMutating ? "true" : undefined}
+    >
+      <td className="triage-cell-select">
         <input
           type="checkbox"
           checked={selected}
@@ -42,45 +46,51 @@ export function TriageRow({
           disabled={isMutating}
         />
       </td>
-      <td className="triage-cell-invoice-number">{valueOrPlaceholder(invoice.invoiceNumber)}</td>
+      <td className="mono-cell">{valueOrPlaceholder(invoice.invoiceNumber)}</td>
       <td>
         <div className="triage-cell-stacked">
-          <span>{valueOrPlaceholder(invoice.vendorName)}</span>
-          <small>{valueOrPlaceholder(invoice.vendorGstin)}</small>
+          <span className="triage-cell-primary">{valueOrPlaceholder(invoice.vendorName)}</span>
+          <span className="triage-cell-secondary lb-mono">
+            {valueOrPlaceholder(invoice.vendorGstin)}
+          </span>
         </div>
       </td>
       <td>
         <div className="triage-cell-stacked">
-          <span>{valueOrPlaceholder(invoice.customerName)}</span>
-          <small>{valueOrPlaceholder(invoice.customerGstin)}</small>
+          <span className="triage-cell-primary">{valueOrPlaceholder(invoice.customerName)}</span>
+          <span className="triage-cell-secondary lb-mono">
+            {valueOrPlaceholder(invoice.customerGstin)}
+          </span>
         </div>
       </td>
-      <td className="triage-cell-amount">
+      <td className="num-cell">
         {invoice.totalAmountMinor === null
           ? "—"
           : formatMinorAmountWithCurrency(invoice.totalAmountMinor, invoice.currency ?? undefined)}
       </td>
-      <td className="triage-cell-source">{valueOrPlaceholder(invoice.sourceMailbox)}</td>
-      <td className="triage-cell-received">{formatReceivedAt(invoice.receivedAt)}</td>
-      <td className="triage-actions-cell">
-        <button
-          type="button"
-          className="app-button app-button-primary app-button-sm"
-          onClick={onAssign}
-          disabled={isMutating}
-          data-testid={`triage-row-assign-${invoice._id}`}
-        >
-          Assign
-        </button>
-        <button
-          type="button"
-          className="app-button app-button-secondary app-button-sm"
-          onClick={onReject}
-          disabled={isMutating}
-          data-testid={`triage-row-reject-${invoice._id}`}
-        >
-          Reject
-        </button>
+      <td className="mono-cell">{valueOrPlaceholder(invoice.sourceMailbox)}</td>
+      <td className="mono-cell">{formatReceivedAt(invoice.receivedAt)}</td>
+      <td className="triage-cell-actions">
+        <div className="triage-row-actions">
+          <button
+            type="button"
+            className="app-button app-button-primary app-button-sm"
+            onClick={onAssign}
+            disabled={isMutating}
+            data-testid={`triage-row-assign-${invoice._id}`}
+          >
+            Assign
+          </button>
+          <button
+            type="button"
+            className="app-button app-button-secondary app-button-sm"
+            onClick={onReject}
+            disabled={isMutating}
+            data-testid={`triage-row-reject-${invoice._id}`}
+          >
+            Reject
+          </button>
+        </div>
       </td>
     </tr>
   );

@@ -89,18 +89,18 @@ export function VendorListPage() {
     state.hasSection197Cert !== VENDOR_LIST_DEFAULT_STATE.hasSection197Cert;
 
   return (
-    <section className="panel vendors-panel" data-testid="vendors-page">
-      <header className="vendors-header">
-        <div className="vendors-header-titles">
-          <h2>Vendors</h2>
-          <span className="vendors-count" data-testid="vendors-count">
-            {total} active
+    <div className="vendors-page" data-testid="vendors-page">
+      <div className="page-header">
+        <h1>Vendors</h1>
+        <span className="count" data-testid="vendors-count">
+          {total} active
+        </span>
+        <div className="page-tools">
+          <span className="vendors-subhead">
+            Master ledger of payees · GSTIN-linked · MSME &amp; §197 surfaced inline.
           </span>
         </div>
-        <p className="vendors-subhead">
-          Master ledger of payees · GSTIN-linked · MSME &amp; §197 surfaced inline.
-        </p>
-      </header>
+      </div>
 
       <div className="vendors-toolbar">
         <VendorSearchBox value={state.search} onChange={(next) => patch({ search: next, page: 1 })} />
@@ -165,16 +165,18 @@ export function VendorListPage() {
         </div>
       ) : (
         <>
-          <VendorTable
-            vendors={items}
-            sortField={state.sortField}
-            sortDirection={state.sortDirection}
-            onSortChange={handleSortChange}
-            onView={handleView}
-            onMerge={handleMerge}
-            bodyHeightPx={BODY_HEIGHT_PX}
-            rowHeightPx={ROW_HEIGHT_PX}
-          />
+          <div className="table-wrap vendors-table-wrap">
+            <VendorTable
+              vendors={items}
+              sortField={state.sortField}
+              sortDirection={state.sortDirection}
+              onSortChange={handleSortChange}
+              onView={handleView}
+              onMerge={handleMerge}
+              bodyHeightPx={BODY_HEIGHT_PX}
+              rowHeightPx={ROW_HEIGHT_PX}
+            />
+          </div>
           <VendorPaginationBar
             page={state.page}
             pageSize={state.pageSize}
@@ -190,7 +192,7 @@ export function VendorListPage() {
         vendorName={mergeTarget?.name ?? null}
         onClose={() => setMergeTarget(null)}
       />
-    </section>
+    </div>
   );
 }
 
@@ -203,19 +205,32 @@ interface VendorMergePlaceholderDialogProps {
 function VendorMergePlaceholderDialog({ open, vendorName, onClose }: VendorMergePlaceholderDialogProps) {
   if (!open) return null;
   return (
-    <div
-      className="vendors-merge-placeholder"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="vendors-merge-placeholder-title"
-      data-testid="vendors-merge-placeholder"
-    >
-      <div className="vendors-merge-placeholder-card">
-        <h3 id="vendors-merge-placeholder-title">Merge vendor</h3>
-        <p>
-          Merge dialog ships in #264. Selected vendor: <strong>{vendorName ?? "—"}</strong>.
-        </p>
-        <div className="vendors-merge-placeholder-actions">
+    <div className="scrim" onClick={onClose}>
+      <div
+        className="modal-card vendors-merge-placeholder-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="vendors-merge-placeholder-title"
+        data-testid="vendors-merge-placeholder"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-head">
+          <h2 id="vendors-merge-placeholder-title">Merge vendor</h2>
+          <button
+            type="button"
+            className="iconbtn"
+            onClick={onClose}
+            aria-label="Close merge dialog"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div className="modal-body">
+          <p>
+            Merge dialog ships in #264. Selected vendor: <strong>{vendorName ?? "—"}</strong>.
+          </p>
+        </div>
+        <div className="modal-foot">
           <button
             type="button"
             className="app-button app-button-secondary"

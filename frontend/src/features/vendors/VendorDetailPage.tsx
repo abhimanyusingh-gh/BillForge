@@ -45,7 +45,11 @@ export function VendorDetailPage({ vendorId }: VendorDetailPageProps) {
 
   if (query.isPending) {
     return (
-      <section className="panel vendor-detail-panel" data-testid="vendor-detail-page">
+      <div className="vendor-detail-page" data-testid="vendor-detail-page">
+        <div className="page-header">
+          <h1>Vendor</h1>
+          <span className="count">loading…</span>
+        </div>
         <div
           className="vendor-detail-state"
           role="status"
@@ -54,13 +58,16 @@ export function VendorDetailPage({ vendorId }: VendorDetailPageProps) {
         >
           Loading vendor…
         </div>
-      </section>
+      </div>
     );
   }
 
   if (query.isError || !query.data) {
     return (
-      <section className="panel vendor-detail-panel" data-testid="vendor-detail-page">
+      <div className="vendor-detail-page" data-testid="vendor-detail-page">
+        <div className="page-header">
+          <h1>Vendor</h1>
+        </div>
         <div className="vendor-detail-state" data-testid="vendor-detail-error">
           <EmptyState
             icon="error"
@@ -78,7 +85,7 @@ export function VendorDetailPage({ vendorId }: VendorDetailPageProps) {
             }
           />
         </div>
-      </section>
+      </div>
     );
   }
 
@@ -86,43 +93,45 @@ export function VendorDetailPage({ vendorId }: VendorDetailPageProps) {
   const subTab = route?.subTab ?? VENDOR_DETAIL_SUB_TAB.INVOICES;
 
   return (
-    <section className="panel vendor-detail-panel" data-testid="vendor-detail-page">
+    <div className="vendor-detail-page" data-testid="vendor-detail-page">
       <VendorDetailHeader vendor={vendor} onBack={handleBack} onMerge={() => setMergeOpen(true)} />
 
-      <nav className="vendor-detail-tabs" role="tablist" data-testid="vendor-detail-tabs">
-        {(Object.values(VENDOR_DETAIL_SUB_TAB) as VendorDetailSubTab[]).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={subTab === tab}
-            className={
-              subTab === tab
-                ? "vendor-detail-tab vendor-detail-tab-active"
-                : "vendor-detail-tab"
-            }
-            onClick={() => setSubTab(tab)}
-            data-testid={`vendor-detail-tab-${tab}`}
-          >
-            {SUB_TAB_LABEL[tab]}
-          </button>
-        ))}
-      </nav>
+      <div className="section vendor-detail-tabs-section">
+        <nav className="vendor-detail-tabs" role="tablist" data-testid="vendor-detail-tabs">
+          {(Object.values(VENDOR_DETAIL_SUB_TAB) as VendorDetailSubTab[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={subTab === tab}
+              className={
+                subTab === tab
+                  ? "vendor-detail-tab vendor-detail-tab-active"
+                  : "vendor-detail-tab"
+              }
+              onClick={() => setSubTab(tab)}
+              data-testid={`vendor-detail-tab-${tab}`}
+            >
+              {SUB_TAB_LABEL[tab]}
+            </button>
+          ))}
+        </nav>
 
-      <div className="vendor-detail-tab-body" role="tabpanel">
-        {subTab === VENDOR_DETAIL_SUB_TAB.INVOICES ? (
-          <VendorInvoicesTab vendorFingerprint={vendor.vendorFingerprint} />
-        ) : null}
-        {subTab === VENDOR_DETAIL_SUB_TAB.TDS ? (
-          <VendorTdsTab vendorFingerprint={vendor.vendorFingerprint} />
-        ) : null}
-        {subTab === VENDOR_DETAIL_SUB_TAB.CERT197 ? (
-          <Section197CertPanel
-            vendorId={vendor._id}
-            cert={vendor.lowerDeductionCert}
-            vendorDetailQueryKey={queryKey}
-          />
-        ) : null}
+        <div className="vendor-detail-tab-body" role="tabpanel">
+          {subTab === VENDOR_DETAIL_SUB_TAB.INVOICES ? (
+            <VendorInvoicesTab vendorFingerprint={vendor.vendorFingerprint} />
+          ) : null}
+          {subTab === VENDOR_DETAIL_SUB_TAB.TDS ? (
+            <VendorTdsTab vendorFingerprint={vendor.vendorFingerprint} />
+          ) : null}
+          {subTab === VENDOR_DETAIL_SUB_TAB.CERT197 ? (
+            <Section197CertPanel
+              vendorId={vendor._id}
+              cert={vendor.lowerDeductionCert}
+              vendorDetailQueryKey={queryKey}
+            />
+          ) : null}
+        </div>
       </div>
 
       <VendorMergeDialog
@@ -134,6 +143,6 @@ export function VendorDetailPage({ vendorId }: VendorDetailPageProps) {
           window.location.hash = STANDALONE_HASH_PATH.vendors;
         }}
       />
-    </section>
+    </div>
   );
 }

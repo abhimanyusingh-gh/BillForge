@@ -260,47 +260,65 @@ export function TriagePage() {
 
   if (queue.isLoading) {
     return (
-      <section className="panel triage-panel" data-testid="triage-loading">
-        <p>Loading triage queue...</p>
-      </section>
+      <div className="triage-page" data-testid="triage-page-loading">
+        <div className="page-header">
+          <h1>Inbox Routing</h1>
+          <span className="count">loading…</span>
+        </div>
+        <div className="triage-state" data-testid="triage-loading">
+          Loading triage queue…
+        </div>
+      </div>
     );
   }
 
   if (queue.isError) {
     return (
-      <section className="panel triage-panel" data-testid="triage-error">
-        <EmptyState
-          icon="error"
-          heading="Couldn't load the triage queue"
-          description="The server didn't respond. Try again."
-          action={
-            <button
-              type="button"
-              className="app-button app-button-secondary"
-              onClick={() => void queue.refetch()}
-              data-testid="triage-error-retry"
-            >
-              Retry
-            </button>
-          }
-        />
-      </section>
+      <div className="triage-page" data-testid="triage-page-error">
+        <div className="page-header">
+          <h1>Inbox Routing</h1>
+        </div>
+        <div className="triage-state" data-testid="triage-error">
+          <EmptyState
+            icon="error"
+            heading="Couldn't load the triage queue"
+            description="The server didn't respond. Try again."
+            action={
+              <button
+                type="button"
+                className="app-button app-button-secondary"
+                onClick={() => void queue.refetch()}
+                data-testid="triage-error-retry"
+              >
+                Retry
+              </button>
+            }
+          />
+        </div>
+      </div>
     );
   }
 
   if (queue.invoices.length === 0) {
     return (
-      <section className="panel triage-panel" data-testid="triage-empty">
-        <EmptyState
-          icon="inbox"
-          heading="All caught up"
-          description="No invoices waiting for triage."
-        />
-      </section>
+      <div className="triage-page" data-testid="triage-page-empty">
+        <div className="page-header">
+          <h1>Inbox Routing</h1>
+          <span className="count">0 unrouted</span>
+        </div>
+        <div className="triage-state" data-testid="triage-empty">
+          <EmptyState
+            icon="inbox"
+            heading="All caught up"
+            description="No invoices waiting for triage."
+          />
+        </div>
+      </div>
     );
   }
 
   const allSelected = selectedIds.size === queue.invoices.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
   const selectedArray = queue.invoices
     .filter((invoice) => selectedIds.has(invoice._id))
     .map((invoice) => invoice._id);
@@ -310,35 +328,60 @@ export function TriagePage() {
     : [];
 
   return (
-    <section className="panel triage-panel" data-testid="triage-page">
-      <header className="triage-header">
-        <div>
-          <h2>Triage Queue</h2>
-          <p className="triage-subhead">
-            {queue.total} invoice{queue.total === 1 ? "" : "s"} waiting for a client assignment.
-          </p>
+    <div className="triage-page" data-testid="triage-page">
+      <div className="page-header">
+        <h1>Inbox Routing</h1>
+        <span className="count">
+          {queue.total} unrouted · {queue.total === 1 ? "invoice" : "invoices"} waiting for assignment
+        </span>
+      </div>
+
+      <div className="triage-info-banner">
+        <span className="material-symbols-outlined" aria-hidden="true">info</span>
+        <span>
+          These invoices arrived in the firm-wide mailbox but the system could not auto-route them
+          to a client org. Pick the right destination — this is a routing decision, not an approval
+          decision.
+        </span>
+      </div>
+
+      {selectedIds.size > 0 ? (
+        <div
+          className="triage-bulk-bar"
+          data-testid="triage-bulk-bar"
+        >
+          <span className="triage-bulk-count">{selectedIds.size} selected</span>
+          <span className="triage-bulk-divider" aria-hidden="true" />
+          <div className="triage-bulk-actions">
+            <button
+              type="button"
+              className="app-button app-button-primary"
+              disabled={bulkDisabled}
+              onClick={() => openAssign(selectedArray)}
+              data-testid="triage-bulk-assign"
+            >
+              Assign selected
+            </button>
+            <button
+              type="button"
+              className="app-button app-button-secondary"
+              disabled={bulkDisabled}
+              onClick={() => openReject(selectedArray)}
+              data-testid="triage-bulk-reject"
+            >
+              Reject selected
+            </button>
+            <button
+              type="button"
+              className="app-button app-button-ghost"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear selection
+            </button>
+          </div>
         </div>
-        <div className="triage-bulk-actions">
-          <button
-            type="button"
-            className="app-button app-button-primary"
-            disabled={bulkDisabled}
-            onClick={() => openAssign(selectedArray)}
-            data-testid="triage-bulk-assign"
-          >
-            Assign selected
-          </button>
-          <button
-            type="button"
-            className="app-button app-button-secondary"
-            disabled={bulkDisabled}
-            onClick={() => openReject(selectedArray)}
-            data-testid="triage-bulk-reject"
-          >
-            Reject selected
-          </button>
-        </div>
-      </header>
+      ) : null}
+
       {bulkOutcome ? (
         <div
           className="triage-bulk-banner"
@@ -367,41 +410,48 @@ export function TriagePage() {
           </button>
         </div>
       ) : null}
-      <table className="triage-table" data-testid="triage-table">
-        <thead>
-          <tr>
-            <th>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleAll}
-                aria-label="Select all triage invoices"
-                data-testid="triage-select-all"
+
+      <div className="table-wrap">
+        <table className="lbtable triage-table" data-testid="triage-table">
+          <thead>
+            <tr>
+              <th className="triage-th-select">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected;
+                  }}
+                  onChange={toggleAll}
+                  aria-label="Select all triage invoices"
+                  data-testid="triage-select-all"
+                />
+              </th>
+              <th>Invoice #</th>
+              <th>Vendor</th>
+              <th>Customer</th>
+              <th className="triage-th-amount">Amount</th>
+              <th>Source mailbox</th>
+              <th>Received</th>
+              <th aria-label="Row actions" className="triage-th-actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {queue.invoices.map((invoice) => (
+              <TriageRow
+                key={invoice._id}
+                invoice={invoice}
+                selected={selectedIds.has(invoice._id)}
+                onToggleSelected={() => toggleRow(invoice._id)}
+                onAssign={() => openAssign([invoice._id])}
+                onReject={() => openReject([invoice._id])}
+                isMutating={pendingMutationIds.has(invoice._id)}
               />
-            </th>
-            <th>Invoice #</th>
-            <th>Vendor</th>
-            <th>Customer</th>
-            <th>Amount</th>
-            <th>Source mailbox</th>
-            <th>Received</th>
-            <th aria-label="Row actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {queue.invoices.map((invoice) => (
-            <TriageRow
-              key={invoice._id}
-              invoice={invoice}
-              selected={selectedIds.has(invoice._id)}
-              onToggleSelected={() => toggleRow(invoice._id)}
-              onAssign={() => openAssign([invoice._id])}
-              onReject={() => openReject([invoice._id])}
-              isMutating={pendingMutationIds.has(invoice._id)}
-            />
-          ))}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <ClientOrgPicker
         open={assignContext !== null}
         onClose={() => setAssignContext(null)}
@@ -427,6 +477,6 @@ export function TriagePage() {
         onCancel={() => setRejectContext(null)}
         onConfirm={handleReject}
       />
-    </section>
+    </div>
   );
 }
