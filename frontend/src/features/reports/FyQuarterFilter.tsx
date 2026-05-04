@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { TDS_QUARTER, type TdsQuarter } from "@/api/reports";
-
-const QUARTER_VALUES = Object.values(TDS_QUARTER) as TdsQuarter[];
+import { DateRange, type DateRangePreset, type DateRangeValue } from "@/components/ds";
+import { fyQuarterToDateRange, fyToDateRange } from "@/features/reports/fiscalYear";
 
 interface FyQuarterFilterProps {
   fy: string;
@@ -10,49 +11,102 @@ interface FyQuarterFilterProps {
   onQuarterChange: (quarter: TdsQuarter | null) => void;
 }
 
-export function FyQuarterFilter({ fy, quarter, fyOptions, onFyChange, onQuarterChange }: FyQuarterFilterProps) {
+const QUARTER_VALUES = Object.values(TDS_QUARTER) as TdsQuarter[];
+
+const QUARTER_SUB: Record<TdsQuarter, string> = {
+  [TDS_QUARTER.Q1]: "Apr–Jun",
+  [TDS_QUARTER.Q2]: "Jul–Sep",
+  [TDS_QUARTER.Q3]: "Oct–Dec",
+  [TDS_QUARTER.Q4]: "Jan–Mar"
+};
+
+function fyYearPresetId(fy: string): string {
+  return `fy-${fy}`;
+}
+
+function fyQuarterPresetId(fy: string, quarter: TdsQuarter): string {
+  return `fy-${fy}-${quarter}`;
+}
+
+function buildYearPresets(fyOptions: readonly string[]): DateRangePreset[] {
+  return fyOptions.map((fy) => {
+    const range = fyToDateRange(fy);
+    return {
+      id: fyYearPresetId(fy),
+      label: `FY ${fy}`,
+      from: range.from,
+      to: range.to
+    };
+  });
+}
+
+function buildQuarterPresets(fy: string): DateRangePreset[] {
+  return QUARTER_VALUES.map((quarter) => {
+    const range = fyQuarterToDateRange(fy, quarter);
+    return {
+      id: fyQuarterPresetId(fy, quarter),
+      label: `FY ${fy} · ${quarter}`,
+      sub: QUARTER_SUB[quarter],
+      from: range.from,
+      to: range.to
+    };
+  });
+}
+
+function valueFor(fy: string, quarter: TdsQuarter | null): DateRangeValue {
+  if (quarter === null) {
+    const range = fyToDateRange(fy);
+    return { from: range.from, to: range.to, presetId: fyYearPresetId(fy), label: `FY ${fy}` };
+  }
+  const range = fyQuarterToDateRange(fy, quarter);
+  return {
+    from: range.from,
+    to: range.to,
+    presetId: fyQuarterPresetId(fy, quarter),
+    label: `FY ${fy} · ${quarter}`
+  };
+}
+
+export function FyQuarterFilter({
+  fy,
+  quarter,
+  fyOptions,
+  onFyChange,
+  onQuarterChange
+}: FyQuarterFilterProps) {
+  const yearPresets = useMemo(() => buildYearPresets(fyOptions), [fyOptions]);
+  const quarterPresets = useMemo(() => buildQuarterPresets(fy), [fy]);
+  const value = useMemo(() => valueFor(fy, quarter), [fy, quarter]);
+
+  function handleChange(next: DateRangeValue) {
+    if (!next.presetId) return;
+    for (const fyOption of fyOptions) {
+      if (next.presetId === fyYearPresetId(fyOption)) {
+        if (fyOption !== fy) onFyChange(fyOption);
+        if (quarter !== null) onQuarterChange(null);
+        return;
+      }
+      for (const q of QUARTER_VALUES) {
+        if (next.presetId === fyQuarterPresetId(fyOption, q)) {
+          if (fyOption !== fy) onFyChange(fyOption);
+          if (quarter !== q) onQuarterChange(q);
+          return;
+        }
+      }
+    }
+  }
+
   return (
     <div className="tds-filter-bar" data-testid="tds-filter-bar">
-      <label className="tds-filter-field">
-        <span className="tds-filter-label">Financial year</span>
-        <select
-          className="tds-filter-select"
-          value={fy}
-          onChange={(event) => onFyChange(event.target.value)}
-          data-testid="tds-fy-select"
-        >
-          {fyOptions.map((option) => (
-            <option key={option} value={option}>
-              FY {option}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="ds-segmented-group tds-quarter-segmented" role="group" aria-label="Quarter filter">
-        <button
-          type="button"
-          className="ds-pill"
-          data-active={quarter === null ? "true" : undefined}
-          aria-pressed={quarter === null}
-          onClick={() => onQuarterChange(null)}
-          data-testid="tds-quarter-all"
-        >
-          Full year
-        </button>
-        {QUARTER_VALUES.map((option) => (
-          <button
-            key={option}
-            type="button"
-            className="ds-pill"
-            data-active={quarter === option ? "true" : undefined}
-            aria-pressed={quarter === option}
-            onClick={() => onQuarterChange(option)}
-            data-testid={`tds-quarter-${option}`}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
+      <DateRange
+        ariaLabel="Financial year and quarter filter"
+        value={value}
+        onChange={handleChange}
+        yearPresets={yearPresets}
+        quarterPresets={quarterPresets}
+        showCustom={false}
+        showCompare={false}
+      />
     </div>
   );
 }

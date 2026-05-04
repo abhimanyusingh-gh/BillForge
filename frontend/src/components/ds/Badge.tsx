@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BADGE_STATUS_LABEL, type BadgeStatus } from "@/types/badgeStatus";
 import { cssVar, tokens } from "./tokens";
 
 export const BADGE_TONE = {
@@ -25,8 +26,21 @@ interface BadgeProps {
   icon?: string;
   title?: string;
   className?: string;
+  status?: BadgeStatus;
+  showStatusDot?: boolean;
   children?: ReactNode;
 }
+
+const STATUS_CLASSNAME: Record<BadgeStatus, string> = {
+  PENDING: "lb-badge-status-pending",
+  PARSED: "lb-badge-status-parsed",
+  NEEDS_REVIEW: "lb-badge-status-needs-review",
+  AWAITING_APPROVAL: "lb-badge-status-awaiting-approval",
+  APPROVED: "lb-badge-status-approved",
+  EXPORTED: "lb-badge-status-exported",
+  FAILED_OCR: "lb-badge-status-failed-ocr",
+  FAILED_PARSE: "lb-badge-status-failed-parse"
+};
 
 const TONE_STYLE: Record<BadgeTone, { background: string; color: string; border?: string }> = {
   neutral: {
@@ -67,29 +81,71 @@ export function Badge({
   icon,
   title,
   className,
+  status,
+  showStatusDot = true,
   children
 }: BadgeProps) {
-  const toneStyle = TONE_STYLE[tone];
   const sizeStyle = SIZE_STYLE[size];
-  const hasChildren = children !== undefined && children !== null && children !== false;
-  const ariaLabel = !hasChildren && title ? title : undefined;
+  const statusLabel = status ? BADGE_STATUS_LABEL[status] : undefined;
+  const resolvedTitle = title ?? statusLabel;
+  const resolvedChildren = children ?? (status ? statusLabel : undefined);
+  const hasChildren =
+    resolvedChildren !== undefined && resolvedChildren !== null && resolvedChildren !== false;
+  const ariaLabel = !hasChildren && resolvedTitle ? resolvedTitle : undefined;
   const role = ariaLabel ? "img" : undefined;
+
+  const baseStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: sizeStyle.gap,
+    padding: sizeStyle.padding,
+    borderRadius: "999px",
+    fontSize: sizeStyle.fontSize,
+    fontWeight: tokens.font.weight.medium,
+    lineHeight: 1,
+    whiteSpace: "nowrap"
+  } as const;
+
+  if (status) {
+    const statusClass = STATUS_CLASSNAME[status];
+    const composedClassName = ["lb-badge-status", statusClass, className]
+      .filter(Boolean)
+      .join(" ");
+    return (
+      <span
+        className={composedClassName}
+        role={role}
+        aria-label={ariaLabel}
+        title={resolvedTitle || undefined}
+        data-status={status}
+        style={baseStyle}
+      >
+        {showStatusDot ? (
+          <span className="lb-badge-status-dot" aria-hidden="true" />
+        ) : null}
+        {icon ? (
+          <span
+            className="material-symbols-outlined"
+            aria-hidden="true"
+            style={{ fontSize: sizeStyle.fontSize }}
+          >
+            {icon}
+          </span>
+        ) : null}
+        {resolvedChildren}
+      </span>
+    );
+  }
+
+  const toneStyle = TONE_STYLE[tone];
   return (
     <span
       className={className}
       role={role}
       aria-label={ariaLabel}
-      title={title || undefined}
+      title={resolvedTitle || undefined}
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: sizeStyle.gap,
-        padding: sizeStyle.padding,
-        borderRadius: "999px",
-        fontSize: sizeStyle.fontSize,
-        fontWeight: tokens.font.weight.medium,
-        lineHeight: 1,
-        whiteSpace: "nowrap",
+        ...baseStyle,
         ...toneStyle
       }}
     >
@@ -102,7 +158,7 @@ export function Badge({
           {icon}
         </span>
       ) : null}
-      {children}
+      {resolvedChildren}
     </span>
   );
 }
