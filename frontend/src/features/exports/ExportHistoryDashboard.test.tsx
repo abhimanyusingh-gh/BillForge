@@ -93,7 +93,7 @@ describe("ExportHistoryDashboard — per-invoice items + retry button", () => {
 
     render(<ExportHistoryDashboard />);
 
-    await waitFor(() => expect(screen.getAllByRole("row").length).toBeGreaterThan(1));
+    await waitFor(() => expect(screen.getAllByTitle("ops@example.com")).toHaveLength(2));
     const retryButtons = screen.queryAllByRole("button", { name: /retry failures/i });
     expect(retryButtons).toHaveLength(1);
   });

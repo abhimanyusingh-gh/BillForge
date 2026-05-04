@@ -26,10 +26,13 @@ export function ExportBatchRetryButton({ batchId, onRetried, onError }: ExportBa
   return (
     <button
       type="button"
-      className="app-button app-button-secondary app-button-sm"
+      className="app-button app-button-secondary app-button-sm export-history-retry-btn"
       disabled={busy}
       onClick={() => void handleClick()}
     >
+      <span className="material-symbols-outlined" aria-hidden="true">
+        {busy ? "progress_activity" : "refresh"}
+      </span>
       {busy ? "Retrying..." : "Retry failures"}
     </button>
   );
