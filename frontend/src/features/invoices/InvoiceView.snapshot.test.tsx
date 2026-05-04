@@ -76,6 +76,23 @@ const BASE_PROPS = {
   addToast: () => {}
 };
 
+const realToLocaleString = Date.prototype.toLocaleString;
+const realDateTimeFormat = Intl.DateTimeFormat;
+
+beforeAll(() => {
+  process.env.TZ = "UTC";
+});
+
+function lockLocaleAndTimezone() {
+  jest
+    .spyOn(Date.prototype, "toLocaleString")
+    .mockImplementation(function (this: Date, _locale, options) {
+      return realToLocaleString.call(this, "en-US", { timeZone: "UTC", ...(options ?? {}) });
+    });
+  jest.spyOn(Intl, "DateTimeFormat").mockImplementation(((_locale: unknown, options?: Intl.DateTimeFormatOptions) =>
+    new realDateTimeFormat("en-US", { timeZone: "UTC", ...(options ?? {}) })) as unknown as typeof Intl.DateTimeFormat);
+}
+
 function installMatchMedia() {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -96,6 +113,7 @@ function installMatchMedia() {
 beforeEach(() => {
   jest.useFakeTimers({ now: FIXED_NOW });
   jest.clearAllMocks();
+  lockLocaleAndTimezone();
   window.localStorage.clear();
   useUserPrefsStore.setState((state) => ({
     ...state,

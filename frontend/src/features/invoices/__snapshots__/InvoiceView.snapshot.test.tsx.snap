@@ -558,7 +558,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders compact den
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -809,7 +809,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders compact den
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -1505,7 +1505,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders rows scoped
           <span
             class="invoice-list-cell-mono"
           >
-            20/4/2026, 3:30:00 pm
+            4/20/2026, 10:00:00 AM
           </span>
         </td>
         <td
@@ -1756,7 +1756,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders rows scoped
           <span
             class="invoice-list-cell-mono"
           >
-            20/4/2026, 3:30:00 pm
+            4/20/2026, 10:00:00 AM
           </span>
         </td>
         <td
@@ -2370,7 +2370,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the EXPORTE
           <span
             class="invoice-list-cell-mono"
           >
-            20/4/2026, 3:30:00 pm
+            4/20/2026, 10:00:00 AM
           </span>
         </td>
         <td
@@ -2963,7 +2963,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -3214,7 +3214,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -3465,7 +3465,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -3716,7 +3716,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -3955,7 +3955,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -4686,7 +4686,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -4937,7 +4937,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -5188,7 +5188,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -5439,7 +5439,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
@@ -5678,7 +5678,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
               <span
                 class="invoice-list-cell-mono"
               >
-                20/4/2026, 3:30:00 pm
+                4/20/2026, 10:00:00 AM
               </span>
             </td>
             <td
