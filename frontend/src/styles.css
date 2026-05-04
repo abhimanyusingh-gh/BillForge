@@ -8825,3 +8825,241 @@ pre {
     align-items: flex-start;
   }
 }
+
+/* ---- W3-3: Reconciliation ---- */
+
+.bank-statements-tab {
+  overflow-y: auto;
+  max-height: calc(100vh - 7rem);
+  padding-bottom: var(--sp-6);
+}
+
+.bank-statements-tab .mono-cell {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.bank-statements-tab .num-cell {
+  text-align: right;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.bank-statements-tab .hidden-file-input {
+  display: none;
+}
+
+.bank-statements-filter-card {
+  margin-bottom: var(--sp-3);
+}
+
+.bank-statements-toggle-col {
+  width: 2rem;
+}
+
+.recon-gstin-modal {
+  max-width: 26rem;
+}
+
+.bank-statements-filters {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: var(--sp-2) 0;
+}
+
+.bank-statements-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.bank-statements-filter-label {
+  font: 600 var(--fs-xs)/1 var(--font-sans);
+  color: var(--ink-soft);
+}
+
+.bank-statements-filter-input {
+  font: 500 var(--fs-sm)/1.2 var(--font-sans);
+}
+
+.bank-statements-filter-input-account,
+.bank-statements-filter-input-search {
+  min-width: 12rem;
+}
+
+.bank-statements-filter-input-search {
+  min-width: 14rem;
+}
+
+.bank-statements-clear {
+  font: 600 var(--fs-xs)/1 var(--font-sans);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.bank-statements-status-bar {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+.bank-statements-summary-row td {
+  padding: 0;
+  border: none;
+}
+
+.bank-statements-summary-bar {
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.bank-statements-loading {
+  padding: var(--sp-3);
+  text-align: center;
+}
+
+.bank-statements-empty {
+  padding: var(--sp-3);
+}
+
+.bank-statements-error {
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--warn);
+  font-size: var(--fs-sm);
+}
+
+.bank-statements-actions {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.bank-statements-pagination-row td {
+  padding: 0;
+  border: none;
+}
+
+.bank-statements-toggle-icon {
+  font-size: 1.125rem;
+  vertical-align: middle;
+  transition: transform 120ms ease;
+}
+
+.bank-statements-row-name {
+  font-weight: 600;
+}
+
+.bank-statements-status-list {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+
+.bank-statements-gstin-link {
+  color: var(--accent);
+}
+
+.bank-statements-amount-debit {
+  color: var(--warn);
+}
+
+.bank-statements-amount-credit {
+  color: var(--emerald);
+}
+
+.bank-statements-row-matched {
+  background: color-mix(in oklab, var(--emerald) 6%, transparent);
+}
+
+.bank-statements-row-suggested {
+  background: color-mix(in oklab, var(--status-parsed) 8%, transparent);
+}
+
+.bank-statements-txn-row td {
+  padding: 0;
+  border: none;
+}
+
+[data-theme="dark"] .bank-statements-row-matched {
+  background: color-mix(in oklab, var(--emerald) 12%, transparent);
+}
+
+[data-theme="dark"] .bank-statements-row-suggested {
+  background: color-mix(in oklab, var(--status-parsed) 14%, transparent);
+}
+
+.recon-invoice-picker-card {
+  background: var(--bg-panel);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  width: 100%;
+  max-width: 32rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-modal, 0 8px 30px rgba(15, 23, 42, 0.18));
+}
+
+.recon-invoice-picker-card h3 {
+  margin: 0 0 var(--sp-3) 0;
+}
+
+.recon-invoice-picker-input {
+  width: 100%;
+  margin-bottom: var(--sp-2);
+}
+
+.recon-invoice-picker-result {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recon-invoice-picker-result:hover {
+  background: var(--bg-sunken);
+}
+
+.recon-invoice-picker-result-title {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+}
+
+.recon-invoice-picker-result-meta {
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
+.recon-invoice-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--sp-3);
+}
+
+.recon-gstin-suggestions {
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-2);
+}
+
+.recon-gstin-suggestions-label {
+  color: var(--ink-soft);
+}
+
+.recon-gstin-suggestions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin-top: var(--sp-1);
+}
+
+.recon-gstin-suggestion {
+  font: 500 var(--fs-xs)/1 var(--font-sans);
+  padding: 0.15rem 0.4rem;
+}
+
+.recon-modal-actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+
