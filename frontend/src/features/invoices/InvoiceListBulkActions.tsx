@@ -26,24 +26,24 @@ export function InvoiceListBulkActions({
   if (selectedCount <= 0) return null;
   if (!canApproveInvoices && !canExportToTally && !canDeleteInvoices) return null;
   return (
-    <div className="bulk-action-bar">
-      <span className="bulk-count">{selectedCount} selected</span>
+    <div className="page-tools">
+      <span className="sub">{selectedCount} selected</span>
       {canApproveInvoices ? (
-        <button type="button" className="app-button app-button-primary app-button-sm" disabled={selectedApprovableCount === 0} onClick={onApprove}>
+        <button type="button" className="btn primary" disabled={selectedApprovableCount === 0} onClick={onApprove}>
           Approve ({selectedApprovableCount})
         </button>
       ) : null}
       {canExportToTally ? (
-        <button type="button" className="app-button app-button-sm app-button-violet" disabled={selectedExportableCount === 0} onClick={onExport}>
+        <button type="button" className="btn primary" disabled={selectedExportableCount === 0} onClick={onExport}>
           Export ({selectedExportableCount})
         </button>
       ) : null}
       {canDeleteInvoices ? (
-        <button type="button" className="app-button app-button-sm app-button-danger" onClick={onDelete}>
+        <button type="button" className="btn danger" onClick={onDelete}>
           Delete ({selectedCount})
         </button>
       ) : null}
-      <button type="button" className="bulk-deselect" onClick={onClearSelection}>Deselect All</button>
+      <button type="button" className="btn ghost" onClick={onClearSelection}>Deselect All</button>
     </div>
   );
 }
