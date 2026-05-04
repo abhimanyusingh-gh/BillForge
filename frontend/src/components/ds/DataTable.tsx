@@ -1,11 +1,22 @@
 import {
   useEffect,
   useId,
+  useMemo,
   useRef,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type ReactNode
 } from "react";
+
+import {
+  computeHeaderState,
+  DATATABLE_HEADER_SELECTION_STATE,
+  EMPTY_SELECTION,
+  getSelectableRowKeys,
+  toggleAll,
+  toggleRow,
+  type DataTableHeaderSelectionState
+} from "./DataTableSelection";
 
 export const DATATABLE_DENSITY = {
   COMPACT: "compact",
@@ -91,7 +102,6 @@ interface DataTableProps<TRow> {
 
 const DEFAULT_LOADING_TEXT = "Loading...";
 const DEFAULT_EMPTY_TEXT = "Nothing here yet.";
-const EMPTY_SELECTION: ReadonlySet<string> = new Set<string>();
 
 const SORT_ICON = {
   NONE: "unfold_more",
@@ -252,14 +262,15 @@ function HeaderCheckboxCell({
   onToggle,
   disabled
 }: {
-  state: "all" | "none" | "indeterminate";
+  state: DataTableHeaderSelectionState;
   onToggle: () => void;
   disabled: boolean;
 }) {
   const ref = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     if (ref.current) {
-      ref.current.indeterminate = state === "indeterminate";
+      ref.current.indeterminate =
+        state === DATATABLE_HEADER_SELECTION_STATE.INDETERMINATE;
     }
   }, [state]);
   return (
@@ -268,7 +279,7 @@ function HeaderCheckboxCell({
         ref={ref}
         type="checkbox"
         aria-label="Select all"
-        checked={state === "all"}
+        checked={state === DATATABLE_HEADER_SELECTION_STATE.ALL}
         disabled={disabled}
         onChange={onToggle}
         data-testid="lb-datatable-select-all"
@@ -316,18 +327,6 @@ function composeRowClassName(
   return className;
 }
 
-function selectionStateFor(
-  selectableKeys: ReadonlyArray<string>,
-  selected: ReadonlySet<string>
-): "all" | "none" | "indeterminate" {
-  if (selectableKeys.length === 0) return "none";
-  let count = 0;
-  for (const key of selectableKeys) if (selected.has(key)) count += 1;
-  if (count === 0) return "none";
-  if (count === selectableKeys.length) return "all";
-  return "indeterminate";
-}
-
 export function DataTable<TRow>({
   columns,
   rows,
@@ -363,33 +362,22 @@ export function DataTable<TRow>({
     (stickyHeader ? " lb-datatable-sticky" : "") +
     (onRowClick ? " lb-datatable-clickable" : "");
 
-  const selectableRowKeys = selectable
-    ? rows
-        .filter((row) => (isRowSelectable ? isRowSelectable(row) : true))
-        .map((row) => getRowKey(row))
-    : [];
+  const selectableRowKeys = useMemo<ReadonlyArray<string>>(
+    () =>
+      selectable ? getSelectableRowKeys(rows, getRowKey, isRowSelectable) : [],
+    [selectable, rows, getRowKey, isRowSelectable]
+  );
 
-  const headerSelectionState = selectionStateFor(selectableRowKeys, selectedRowIds);
+  const headerSelectionState = computeHeaderState(selectableRowKeys, selectedRowIds);
 
   function toggleRowSelection(rowKey: string): void {
     if (!onSelectionChange) return;
-    const next = new Set(selectedRowIds);
-    if (next.has(rowKey)) next.delete(rowKey);
-    else next.add(rowKey);
-    onSelectionChange(next);
+    onSelectionChange(toggleRow(selectedRowIds, rowKey));
   }
 
   function toggleAllSelection(): void {
     if (!onSelectionChange) return;
-    if (headerSelectionState === "all") {
-      const next = new Set(selectedRowIds);
-      for (const key of selectableRowKeys) next.delete(key);
-      onSelectionChange(next);
-      return;
-    }
-    const next = new Set(selectedRowIds);
-    for (const key of selectableRowKeys) next.add(key);
-    onSelectionChange(next);
+    onSelectionChange(toggleAll(selectedRowIds, selectableRowKeys, headerSelectionState));
   }
 
   function renderRow(row: TRow, _index: number): ReactNode {
