@@ -170,8 +170,8 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         Control which notifications are sent and who receives them.
       </p>
 
-      <div className="notification-prefs-stack">
-        <label className="notification-prefs-toggle-label">
+      <div className="field-row">
+        <label className="field">
           <span className="toggle-switch">
             <input
               type="checkbox"
@@ -185,7 +185,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
           Mailbox reauth notifications
         </label>
 
-        <label className="notification-prefs-toggle-label">
+        <label className="field">
           <span className="toggle-switch">
             <input
               type="checkbox"
@@ -200,7 +200,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </label>
 
         <label
-          className="notification-prefs-toggle-label notification-prefs-toggle-label-disabled"
+          className="field field"
           title="Coming soon"
         >
           <span className="toggle-switch">
@@ -216,9 +216,9 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </label>
       </div>
 
-      <div className="notification-prefs-recipient-block">
-        <label className="notification-prefs-field">
-          <span className="notification-prefs-field-label">Primary notification recipient</span>
+      <div className="panel">
+        <label className="field-row">
+          <span className="field">Primary notification recipient</span>
           <select
             value={config.primaryRecipientType}
             onChange={(e) =>
@@ -230,7 +230,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
             }
             disabled={saving}
             aria-label="Primary notification recipient"
-            className="notification-prefs-select"
+            className="input"
           >
             {RECIPIENT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -239,8 +239,8 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </label>
 
         {config.primaryRecipientType === "specific_user" ? (
-          <label className="notification-prefs-field">
-            <span className="notification-prefs-field-label">Select user</span>
+          <label className="field-row">
+            <span className="field">Select user</span>
             <select
               value={config.specificRecipientUserId ?? ""}
               onChange={(e) =>
@@ -248,7 +248,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
               }
               disabled={saving}
               aria-label="Specific user selector"
-              className="notification-prefs-select"
+              className="input"
             >
               <option value="">-- Select a user --</option>
               {tenantUsers.map((user) => (
@@ -274,11 +274,11 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </div>
       ) : null}
 
-      <div className="notification-prefs-log-divider">
+      <div className="">
         <button
           type="button"
           onClick={handleToggleLog}
-          className="notification-prefs-log-toggle"
+          className="btn ghost"
           aria-expanded={logExpanded}
           aria-label="Toggle notification log"
         >
@@ -286,7 +286,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
         </button>
 
         {logExpanded ? (
-          <div className="notification-prefs-log-body">
+          <div className="panel">
             {logLoading ? (
               <p className="skeleton-row">Loading notification log...</p>
             ) : logError ? (
@@ -299,7 +299,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
             ) : logData ? (
               <>
                 <div className="list-scroll" style={{ maxHeight: "300px" }}>
-                  <table className="notification-prefs-log-table">
+                  <table className="lbtable">
                     <thead>
                       <tr>
                         <th>Timestamp</th>
@@ -336,7 +336,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
                 </div>
 
                 {logTotalPages > 1 ? (
-                  <div className="notification-prefs-log-pager">
+                  <div className="pager">
                     <button
                       type="button"
                       className="app-button app-button-secondary"
@@ -345,7 +345,7 @@ export function NotificationPreferencesSection({ tenantUsers }: NotificationPref
                     >
                       Previous
                     </button>
-                    <span className="notification-prefs-log-pager-info">
+                    <span className="sub">
                       Page {logPage} of {logTotalPages}
                     </span>
                     <button
