@@ -17,6 +17,16 @@ import type { AccountNameOption, BankStatementFilterParams, BankTransactionFilte
 import { apiClient } from "@/api/client";
 import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import { EmptyState } from "@/components/common/EmptyState";
+import { Badge } from "@/components/ds/Badge";
+
+const MATCH_STATUS = {
+  matched: "matched",
+  manual: "manual",
+  suggested: "suggested",
+  unmatched: "unmatched"
+} as const;
+
+type MatchStatus = (typeof MATCH_STATUS)[keyof typeof MATCH_STATUS];
 
 interface BankStatementsTabProps {
   bankStatements: BankStatementSummary[];
@@ -24,10 +34,10 @@ interface BankStatementsTabProps {
   onStatementsChanged?: () => void;
 }
 
-function fmtMinor(amount: number | null, color?: string): JSX.Element | null {
+function fmtMinor(amount: number | null, className?: string): JSX.Element | null {
   if (amount == null) return null;
   const formatted = (amount / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return <span style={{ color }}>{formatted}</span>;
+  return <span className={className}>{formatted}</span>;
 }
 
 function formatUploadDate(iso: string): string {
@@ -35,29 +45,22 @@ function formatUploadDate(iso: string): string {
 }
 
 function MatchStatusBadge({ status, confidence }: { status: BankTransactionEntry["matchStatus"]; confidence?: number | null }) {
-  if (status === "matched") {
-    return (
-      <span className="bank-status-badge bank-status-active">
-        Matched{confidence != null ? ` (${confidence}%)` : ""}
-      </span>
-    );
+  const confSuffix = confidence != null ? ` (${confidence}%)` : "";
+  if (status === MATCH_STATUS.matched) {
+    return <Badge tone="success">Matched{confSuffix}</Badge>;
   }
-  if (status === "suggested") {
-    return (
-      <span className="bank-status-badge bank-status-pending">
-        Suggested{confidence != null ? ` (${confidence}%)` : ""}
-      </span>
-    );
+  if (status === MATCH_STATUS.suggested) {
+    return <Badge tone="warning">Suggested{confSuffix}</Badge>;
   }
-  if (status === "manual") {
-    return <span className="bank-status-badge" style={{ background: "#dbeafe", color: "#1e40af" }}>Manual</span>;
+  if (status === MATCH_STATUS.manual) {
+    return <Badge tone="info">Manual</Badge>;
   }
-  return <span className="bank-status-badge" style={{ background: "#f1f5f9", color: "#475569" }}>Unmatched</span>;
+  return <Badge tone="neutral">Unmatched</Badge>;
 }
 
-function rowBackground(status: string): string | undefined {
-  if (status === "matched" || status === "manual") return "rgba(22, 163, 74, 0.06)";
-  if (status === "suggested") return "rgba(234, 179, 8, 0.06)";
+function rowClassForMatchStatus(status: MatchStatus | string): string | undefined {
+  if (status === MATCH_STATUS.matched || status === MATCH_STATUS.manual) return "bank-statements-row-matched";
+  if (status === MATCH_STATUS.suggested) return "bank-statements-row-suggested";
   return undefined;
 }
 
@@ -94,35 +97,15 @@ function InvoiceSearchPicker({
   }, [query, gstin]);
 
   return (
-    <div style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: "rgba(0,0,0,0.4)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1000
-    }}>
-      <div style={{
-        background: "var(--bg, #fff)",
-        borderRadius: 10,
-        padding: "1.5rem",
-        width: "100%",
-        maxWidth: "32rem",
-        maxHeight: "80vh",
-        overflowY: "auto",
-        boxShadow: "0 8px 30px rgba(0,0,0,0.15)"
-      }}>
-        <h3 style={{ margin: "0 0 1rem 0" }}>Link Invoice</h3>
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-card recon-invoice-picker-card" onClick={(e) => e.stopPropagation()}>
+        <h3>Link Invoice</h3>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by invoice number or vendor name..."
           autoFocus
-          style={{ width: "100%", marginBottom: "0.75rem" }}
+          className="recon-invoice-picker-input"
         />
         {searching && <p className="muted">Searching...</p>}
         {results.length === 0 && !searching && query.length >= 2 && (
@@ -131,21 +114,14 @@ function InvoiceSearchPicker({
         {results.map(inv => (
           <div
             key={inv._id}
-            style={{
-              padding: "0.5rem 0.75rem",
-              borderBottom: "1px solid var(--line, #f1f5f9)",
-              cursor: "pointer",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center"
-            }}
+            className="recon-invoice-picker-result"
             onClick={() => onSelect(inv._id)}
           >
             <div>
-              <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+              <div className="recon-invoice-picker-result-title">
                 {inv.parsed?.invoiceNumber ?? "No number"} - {inv.parsed?.vendorName ?? "Unknown vendor"}
               </div>
-              <div style={{ fontSize: "0.8rem", color: "var(--ink-soft)" }}>
+              <div className="recon-invoice-picker-result-meta">
                 {inv.parsed?.totalAmountMinor != null
                   ? (inv.parsed.totalAmountMinor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })
                   : "-"
@@ -156,14 +132,13 @@ function InvoiceSearchPicker({
             </div>
             <button
               type="button"
-              className="app-button app-button-primary"
-              style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+              className="app-button app-button-primary app-button-sm"
             >
               Select
             </button>
           </div>
         ))}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+        <div className="recon-invoice-picker-actions">
           <button type="button" className="app-button app-button-secondary" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -354,23 +329,23 @@ function StatementTransactionsGroup({
   const showTo = Math.min(page * pageSize, total);
 
   if (loading) {
-    return <tr><td colSpan={10} style={{ padding: "1rem", textAlign: "center" }}><span className="muted">Loading transactions...</span></td></tr>;
+    return <tr><td colSpan={10} className="bank-statements-loading"><span className="muted">Loading transactions...</span></td></tr>;
   }
 
   if (error) {
-    return <tr><td colSpan={10} style={{ padding: "0.75rem", color: "var(--warn, #991b1b)", fontSize: "0.85rem" }}>{error}</td></tr>;
+    return <tr><td colSpan={10} className="bank-statements-error">{error}</td></tr>;
   }
 
   if (transactions.length === 0) {
-    return <tr><td colSpan={10} style={{ padding: "0.75rem" }}><span className="muted">No transactions found.</span></td></tr>;
+    return <tr><td colSpan={10} className="bank-statements-empty"><span className="muted">No transactions found.</span></td></tr>;
   }
 
   return (
     <>
-      <tr>
-        <td colSpan={10} style={{ padding: 0, border: "none" }}>
-          <div className="panel-title" style={{ padding: "0.4rem 0.65rem", borderBottom: "none" }}>
-            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+      <tr className="bank-statements-summary-row">
+        <td colSpan={10}>
+          <div className="panel-title bank-statements-summary-bar">
+            <div className="bank-statements-status-bar">
               {summary ? (
                 <>
                   <span className="status status-approved">{summary.matched} Matched</span>
@@ -390,28 +365,28 @@ function StatementTransactionsGroup({
           </div>
         </td>
       </tr>
-      <tr style={{ background: "var(--bg-panel, #fff)" }}>
+      <tr className="bank-statements-txn-header">
         <th>Date</th>
         <th colSpan={2}>Description</th>
         <th>Reference</th>
-        <th style={{ textAlign: "right" }}>Debit</th>
-        <th style={{ textAlign: "right" }}>Credit</th>
-        <th style={{ textAlign: "right" }}>Balance</th>
+        <th className="num-cell">Debit</th>
+        <th className="num-cell">Credit</th>
+        <th className="num-cell">Balance</th>
         <th>Matched Invoice</th>
         <th></th>
       </tr>
       {transactions.map((txn) => {
         const detail = matchDetails.get(String(txn._id));
         return (
-          <tr key={txn._id} style={{ background: rowBackground(txn.matchStatus) }}>
-            <td style={{ whiteSpace: "nowrap" }}>{txn.date}</td>
+          <tr key={txn._id} className={rowClassForMatchStatus(txn.matchStatus)}>
+            <td className="mono-cell">{txn.date}</td>
             <td colSpan={2}><div className="table-cell-scroll">{txn.description}</div></td>
             <td><div className="table-cell-scroll">{txn.reference ?? "-"}</div></td>
-            <td style={{ textAlign: "right" }}>{fmtMinor(txn.debitMinor, "#991b1b")}</td>
-            <td style={{ textAlign: "right" }}>{fmtMinor(txn.creditMinor, "#166534")}</td>
-            <td style={{ textAlign: "right" }}>{fmtMinor(txn.balanceMinor)}</td>
+            <td className="num-cell">{fmtMinor(txn.debitMinor, "bank-statements-amount-debit")}</td>
+            <td className="num-cell">{fmtMinor(txn.creditMinor, "bank-statements-amount-credit")}</td>
+            <td className="num-cell">{fmtMinor(txn.balanceMinor)}</td>
             <td>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div className="bank-statements-status-list">
                 <MatchStatusBadge status={txn.matchStatus} confidence={txn.matchConfidence} />
                 {detail?.invoice ? (
                   <a
@@ -435,9 +410,9 @@ function StatementTransactionsGroup({
                 ) : null}
               </div>
             </td>
-            <td style={{ whiteSpace: "nowrap" }}>
-              {txn.matchStatus === "suggested" ? (
-                <div style={{ display: "flex", gap: "0.25rem" }}>
+            <td>
+              {txn.matchStatus === MATCH_STATUS.suggested ? (
+                <div className="bank-statements-actions">
                   <button type="button" className="row-action-button row-action-approve" title="Confirm" onClick={() => void handleConfirm(txn)}>
                     <span className="material-symbols-outlined">check_circle</span>
                   </button>
@@ -445,7 +420,7 @@ function StatementTransactionsGroup({
                     <span className="material-symbols-outlined">cancel</span>
                   </button>
                 </div>
-              ) : txn.matchStatus === "matched" || txn.matchStatus === "manual" ? (
+              ) : txn.matchStatus === MATCH_STATUS.matched || txn.matchStatus === MATCH_STATUS.manual ? (
                 <button type="button" className="row-action-button" title="Unmatch" onClick={() => void handleUnmatch(txn._id)}>
                   <span className="material-symbols-outlined">link_off</span>
                 </button>
@@ -458,8 +433,8 @@ function StatementTransactionsGroup({
           </tr>
         );
       })}
-      <tr>
-        <td colSpan={10} style={{ border: "none", padding: 0 }}>
+      <tr className="bank-statements-pagination-row">
+        <td colSpan={10}>
           <div className="pagination-bar">
             <div className="pagination-info">
               {showFrom}&ndash;{showTo} of {total}
@@ -481,7 +456,7 @@ function StatementTransactionsGroup({
         </td>
       </tr>
       {linkingTxnId && (
-        <tr><td colSpan={10} style={{ padding: 0, border: "none" }}>
+        <tr className="bank-statements-summary-row"><td colSpan={10}>
           <InvoiceSearchPicker
             gstin={statementGstin}
             onSelect={(invoiceId) => void handleManualLink(invoiceId)}
@@ -648,7 +623,7 @@ export function BankStatementsTab({
   const statementsTotalPages = Math.max(1, Math.ceil(statementsTotal / statementsPageSize));
 
   return (
-    <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 7rem)", paddingBottom: "2rem" }}>
+    <div className="bank-statements-tab">
       <div
         className={dragActive ? "file-dropzone file-dropzone-active" : "file-dropzone"}
         role="button"
@@ -683,7 +658,7 @@ export function BankStatementsTab({
           ref={fileInputRef}
           type="file"
           accept=".csv,.pdf,.jpg,.jpeg,.png,text/csv,application/pdf,image/jpeg,image/png"
-          style={{ display: "none" }}
+          className="hidden-file-input"
           onChange={(event) => {
             handleFiles(event.target.files);
             event.currentTarget.value = "";
@@ -693,33 +668,26 @@ export function BankStatementsTab({
 
       {parseProgress && <StatementProgressCard event={parseProgress} />}
 
-      <div className="editor-card" style={{ marginBottom: "0.75rem" }}>
-        <div className="editor-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="editor-card bank-statements-filter-card">
+        <div className="editor-header">
           <h3>Filters</h3>
           {hasActiveFilters && (
             <button
               type="button"
-              className="app-button app-button-secondary"
-              style={{ fontSize: "0.78rem", padding: "0.2rem 0.6rem" }}
+              className="app-button app-button-secondary bank-statements-clear"
               onClick={clearFilters}
             >
               Clear Filters
             </button>
           )}
         </div>
-        <div style={{
-          display: "flex",
-          gap: "0.75rem",
-          alignItems: "flex-end",
-          flexWrap: "wrap",
-          padding: "0.5rem 0"
-        }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--ink-soft)" }}>Account</label>
+        <div className="bank-statements-filters">
+          <div className="bank-statements-filter-field">
+            <label className="bank-statements-filter-label">Account</label>
             <select
               value={filters.accountName}
               onChange={(e) => updateFilter("accountName", e.target.value)}
-              style={{ fontSize: "0.85rem", minWidth: "12rem" }}
+              className="bank-statements-filter-input bank-statements-filter-input-account"
             >
               <option value="">All Accounts</option>
               {accountNames.map(a => (
@@ -727,40 +695,40 @@ export function BankStatementsTab({
               ))}
             </select>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--ink-soft)" }}>Date From</label>
+          <div className="bank-statements-filter-field">
+            <label className="bank-statements-filter-label">Date From</label>
             <input
               type="date"
               value={filters.periodFrom}
               onChange={(e) => updateFilter("periodFrom", e.target.value)}
-              style={{ fontSize: "0.85rem" }}
+              className="bank-statements-filter-input"
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--ink-soft)" }}>Date To</label>
+          <div className="bank-statements-filter-field">
+            <label className="bank-statements-filter-label">Date To</label>
             <input
               type="date"
               value={filters.periodTo}
               onChange={(e) => updateFilter("periodTo", e.target.value)}
-              style={{ fontSize: "0.85rem" }}
+              className="bank-statements-filter-input"
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--ink-soft)" }}>Search Transactions</label>
+          <div className="bank-statements-filter-field">
+            <label className="bank-statements-filter-label">Search Transactions</label>
             <input
               type="text"
               placeholder="Description or reference..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              style={{ fontSize: "0.85rem", minWidth: "14rem" }}
+              className="bank-statements-filter-input bank-statements-filter-input-search"
             />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--ink-soft)" }}>Match Status</label>
+          <div className="bank-statements-filter-field">
+            <label className="bank-statements-filter-label">Match Status</label>
             <select
               value={filters.matchStatus}
               onChange={(e) => updateFilter("matchStatus", e.target.value)}
-              style={{ fontSize: "0.85rem" }}
+              className="bank-statements-filter-input"
             >
               <option value="">All</option>
               <option value="matched">Matched</option>
@@ -775,9 +743,9 @@ export function BankStatementsTab({
         <section className="panel list-panel">
           <div className="panel-title">
             <h2>Statements</h2>
-            <span style={{ fontSize: "0.85rem", color: "var(--ink-soft)" }}>Loading...</span>
+            <span className="muted">Loading...</span>
           </div>
-          <div style={{ padding: "1rem" }}>
+          <div className="bank-statements-loading">
             {Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
           </div>
         </section>
@@ -809,7 +777,7 @@ export function BankStatementsTab({
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: "2rem" }}></th>
+                  <th className="bank-statements-toggle-col"></th>
                   <th>Bank / Account</th>
                   <th>Uploaded</th>
                   <th>Period</th>
@@ -870,7 +838,7 @@ export function BankStatementsTab({
 
       {gstinMappingStatementId && (
         <div className="modal-overlay" onClick={() => setGstinMappingStatementId(null)}>
-          <div className="modal-card" onClick={(ev) => ev.stopPropagation()} style={{ maxWidth: 420 }}>
+          <div className="modal-card recon-gstin-modal" onClick={(ev) => ev.stopPropagation()}>
             <h3>Map GSTIN to Statement</h3>
             <input
               type="text"
@@ -878,27 +846,26 @@ export function BankStatementsTab({
               value={gstinInput}
               onChange={(ev) => setGstinInput(ev.target.value.toUpperCase())}
               maxLength={15}
-              style={{ width: "100%", marginBottom: "0.5rem" }}
+              className="recon-invoice-picker-input"
             />
             {gstinSuggestions.length > 0 && (
-              <div style={{ fontSize: "0.8rem", marginBottom: "0.5rem" }}>
-                <span style={{ color: "var(--color-muted)" }}>Known vendors:</span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem", marginTop: "0.25rem" }}>
+              <div className="recon-gstin-suggestions">
+                <span className="recon-gstin-suggestions-label">Known vendors:</span>
+                <div className="recon-gstin-suggestions-list">
                   {gstinSuggestions.slice(0, 8).map((s) => (
                     <button
                       key={s.gstin}
                       type="button"
-                      className="btn-secondary"
-                      style={{ fontSize: "0.7rem", padding: "0.15rem 0.4rem" }}
+                      className="app-button app-button-secondary recon-gstin-suggestion"
                       onClick={() => setGstinInput(s.gstin)}
                     >{s.vendorName} ({s.gstin.slice(0, 4)}...)</button>
                   ))}
                 </div>
               </div>
             )}
-            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-              <button className="btn-secondary" onClick={() => { setGstinMappingStatementId(null); setGstinInput(""); }}>Cancel</button>
-              <button className="btn-primary" disabled={gstinInput.trim().length !== 15 || gstinSaving} onClick={() => void handleSaveGstin()}>
+            <div className="recon-modal-actions">
+              <button type="button" className="app-button app-button-secondary" onClick={() => { setGstinMappingStatementId(null); setGstinInput(""); }}>Cancel</button>
+              <button type="button" className="app-button app-button-primary" disabled={gstinInput.trim().length !== 15 || gstinSaving} onClick={() => void handleSaveGstin()}>
                 {gstinSaving ? "Saving..." : "Save"}
               </button>
             </div>
@@ -943,12 +910,12 @@ function StatementGroupRows({
         onClick={onToggle}
       >
         <td>
-          <span className="material-symbols-outlined" style={{ fontSize: "1.125rem", verticalAlign: "middle", transition: "transform 0.15s" }}>
+          <span className="material-symbols-outlined bank-statements-toggle-icon">
             {expanded ? "expand_more" : "chevron_right"}
           </span>
         </td>
         <td className="extracted-value-cell">
-          <span className="extracted-value-display" style={{ fontWeight: 600 }}>
+          <span className="extracted-value-display bank-statements-row-name">
             {bankLabel || "-"}
           </span>
         </td>
@@ -956,7 +923,7 @@ function StatementGroupRows({
         <td>{period}</td>
         <td>{statement.transactionCount}</td>
         <td>
-          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+          <div className="bank-statements-status-list">
             <span className="status status-approved">{statement.matchedCount} Matched</span>
             {suggestedCount > 0 ? <span className="status status-needs_review">{suggestedCount} Suggested</span> : null}
             <span className="status status-pending">{statement.unmatchedCount} Unmatched</span>
@@ -968,10 +935,9 @@ function StatementGroupRows({
           ) : (
             <button
               type="button"
-              className="row-action-button"
+              className="row-action-button bank-statements-gstin-link"
               title="Map GSTIN"
               onClick={(ev) => { ev.stopPropagation(); onMapGstin(); }}
-              style={{ color: "var(--accent)" }}
             >
               <span className="material-symbols-outlined">link</span>
             </button>
