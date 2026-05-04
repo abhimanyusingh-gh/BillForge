@@ -4,6 +4,8 @@ import { EXPORT_BATCH_ITEM_STATUS, type ExportBatchSummary } from "@/types";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ExportBatchItemsList } from "@/features/exports/ExportBatchItemsList";
 import { ExportBatchRetryButton } from "@/features/exports/ExportBatchRetryButton";
+import { TallyBridgeStatusStrip } from "@/features/exports/TallyBridgeStatusStrip";
+import { TallyMasterDriftPanel } from "@/features/exports/TallyMasterDriftPanel";
 import {
   DataTable,
   DATATABLE_DENSITY,
@@ -245,17 +247,17 @@ export function ExportHistoryDashboard({ addToast }: ExportHistoryDashboardProps
 
   return (
     <section className="export-history-page" data-testid="export-history-page">
-      <header className="export-history-page-header">
-        <div className="export-history-page-titles">
-          <h2>Export History</h2>
-          <span className="export-history-records-count">
-            <span className="lb-num">{total}</span> {total === 1 ? "record" : "records"}
-          </span>
-        </div>
-        <p className="export-history-page-subtitle">
-          Tally export batches with per-invoice status, retry, and XML download.
-        </p>
+      <header className="page-header export-history-page-header">
+        <h1>Tally Sync</h1>
+        <span className="count export-history-records-count">
+          <span className="lb-num">{total}</span> {total === 1 ? "batch" : "batches"}
+        </span>
       </header>
+      <p className="export-history-page-subtitle">
+        Tally export batches with per-invoice status, retry, and XML download.
+      </p>
+
+      <TallyBridgeStatusStrip />
 
       <div className="export-history-toolbar">
         <input
@@ -284,79 +286,83 @@ export function ExportHistoryDashboard({ addToast }: ExportHistoryDashboardProps
         ) : null}
       </div>
 
-      <section className="export-history-section">
-        {!loading && displayed.length === 0 ? (
-          <EmptyState
-            icon={hasFilters ? "filter_list_off" : "cloud_done"}
-            heading={hasFilters ? "No exports in this range" : "No exports yet"}
-            description={hasFilters ? "Try adjusting the date range." : "Approve invoices and export them to Tally to see history here."}
-            action={hasFilters ? <button type="button" className="app-button app-button-secondary" onClick={() => { setDateFrom(""); setDateTo(""); }}>Clear Filters</button> : undefined}
-          />
-        ) : (
-          <DataTable<ExportBatchSummary>
-            columns={columns}
-            rows={displayed}
-            getRowKey={(row) => row.batchId}
-            density={DATATABLE_DENSITY.COMPACT}
-            stickyHeader
-            sortBy={dataTableSort}
-            onSortChange={handleSortChange}
-            loading={loading}
-            activeRowId={expandedBatchId ?? undefined}
-            getRowClassName={(row) => row.failureCount > 0 ? "export-history-row-failed" : undefined}
-            getRowAttributes={(row) => ({ "data-batch-id": row.batchId })}
-            caption="Tally export history"
-            testId="export-history-data-table"
-          />
-        )}
+      <div className="tally-console-grid">
+        <section className="export-history-section">
+          {!loading && displayed.length === 0 ? (
+            <EmptyState
+              icon={hasFilters ? "filter_list_off" : "cloud_done"}
+              heading={hasFilters ? "No exports in this range" : "No exports yet"}
+              description={hasFilters ? "Try adjusting the date range." : "Approve invoices and export them to Tally to see history here."}
+              action={hasFilters ? <button type="button" className="app-button app-button-secondary" onClick={() => { setDateFrom(""); setDateTo(""); }}>Clear Filters</button> : undefined}
+            />
+          ) : (
+            <DataTable<ExportBatchSummary>
+              columns={columns}
+              rows={displayed}
+              getRowKey={(row) => row.batchId}
+              density={DATATABLE_DENSITY.COMPACT}
+              stickyHeader
+              sortBy={dataTableSort}
+              onSortChange={handleSortChange}
+              loading={loading}
+              activeRowId={expandedBatchId ?? undefined}
+              getRowClassName={(row) => row.failureCount > 0 ? "export-history-row-failed" : undefined}
+              getRowAttributes={(row) => ({ "data-batch-id": row.batchId })}
+              caption="Tally export history"
+              testId="export-history-data-table"
+            />
+          )}
 
-        {expandedBatch ? (
-          <section className="export-history-batch-panel" data-testid="export-history-batch-panel">
-            <header className="export-history-batch-panel-head">
-              <div>
-                <h3>Batch {expandedBatch.batchId}</h3>
-                <p className="export-history-batch-panel-meta">
-                  {new Date(expandedBatch.createdAt).toLocaleString()} ·{" "}
-                  <span className="lb-num">{expandedBatch.total}</span> invoices ·{" "}
-                  <span className="export-history-success-count lb-num">{expandedBatch.successCount}</span> success ·{" "}
-                  <span className={(expandedBatch.failureCount > 0 ? "export-history-fail-count " : "") + "lb-num"}>{expandedBatch.failureCount}</span> failed
-                </p>
+          {expandedBatch ? (
+            <section className="export-history-batch-panel" data-testid="export-history-batch-panel">
+              <header className="export-history-batch-panel-head">
+                <div>
+                  <h3>Batch {expandedBatch.batchId}</h3>
+                  <p className="export-history-batch-panel-meta">
+                    {new Date(expandedBatch.createdAt).toLocaleString()} ·{" "}
+                    <span className="lb-num">{expandedBatch.total}</span> invoices ·{" "}
+                    <span className="export-history-success-count lb-num">{expandedBatch.successCount}</span> success ·{" "}
+                    <span className={(expandedBatch.failureCount > 0 ? "export-history-fail-count " : "") + "lb-num"}>{expandedBatch.failureCount}</span> failed
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="app-button app-button-secondary app-button-sm"
+                  onClick={() => setExpandedBatchId(null)}
+                  aria-label="Close batch detail"
+                >
+                  <span className="material-symbols-outlined">close</span> Close
+                </button>
+              </header>
+              <ExportBatchItemsList items={expandedBatch.items ?? []} />
+            </section>
+          ) : null}
+
+          {displayed.length > 0 ? (
+            <div className="pagination-bar">
+              <div className="pagination-info">
+                {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} of {total}
               </div>
-              <button
-                type="button"
-                className="app-button app-button-secondary app-button-sm"
-                onClick={() => setExpandedBatchId(null)}
-                aria-label="Close batch detail"
-              >
-                <span className="material-symbols-outlined">close</span> Close
-              </button>
-            </header>
-            <ExportBatchItemsList items={expandedBatch.items ?? []} />
-          </section>
-        ) : null}
+              <div className="pagination">
+                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
+                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
+                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
+                <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
+              </div>
+              <div className="pagination-size">
+                <span>Rows:</span>
+                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+          ) : null}
+        </section>
 
-        {displayed.length > 0 ? (
-          <div className="pagination-bar">
-            <div className="pagination-info">
-              {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} of {total}
-            </div>
-            <div className="pagination">
-              <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
-              <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
-              <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
-              <button type="button" className="app-button app-button-secondary app-button-sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
-            </div>
-            <div className="pagination-size">
-              <span>Rows:</span>
-              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          </div>
-        ) : null}
-      </section>
+        <TallyMasterDriftPanel />
+      </div>
     </section>
   );
 }

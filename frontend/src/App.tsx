@@ -351,9 +351,7 @@ export function App() {
           <EmptyState icon="description" heading="Bank Statements" description="No bank statements connected. Add a connection in Setup → Connections." />
         )}
 
-        {standaloneRoute === "tallySync" && (
-          <EmptyState icon="cable" heading="Tally Sync" description="Tally sync not configured. Connect a Tally instance in Setup." />
-        )}
+        {standaloneRoute === "tallySync" && <ExportHistoryDashboard addToast={addToast} />}
 
         {standaloneRoute === "inboxRouting" && (
           <EmptyState icon="alt_route" heading="Inbox Routing" description="Inbox routing rules not configured." />

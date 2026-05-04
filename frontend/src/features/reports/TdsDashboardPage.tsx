@@ -5,6 +5,8 @@ import { FyQuarterFilter } from "@/features/reports/FyQuarterFilter";
 import { TdsKpiTiles } from "@/features/reports/TdsKpiTiles";
 import { TdsLiabilityTable } from "@/features/reports/TdsLiabilityTable";
 import { TdsCumulativeChart } from "@/features/reports/TdsCumulativeChart";
+import { TdsPendingChallansSection } from "@/features/reports/TdsPendingChallansSection";
+import { TdsReturnReadinessSection } from "@/features/reports/TdsReturnReadinessSection";
 import { fyOptions } from "@/features/reports/fiscalYear";
 import { useTdsDashboardHashState } from "@/features/reports/useTdsDashboardHashState";
 import type { TdsLiabilityReport } from "@/api/reports";
@@ -61,14 +63,12 @@ export function TdsDashboardPage() {
 
   return (
     <section className="tds-dashboard-page" data-testid="tds-dashboard-page">
-      <header className="tds-dashboard-header">
-        <div className="tds-dashboard-header-titles">
-          <h2>TDS Liability Dashboard</h2>
-          <span className="tds-dashboard-period-pill">{periodLabel}</span>
-        </div>
-        <p className="tds-dashboard-subtitle" data-testid="tds-dashboard-tan">
-          TAN: <span className="lb-mono">{query.data?.tan ?? "—"}</span>
-        </p>
+      <header className="page-header tds-dashboard-header">
+        <h1>TDS Dashboard</h1>
+        <span className="count tds-dashboard-period-pill">{periodLabel}</span>
+        <span className="tds-dashboard-tan-chip" data-testid="tds-dashboard-tan">
+          TAN <span className="lb-mono">{query.data?.tan ?? "—"}</span>
+        </span>
       </header>
 
       <div className="tds-dashboard-toolbar">
@@ -94,9 +94,9 @@ export function TdsDashboardPage() {
 
       {query.isLoading ? (
         <div className="tds-loading" data-testid="tds-dashboard-loading" role="status" aria-busy="true">
-          <div className="platform-stats-grid">
+          <div className="tds-kpi-grid">
             {Array.from({ length: 3 }, (_, i) => (
-              <div key={i} className="platform-stat-tile">
+              <div key={i} className="tds-stat-tile tds-stat-tile-skeleton">
                 <div className="skeleton skeleton-text" />
                 <div className="skeleton skeleton-value" />
               </div>
@@ -130,24 +130,14 @@ export function TdsDashboardPage() {
             totalDeductedFytdMinor={kpis.totalDeductedFytdMinor}
             thresholdCrossingsCount={kpis.thresholdCrossingsCount}
             vendorsAboveThresholdCount={kpis.vendorsAboveThresholdCount}
+            byQuarter={query.data.byQuarter}
+            fy={state.fy}
           />
 
-          <section className="tds-dashboard-section">
-            <header className="tds-dashboard-section-header">
-              <h3>Quarterly Cumulative TDS by Section</h3>
-              <span className="tds-dashboard-section-hint">FY {state.fy}</span>
-            </header>
-            <TdsCumulativeChart
-              byQuarter={query.data.byQuarter}
-              isFiltered={isFiltered}
-              onClearFilters={handleClearFilters}
-            />
-          </section>
-
-          <section className="tds-dashboard-section">
-            <header className="tds-dashboard-section-header">
+          <section className="tds-section">
+            <header className="tds-section-head">
               <h3>Vendor Liability Breakdown</h3>
-              <span className="tds-dashboard-section-hint">Sorted by cumulative TDS</span>
+              <span className="tds-section-hint">Sorted by cumulative TDS</span>
             </header>
             <TdsLiabilityTable
               rows={query.data.byVendor}
@@ -156,6 +146,21 @@ export function TdsDashboardPage() {
               onSelectVendor={setVendor}
             />
           </section>
+
+          <section className="tds-section">
+            <header className="tds-section-head">
+              <h3>Quarterly Cumulative TDS by Section</h3>
+              <span className="tds-section-hint">FY {state.fy}</span>
+            </header>
+            <TdsCumulativeChart
+              byQuarter={query.data.byQuarter}
+              isFiltered={isFiltered}
+              onClearFilters={handleClearFilters}
+            />
+          </section>
+
+          <TdsPendingChallansSection />
+          <TdsReturnReadinessSection />
         </>
       ) : null}
     </section>
