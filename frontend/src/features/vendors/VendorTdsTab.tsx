@@ -109,7 +109,7 @@ function VendorTdsLedgerTable({ fy, buckets }: VendorTdsLedgerTableProps) {
       <ul className="vendor-tds-tbody">
         {buckets.map((bucket) => (
           <li key={bucket.section} className="vendor-tds-row" data-testid="vendor-tds-row">
-            <span className="vendor-tds-section">{bucket.section}</span>
+            <span className="vendor-tds-section lb-mono">{bucket.section}</span>
             <span className="vendor-tds-numeric">
               {formatMinorAmountWithCurrency(bucket.cumulativeBaseMinor, "INR")}
             </span>
@@ -117,7 +117,13 @@ function VendorTdsLedgerTable({ fy, buckets }: VendorTdsLedgerTableProps) {
               {formatMinorAmountWithCurrency(bucket.cumulativeTdsMinor, "INR")}
             </span>
             <span className="vendor-tds-numeric">{bucket.invoiceCount}</span>
-            <span className="vendor-tds-threshold">
+            <span
+              className={
+                bucket.thresholdCrossedAt
+                  ? "vendor-tds-threshold vendor-tds-threshold-crossed"
+                  : "vendor-tds-threshold vendor-tds-threshold-below"
+              }
+            >
               {bucket.thresholdCrossedAt ? "Crossed" : "Below"}
             </span>
             <span className="vendor-tds-drilldown">

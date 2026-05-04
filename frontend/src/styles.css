@@ -8311,3 +8311,73 @@ pre {
 .invoice-list-cell-shield {
   display: contents;
 }
+
+/* ---- W3-4: Vendors list + detail ---- */
+
+.vendors-header-titles {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.vendors-count {
+  font: 600 var(--fs-xxs)/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: var(--accent-soft-bg);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: 999px;
+}
+
+.vendors-row-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.vendors-row-msme-pill {
+  font: 700 var(--fs-xxs)/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px var(--sp-1);
+  border-radius: 999px;
+  background: var(--amber-soft-bg);
+  color: var(--ink);
+}
+
+.vendors-row:hover {
+  background: var(--accent-soft-bg);
+}
+
+.vendor-detail-header-titles {
+  align-items: center;
+}
+
+.vendor-detail-meta-item dd.lb-mono {
+  letter-spacing: 0.01em;
+}
+
+.vendor-tds-section.lb-mono {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.vendor-tds-threshold {
+  font: 600 var(--fs-xxs)/1 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vendor-tds-threshold-crossed {
+  color: var(--warn, var(--ink));
+}
+
+.vendor-tds-threshold-below {
+  color: var(--ink-muted);
+}
+
+.vendor-cert197-form {
+  gap: var(--sp-4);
+}

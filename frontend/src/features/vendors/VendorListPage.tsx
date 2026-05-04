@@ -91,12 +91,15 @@ export function VendorListPage() {
   return (
     <section className="panel vendors-panel" data-testid="vendors-page">
       <header className="vendors-header">
-        <div>
+        <div className="vendors-header-titles">
           <h2>Vendors</h2>
-          <p className="vendors-subhead">
-            {total} vendor{total === 1 ? "" : "s"}.
-          </p>
+          <span className="vendors-count" data-testid="vendors-count">
+            {total} active
+          </span>
         </div>
+        <p className="vendors-subhead">
+          Master ledger of payees · GSTIN-linked · MSME &amp; §197 surfaced inline.
+        </p>
       </header>
 
       <div className="vendors-toolbar">

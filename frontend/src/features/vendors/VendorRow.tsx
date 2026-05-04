@@ -55,19 +55,29 @@ export function VendorRow({ vendor, onView, onMerge }: VendorRowProps) {
   return (
     <div className="vendors-row" data-testid="vendors-row" data-vendor-id={vendor._id}>
       <div className="vendors-row-cell vendors-row-cell-name">
-        <span className="vendors-row-name">{vendor.name}</span>
+        <span className="vendors-row-name-row">
+          <span className="vendors-row-name">{vendor.name}</span>
+          {vendor.msme ? (
+            <span
+              className="vendors-row-msme-pill"
+              title={`MSME: ${vendor.msme.classification}`}
+              data-testid="vendors-row-msme"
+            >
+              MSME
+            </span>
+          ) : null}
+        </span>
         <span className="vendors-row-ids">
-          {vendor.gstin ? <span className="vendors-row-id">GSTIN {vendor.gstin}</span> : null}
-          {vendor.pan ? <span className="vendors-row-id">PAN {vendor.pan}</span> : null}
+          {vendor.gstin ? (
+            <span className="vendors-row-id lb-mono">GSTIN {vendor.gstin}</span>
+          ) : null}
+          {vendor.pan ? (
+            <span className="vendors-row-id lb-mono">PAN {vendor.pan}</span>
+          ) : null}
         </span>
       </div>
       <div className="vendors-row-cell vendors-row-cell-status">
         <VendorStatusBadge status={vendor.vendorStatus} />
-        {vendor.msme ? (
-          <Badge tone="accent" size="sm" icon="verified" title={`MSME: ${vendor.msme.classification}`}>
-            MSME
-          </Badge>
-        ) : null}
         {vendor.section197Cert ? (
           <Badge tone="info" size="sm" icon="badge" title="Section 197 certificate on file">
             §197
