@@ -10,8 +10,7 @@
     "llamaparse": { "tier": "agentic" }
   },
   "verifier": {
-    "provider": "http",
-    "http": {}
+    "provider": "none"
   },
   "sources": [],
   "export": {
