@@ -4809,14 +4809,6 @@ pre {
   color: var(--warn);
 }
 
-.lb-datatable-body-only {
-  border-top: 0;
-}
-
-.lb-datatable-body-only .lb-datatable-thead {
-  display: none;
-}
-
 .details-section {
   border-top: 1px solid var(--line-faint, rgba(0,0,0,0.06));
   padding: 0.5rem 0;
@@ -7177,9 +7169,24 @@ pre {
   font: 500 var(--fs-sm)/var(--lh-snug) var(--font-sans);
 }
 
+:root {
+  --vendor-col-name: 27.4%;
+  --vendor-col-status: 20.5%;
+  --vendor-col-last-invoice: 13.7%;
+  --vendor-col-fytd-spend: 13.7%;
+  --vendor-col-fytd-tds: 13.7%;
+  --vendor-col-actions: 11.0%;
+}
+
 .vendors-row {
   display: grid;
-  grid-template-columns: 27.4% 20.5% 13.7% 13.7% 13.7% 11.0%;
+  grid-template-columns:
+    var(--vendor-col-name)
+    var(--vendor-col-status)
+    var(--vendor-col-last-invoice)
+    var(--vendor-col-fytd-spend)
+    var(--vendor-col-fytd-tds)
+    var(--vendor-col-actions);
   padding: var(--sp-2) var(--sp-3);
   border-bottom: 1px solid var(--line-soft);
   align-items: center;

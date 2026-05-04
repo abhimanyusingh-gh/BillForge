@@ -7,6 +7,7 @@ import "@testing-library/jest-dom";
 import {
   DataTable,
   DATATABLE_DENSITY,
+  DATATABLE_SORT_CYCLE,
   DATATABLE_SORT_DIRECTION,
   DATATABLE_ALIGN,
   type DataTableColumn,
@@ -253,6 +254,38 @@ describe("ds/DataTable", () => {
       />
     );
     expect(screen.getByText("Invoices for FY 2025-26")).toBeInTheDocument();
+  });
+
+  it("clears sort (calls onSortChange with undefined) on the third click when sortCycle is asc-desc-null", async () => {
+    const user = userEvent.setup();
+    const onSortChange = jest.fn();
+    const sortBy: DataTableSort = { id: "number", direction: DATATABLE_SORT_DIRECTION.DESC };
+    render(
+      <DataTable
+        columns={COLUMNS}
+        rows={ROWS}
+        getRowKey={getRowKey}
+        sortBy={sortBy}
+        sortCycle={DATATABLE_SORT_CYCLE.ASC_DESC_NULL}
+        onSortChange={onSortChange}
+      />
+    );
+    await user.click(screen.getByTestId("lb-datatable-th-number"));
+    expect(onSortChange).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it("renders a single <table> with <thead> and <tbody> when renderRows is not provided (single-table mode)", () => {
+    const { container } = render(
+      <DataTable columns={COLUMNS} rows={ROWS} getRowKey={getRowKey} />
+    );
+    const tables = container.querySelectorAll("table");
+    expect(tables).toHaveLength(1);
+    const table = tables[0]!;
+    expect(table.querySelector("thead")).not.toBeNull();
+    const tbody = table.querySelector("tbody");
+    expect(tbody).not.toBeNull();
+    expect(within(tbody!).getAllByTestId("lb-datatable-row")).toHaveLength(2);
+    expect(table.querySelector("colgroup")).not.toBeNull();
   });
 
   it("supports a custom row type via the generic parameter (compile-time)", () => {

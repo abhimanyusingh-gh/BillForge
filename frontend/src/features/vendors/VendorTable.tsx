@@ -44,34 +44,43 @@ const SORTABLE_VENDOR_COLUMN_IDS: ReadonlySet<string> = new Set([
 ]);
 
 const VENDOR_COLUMNS: ReadonlyArray<DataTableColumn<VendorListItemSummary>> = [
-  { id: VENDOR_COLUMN_ID.NAME, header: "Vendor", sortable: true, width: "27.4%" },
-  { id: VENDOR_COLUMN_ID.STATUS, header: "Status", width: "20.5%" },
+  {
+    id: VENDOR_COLUMN_ID.NAME,
+    header: "Vendor",
+    sortable: true,
+    width: "var(--vendor-col-name)"
+  },
+  {
+    id: VENDOR_COLUMN_ID.STATUS,
+    header: "Status",
+    width: "var(--vendor-col-status)"
+  },
   {
     id: VENDOR_COLUMN_ID.LAST_INVOICE,
     header: "Last invoice",
     sortable: true,
     align: DATATABLE_ALIGN.RIGHT,
-    width: "13.7%"
+    width: "var(--vendor-col-last-invoice)"
   },
   {
     id: VENDOR_COLUMN_ID.FYTD_SPEND,
     header: "FYTD spend",
     sortable: true,
     align: DATATABLE_ALIGN.RIGHT,
-    width: "13.7%"
+    width: "var(--vendor-col-fytd-spend)"
   },
   {
     id: VENDOR_COLUMN_ID.FYTD_TDS,
     header: "FYTD TDS",
     sortable: true,
     align: DATATABLE_ALIGN.RIGHT,
-    width: "13.7%"
+    width: "var(--vendor-col-fytd-tds)"
   },
   {
     id: VENDOR_COLUMN_ID.ACTIONS,
     header: "Actions",
     align: DATATABLE_ALIGN.RIGHT,
-    width: "11.0%"
+    width: "var(--vendor-col-actions)"
   }
 ];
 
@@ -111,7 +120,7 @@ export function VendorTable({
       stickyHeader
       sortBy={toDataTableSort(sortField, sortDirection)}
       onSortChange={(next) => {
-        if (isVendorSortField(next.id)) onSortChange(next.id);
+        if (next && isVendorSortField(next.id)) onSortChange(next.id);
       }}
       caption="Vendors"
       testId="vendors-table"

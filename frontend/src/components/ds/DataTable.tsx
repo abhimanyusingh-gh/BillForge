@@ -25,6 +25,14 @@ export const DATATABLE_ALIGN = {
 type DataTableAlign =
   (typeof DATATABLE_ALIGN)[keyof typeof DATATABLE_ALIGN];
 
+export const DATATABLE_SORT_CYCLE = {
+  ASC_DESC: "asc-desc",
+  ASC_DESC_NULL: "asc-desc-null"
+} as const;
+
+type DataTableSortCycle =
+  (typeof DATATABLE_SORT_CYCLE)[keyof typeof DATATABLE_SORT_CYCLE];
+
 export interface DataTableSort {
   id: string;
   direction: DataTableSortDirection;
@@ -46,7 +54,8 @@ interface DataTableProps<TRow> {
   density?: DataTableDensity;
   stickyHeader?: boolean;
   sortBy?: DataTableSort | null;
-  onSortChange?: (sort: DataTableSort) => void;
+  sortCycle?: DataTableSortCycle;
+  onSortChange?: (sort: DataTableSort | undefined) => void;
   loading?: boolean;
   error?: string;
   emptyText?: string;
@@ -70,14 +79,19 @@ const SORT_ICON = {
 
 function nextSort(
   current: DataTableSort | null | undefined,
-  columnId: string
-): DataTableSort {
+  columnId: string,
+  cycle: DataTableSortCycle
+): DataTableSort | undefined {
   if (!current || current.id !== columnId) {
     return { id: columnId, direction: DATATABLE_SORT_DIRECTION.ASC };
   }
-  return current.direction === DATATABLE_SORT_DIRECTION.ASC
-    ? { id: columnId, direction: DATATABLE_SORT_DIRECTION.DESC }
-    : { id: columnId, direction: DATATABLE_SORT_DIRECTION.ASC };
+  if (current.direction === DATATABLE_SORT_DIRECTION.ASC) {
+    return { id: columnId, direction: DATATABLE_SORT_DIRECTION.DESC };
+  }
+  if (cycle === DATATABLE_SORT_CYCLE.ASC_DESC_NULL) {
+    return undefined;
+  }
+  return { id: columnId, direction: DATATABLE_SORT_DIRECTION.ASC };
 }
 
 function ariaSortFor(
@@ -107,11 +121,13 @@ function colWidthStyle(width: string | undefined): CSSProperties | undefined {
 function HeaderCell<TRow>({
   column,
   sortBy,
+  sortCycle,
   onSortChange
 }: {
   column: DataTableColumn<TRow>;
   sortBy: DataTableSort | null | undefined;
-  onSortChange?: (sort: DataTableSort) => void;
+  sortCycle: DataTableSortCycle;
+  onSortChange?: (sort: DataTableSort | undefined) => void;
 }) {
   const isSorted = !!sortBy && sortBy.id === column.id;
   const sortable = column.sortable === true;
@@ -150,7 +166,7 @@ function HeaderCell<TRow>({
         type="button"
         className="lb-datatable-th-sort"
         data-testid={`lb-datatable-th-${column.id}`}
-        onClick={() => onSortChange?.(nextSort(sortBy ?? null, column.id))}
+        onClick={() => onSortChange?.(nextSort(sortBy ?? null, column.id, sortCycle))}
       >
         <span className="lb-datatable-th-label">{column.header}</span>
         <span
@@ -187,6 +203,24 @@ function StateRow({
   );
 }
 
+function ColGroup<TRow>({
+  columns
+}: {
+  columns: ReadonlyArray<DataTableColumn<TRow>>;
+}) {
+  if (!columns.some((c) => c.width)) return null;
+  return (
+    <colgroup>
+      {columns.map((column) => (
+        <col
+          key={column.id}
+          style={column.width ? { width: column.width } : undefined}
+        />
+      ))}
+    </colgroup>
+  );
+}
+
 export function DataTable<TRow>({
   columns,
   rows,
@@ -194,6 +228,7 @@ export function DataTable<TRow>({
   density = DATATABLE_DENSITY.COMPACT,
   stickyHeader = false,
   sortBy = null,
+  sortCycle = DATATABLE_SORT_CYCLE.ASC_DESC,
   onSortChange,
   loading = false,
   error,
@@ -228,7 +263,73 @@ export function DataTable<TRow>({
     );
   }
 
-  const showStateRow = loading || error || rows.length === 0;
+  const stateRow = loading ? (
+    <StateRow
+      colSpan={colCount}
+      testId="lb-datatable-loading"
+      className="lb-datatable-state lb-datatable-state-loading"
+    >
+      {DEFAULT_LOADING_TEXT}
+    </StateRow>
+  ) : error ? (
+    <StateRow
+      colSpan={colCount}
+      testId="lb-datatable-error"
+      className="lb-datatable-state lb-datatable-state-error"
+    >
+      {error}
+    </StateRow>
+  ) : rows.length === 0 ? (
+    <StateRow
+      colSpan={colCount}
+      testId="lb-datatable-empty"
+      className="lb-datatable-state lb-datatable-state-empty"
+    >
+      {emptyText}
+    </StateRow>
+  ) : null;
+
+  const headHtml = (
+    <thead className="lb-datatable-thead">
+      <tr>
+        {columns.map((column) => (
+          <HeaderCell
+            key={column.id}
+            column={column}
+            sortBy={sortBy}
+            sortCycle={sortCycle}
+            onSortChange={onSortChange}
+          />
+        ))}
+      </tr>
+    </thead>
+  );
+
+  const captionHtml = caption ? (
+    <caption id={captionId} className="lb-datatable-caption">
+      {caption}
+    </caption>
+  ) : null;
+
+  if (renderRows) {
+    return (
+      <div className="lb-datatable-wrap" data-testid={testId}>
+        <table
+          className={tableClassName}
+          aria-describedby={captionId}
+          aria-busy={loading || undefined}
+        >
+          {captionHtml}
+          <ColGroup columns={columns} />
+          {headHtml}
+          <tbody className="lb-datatable-tbody">{stateRow}</tbody>
+        </table>
+        {!stateRow
+          ? renderRows({ rows, columns, renderRow })
+          : null}
+      </div>
+    );
+  }
 
   return (
     <div className="lb-datatable-wrap" data-testid={testId}>
@@ -237,62 +338,13 @@ export function DataTable<TRow>({
         aria-describedby={captionId}
         aria-busy={loading || undefined}
       >
-        {caption ? (
-          <caption id={captionId} className="lb-datatable-caption">
-            {caption}
-          </caption>
-        ) : null}
-        <thead className="lb-datatable-thead">
-          <tr>
-            {columns.map((column) => (
-              <HeaderCell
-                key={column.id}
-                column={column}
-                sortBy={sortBy}
-                onSortChange={onSortChange}
-              />
-            ))}
-          </tr>
-        </thead>
+        {captionHtml}
+        <ColGroup columns={columns} />
+        {headHtml}
         <tbody className="lb-datatable-tbody">
-          {loading ? (
-            <StateRow
-              colSpan={colCount}
-              testId="lb-datatable-loading"
-              className="lb-datatable-state lb-datatable-state-loading"
-            >
-              {DEFAULT_LOADING_TEXT}
-            </StateRow>
-          ) : error ? (
-            <StateRow
-              colSpan={colCount}
-              testId="lb-datatable-error"
-              className="lb-datatable-state lb-datatable-state-error"
-            >
-              {error}
-            </StateRow>
-          ) : rows.length === 0 ? (
-            <StateRow
-              colSpan={colCount}
-              testId="lb-datatable-empty"
-              className="lb-datatable-state lb-datatable-state-empty"
-            >
-              {emptyText}
-            </StateRow>
-          ) : null}
+          {stateRow ?? rows.map((row, index) => renderRow(row, index))}
         </tbody>
       </table>
-      {!showStateRow ? (
-        renderRows ? (
-          renderRows({ rows, columns, renderRow })
-        ) : (
-          <table className={tableClassName + " lb-datatable-body-only"}>
-            <tbody className="lb-datatable-tbody">
-              {rows.map((row, index) => renderRow(row, index))}
-            </tbody>
-          </table>
-        )
-      ) : null}
     </div>
   );
 }
