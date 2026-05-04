@@ -97,7 +97,7 @@ export function FyQuarterFilter({
   }
 
   return (
-    <div className="tds-filter-bar" data-testid="tds-filter-bar">
+    <div className="page-tools" data-testid="tds-filter-bar">
       <DateRange
         ariaLabel="Financial year and quarter filter"
         value={value}
