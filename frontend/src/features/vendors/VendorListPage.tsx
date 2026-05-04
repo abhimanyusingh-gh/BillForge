@@ -227,7 +227,7 @@ function VendorMergePlaceholderDialog({ open, vendorName, onClose }: VendorMerge
         </div>
         <div className="modal-body">
           <p>
-            Merge dialog ships in #264. Selected vendor: <strong>{vendorName ?? "—"}</strong>.
+            Merge dialog ships in #372. Selected vendor: <strong>{vendorName ?? "—"}</strong>.
           </p>
         </div>
         <div className="modal-foot">

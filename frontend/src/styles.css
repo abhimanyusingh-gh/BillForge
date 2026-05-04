@@ -3242,7 +3242,7 @@ body {
 .triage-table th.triage-th-select { width: 32px; }
 .triage-table th.triage-th-amount { text-align: right; }
 .triage-table th.triage-th-actions { width: 160px; }
-.triage-row-selected { background: var(--accent-soft-bg) !important; }
+.triage-page table.lbtable tbody tr.triage-row-selected { background: var(--accent-soft-bg); }
 .triage-cell-select { width: 32px; }
 .triage-cell-actions { white-space: nowrap; }
 .triage-row-actions { display: inline-flex; gap: 4px; }
