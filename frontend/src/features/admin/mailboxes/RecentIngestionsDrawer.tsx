@@ -4,6 +4,7 @@ import { SlideOverPanel } from "@/components/ds/SlideOverPanel";
 import { useRecentIngestions } from "@/hooks/useRecentIngestions";
 import { getUserFacingErrorMessage } from "@/lib/common/apiError";
 import { getInvoiceStatusPresentation } from "@/features/admin/mailboxes/recentIngestionStatus";
+import { BADGE_STATUS, type BadgeStatus } from "@/types/badgeStatus";
 import type { ClientOrgOption } from "@/components/workspace/HierarchyBadges";
 import type { MailboxRecentIngestionItem } from "@/api/mailboxAssignments";
 
@@ -195,8 +196,19 @@ function RecentIngestionRow({
   );
 }
 
+function isCanonicalStatus(value: string): value is BadgeStatus {
+  return value in BADGE_STATUS;
+}
+
 function StatusBadge({ status }: { status: string }) {
   const { label, tone } = getInvoiceStatusPresentation(status);
+  if (isCanonicalStatus(status)) {
+    return (
+      <Badge status={status} size="sm" showStatusDot={false}>
+        {label}
+      </Badge>
+    );
+  }
   return (
     <Badge tone={tone} size="sm">
       {label}

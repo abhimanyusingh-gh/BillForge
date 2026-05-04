@@ -10,3 +10,8 @@ export {
   type DataTableColumn,
   type DataTableSort
 } from "./DataTable";
+export {
+  DateRange,
+  type DateRangePreset,
+  type DateRangeValue
+} from "./DateRange";

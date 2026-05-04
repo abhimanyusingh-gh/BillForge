@@ -157,6 +157,16 @@ describe("features/admin/mailboxes/RecentIngestionsDrawer — 4-state contract",
     expect(screen.getByTestId("recent-ingestions-row-inv-1")).not.toHaveTextContent("PARSED");
     expect(screen.getByTestId("recent-ingestions-row-inv-2")).toHaveTextContent("Triage");
     expect(screen.getByTestId("recent-ingestions-row-inv-2")).not.toHaveTextContent("PENDING_TRIAGE");
+    expect(
+      screen
+        .getByTestId("recent-ingestions-row-inv-1")
+        .querySelector('[data-status="PARSED"]')
+    ).not.toBeNull();
+    expect(
+      screen
+        .getByTestId("recent-ingestions-row-inv-2")
+        .querySelector("[data-status]")
+    ).toBeNull();
   });
 
   it("shows the truncation banner when total > items length", async () => {
