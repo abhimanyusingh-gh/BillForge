@@ -32,49 +32,44 @@ export function PlatformOnboardSection({
   helpText
 }: PlatformOnboardSectionProps) {
   const mode: TenantMode = form.mode === TENANT_MODE.LIVE ? TENANT_MODE.LIVE : TENANT_MODE.TEST;
+  const ready = form.tenantName.length > 2 && /\S+@\S+\.\S+/.test(form.adminEmail);
   return (
     <PlatformSection
-      title="Onboard Tenant Admin"
+      title="Onboard new tenant"
       icon="add_business"
       collapsed={collapsed}
       onToggle={onToggle}
       helpText={helpText}
-      subtitle="Creates a tenant org + first admin user."
-      actions={
-        <button type="button" className="app-button app-button-primary" onClick={onSubmit}>
-          <span className="material-symbols-outlined">add_task</span>
-          Create Tenant Admin
-        </button>
-      }
+      subtitle="Creates a tenant org + first admin user. The admin receives a temporary password."
     >
       <div className="pa-card-body">
         <div className="pa-onboard">
           <label>
-            <span>Tenant Name</span>
+            <span>Tenant name</span>
             <input
               value={form.tenantName}
               onChange={(event) => onChange({ ...form, tenantName: event.target.value })}
-              placeholder="e.g. Acme Corp"
+              placeholder="e.g. Khan & Associates, CA"
             />
           </label>
           <label>
-            <span>Tenant Admin Email</span>
-            <input
-              value={form.adminEmail}
-              onChange={(event) => onChange({ ...form, adminEmail: event.target.value })}
-              placeholder="admin@tenant.com"
-            />
-          </label>
-          <label>
-            <span>Admin Name (optional)</span>
+            <span>Admin name</span>
             <input
               value={form.adminDisplayName}
               onChange={(event) => onChange({ ...form, adminDisplayName: event.target.value })}
-              placeholder="Full Name"
+              placeholder="Mahir Khan"
             />
           </label>
           <label>
-            <span>Tenant Mode</span>
+            <span>Admin email</span>
+            <input
+              value={form.adminEmail}
+              onChange={(event) => onChange({ ...form, adminEmail: event.target.value })}
+              placeholder="admin@firm.in"
+            />
+          </label>
+          <label>
+            <span>Tenant mode</span>
             <select
               value={mode}
               onChange={(event) => onChange({ ...form, mode: event.target.value })}
@@ -83,6 +78,22 @@ export function PlatformOnboardSection({
               <option value={TENANT_MODE.LIVE}>Live</option>
             </select>
           </label>
+        </div>
+        <div className="pa-onboard-actions">
+          <span className="pa-onboard-hint">
+            <span className="material-symbols-outlined">info</span>
+            Welcome email sent to <b>{form.adminEmail || "admin@…"}</b> with sign-in link.
+          </span>
+          <span className="pa-onboard-spacer" />
+          <button
+            type="button"
+            className="pa-btn pa-btn-primary"
+            onClick={onSubmit}
+            disabled={!ready}
+          >
+            <span className="material-symbols-outlined">add</span>
+            Create tenant
+          </button>
         </div>
       </div>
     </PlatformSection>

@@ -75,27 +75,27 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
 
   return (
     <div className="platform-analytics">
-      <div className="platform-stats-grid">
-        <div className="platform-stat-tile" data-tone="accent">
-          <span className="platform-stat-label">Total Documents</span>
-          <span className="platform-stat-value">{totals.documents.toLocaleString()}</span>
+      <div className="pa-kpi-grid">
+        <div className="pa-kpi accent">
+          <div className="pa-kpi-label">Total Documents</div>
+          <div className="pa-kpi-value">{totals.documents.toLocaleString()}</div>
         </div>
-        <div className="platform-stat-tile">
-          <span className="platform-stat-label">Approved</span>
-          <span className="platform-stat-value">{totals.approved.toLocaleString()}</span>
+        <div className="pa-kpi">
+          <div className="pa-kpi-label">Approved</div>
+          <div className="pa-kpi-value">{totals.approved.toLocaleString()}</div>
         </div>
-        <div className="platform-stat-tile">
-          <span className="platform-stat-label">Exported</span>
-          <span className="platform-stat-value">{totals.exported.toLocaleString()}</span>
+        <div className="pa-kpi">
+          <div className="pa-kpi-label">Exported</div>
+          <div className="pa-kpi-value">{totals.exported.toLocaleString()}</div>
         </div>
-        <div className="platform-stat-tile">
-          <span className="platform-stat-label">Users</span>
-          <span className="platform-stat-value">{totals.users}</span>
+        <div className="pa-kpi">
+          <div className="pa-kpi-label">Users</div>
+          <div className="pa-kpi-value">{totals.users}</div>
         </div>
         {totals.failed > 0 ? (
-          <div className="platform-stat-tile" data-tone="warn">
-            <span className="platform-stat-label">Failed</span>
-            <span className="platform-stat-value platform-stat-value-alert">{totals.failed}</span>
+          <div className="pa-kpi alert">
+            <div className="pa-kpi-label">Failed</div>
+            <div className="pa-kpi-value">{totals.failed}</div>
           </div>
         ) : null}
       </div>
