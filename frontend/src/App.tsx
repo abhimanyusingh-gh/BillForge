@@ -203,7 +203,7 @@ export function App() {
 
   if (isPlatformAdmin) {
     return (
-      <div className="layout layout-platform">
+      <div className="layout layout-platform pa-shell">
         <PlatformAdminTopNav
           userEmail={session.user.email}
           onLogout={handleLogout}
@@ -211,7 +211,7 @@ export function App() {
           counts={{ tenants: platformStats.tenants, failedDocuments: platformStats.failedDocuments }}
           themeToggle={themeToggle}
         />
-        <section className="controls">
+        <main className="pa-main">
           {activeTab === "dashboard" && (
             <>
               <PlatformOnboardSection
@@ -246,7 +246,7 @@ export function App() {
               />
             </>
           )}
-        </section>
+        </main>
         <div role="alert" aria-live="assertive">
           {error && <p className="error">{error}</p>}
         </div>

@@ -25,7 +25,14 @@ const STATUS_COLORS: Record<string, string> = {
   Pending: "var(--status-pending)"
 };
 
-const TENANT_COLORS = ["var(--chart-blue)", "var(--chart-emerald)", "var(--chart-amber)", "var(--chart-rose)", "var(--chart-violet)", "var(--chart-cyan)", "#6366f1", "#a855f7"];
+const STATUS_DATA_KEY: Record<string, string> = {
+  Approved: "APPROVED",
+  Exported: "EXPORTED",
+  Parsed: "PARSED",
+  "Needs Review": "NEEDS_REVIEW",
+  Failed: "FAILED_OCR",
+  Pending: "PENDING"
+};
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -69,7 +76,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
   return (
     <div className="platform-analytics">
       <div className="platform-stats-grid">
-        <div className="platform-stat-tile" style={{ borderTop: "3px solid var(--accent)" }}>
+        <div className="platform-stat-tile" data-tone="accent">
           <span className="platform-stat-label">Total Documents</span>
           <span className="platform-stat-value">{totals.documents.toLocaleString()}</span>
         </div>
@@ -86,7 +93,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
           <span className="platform-stat-value">{totals.users}</span>
         </div>
         {totals.failed > 0 ? (
-          <div className="platform-stat-tile" style={{ borderTop: "3px solid var(--warn)" }}>
+          <div className="platform-stat-tile" data-tone="warn">
             <span className="platform-stat-label">Failed</span>
             <span className="platform-stat-value platform-stat-value-alert">{totals.failed}</span>
           </div>
@@ -111,11 +118,11 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
           ) : null}
         </div>
 
-        <div className="overview-chart-card" style={{ position: "relative" }}>
+        <div className="overview-chart-card overview-chart-card-relative">
           <h4>Status Distribution</h4>
           {statusBreakdown.length > 0 ? (
             <>
-              <div style={{ position: "relative" }}>
+              <div className="overview-chart-card-relative">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie data={statusBreakdown} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={800}>
@@ -134,7 +141,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
               <div className="donut-legend">
                 {statusBreakdown.map((entry) => (
                   <div key={entry.status} className="donut-legend-item">
-                    <span className="donut-legend-dot" style={{ background: STATUS_COLORS[entry.status] ?? "#94a3b8" }} />
+                    <span className="donut-legend-dot" data-status={STATUS_DATA_KEY[entry.status]} />
                     <span>{entry.status}</span>
                     <span className="donut-legend-count">{entry.count}</span>
                   </div>
@@ -146,7 +153,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
       </div>
 
       {tokenData.length > 0 ? (
-        <div className="overview-charts-grid" style={{ gridTemplateColumns: "1fr" }}>
+        <div className="overview-charts-grid overview-charts-grid-single">
           <div className="overview-chart-card">
             <h4>Token Usage by Tenant</h4>
             <ResponsiveContainer width="100%" height={Math.max(160, tokenData.length * 40)}>
