@@ -333,12 +333,12 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
               <tbody>
                 {history.map((entry, idx) => (
                   <tr key={idx}>
-                    <td className="tcs-config-history-cell-nowrap">{formatDateTime(entry.changedAt)}</td>
+                    <td className="mono-cell">{formatDateTime(entry.changedAt)}</td>
                     <td>{entry.previousRate}%</td>
                     <td>{entry.newRate}%</td>
-                    <td className="tcs-config-history-cell-nowrap">{formatDate(entry.effectiveFrom)}</td>
+                    <td className="mono-cell">{formatDate(entry.effectiveFrom)}</td>
                     <td>{entry.changedByName || entry.changedBy}</td>
-                    <td className="tcs-config-history-reason">{entry.reason ?? "-"}</td>
+                    <td className="lb-caption">{entry.reason ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -347,7 +347,7 @@ export function TcsConfigPanel({ canConfigureCompliance }: TcsConfigPanelProps) 
         )}
 
         {totalPages > 1 ? (
-          <div className="tcs-config-history-pager">
+          <div className="pager">
             <button
               type="button"
               className="app-button app-button-secondary app-button-sm"

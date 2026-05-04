@@ -257,14 +257,14 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                 <tbody>
                   {tdsRates.map((rate, idx) => (
                     <tr key={rate.section + idx}>
-                      <td className="compliance-config-section-cell">{rate.section}</td>
+                      <td>{rate.section}</td>
                       <td>
                         <input
                           type="text"
                           value={rate.description}
                           onChange={(e) => updateTdsRate(idx, "description", e.target.value)}
                           disabled={tdsSaving}
-                          className="compliance-config-rate-cell"
+                          className="num-cell"
                         />
                       </td>
                       <td>
@@ -352,8 +352,8 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
             </div>
 
             {addingSection ? (
-              <div className="compliance-config-add-section-card">
-                <div className="compliance-config-add-section-grid-2">
+              <div className="panel">
+                <div className="kvgrid">
                   <label className="tenant-config-field">
                     Section
                     <input
@@ -361,7 +361,7 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                       value={newSection.section}
                       onChange={(e) => setNewSection((p) => ({ ...p, section: e.target.value.toUpperCase() }))}
                       placeholder="e.g. 194K"
-                      className="compliance-config-add-section-input"
+                      className="input"
                     />
                   </label>
                   <label className="tenant-config-field">
@@ -371,18 +371,18 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                       value={newSection.description}
                       onChange={(e) => setNewSection((p) => ({ ...p, description: e.target.value }))}
                       placeholder="e.g. Payment type"
-                      className="compliance-config-add-section-input"
+                      className="input"
                     />
                   </label>
                 </div>
-                <div className="compliance-config-add-section-grid-4">
+                <div className="kvgrid">
                   <label className="tenant-config-field">
                     Rate Individual (%)
                     <input
                       type="number" min="0" max="100" step="0.01"
                       value={bpsToPercent(newSection.rateIndividual)}
                       onChange={(e) => setNewSection((p) => ({ ...p, rateIndividual: percentToBps(e.target.value) }))}
-                      className="compliance-config-add-section-input"
+                      className="input"
                     />
                   </label>
                   <label className="tenant-config-field">
@@ -391,7 +391,7 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                       type="number" min="0" max="100" step="0.01"
                       value={bpsToPercent(newSection.rateCompany)}
                       onChange={(e) => setNewSection((p) => ({ ...p, rateCompany: percentToBps(e.target.value) }))}
-                      className="compliance-config-add-section-input"
+                      className="input"
                     />
                   </label>
                   <label className="tenant-config-field">
@@ -400,7 +400,7 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                       type="number" min="0" max="100" step="0.01"
                       value={bpsToPercent(newSection.rateNoPan)}
                       onChange={(e) => setNewSection((p) => ({ ...p, rateNoPan: percentToBps(e.target.value) }))}
-                      className="compliance-config-add-section-input"
+                      className="input"
                     />
                   </label>
                   <label className="tenant-config-field">
@@ -409,11 +409,11 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                       type="text"
                       value={formatThreshold(newSection.threshold)}
                       onChange={(e) => setNewSection((p) => ({ ...p, threshold: parseThreshold(e.target.value) }))}
-                      className="compliance-config-add-section-input"
+                      className="input"
                     />
                   </label>
                 </div>
-                <div className="compliance-config-add-section-actions">
+                <div className="page-tools">
                   <button type="button" className="app-button app-button-primary app-button-sm" onClick={handleAddSection}>
                     Add
                   </button>
@@ -522,9 +522,9 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
         </div>
 
         {riskEnabled ? (
-          <div className="compliance-config-signal-list">
+          <div className="kvgrid">
             {availableSignals.map((signal) => (
-              <label key={signal.code} className="compliance-config-signal-row">
+              <label key={signal.code}>
                 <input
                   type="checkbox"
                   checked={activeSignals.includes(signal.code)}
@@ -532,10 +532,10 @@ export function ComplianceConfigPanel({ canConfigureCompliance }: ComplianceConf
                   disabled={riskSaving}
                 />
                 <span>
-                  <span className="compliance-config-signal-name">{signal.code.replace(/_/g, " ")}</span>
-                  <span className="compliance-config-signal-meta">
+                  <span className="v">{signal.code.replace(/_/g, " ")}</span>
+                  <span className="sub">
                     {signal.description}
-                    <span className="compliance-config-signal-category">
+                    <span className="kv">
                       {signal.category}
                     </span>
                   </span>
