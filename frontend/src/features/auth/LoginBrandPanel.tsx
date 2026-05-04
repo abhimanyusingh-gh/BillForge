@@ -30,6 +30,12 @@ const PROOF_ROWS: ReadonlyArray<ProofRow> = [
   }
 ];
 
+function proofIconClass(tone: ProofRow["tone"]): string {
+  if (tone === "accent") return "proof-icon accent";
+  if (tone === "warn") return "proof-icon warn";
+  return "proof-icon";
+}
+
 export function LoginBrandPanel() {
   return (
     <aside className="auth-left" aria-hidden="true">
@@ -58,20 +64,20 @@ export function LoginBrandPanel() {
           </div>
           {PROOF_ROWS.map((row) => (
             <div key={row.icon} className="proof-row">
-              <div className={`proof-icon proof-icon-${row.tone}`}>
+              <div className={proofIconClass(row.tone)}>
                 <span className="material-symbols-outlined">{row.icon}</span>
               </div>
-              <div className="proof-row-text">
-                <div className="proof-row-title">{row.title}</div>
-                <div className="proof-row-sub">{row.subtitle}</div>
+              <div className="text">
+                <div className="t">{row.title}</div>
+                <div className="s">{row.subtitle}</div>
               </div>
-              <span className="proof-row-ts">{row.timestamp}</span>
+              <span className="ts">{row.timestamp}</span>
             </div>
           ))}
         </div>
       </div>
       <div className="brand-foot">
-        <span className="brand-foot-quote">"It replaced 11 hours of data entry a week. Mahir Khan, CA."</span>
+        <span className="quote">"It replaced 11 hours of data entry a week. Mahir Khan, CA."</span>
         <span className="brand-foot-status">
           <span className="brand-foot-status-dot" />
           All systems operational

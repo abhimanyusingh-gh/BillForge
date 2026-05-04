@@ -36,7 +36,6 @@ export function LoginFormPanel({
       <div className="login-idp-slot" />
 
       <form
-        className="auth-form"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
@@ -44,13 +43,13 @@ export function LoginFormPanel({
         }}
         aria-describedby={error ? errorId : undefined}
       >
-        <div className="auth-field">
+        <div className="field">
           <label htmlFor="auth-signin-email">Work email</label>
-          <div className="auth-input-with-icon">
-            <span className="material-symbols-outlined auth-lead-icon">alternate_email</span>
+          <div className="input-with-icon">
+            <span className="material-symbols-outlined lead-icon">alternate_email</span>
             <input
               id="auth-signin-email"
-              className="auth-input auth-input-mono"
+              className="input mono"
               type="email"
               autoComplete="email"
               value={email}
@@ -58,20 +57,21 @@ export function LoginFormPanel({
               placeholder="you@firm.in"
               aria-invalid={error ? true : undefined}
               required
+              autoFocus
             />
           </div>
         </div>
 
-        <div className="auth-field">
-          <div className="auth-field-row">
+        <div className="field">
+          <div className="field-row">
             <label htmlFor="auth-signin-password">Password</label>
             <button type="button" className="auth-link-button">Forgot?</button>
           </div>
-          <div className="auth-input-with-icon">
-            <span className="material-symbols-outlined auth-lead-icon">lock</span>
+          <div className="input-with-icon">
+            <span className="material-symbols-outlined lead-icon">lock</span>
             <input
               id="auth-signin-password"
-              className="auth-input auth-input-mono"
+              className="input mono"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               value={password}
@@ -82,7 +82,7 @@ export function LoginFormPanel({
             />
             <button
               type="button"
-              className="auth-trail-btn"
+              className="trail-btn"
               onClick={() => setShowPassword((value) => !value)}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
@@ -93,7 +93,7 @@ export function LoginFormPanel({
           </div>
         </div>
 
-        <div className="auth-checkrow">
+        <div className="checkrow auth-checkrow-spaced">
           <input
             id="auth-signin-remember"
             type="checkbox"
@@ -103,7 +103,7 @@ export function LoginFormPanel({
           <label htmlFor="auth-signin-remember">Keep me signed in for 30 days on this device</label>
         </div>
 
-        <button type="submit" className="auth-btn auth-btn-primary" disabled={submitting}>
+        <button type="submit" className="btn primary" disabled={submitting}>
           {submitting ? "Signing in..." : "Sign in"}
           <span className="material-symbols-outlined">arrow_forward</span>
         </button>
@@ -118,7 +118,7 @@ export function LoginFormPanel({
         </div>
       </form>
 
-      <div className="auth-foot-link">
+      <div className="foot-link">
         New to LedgerBuddy? <a href="#" onClick={(event) => event.preventDefault()}>Talk to sales</a> · CAs only
       </div>
     </>
