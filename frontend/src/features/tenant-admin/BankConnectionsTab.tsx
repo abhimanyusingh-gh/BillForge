@@ -187,22 +187,22 @@ export function BankConnectionsTab({
         ) : (
           <div className="connections-bank-list">
             {bankAccounts.map((account) => (
-              <div key={account._id} className="bank-account-card">
+              <div key={account._id} className="panel">
                 <span className="connections-bank-icon">
                   <span className="material-symbols-outlined">account_balance</span>
                 </span>
                 <div className="connections-bank-body">
                   <div className="connections-bank-headline">
                     <span className="connections-bank-name">{account.displayName ?? account.aaAddress}</span>
-                    {account.bankName ? <span className="bank-account-meta">{account.bankName}</span> : null}
-                    {account.maskedAccNumber ? <span className="bank-account-meta">{account.maskedAccNumber}</span> : null}
+                    {account.bankName ? <span className="lb-caption">{account.bankName}</span> : null}
+                    {account.maskedAccNumber ? <span className="lb-caption">{account.maskedAccNumber}</span> : null}
                     <BankStatusBadge status={account.status} />
                   </div>
                   {account.balanceMinor != null ? (
                     <div className="connections-bank-balance-row">
-                      <span className="bank-account-balance">{fmtInr(account.balanceMinor)}</span>
+                      <span className="num-cell lb-mono">{fmtInr(account.balanceMinor)}</span>
                       {account.balanceFetchedAt ? (
-                        <span className="bank-account-meta connections-bank-asof">
+                        <span className="lb-caption connections-bank-asof">
                           as of {new Date(account.balanceFetchedAt).toLocaleString()}
                         </span>
                       ) : null}
