@@ -3,6 +3,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
 import { LoginPage } from "@/features/auth/LoginPage";
+import { ChangePasswordPanel } from "@/features/auth/ChangePasswordPanel";
 import { PlatformAdminTopNav } from "@/features/platform-admin/PlatformAdminTopNav";
 import { PlatformActivityMonitor } from "@/features/platform-admin/PlatformActivityMonitor";
 import { PlatformOnboardSection } from "@/features/platform-admin/PlatformOnboardSection";
@@ -147,7 +148,7 @@ export function App() {
     const verified = new URLSearchParams(window.location.search).get("verified") === "true";
     return (
       <>
-        {verified && <div className="verified-banner" style={{ background: "#1f7a6c", color: "#fff", padding: "12px 16px", textAlign: "center" }}>Email verified! You can now log in.</div>}
+        {verified && <div className="verified-banner">Email verified! You can now log in.</div>}
         <LoginPage
           email={loginEmail}
           password={loginPassword}
@@ -162,50 +163,19 @@ export function App() {
   }
 
   if (showChangePassword) {
-    const mustChange = session.flags.must_change_password;
     return (
-      <div className="login-page-shell">
-        <section className="login-form-panel">
-          <div className="login-form-container">
-            <header className="login-form-header">
-              <h2>Change Your Password</h2>
-              <p>{mustChange ? "You must change your temporary password before continuing." : "Enter your current password and choose a new one."}</p>
-            </header>
-            <form className="login-form" onSubmit={(e) => { e.preventDefault(); void handleChangePassword(); }}>
-              {(["currentPassword", "newPassword", "confirmPassword"] as const).map((field) => (
-                <label key={field} className="login-input-group">
-                  <span>{field === "currentPassword" ? "Current Password" : field === "newPassword" ? "New Password" : "Confirm New Password"}</span>
-                  <div className="login-input-shell">
-                    <span className="material-symbols-outlined login-input-icon">{field === "currentPassword" ? "lock" : "key"}</span>
-                    <input
-                      type="password"
-                      value={changePasswordForm[field]}
-                      onChange={(e) => setChangePasswordForm((form) => ({ ...form, [field]: e.target.value }))}
-                      placeholder={field === "currentPassword" ? "Current password" : field === "newPassword" ? "New password" : "Confirm new password"}
-                      required
-                    />
-                  </div>
-                </label>
-              ))}
-              {error && <p className="error">{error}</p>}
-              <button type="submit" className="login-submit-button">Change Password</button>
-              {!mustChange && (
-                <button
-                  type="button"
-                  className="login-link-button"
-                  onClick={() => {
-                    setShowChangePassword(false);
-                    setError(null);
-                    setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
-            </form>
-          </div>
-        </section>
-      </div>
+      <ChangePasswordPanel
+        form={changePasswordForm}
+        mustChange={session.flags.must_change_password}
+        error={error}
+        onFieldChange={(field, value) => setChangePasswordForm((form) => ({ ...form, [field]: value }))}
+        onSubmit={() => { void handleChangePassword(); }}
+        onCancel={() => {
+          setShowChangePassword(false);
+          setError(null);
+          setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        }}
+      />
     );
   }
 

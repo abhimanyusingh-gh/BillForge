@@ -10,6 +10,14 @@ interface LoginFormPanelProps {
   onSubmit: () => void;
 }
 
+const PLATFORM_DOMAIN_PATTERN = /@ledgerbuddy\.in$/i;
+
+type LoginRole = "tenant" | "platform";
+
+function roleForEmail(email: string): LoginRole {
+  return PLATFORM_DOMAIN_PATTERN.test(email.trim()) ? "platform" : "tenant";
+}
+
 export function LoginFormPanel({
   email,
   password,
@@ -21,100 +29,116 @@ export function LoginFormPanel({
 }: LoginFormPanelProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const role = roleForEmail(email);
+  const errorId = "auth-signin-error";
 
   return (
-    <section className="login-form-panel">
-      <div className="login-form-container">
-        <div className="login-mobile-brand">
-          <span className="material-symbols-outlined">analytics</span>
-          <span>LedgerBuddy</span>
+    <>
+      <div className="auth-eyebrow">
+        <span className="material-symbols-outlined">login</span>
+        Welcome back
+      </div>
+      <h1 className="auth-h">Sign in to LedgerBuddy</h1>
+      <p className="auth-sub">Use your work account, or sign in with email &amp; password.</p>
+
+      {/* login-idp-slot: post-MVP SSO buttons (Google Workspace, Microsoft 365) populate this slot via #385. */}
+      <div className="login-idp-slot" />
+
+      <form
+        className="auth-form"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit();
+        }}
+        aria-describedby={error ? errorId : undefined}
+      >
+        <div className="auth-field">
+          <label htmlFor="auth-signin-email">Work email</label>
+          <div className="auth-input-with-icon">
+            <span className="material-symbols-outlined auth-lead-icon">alternate_email</span>
+            <input
+              id="auth-signin-email"
+              className="auth-input auth-input-mono auth-input-with-pill"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => onEmailChange(event.target.value)}
+              placeholder="you@firm.in"
+              aria-invalid={error ? true : undefined}
+              required
+            />
+            <span
+              className={`auth-role-pill auth-role-pill-${role}`}
+              title={role === "platform" ? "Platform admin scope" : "Tenant scope"}
+            >
+              <span className="material-symbols-outlined">
+                {role === "platform" ? "admin_panel_settings" : "business_center"}
+              </span>
+              {role === "platform" ? "Platform" : "Tenant"}
+            </span>
+          </div>
         </div>
 
-        <header className="login-form-header">
-          <h2>Welcome back</h2>
-          <p>Please enter your details to access your LedgerBuddy account.</p>
-        </header>
-
-        <form
-          className="login-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSubmit();
-          }}
-        >
-          <label className="login-input-group">
-            <span>Email Address</span>
-            <div className="login-input-shell">
-              <span className="material-symbols-outlined login-input-icon">mail</span>
-              <input
-                autoComplete="email"
-                type="email"
-                value={email}
-                onChange={(event) => onEmailChange(event.target.value)}
-                placeholder="name@company.com"
-                required
-              />
-            </div>
-          </label>
-
-          <label className="login-input-group">
-            <div className="login-input-label-row">
-              <span>Password</span>
-              <button type="button" className="login-link-button">
-                Forgot password?
-              </button>
-            </div>
-            <div className="login-input-shell">
-              <span className="material-symbols-outlined login-input-icon">lock</span>
-              <input
-                autoComplete="current-password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(event) => onPasswordChange(event.target.value)}
-                placeholder="••••••••"
-                required
-              />
-              <button
-                type="button"
-                className="login-password-toggle"
-                onClick={() => setShowPassword((currentValue) => !currentValue)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                <span className="material-symbols-outlined">{showPassword ? "visibility_off" : "visibility"}</span>
-              </button>
-            </div>
-          </label>
-
-          <label className="login-remember">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(event) => setRememberMe(event.target.checked)}
-            />
-            <span>Remember me for 30 days</span>
-          </label>
-
-          <button type="submit" className="login-submit-button" disabled={submitting}>
-            {submitting ? "Signing in..." : "Sign In"}
-          </button>
-
-          {error ? <p className="error">{error}</p> : null}
-        </form>
-
-        <footer className="login-security">
-          <div className="login-security-title">
-            <span className="material-symbols-outlined">shield_lock</span>
-            <p>Enterprise-Grade Security</p>
+        <div className="auth-field">
+          <div className="auth-field-row">
+            <label htmlFor="auth-signin-password">Password</label>
+            <button type="button" className="auth-link-button">Forgot?</button>
           </div>
-          <p>Your data is protected by 256-bit AES encryption. LedgerBuddy is SOC2 Type II compliant and GDPR ready.</p>
-        </footer>
+          <div className="auth-input-with-icon">
+            <span className="material-symbols-outlined auth-lead-icon">lock</span>
+            <input
+              id="auth-signin-password"
+              className="auth-input auth-input-mono"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => onPasswordChange(event.target.value)}
+              placeholder="Enter password"
+              aria-invalid={error ? true : undefined}
+              required
+            />
+            <button
+              type="button"
+              className="auth-trail-btn"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              <span className="material-symbols-outlined">
+                {showPassword ? "visibility_off" : "visibility"}
+              </span>
+            </button>
+          </div>
+        </div>
 
-        <nav className="login-foot-links" aria-label="Support links">
-          <button type="button">Privacy Policy</button>
-          <button type="button">Terms of Service</button>
-          <button type="button">Contact Support</button>
-        </nav>
+        <div className="auth-checkrow">
+          <input
+            id="auth-signin-remember"
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
+          />
+          <label htmlFor="auth-signin-remember">Keep me signed in for 30 days on this device</label>
+        </div>
+
+        <button type="submit" className="auth-btn auth-btn-primary" disabled={submitting}>
+          {submitting ? "Signing in..." : "Sign in"}
+          <span className="material-symbols-outlined">arrow_forward</span>
+        </button>
+
+        <div className="auth-error-region" role="alert" aria-live="polite">
+          {error ? (
+            <p id={errorId} className="auth-error-text">
+              <span className="material-symbols-outlined">error</span>
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </form>
+
+      <div className="auth-foot-link">
+        New to LedgerBuddy? <a href="#" onClick={(event) => event.preventDefault()}>Talk to sales</a> · CAs only
       </div>
-    </section>
+    </>
   );
 }
