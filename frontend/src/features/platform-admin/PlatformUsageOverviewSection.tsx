@@ -118,16 +118,19 @@ export function PlatformUsageOverviewSection({
                     </span>
                   </td>
                   <td>
-                    <span className="pa-row-actions" onClick={(e) => e.stopPropagation()}>
+                    <div className="pa-row-actions">
                       <button
                         type="button"
                         className="pa-btn pa-btn-ghost pa-btn-sm"
                         title={entry.enabled ? "Disable" : "Enable"}
-                        onClick={() => onToggleEnabled(entry.tenantId, !entry.enabled)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleEnabled(entry.tenantId, !entry.enabled);
+                        }}
                       >
                         <span className="material-symbols-outlined">{entry.enabled ? "pause" : "play_arrow"}</span>
                       </button>
-                    </span>
+                    </div>
                   </td>
                 </tr>
               );

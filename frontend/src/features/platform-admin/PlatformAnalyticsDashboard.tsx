@@ -16,22 +16,13 @@ interface PlatformAnalyticsDashboardProps {
   usage: PlatformTenantUsageSummary[];
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  Approved: "var(--status-approved)",
-  Exported: "var(--status-exported)",
-  Parsed: "var(--status-parsed)",
-  "Needs Review": "var(--status-needs-review)",
-  Failed: "var(--status-failed-ocr)",
-  Pending: "var(--status-pending)"
-};
-
-const STATUS_DATA_KEY: Record<string, string> = {
-  Approved: "APPROVED",
-  Exported: "EXPORTED",
-  Parsed: "PARSED",
-  "Needs Review": "NEEDS_REVIEW",
-  Failed: "FAILED_OCR",
-  Pending: "PENDING"
+const STATUS_META: Record<string, { color: string; dataKey: string }> = {
+  Approved: { color: "var(--status-approved)", dataKey: "APPROVED" },
+  Exported: { color: "var(--status-exported)", dataKey: "EXPORTED" },
+  Parsed: { color: "var(--status-parsed)", dataKey: "PARSED" },
+  "Needs Review": { color: "var(--status-needs-review)", dataKey: "NEEDS_REVIEW" },
+  Failed: { color: "var(--status-failed-ocr)", dataKey: "FAILED_OCR" },
+  Pending: { color: "var(--status-pending)", dataKey: "PENDING" }
 };
 
 function fmtNum(n: number): string {
@@ -127,7 +118,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
                   <PieChart>
                     <Pie data={statusBreakdown} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={800}>
                       {statusBreakdown.map((entry) => (
-                        <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#94a3b8"} />
+                        <Cell key={entry.status} fill={STATUS_META[entry.status]?.color ?? "#94a3b8"} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -141,7 +132,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
               <div className="donut-legend">
                 {statusBreakdown.map((entry) => (
                   <div key={entry.status} className="donut-legend-item">
-                    <span className="donut-legend-dot" data-status={STATUS_DATA_KEY[entry.status]} />
+                    <span className="donut-legend-dot" data-status={STATUS_META[entry.status]?.dataKey} />
                     <span>{entry.status}</span>
                     <span className="donut-legend-count">{entry.count}</span>
                   </div>

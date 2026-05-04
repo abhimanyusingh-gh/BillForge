@@ -1,17 +1,17 @@
 import { PlatformSection } from "@/features/platform-admin/PlatformSection";
 
-const TENANT_MODE = {
+export const TENANT_MODE = {
   TEST: "test",
   LIVE: "live"
 } as const;
 
-type TenantMode = (typeof TENANT_MODE)[keyof typeof TENANT_MODE];
+export type TenantMode = (typeof TENANT_MODE)[keyof typeof TENANT_MODE];
 
 interface PlatformOnboardForm {
   tenantName: string;
   adminEmail: string;
   adminDisplayName: string;
-  mode: string;
+  mode: TenantMode;
 }
 
 interface PlatformOnboardSectionProps {
@@ -32,6 +32,10 @@ export function PlatformOnboardSection({
   helpText
 }: PlatformOnboardSectionProps) {
   const mode: TenantMode = form.mode === TENANT_MODE.LIVE ? TENANT_MODE.LIVE : TENANT_MODE.TEST;
+  const handleModeChange = (value: string) => {
+    const next: TenantMode = value === TENANT_MODE.LIVE ? TENANT_MODE.LIVE : TENANT_MODE.TEST;
+    onChange({ ...form, mode: next });
+  };
   const ready = form.tenantName.length > 2 && /\S+@\S+\.\S+/.test(form.adminEmail);
   return (
     <PlatformSection
@@ -72,7 +76,7 @@ export function PlatformOnboardSection({
             <span>Tenant mode</span>
             <select
               value={mode}
-              onChange={(event) => onChange({ ...form, mode: event.target.value })}
+              onChange={(event) => handleModeChange(event.target.value)}
             >
               <option value={TENANT_MODE.TEST}>Test</option>
               <option value={TENANT_MODE.LIVE}>Live</option>

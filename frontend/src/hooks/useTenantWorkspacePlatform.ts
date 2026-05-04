@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchPlatformTenantUsage, onboardTenantAdmin, setTenantEnabled } from "@/api";
 import type { WorkspaceGuard, WorkspaceSessionContext } from "@/hooks/useTenantWorkspaceSession";
 import type { PlatformTenantUsageSummary } from "@/api";
+import { TENANT_MODE, type TenantMode } from "@/features/platform-admin/PlatformOnboardSection";
 
 interface UseTenantWorkspacePlatformOptions {
   session: WorkspaceSessionContext | null;
@@ -14,7 +15,7 @@ export function useTenantWorkspacePlatform({ session, guarded }: UseTenantWorksp
   const [platformOnboardCollapsed, setPlatformOnboardCollapsed] = useState(false);
   const [platformUsageCollapsed, setPlatformUsageCollapsed] = useState(false);
   const [platformActivityCollapsed, setPlatformActivityCollapsed] = useState(false);
-  const [platformOnboardForm, setPlatformOnboardForm] = useState({ tenantName: "", adminEmail: "", adminDisplayName: "", mode: "test" as string });
+  const [platformOnboardForm, setPlatformOnboardForm] = useState<{ tenantName: string; adminEmail: string; adminDisplayName: string; mode: TenantMode }>({ tenantName: "", adminEmail: "", adminDisplayName: "", mode: TENANT_MODE.TEST });
   const [platformOnboardResult, setPlatformOnboardResult] = useState<{ tempPassword: string; adminEmail: string } | null>(null);
 
   const loadPlatformUsage = useCallback(async () => {
@@ -75,7 +76,7 @@ export function useTenantWorkspacePlatform({ session, guarded }: UseTenantWorksp
         ...(adminDisplayName ? { adminDisplayName } : {}),
         mode: platformOnboardForm.mode
       });
-      setPlatformOnboardForm({ tenantName: "", adminEmail: "", adminDisplayName: "", mode: "test" });
+      setPlatformOnboardForm({ tenantName: "", adminEmail: "", adminDisplayName: "", mode: TENANT_MODE.TEST });
       if (result.tempPassword) setPlatformOnboardResult({ tempPassword: result.tempPassword, adminEmail: result.adminEmail });
       await loadPlatformUsage();
       setPlatformUsageCollapsed(false);
