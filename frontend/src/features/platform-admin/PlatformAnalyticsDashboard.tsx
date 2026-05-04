@@ -16,22 +16,13 @@ interface PlatformAnalyticsDashboardProps {
   usage: PlatformTenantUsageSummary[];
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  Approved: "var(--status-approved)",
-  Exported: "var(--status-exported)",
-  Parsed: "var(--status-parsed)",
-  "Needs Review": "var(--status-needs-review)",
-  Failed: "var(--status-failed-ocr)",
-  Pending: "var(--status-pending)"
-};
-
-const STATUS_DATA_KEY: Record<string, string> = {
-  Approved: "APPROVED",
-  Exported: "EXPORTED",
-  Parsed: "PARSED",
-  "Needs Review": "NEEDS_REVIEW",
-  Failed: "FAILED_OCR",
-  Pending: "PENDING"
+const STATUS_META: Record<string, { color: string; dataKey: string }> = {
+  Approved: { color: "var(--status-approved)", dataKey: "APPROVED" },
+  Exported: { color: "var(--status-exported)", dataKey: "EXPORTED" },
+  Parsed: { color: "var(--status-parsed)", dataKey: "PARSED" },
+  "Needs Review": { color: "var(--status-needs-review)", dataKey: "NEEDS_REVIEW" },
+  Failed: { color: "var(--status-failed-ocr)", dataKey: "FAILED_OCR" },
+  Pending: { color: "var(--status-pending)", dataKey: "PENDING" }
 };
 
 function fmtNum(n: number): string {
@@ -75,27 +66,27 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
 
   return (
     <div className="platform-analytics">
-      <div className="platform-stats-grid">
-        <div className="platform-stat-tile" data-tone="accent">
-          <span className="platform-stat-label">Total Documents</span>
-          <span className="platform-stat-value">{totals.documents.toLocaleString()}</span>
+      <div className="pa-kpi-grid">
+        <div className="pa-kpi accent">
+          <div className="pa-kpi-label">Total Documents</div>
+          <div className="pa-kpi-value">{totals.documents.toLocaleString()}</div>
         </div>
-        <div className="platform-stat-tile">
-          <span className="platform-stat-label">Approved</span>
-          <span className="platform-stat-value">{totals.approved.toLocaleString()}</span>
+        <div className="pa-kpi">
+          <div className="pa-kpi-label">Approved</div>
+          <div className="pa-kpi-value">{totals.approved.toLocaleString()}</div>
         </div>
-        <div className="platform-stat-tile">
-          <span className="platform-stat-label">Exported</span>
-          <span className="platform-stat-value">{totals.exported.toLocaleString()}</span>
+        <div className="pa-kpi">
+          <div className="pa-kpi-label">Exported</div>
+          <div className="pa-kpi-value">{totals.exported.toLocaleString()}</div>
         </div>
-        <div className="platform-stat-tile">
-          <span className="platform-stat-label">Users</span>
-          <span className="platform-stat-value">{totals.users}</span>
+        <div className="pa-kpi">
+          <div className="pa-kpi-label">Users</div>
+          <div className="pa-kpi-value">{totals.users}</div>
         </div>
         {totals.failed > 0 ? (
-          <div className="platform-stat-tile" data-tone="warn">
-            <span className="platform-stat-label">Failed</span>
-            <span className="platform-stat-value platform-stat-value-alert">{totals.failed}</span>
+          <div className="pa-kpi alert">
+            <div className="pa-kpi-label">Failed</div>
+            <div className="pa-kpi-value">{totals.failed}</div>
           </div>
         ) : null}
       </div>
@@ -127,7 +118,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
                   <PieChart>
                     <Pie data={statusBreakdown} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} animationDuration={800}>
                       {statusBreakdown.map((entry) => (
-                        <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#94a3b8"} />
+                        <Cell key={entry.status} fill={STATUS_META[entry.status]?.color ?? "#94a3b8"} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -141,7 +132,7 @@ export function PlatformAnalyticsDashboard({ usage }: PlatformAnalyticsDashboard
               <div className="donut-legend">
                 {statusBreakdown.map((entry) => (
                   <div key={entry.status} className="donut-legend-item">
-                    <span className="donut-legend-dot" data-status={STATUS_DATA_KEY[entry.status]} />
+                    <span className="donut-legend-dot" data-status={STATUS_META[entry.status]?.dataKey} />
                     <span>{entry.status}</span>
                     <span className="donut-legend-count">{entry.count}</span>
                   </div>

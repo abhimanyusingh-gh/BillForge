@@ -28,13 +28,13 @@ export function PlatformActivityMonitor({
 }: PlatformActivityMonitorProps) {
   return (
     <PlatformSection
-      title="Activity Monitor"
+      title="Activity"
       icon="schedule"
       collapsed={collapsed}
       onToggle={onToggle}
       subtitle={selectedTenant ? selectedTenant.tenantName : "select a tenant"}
       actions={
-        <button type="button" className="app-button app-button-secondary" onClick={onRefresh}>
+        <button type="button" className="pa-btn pa-btn-ghost pa-btn-sm" onClick={onRefresh}>
           <span className="material-symbols-outlined">refresh</span>
           Refresh
         </button>
@@ -42,13 +42,14 @@ export function PlatformActivityMonitor({
     >
       {selectedTenant ? (
         <div className="pa-card-body">
-          <p className="muted" data-testid="platform-activity-tenant">
-            Selected tenant: <strong>{selectedTenant.tenantName}</strong>
-          </p>
-          <div className="platform-stats-grid">
-            <article className="platform-stat-tile">
-              <span className="platform-stat-label">Onboarding</span>
-              <span className="platform-stat-value">
+          <div className="pa-detail-grid">
+            <div className="pa-detail-cell">
+              <div className="label">Tenant</div>
+              <div className="value" data-testid="platform-activity-tenant">{selectedTenant.tenantName}</div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Onboarding</div>
+              <div className="value">
                 <Badge
                   tone={ONBOARDING_TONE[selectedTenant.onboardingStatus].tone}
                   icon={ONBOARDING_TONE[selectedTenant.onboardingStatus].icon}
@@ -56,36 +57,33 @@ export function PlatformActivityMonitor({
                 >
                   {selectedTenant.onboardingStatus}
                 </Badge>
-              </span>
-            </article>
-            <article className="platform-stat-tile">
-              <span className="platform-stat-label">Users</span>
-              <span className="platform-stat-value">{selectedTenant.userCount}</span>
-            </article>
-            <article className="platform-stat-tile">
-              <span className="platform-stat-label">Documents</span>
-              <span className="platform-stat-value">{selectedTenant.totalDocuments}</span>
-            </article>
-            <article className="platform-stat-tile">
-              <span className="platform-stat-label">Approved</span>
-              <span className="platform-stat-value">{selectedTenant.approvedDocuments}</span>
-            </article>
-            <article className="platform-stat-tile">
-              <span className="platform-stat-label">Exported</span>
-              <span className="platform-stat-value">{selectedTenant.exportedDocuments}</span>
-            </article>
-            <article className="platform-stat-tile" data-tone={selectedTenant.failedDocuments > 0 ? "warn" : undefined}>
-              <span className="platform-stat-label">Failed</span>
-              <span className={`platform-stat-value ${selectedTenant.failedDocuments > 0 ? "platform-stat-value-alert" : ""}`}>
+              </div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Users</div>
+              <div className="value">{selectedTenant.userCount}</div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Documents</div>
+              <div className="value">{selectedTenant.totalDocuments.toLocaleString()}</div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Approved</div>
+              <div className="value">{selectedTenant.approvedDocuments.toLocaleString()}</div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Exported</div>
+              <div className="value">{selectedTenant.exportedDocuments.toLocaleString()}</div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Failed</div>
+              <div className="value pa-detail-cell-failed" data-tone={selectedTenant.failedDocuments > 0 ? "warn" : undefined}>
                 {selectedTenant.failedDocuments}
-              </span>
-            </article>
-          </div>
-          <div className="pa-section-h">Connection</div>
-          <div className="detail-grid">
-            <p>
-              <span>Gmail Connection</span>
-              <strong>
+              </div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Gmail connection</div>
+              <div className="value">
                 <Badge
                   tone={GMAIL_TONE[selectedTenant.gmailConnectionState].tone}
                   icon={GMAIL_TONE[selectedTenant.gmailConnectionState].icon}
@@ -93,21 +91,21 @@ export function PlatformActivityMonitor({
                 >
                   {GMAIL_TONE[selectedTenant.gmailConnectionState].label}
                 </Badge>
-              </strong>
-            </p>
-            <p>
-              <span>Last Ingested</span>
-              <strong>{selectedTenant.lastIngestedAt ? new Date(selectedTenant.lastIngestedAt).toLocaleString() : "-"}</strong>
-            </p>
+              </div>
+            </div>
+            <div className="pa-detail-cell">
+              <div className="label">Last ingested</div>
+              <div className="value">
+                {selectedTenant.lastIngestedAt ? new Date(selectedTenant.lastIngestedAt).toLocaleString() : "—"}
+              </div>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="pa-activity-empty">
-          <div className="pa-activity-empty-icon">
-            <span className="material-symbols-outlined">visibility_off</span>
-          </div>
-          <h4 className="pa-activity-empty-title">No Tenant Selected</h4>
-          <p>Select a tenant from the table above to view detailed platform activity for that tenant.</p>
+        <div className="pa-empty">
+          <span className="material-symbols-outlined pa-empty-icon">visibility_off</span>
+          <div className="pa-empty-title">No tenant selected</div>
+          <div>Select a tenant from the table above to view detailed platform activity.</div>
         </div>
       )}
     </PlatformSection>

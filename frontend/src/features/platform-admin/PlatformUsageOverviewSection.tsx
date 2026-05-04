@@ -38,35 +38,34 @@ export function PlatformUsageOverviewSection({
 }: PlatformUsageOverviewSectionProps) {
   return (
     <PlatformSection
-      title="Platform Tenant Usage Overview"
+      title="Tenants"
       icon="groups"
       collapsed={collapsed}
       onToggle={onToggle}
-      subtitle={`${usage.length} tenants`}
+      subtitle={`${usage.length} tenants · usage-only view`}
       actions={
-        <button type="button" className="app-button app-button-secondary" onClick={onRefresh}>
+        <button type="button" className="pa-btn pa-btn-ghost pa-btn-sm" onClick={onRefresh}>
           <span className="material-symbols-outlined">refresh</span>
-          Refresh Usage
+          Refresh
         </button>
       }
     >
-      <div className="pa-card-body flush scroll-x">
+      <div className="pa-card-body flush pa-card-body-scroll-x">
         <table data-testid="platform-usage-table" className="pa-tenants-table">
           <thead>
             <tr>
               <th>Tenant</th>
-              <th>Admin Email</th>
               <th>Onboarding</th>
               <th className="align-right">Users</th>
-              <th className="align-right">Documents</th>
+              <th className="align-right">Docs</th>
               <th className="align-right">Approved</th>
               <th className="align-right">Exported</th>
-              <th className="align-right">Needs Review</th>
+              <th className="align-right">Needs review</th>
               <th className="align-right">Failed</th>
-              <th className="align-right">OCR Tokens</th>
-              <th className="align-right">SLM Tokens</th>
+              <th className="align-right">OCR tokens</th>
+              <th className="align-right">SLM tokens</th>
               <th>Gmail</th>
-              <th className="align-right">Last Ingested</th>
+              <th>Last ingested</th>
               <th>State</th>
               <th />
             </tr>
@@ -84,13 +83,12 @@ export function PlatformUsageOverviewSection({
                   <td>
                     <div className="pa-tenant-cell">
                       <div className="pa-tenant-avatar" aria-hidden="true">{tenantInitials(entry.tenantName)}</div>
-                      <div>
+                      <div className="pa-tenant-cell-text">
                         <div className="pa-tenant-name">{entry.tenantName}</div>
                         <div className="pa-tenant-meta">{entry.adminEmail ?? "no admin"}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="mono-cell">{entry.adminEmail ?? "-"}</td>
                   <td>
                     <Badge tone={entry.onboardingStatus === "completed" ? "success" : "warning"} size="sm">
                       {entry.onboardingStatus}
@@ -108,28 +106,31 @@ export function PlatformUsageOverviewSection({
                   <td className="num-cell">{entry.slmTokensTotal.toLocaleString()}</td>
                   <td>
                     <span className={`pa-bridge-cell pa-bridge-${bridge}`}>
-                      <span className="pa-bridge-cell-dot" aria-hidden="true" />
+                      <span className="pa-bridge-dot" />
                       {bridge}
                     </span>
                   </td>
-                  <td className="mono-cell align-right">{entry.lastIngestedAt ? new Date(entry.lastIngestedAt).toLocaleString() : "-"}</td>
+                  <td className="mono-cell">{entry.lastIngestedAt ? new Date(entry.lastIngestedAt).toLocaleString() : "—"}</td>
                   <td>
                     <span className={`pa-state-pill pa-state-${entry.enabled ? "active" : "disabled"}`}>
-                      <span className="pa-state-dot" aria-hidden="true" />
+                      <span className="dot" />
                       {entry.enabled ? "active" : "disabled"}
                     </span>
                   </td>
                   <td>
-                    <span className="pa-row-actions" onClick={(e) => e.stopPropagation()}>
+                    <div className="pa-row-actions">
                       <button
                         type="button"
-                        className={`pa-action-icon-btn ${entry.enabled ? "is-disable" : "is-enable"}`}
+                        className="pa-btn pa-btn-ghost pa-btn-sm"
                         title={entry.enabled ? "Disable" : "Enable"}
-                        onClick={() => onToggleEnabled(entry.tenantId, !entry.enabled)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleEnabled(entry.tenantId, !entry.enabled);
+                        }}
                       >
                         <span className="material-symbols-outlined">{entry.enabled ? "pause" : "play_arrow"}</span>
                       </button>
-                    </span>
+                    </div>
                   </td>
                 </tr>
               );
@@ -138,7 +139,6 @@ export function PlatformUsageOverviewSection({
         </table>
         {usage.length === 0 ? <div className="pa-empty">No tenants yet.</div> : null}
       </div>
-      <p className="muted pa-card-body">This view is usage-only. Invoice content is not exposed at platform scope.</p>
     </PlatformSection>
   );
 }

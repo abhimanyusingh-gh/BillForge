@@ -3310,3 +3310,23 @@ body {
 
 /* Vendors merge placeholder card sizing */
 .vendors-merge-placeholder-card { width: 480px; max-width: 90vw; }
+
+/* ===== Platform Admin (R11) helper rules ===== */
+.pa-card-head-icon { color: var(--accent); font-size: 18px; }
+.pa-account { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; margin-right: 4px; }
+.pa-account-role { font: 600 10px var(--font-sans); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); }
+.pa-account-email { font: 600 12px var(--font-mono); color: var(--ink); }
+.pa-onboard-hint { font: 500 11.5px var(--font-sans); color: var(--ink-soft); display: inline-flex; align-items: center; gap: 4px; }
+.pa-onboard-hint b { font-family: var(--font-mono); color: var(--ink); }
+.pa-onboard-hint .material-symbols-outlined { font-size: 14px; }
+.pa-onboard-spacer { flex: 1; }
+.pa-card-body-scroll-x { overflow-x: auto; }
+.pa-bridge-cell { font: 600 11px var(--font-mono); text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }
+.pa-bridge-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; display: inline-block; }
+.pa-row-actions { display: inline-flex; gap: 4px; }
+.pa-empty-icon { font-size: 28px; color: var(--ink-muted); display: block; margin: 0 auto 6px; }
+.pa-empty-title { font: 700 13px var(--font-sans); color: var(--ink); margin-bottom: 4px; }
+.pa-detail-cell-failed[data-tone="warn"] { color: var(--warn); }
+.pa-tenant-cell-text { min-width: 0; }
+.pa-failure-warn { color: var(--warn); }
+.pa-failure-muted { color: var(--ink-muted); }

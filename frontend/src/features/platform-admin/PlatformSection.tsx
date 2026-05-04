@@ -39,7 +39,7 @@ export function PlatformSection({
           {!collapsed ? actions : null}
           <button
             type="button"
-            className="app-button app-button-secondary"
+            className="pa-btn pa-btn-ghost pa-btn-sm"
             aria-label={`Toggle ${title} section`}
             onClick={onToggle}
           >
