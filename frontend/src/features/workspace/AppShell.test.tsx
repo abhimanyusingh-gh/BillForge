@@ -7,14 +7,15 @@ import { AppShell } from "@/features/workspace/AppShell";
 
 function renderShell(overrides: Partial<React.ComponentProps<typeof AppShell>> = {}) {
   const props: React.ComponentProps<typeof AppShell> = {
+    tenantName: "Khan & Associates, CA",
     activeTab: "overview",
     activeStandaloneRoute: null,
     onTabChange: jest.fn(),
     onStandaloneRouteChange: jest.fn(),
+    onOpenActionRequired: jest.fn(),
     canViewTenantConfig: true,
     canViewConnections: true,
     invoiceActionRequiredCount: 0,
-    triageCount: 0,
     topNav: <header data-testid="topnav">TopNav</header>,
     subNav: null,
     migration: null,
@@ -45,8 +46,14 @@ describe("AppShell", () => {
 
   it("invokes onTabChange when a sidebar item is clicked", () => {
     const { props } = renderShell();
-    fireEvent.click(screen.getByRole("button", { name: /Exports/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Tally Export/ }));
     expect(props.onTabChange).toHaveBeenCalledWith("exports");
+  });
+
+  it("invokes onOpenActionRequired when the Action Required item is clicked", () => {
+    const { props } = renderShell();
+    fireEvent.click(screen.getByRole("button", { name: /Action Required/ }));
+    expect(props.onOpenActionRequired).toHaveBeenCalledTimes(1);
   });
 
   it("renders the URL migration banner when migration prop is provided", () => {

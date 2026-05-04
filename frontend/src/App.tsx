@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useState, type ReactNode } from "react";
 import { useTheme } from "@/hooks/useTheme";
 import { useTenantWorkspace } from "@/hooks/useTenantWorkspace";
 import { OverviewDashboard } from "@/features/overview/OverviewDashboard";
@@ -22,8 +22,12 @@ import { BankConnectionsTab } from "@/features/tenant-admin/BankConnectionsTab";
 import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";
 import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
 import { TriagePage } from "@/features/triage/TriagePage";
+import { ActionRequiredPanel } from "@/features/invoices/ActionRequiredPanel";
 const MailboxesPage = lazy(() =>
   import("@/features/admin/mailboxes/MailboxesPage").then((m) => ({ default: m.MailboxesPage }))
+);
+const ClientOrgsPage = lazy(() =>
+  import("@/features/admin/onboarding/ClientOrgsPage").then((m) => ({ default: m.ClientOrgsPage }))
 );
 const TdsDashboardPage = lazy(() =>
   import("@/features/reports/TdsDashboardPage").then((m) => ({ default: m.TdsDashboardPage }))
@@ -36,7 +40,6 @@ const VendorDetailPage = lazy(() =>
 );
 import { readStandaloneHashRoute, STANDALONE_HASH_PATH, type StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 import { parseVendorDetailHash } from "@/features/vendors/vendorDetailHashState";
-import { useTriageQueue } from "@/hooks/useTriageQueue";
 import { useActionRequiredQueue } from "@/hooks/useActionRequiredQueue";
 import { useToast } from "@/hooks/useToast";
 import { ToastContainer } from "@/components/common/ToastContainer";
@@ -70,7 +73,6 @@ export function App() {
     setOnboardingForm,
     platformOnboardForm,
     setPlatformOnboardForm,
-    navCounts,
     setNavCounts,
     gmailConnection,
     mailboxes,
@@ -258,14 +260,9 @@ export function App() {
   const topNav = (
     <WorkspaceTopNav
       userEmail={session.user.email}
-      tenantName={session.tenant.name}
       onLogout={handleLogout}
       onChangePassword={() => setShowChangePassword(true)}
-      counts={navCounts}
       themeToggle={themeToggle}
-      onSelectActionInvoice={(invoiceId) => {
-        window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
-      }}
     />
   );
 
@@ -282,6 +279,7 @@ export function App() {
   return (
     <div className="layout">
       <TenantAppShell
+        tenantName={session.tenant.name}
         activeTab={activeTab}
         activeStandaloneRoute={standaloneRoute}
         onTabChange={setActiveTab}
@@ -289,6 +287,9 @@ export function App() {
         canViewConnections={canViewConnections}
         topNav={topNav}
         subNav={subNav}
+        onSelectActionInvoice={(invoiceId) => {
+          window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
+        }}
       >
         {requiresTenantSetup && canManageUsers && (
           <div className="editor-card">
@@ -334,6 +335,28 @@ export function App() {
         )}
 
         {standaloneRoute === "vendorDetail" && <VendorDetailRoute />}
+
+        {standaloneRoute === "clientOrgs" && (
+          <Suspense fallback={<div role="status" aria-busy="true">Loading client organizations…</div>}>
+            <ClientOrgsPage />
+          </Suspense>
+        )}
+
+        {standaloneRoute === "payments" && (
+          <EmptyState icon="payments" heading="Payments" description="Payments aren't enabled for this client org yet." />
+        )}
+
+        {standaloneRoute === "bankStatements" && (
+          <EmptyState icon="description" heading="Bank Statements" description="No bank statements connected. Add a connection in Setup → Connections." />
+        )}
+
+        {standaloneRoute === "tallySync" && (
+          <EmptyState icon="cable" heading="Tally Sync" description="Tally sync not configured. Connect a Tally instance in Setup." />
+        )}
+
+        {standaloneRoute === "inboxRouting" && (
+          <EmptyState icon="alt_route" heading="Inbox Routing" description="Inbox routing rules not configured." />
+        )}
 
         {!standaloneRoute && activeTab === "overview" && <OverviewDashboard />}
 
@@ -406,6 +429,7 @@ export function App() {
 }
 
 interface TenantAppShellProps {
+  tenantName: string;
   activeTab: TenantViewTab;
   activeStandaloneRoute: StandaloneHashRoute | null;
   onTabChange: (tab: TenantViewTab) => void;
@@ -413,6 +437,7 @@ interface TenantAppShellProps {
   canViewConnections: boolean;
   topNav: ReactNode;
   subNav: ReactNode;
+  onSelectActionInvoice: (invoiceId: string) => void;
   children: ReactNode;
 }
 
@@ -433,28 +458,38 @@ function VendorDetailRoute() {
   );
 }
 
-function TenantAppShell({ activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, topNav, subNav, children }: TenantAppShellProps) {
+function TenantAppShell({ tenantName, activeTab, activeStandaloneRoute, onTabChange, canViewTenantConfig, canViewConnections, topNav, subNav, onSelectActionInvoice, children }: TenantAppShellProps) {
   const { migration } = useTabHashRouting({ activeTab, onTabChange });
-  const { total: triageCount } = useTriageQueue();
   const { totalCount: actionRequiredCount } = useActionRequiredQueue();
+  const [actionPanelOpen, setActionPanelOpen] = useState(false);
+  const actionPanelId = useId();
   const navigateToStandaloneRoute = useCallback((route: StandaloneHashRoute) => {
     window.location.hash = STANDALONE_HASH_PATH[route];
   }, []);
   return (
-    <AppShell
-      activeTab={activeTab}
-      activeStandaloneRoute={activeStandaloneRoute}
-      onTabChange={onTabChange}
-      onStandaloneRouteChange={navigateToStandaloneRoute}
-      canViewTenantConfig={canViewTenantConfig}
-      canViewConnections={canViewConnections}
-      invoiceActionRequiredCount={actionRequiredCount}
-      triageCount={triageCount}
-      topNav={topNav}
-      subNav={subNav}
-      migration={migration}
-    >
-      {children}
-    </AppShell>
+    <>
+      <AppShell
+        tenantName={tenantName}
+        activeTab={activeTab}
+        activeStandaloneRoute={activeStandaloneRoute}
+        onTabChange={onTabChange}
+        onStandaloneRouteChange={navigateToStandaloneRoute}
+        onOpenActionRequired={() => setActionPanelOpen(true)}
+        canViewTenantConfig={canViewTenantConfig}
+        canViewConnections={canViewConnections}
+        invoiceActionRequiredCount={actionRequiredCount}
+        topNav={topNav}
+        subNav={subNav}
+        migration={migration}
+      >
+        {children}
+      </AppShell>
+      <ActionRequiredPanel
+        open={actionPanelOpen}
+        panelId={actionPanelId}
+        onClose={() => setActionPanelOpen(false)}
+        onSelectInvoice={onSelectActionInvoice}
+      />
+    </>
   );
 }

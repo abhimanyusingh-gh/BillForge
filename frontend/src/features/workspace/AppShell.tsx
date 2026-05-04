@@ -6,14 +6,15 @@ import type { HashRouteMigration } from "@/features/workspace/useTabHashRouting"
 import type { StandaloneHashRoute } from "@/features/workspace/tabHashConfig";
 
 interface AppShellProps {
+  tenantName: string;
   activeTab: TenantViewTab;
   activeStandaloneRoute: StandaloneHashRoute | null;
   onTabChange: (tab: TenantViewTab) => void;
   onStandaloneRouteChange: (route: StandaloneHashRoute) => void;
+  onOpenActionRequired: () => void;
   canViewTenantConfig: boolean;
   canViewConnections: boolean;
   invoiceActionRequiredCount: number | null;
-  triageCount: number;
   topNav: ReactNode;
   subNav?: ReactNode;
   migration: HashRouteMigration | null;
@@ -21,14 +22,15 @@ interface AppShellProps {
 }
 
 export function AppShell({
+  tenantName,
   activeTab,
   activeStandaloneRoute,
   onTabChange,
   onStandaloneRouteChange,
+  onOpenActionRequired,
   canViewTenantConfig,
   canViewConnections,
   invoiceActionRequiredCount,
-  triageCount,
   topNav,
   subNav,
   migration,
@@ -38,14 +40,15 @@ export function AppShell({
     <div className="app-shell">
       <aside className="app-shell-sidebar" aria-label="Primary navigation">
         <TenantSidebar
+          tenantName={tenantName}
           activeTab={activeTab}
           activeStandaloneRoute={activeStandaloneRoute}
           onTabChange={onTabChange}
           onStandaloneRouteChange={onStandaloneRouteChange}
+          onOpenActionRequired={onOpenActionRequired}
           canViewTenantConfig={canViewTenantConfig}
           canViewConnections={canViewConnections}
           invoiceActionRequiredCount={invoiceActionRequiredCount}
-          triageCount={triageCount}
         />
       </aside>
       <div className="app-shell-column">

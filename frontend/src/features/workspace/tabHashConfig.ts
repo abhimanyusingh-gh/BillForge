@@ -24,7 +24,12 @@ export const STANDALONE_HASH_PATH = {
   mailboxes: "#/mailboxes",
   reportsTds: "#/reports/tds",
   vendors: "#/vendors",
-  vendorDetail: "#/vendors/"
+  vendorDetail: "#/vendors/",
+  payments: "#/payments",
+  bankStatements: "#/bank-statements",
+  tallySync: "#/tally-sync",
+  inboxRouting: "#/inbox-routing",
+  clientOrgs: "#/client-orgs"
 } as const;
 
 export type StandaloneHashRoute = keyof typeof STANDALONE_HASH_PATH;
