@@ -59,15 +59,15 @@ export function Section197CertPanel({ vendorId, cert, vendorDetailQueryKey }: Se
   }
 
   return (
-    <section className="vendor-detail-panel" data-testid="vendor-cert197-panel">
-      <header className="vendor-detail-subheader">
+    <section className="panel" data-testid="vendor-cert197-panel">
+      <header className="page-header">
         <h3>Section 197 lower-deduction certificate</h3>
       </header>
 
       {cert ? (
         <CertCard cert={cert} />
       ) : (
-        <div className="vendor-detail-panel-state" data-testid="vendor-cert197-empty">
+        <div className="panel-state" data-testid="vendor-cert197-empty">
           <EmptyState
             icon="badge"
             heading="No Section 197 certificate on file"
@@ -76,9 +76,9 @@ export function Section197CertPanel({ vendorId, cert, vendorDetailQueryKey }: Se
         </div>
       )}
 
-      <form className="vendor-cert197-form" onSubmit={handleSubmit} data-testid="vendor-cert197-form">
-        <h4 className="vendor-cert197-form-title">Upload new certificate</h4>
-        <label className="vendor-cert197-field">
+      <form onSubmit={handleSubmit} data-testid="vendor-cert197-form">
+        <h4>Upload new certificate</h4>
+        <label className="field">
           <span>Certificate number</span>
           <input
             type="text"
@@ -88,8 +88,8 @@ export function Section197CertPanel({ vendorId, cert, vendorDetailQueryKey }: Se
             required
           />
         </label>
-        <div className="vendor-cert197-field-row">
-          <label className="vendor-cert197-field">
+        <div className="field-row">
+          <label className="field">
             <span>Valid from</span>
             <input
               type="date"
@@ -99,7 +99,7 @@ export function Section197CertPanel({ vendorId, cert, vendorDetailQueryKey }: Se
               required
             />
           </label>
-          <label className="vendor-cert197-field">
+          <label className="field">
             <span>Valid to</span>
             <input
               type="date"
@@ -110,8 +110,8 @@ export function Section197CertPanel({ vendorId, cert, vendorDetailQueryKey }: Se
             />
           </label>
         </div>
-        <div className="vendor-cert197-field-row">
-          <label className="vendor-cert197-field">
+        <div className="field-row">
+          <label className="field">
             <span>Max amount (INR)</span>
             <input
               type="number"
@@ -123,7 +123,7 @@ export function Section197CertPanel({ vendorId, cert, vendorDetailQueryKey }: Se
               required
             />
           </label>
-          <label className="vendor-cert197-field">
+          <label className="field">
             <span>Applicable rate (%)</span>
             <input
               type="number"
@@ -139,12 +139,12 @@ export function Section197CertPanel({ vendorId, cert, vendorDetailQueryKey }: Se
         </div>
 
         {error ? (
-          <p className="error vendor-cert197-error" role="alert" data-testid="vendor-cert197-error">
+          <p className="field-error" role="alert" data-testid="vendor-cert197-error">
             {error}
           </p>
         ) : null}
 
-        <div className="vendor-cert197-actions">
+        <div className="page-tools">
           <button
             type="submit"
             className="app-button app-button-primary"
@@ -165,26 +165,26 @@ interface CertCardProps {
 
 function CertCard({ cert }: CertCardProps) {
   return (
-    <div className="vendor-cert197-card" data-testid="vendor-cert197-card">
-      <div className="vendor-cert197-card-row">
-        <span className="vendor-cert197-card-label">Certificate</span>
-        <span className="vendor-cert197-card-value">{cert.certificateNumber}</span>
+    <div className="kvgrid" data-testid="vendor-cert197-card">
+      <div className="kv">
+        <span className="sub">Certificate</span>
+        <span className="v">{cert.certificateNumber}</span>
       </div>
-      <div className="vendor-cert197-card-row">
-        <span className="vendor-cert197-card-label">Valid</span>
-        <span className="vendor-cert197-card-value" data-testid="vendor-cert197-card-validity">
+      <div className="kv">
+        <span className="sub">Valid</span>
+        <span className="v" data-testid="vendor-cert197-card-validity">
           {formatIstDate(cert.validFrom)} → {formatIstDate(cert.validTo)}
         </span>
       </div>
-      <div className="vendor-cert197-card-row">
-        <span className="vendor-cert197-card-label">Max amount</span>
-        <span className="vendor-cert197-card-value">
+      <div className="kv">
+        <span className="sub">Max amount</span>
+        <span className="v">
           {formatMinorAmountWithCurrency(cert.maxAmountMinor, "INR")}
         </span>
       </div>
-      <div className="vendor-cert197-card-row">
-        <span className="vendor-cert197-card-label">Applicable rate</span>
-        <span className="vendor-cert197-card-value">
+      <div className="kv">
+        <span className="sub">Applicable rate</span>
+        <span className="v">
           {(cert.applicableRateBps / 100).toFixed(2)}%
         </span>
       </div>
