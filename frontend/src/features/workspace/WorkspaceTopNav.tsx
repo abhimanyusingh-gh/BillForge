@@ -13,6 +13,7 @@ interface WorkspaceTopNavProps {
   userEmail: string;
   onLogout: () => void;
   onChangePassword: () => void;
+  onOpenUserSettings?: () => void;
   themeToggle?: ReactNode;
   notificationCount?: number;
   onOpenNotifications?: () => void;
@@ -37,6 +38,7 @@ export function WorkspaceTopNav({
   userEmail,
   onLogout,
   onChangePassword,
+  onOpenUserSettings,
   themeToggle,
   notificationCount = 0,
   onOpenNotifications,
@@ -162,6 +164,17 @@ export function WorkspaceTopNav({
               <div className="topnav-avatar-menu-identity">
                 <div className="topnav-avatar-menu-email">{userEmail}</div>
               </div>
+              {onOpenUserSettings ? (
+                <button
+                  type="button"
+                  className="topnav-avatar-menu-item"
+                  role="menuitem"
+                  onClick={() => { setMenuOpen(false); onOpenUserSettings(); }}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">tune</span>
+                  <span>User settings</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="topnav-avatar-menu-item"

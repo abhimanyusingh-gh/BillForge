@@ -23,6 +23,7 @@ import { BankStatementsTab } from "@/features/tenant-admin/BankStatementsTab";
 import { InvoiceDetailPage } from "@/components/invoice/InvoiceDetailPage";
 import { TriagePage } from "@/features/triage/TriagePage";
 import { ActionRequiredPage } from "@/features/invoices/ActionRequiredPage";
+import { UserSettingsPage } from "@/features/user-settings/UserSettingsPage";
 const MailboxesPage = lazy(() =>
   import("@/features/admin/mailboxes/MailboxesPage").then((m) => ({ default: m.MailboxesPage }))
 );
@@ -262,6 +263,9 @@ export function App() {
       userEmail={session.user.email}
       onLogout={handleLogout}
       onChangePassword={() => setShowChangePassword(true)}
+      onOpenUserSettings={() => {
+        window.location.hash = STANDALONE_HASH_PATH.userSettings;
+      }}
       themeToggle={themeToggle}
     />
   );
@@ -359,6 +363,17 @@ export function App() {
           <ActionRequiredPage
             onSelectInvoice={(invoiceId) => {
               window.location.search = `?invoiceDetail=${encodeURIComponent(invoiceId)}`;
+            }}
+          />
+        )}
+
+        {standaloneRoute === "userSettings" && (
+          <UserSettingsPage
+            userEmail={session.user.email}
+            userRoleLabel={session.user.role}
+            onChangePassword={() => setShowChangePassword(true)}
+            onClose={() => {
+              window.location.hash = "";
             }}
           />
         )}
