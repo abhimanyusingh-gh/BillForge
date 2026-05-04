@@ -298,3 +298,55 @@
   text-align: center; padding: 36px 16px; color: var(--ink-soft);
   font: 500 12.5px var(--font-sans);
 }
+
+/* ---------- Server-driven sort headers ---------- */
+.pa-th { user-select: none; }
+.pa-th.sortable { cursor: pointer; transition: background-color .12s, color .12s; }
+.pa-th.sortable:hover { background: color-mix(in oklab, var(--accent) 8%, var(--bg-sunken)); color: var(--ink); }
+.pa-th.active { color: var(--accent); }
+.pa-th.active .pa-th-icon { color: var(--accent); }
+.pa-th.loading { color: var(--accent); }
+.pa-th-inner {
+  display: inline-flex; align-items: center; gap: 4px; width: 100%;
+}
+.pa-th-label { font: inherit; }
+.pa-th-icon {
+  font-size: 14px; opacity: .55;
+  transition: opacity .12s, transform .12s;
+}
+.pa-th.sortable:hover .pa-th-icon,
+.pa-th.active .pa-th-icon { opacity: 1; }
+
+@keyframes pa-spin { to { transform: rotate(360deg); } }
+.pa-th-icon.spin,
+.material-symbols-outlined.spin { animation: pa-spin .9s linear infinite; transform-origin: 50% 50%; }
+
+/* Loading state on the body — fade rows, surface a subtle progress bar */
+.pa-card-body.pa-loading { position: relative; }
+.pa-card-body.pa-loading > table tbody { opacity: .55; transition: opacity .15s; pointer-events: none; }
+.pa-card-body.pa-loading::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  background-size: 240px 100%; background-repeat: no-repeat;
+  animation: pa-progress 1.1s linear infinite;
+  z-index: 3;
+}
+@keyframes pa-progress {
+  0%   { background-position: -240px 0; }
+  100% { background-position: calc(100% + 240px) 0; }
+}
+.pa-fetch-overlay {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--bg); border: 1px solid var(--line);
+  font: 600 11.5px var(--font-sans); color: var(--ink-soft);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .08);
+  z-index: 4; pointer-events: none;
+}
+.pa-fetch-overlay b { color: var(--ink); font-family: var(--font-mono); font-weight: 600; padding: 0 2px; }
+.pa-fetch-overlay .material-symbols-outlined { font-size: 16px; color: var(--accent); }
+
+/* Failed table tweaks */
+.pa-failed-table tbody td { height: 44px; }
+.pa-failed-table tbody td .mono-cell + .mono-cell { display: block; margin-top: 2px; }

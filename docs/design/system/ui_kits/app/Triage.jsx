@@ -15,6 +15,19 @@ function Triage() {
   const [drag, setDrag] = React.useState(false);
   const fileRef = React.useRef(null);
 
+  const ttq = window.useTableQuery({
+    id: "triage",
+    all: rows,
+    defaultSort: { col: "date", dir: "desc" },
+    searchKeys: ["vendor", "number", "reason"],
+    dateKey: "date",
+    comparators: {
+      reason: (a, b) => a.reason.localeCompare(b.reason),
+      date: (a, b) => window.parseFlexibleDate(a.date) - window.parseFlexibleDate(b.date),
+    },
+  });
+  const ttqRows = ttq.rows;
+
   const reasonStyle = {
     MULTI_MATCH_GSTIN: { bg: "var(--amber-soft-bg)", color: "#b8770b" },
     MULTI_MATCH_PAN:   { bg: "var(--amber-soft-bg)", color: "#b8770b" },
@@ -81,7 +94,7 @@ function Triage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Triage</h1>
+        <h1>Inbox Routing</h1>
         <span className="count">{rows.length} unrouted · across 8 client orgs</span>
         <div className="page-tools">
           <button onClick={() => fileRef.current?.click()} style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--ink)", font: "600 12px var(--font-sans)", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -142,8 +155,7 @@ function Triage() {
       </div>
 
       {/* Bulk action bar */}
-      {sel.size > 0 ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", marginBottom: 10, background: "var(--accent-soft-bg)", border: "1px solid var(--accent)", borderRadius: 10 }}>
+      {sel.size > 0 ? (        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", marginBottom: 10, background: "var(--accent-soft-bg)", border: "1px solid var(--accent)", borderRadius: 10 }}>
           <span style={{ font: "700 12px var(--font-sans)", color: "var(--accent)" }}>{sel.size} selected</span>
           <span style={{ width: 1, height: 18, background: "var(--line)" }} />
           <span style={{ font: "500 12px var(--font-sans)", color: "var(--ink-soft)" }}>Route all to:</span>
@@ -167,21 +179,34 @@ function Triage() {
         </div>
       ) : null}
 
-      <div className="table-wrap">
-        <table className="lbtable">
+      <window.TableToolbar
+        queryInput={ttq.queryInput} setQueryInput={ttq.setQueryInput}
+        isLoading={ttq.isLoading} query={ttq.query} sort={ttq.sort}
+        dateKey="date" dateRangeId={ttq.dateRangeId} customRange={ttq.customRange}
+        setDateRangeId={ttq.setDateRangeId}
+        placeholder="Search vendor, invoice, reason…"
+        totalCount={ttq.totalCount} resultCount={ttqRows.length}
+        onClear={ttq.clearAll}
+      />
+
+      <div className="table-wrap" style={{ position: "relative" }}>
+        <window.FetchOverlay isLoading={ttq.isLoading} query={ttq.query} sort={ttq.sort} kind="items" />
+        <table className={"lbtable" + (ttq.isLoading ? " tq-loading" : "")}>
           <thead><tr>
             <th style={{ width: 36 }}>
               <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked; }} onChange={toggleAll} />
             </th>
-            <th style={{ width: 200 }}>Reason</th>
-            <th>Vendor</th>
-            <th style={{ width: 140 }}>Invoice #</th>
-            <th style={{ width: 100 }}>Date</th>
-            <th>Route to client org</th>
+            <window.SortHeader col="reason" label="Reason" sort={ttq.sort} onSort={ttq.onSort} width={200} />
+            <window.SortHeader col="vendor" label="Vendor" sort={ttq.sort} onSort={ttq.onSort} />
+            <window.SortHeader col="number" label="Invoice #" sort={ttq.sort} onSort={ttq.onSort} width={140} />
+            <window.SortHeader col="date" label="Date" sort={ttq.sort} onSort={ttq.onSort} hint="date" width={110} />
+            <window.SortHeader col="routeTo" label="Route to client org" sort={ttq.sort} onSort={ttq.onSort} sortable={false} />
             <th style={{ width: 130 }}>Action</th>
           </tr></thead>
           <tbody>
-            {rows.map(r => {
+            {ttqRows.length === 0 ? (
+              <window.TableEmpty colSpan={7} query={ttq.query} hasFilters={ttq.query || ttq.dateRangeId !== "all"} onClear={ttq.clearAll} />
+            ) : ttqRows.map(r => {
               const s = reasonStyle[r.reason];
               const checked = sel.has(r.id);
               return (

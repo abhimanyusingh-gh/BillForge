@@ -358,7 +358,7 @@ function NotificationsTab() {
 
 // ---------- Audit log ----------
 function AuditTab() {
-  const events = [
+  const events = React.useMemo(() => ([
     { ts: "14-Apr-2026 10:21:42", action: "Approved invoice",         target: "AP-INV-22041 · Hari Vishnu Industries", ip: "103.21.x.x", dev: "MacBook · Chrome" },
     { ts: "14-Apr-2026 10:18:11", action: "Marked invoice reviewed",  target: "RJIL-92834 · Sundaram Textiles",         ip: "103.21.x.x", dev: "MacBook · Chrome" },
     { ts: "14-Apr-2026 09:47:03", action: "Signed in",                target: "—",                                       ip: "103.21.x.x", dev: "MacBook · Chrome" },
@@ -368,34 +368,55 @@ function AuditTab() {
     { ts: "12-Apr-2026 21:03:55", action: "Signed in",                target: "—",                                       ip: "49.36.x.x",  dev: "iPhone · LB iOS" },
     { ts: "12-Apr-2026 17:32:14", action: "Exported batch to Tally",  target: "B-2604-014 · 12 vouchers",               ip: "103.21.x.x", dev: "MacBook · Chrome" },
     { ts: "12-Apr-2026 09:14:01", action: "Changed notification prefs", target: "Daily summary → 09:00",                ip: "103.21.x.x", dev: "MacBook · Chrome" },
-  ];
+  ]), []);
+  const atq = window.useTableQuery({
+    id: "user-audit",
+    all: events,
+    defaultSort: { col: "ts", dir: "desc" },
+    searchKeys: ["action", "target", "ip", "dev"],
+    dateKey: "ts",
+    comparators: {
+      ts: (a, b) => window.parseFlexibleDate(a.ts) - window.parseFlexibleDate(b.ts),
+    },
+  });
   return (
     <div>
       <UsSectionTitle sub="Last 90 days of actions performed by you. Firm-wide audit lives under Configuration → Audit.">Your audit log</UsSectionTitle>
-      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-        <input style={{ ...usInput, flex: 1 }} placeholder="Search action or target…" />
-        <select style={{ ...usInput, width: 160, padding: "0 8px" }}>
-          <option>All actions</option><option>Sign-in events</option><option>Approvals</option><option>Edits</option><option>Exports</option>
-        </select>
-        <button style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--ink)", font: "600 12px var(--font-sans)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-          Export CSV
-        </button>
+      <window.TableToolbar
+        compact
+        queryInput={atq.queryInput} setQueryInput={atq.setQueryInput}
+        isLoading={atq.isLoading} query={atq.query} sort={atq.sort}
+        dateKey="ts" dateRangeId={atq.dateRangeId} customRange={atq.customRange}
+        setDateRangeId={atq.setDateRangeId}
+        placeholder="Search action or target…"
+        totalCount={atq.totalCount} resultCount={atq.rows.length}
+        onClear={atq.clearAll}
+      />
+      <div style={{ position: "relative" }}>
+        <window.FetchOverlay isLoading={atq.isLoading} query={atq.query} sort={atq.sort} kind="events" />
+        <table className={"lbtable" + (atq.isLoading ? " tq-loading" : "")} style={{ width: "100%" }}>
+          <thead><tr>
+            <window.SortHeader col="ts" label="When" sort={atq.sort} onSort={atq.onSort} hint="date" width={180} />
+            <window.SortHeader col="action" label="Action" sort={atq.sort} onSort={atq.onSort} width={220} />
+            <window.SortHeader col="target" label="Target" sort={atq.sort} onSort={atq.onSort} />
+            <window.SortHeader col="ip" label="IP" sort={atq.sort} onSort={atq.onSort} width={140} />
+            <window.SortHeader col="dev" label="Device" sort={atq.sort} onSort={atq.onSort} width={180} />
+          </tr></thead>
+          <tbody>
+            {atq.rows.length === 0 ? (
+              <window.TableEmpty colSpan={5} query={atq.query} hasFilters={atq.query || atq.dateRangeId !== "all"} onClear={atq.clearAll} />
+            ) : atq.rows.map((e, i) => (
+              <tr key={i}>
+                <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{e.ts}</td>
+                <td style={{ font: "600 12.5px var(--font-sans)" }}>{e.action}</td>
+                <td className="mono-cell" style={{ color: "var(--ink)" }}>{e.target}</td>
+                <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{e.ip}</td>
+                <td style={{ font: "500 12px var(--font-sans)", color: "var(--ink-soft)" }}>{e.dev}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <table className="lbtable" style={{ width: "100%" }}>
-        <thead><tr><th style={{ width: 180 }}>When</th><th style={{ width: 220 }}>Action</th><th>Target</th><th style={{ width: 140 }}>IP</th><th style={{ width: 180 }}>Device</th></tr></thead>
-        <tbody>
-          {events.map((e, i) => (
-            <tr key={i}>
-              <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{e.ts}</td>
-              <td style={{ font: "600 12.5px var(--font-sans)" }}>{e.action}</td>
-              <td className="mono-cell" style={{ color: "var(--ink)" }}>{e.target}</td>
-              <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{e.ip}</td>
-              <td style={{ font: "500 12px var(--font-sans)", color: "var(--ink-soft)" }}>{e.dev}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

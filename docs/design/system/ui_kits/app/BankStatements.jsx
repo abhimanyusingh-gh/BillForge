@@ -31,13 +31,27 @@ function BankStatements() {
     parsed:  { label: "READY TO MATCH", cls: "s-approved" },
   };
 
-  const stmts = [
+  const stmts = React.useMemo(() => ([
     { id: "s1", account: "HDFC Current ··2034", period: "Apr 2026", file: "hdfc_2034_apr26.pdf",   uploaded: "27-Apr-2026", lines: 412, matched: 348, unmatched: 64, state: "active" },
     { id: "s2", account: "ICICI Current ··2419", period: "Apr 2026", file: "icici_2419_apr26.csv", uploaded: "27-Apr-2026", lines: 198, matched: 198, unmatched: 0,  state: "matched" },
     { id: "s3", account: "HDFC Current ··2034", period: "Mar 2026", file: "hdfc_2034_mar26.pdf",   uploaded: "02-Apr-2026", lines: 488, matched: 488, unmatched: 0,  state: "matched" },
     { id: "s4", account: "ICICI Current ··2419", period: "Mar 2026", file: "icici_2419_mar26.ofx", uploaded: "02-Apr-2026", lines: 222, matched: 222, unmatched: 0,  state: "matched" },
     { id: "s5", account: "HDFC Current ··2034", period: "Feb 2026", file: "hdfc_2034_feb26.pdf",   uploaded: "03-Mar-2026", lines: 0,   matched: 0,  unmatched: 0,   state: "parsing", error: "Parsing — 2 of 4 pages" },
-  ];
+  ]), []);
+
+  const btq = window.useTableQuery({
+    id: "bank-statements",
+    all: stmts,
+    defaultSort: { col: "uploaded", dir: "desc" },
+    searchKeys: ["account", "period", "file", "state"],
+    dateKey: "uploaded",
+    comparators: {
+      lines: (a, b) => a.lines - b.lines,
+      uploaded: (a, b) => window.parseFlexibleDate(a.uploaded) - window.parseFlexibleDate(b.uploaded),
+      state: (a, b) => String(a.state).localeCompare(String(b.state)),
+    },
+  });
+  const btqRows = btq.rows;
 
   return (
     <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} style={{ position: "relative", minHeight: "calc(100vh - 80px)" }}>
@@ -109,20 +123,33 @@ function BankStatements() {
         </div>
       ) : null}
 
-      <div className="table-wrap">
-        <table className="lbtable">
+      <window.TableToolbar
+        queryInput={btq.queryInput} setQueryInput={btq.setQueryInput}
+        isLoading={btq.isLoading} query={btq.query} sort={btq.sort}
+        dateKey="uploaded" dateRangeId={btq.dateRangeId} customRange={btq.customRange}
+        setDateRangeId={btq.setDateRangeId}
+        placeholder="Search account, period, file…"
+        totalCount={btq.totalCount} resultCount={btqRows.length}
+        onClear={btq.clearAll}
+      />
+
+      <div className="table-wrap" style={{ position: "relative" }}>
+        <window.FetchOverlay isLoading={btq.isLoading} query={btq.query} sort={btq.sort} kind="statements" />
+        <table className={"lbtable" + (btq.isLoading ? " tq-loading" : "")}>
           <thead><tr>
-            <th>Account</th>
-            <th>Period</th>
-            <th>File</th>
-            <th>Uploaded</th>
-            <th style={{ textAlign: "right" }}>Lines</th>
-            <th>Reconciliation</th>
-            <th>State</th>
-            <th></th>
+            <window.SortHeader col="account" label="Account" sort={btq.sort} onSort={btq.onSort} />
+            <window.SortHeader col="period" label="Period" sort={btq.sort} onSort={btq.onSort} width={110} />
+            <window.SortHeader col="file" label="File" sort={btq.sort} onSort={btq.onSort} />
+            <window.SortHeader col="uploaded" label="Uploaded" sort={btq.sort} onSort={btq.onSort} hint="date" width={120} />
+            <window.SortHeader col="lines" label="Lines" sort={btq.sort} onSort={btq.onSort} hint="numeric" align="right" width={80} />
+            <window.SortHeader col="reconciliation" label="Reconciliation" sort={btq.sort} onSort={btq.onSort} sortable={false} width={170} />
+            <window.SortHeader col="state" label="State" sort={btq.sort} onSort={btq.onSort} width={140} />
+            <th style={{ width: 60 }}></th>
           </tr></thead>
           <tbody>
-            {stmts.map(s => (
+            {btqRows.length === 0 ? (
+              <window.TableEmpty colSpan={8} query={btq.query} hasFilters={btq.query || btq.dateRangeId !== "all"} onClear={btq.clearAll} />
+            ) : btqRows.map(s => (
               <tr key={s.id} style={{ cursor: "pointer" }} onClick={() => setOpenId(s.id)}>
                 <td className="mono-cell">{s.account}</td>
                 <td>{s.period}</td>

@@ -1,25 +1,39 @@
 // Payments.jsx — payment runs + outflow planner
 function Payments() {
-  const queue = [
+  const allRows = React.useMemo(() => ([
     { id: "p1", vendor: "Tata Consultancy Services", invoice: "INV-241208-9145", net: 42480000, due: "30-Apr-2026", method: "RTGS", account: "ICICI ··2419", state: "approved", days: 3 },
     { id: "p2", vendor: "Reliance Jio Infocomm",     invoice: "RJIL-92834",       net: 83556000, due: "08-May-2026", method: "RTGS", account: "ICICI ··2419", state: "approved", days: 11 },
     { id: "p3", vendor: "Mahalakshmi Power Loom",    invoice: "MPL/2526/0412",    net: 11404800, due: "25-Apr-2026", method: "NEFT", account: "HDFC ··2034",  state: "msme_due", days: -2, badge: "MSME · 45-day" },
     { id: "p4", vendor: "Sundaram Stationers",       invoice: "SS/26/0093",       net: 3998400,  due: "22-May-2026", method: "NEFT", account: "HDFC ··2034",  state: "scheduled", days: 25 },
     { id: "p5", vendor: "Asian Paints Ltd",          invoice: "AP-INV-22041",     net: 122277600, due: "20-May-2026", method: "RTGS", account: "ICICI ··2419", state: "scheduled", days: 23 },
-  ];
-  const totalDue = queue.reduce((a, q) => a + q.net, 0);
-  const overdue = queue.filter(q => q.days < 0).reduce((a, q) => a + q.net, 0);
-  const next7 = queue.filter(q => q.days >= 0 && q.days <= 7).reduce((a, q) => a + q.net, 0);
+  ]), []);
+
+  const stateLabel = { approved: "READY", scheduled: "SCHEDULED", msme_due: "MSME OVERDUE" };
+  const tq = window.useTableQuery({
+    id: "payments",
+    all: allRows,
+    defaultSort: { col: "due", dir: "asc" },
+    searchKeys: ["vendor", "invoice", "method", "account"],
+    dateKey: "due",
+    comparators: {
+      state: (a, b) => (stateLabel[a.state] || a.state).localeCompare(stateLabel[b.state] || b.state),
+      net: (a, b) => a.net - b.net,
+      days: (a, b) => a.days - b.days,
+      due: (a, b) => window.parseFlexibleDate(a.due) - window.parseFlexibleDate(b.due),
+    },
+  });
+  const rows = tq.rows;
+
+  const totalDue = rows.reduce((a, q) => a + q.net, 0);
+  const overdue = rows.filter(q => q.days < 0).reduce((a, q) => a + q.net, 0);
+  const next7 = rows.filter(q => q.days >= 0 && q.days <= 7).reduce((a, q) => a + q.net, 0);
 
   return (
     <div>
       <div className="page-header">
         <h1>Payments</h1>
-        <span className="count">{queue.length} approved · ready to disburse</span>
-        <div className="page-tools">
-          <button style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--bg-panel)", font: "600 12px var(--font-sans)" }}>Schedule run…</button>
-          <button style={{ height: 30, padding: "0 14px", borderRadius: 8, border: 0, background: "var(--accent)", color: "white", font: "600 12px var(--font-sans)" }}>Disburse selected</button>
-        </div>
+        <span className="count">{allRows.length} approved · ready to disburse</span>
+        <div className="page-tools"></div>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
@@ -37,20 +51,33 @@ function Payments() {
         ))}
       </div>
 
-      <div className="table-wrap">
-        <table className="lbtable">
+      <window.TableToolbar
+        queryInput={tq.queryInput} setQueryInput={tq.setQueryInput}
+        isLoading={tq.isLoading} query={tq.query} sort={tq.sort}
+        dateKey="due" dateRangeId={tq.dateRangeId} customRange={tq.customRange}
+        setDateRangeId={tq.setDateRangeId}
+        placeholder="Search vendor, invoice, method…"
+        totalCount={tq.totalCount} resultCount={rows.length}
+        onClear={tq.clearAll}
+      />
+
+      <div className="table-wrap" style={{ position: "relative" }}>
+        <window.FetchOverlay isLoading={tq.isLoading} query={tq.query} sort={tq.sort} kind="payments" />
+        <table className={"lbtable" + (tq.isLoading ? " tq-loading" : "")}>
           <thead><tr>
             <th style={{ width: 26 }}><input type="checkbox" defaultChecked /></th>
-            <th>Vendor</th>
-            <th style={{ width: 140 }}>Invoice</th>
-            <th style={{ width: 100 }}>Due</th>
-            <th style={{ width: 90 }}>Method</th>
-            <th style={{ width: 130 }}>From account</th>
-            <th style={{ width: 130 }}>State</th>
-            <th style={{ width: 130, textAlign: "right" }}>Amount</th>
+            <window.SortHeader col="vendor" label="Vendor" sort={tq.sort} onSort={tq.onSort} />
+            <window.SortHeader col="invoice" label="Invoice" sort={tq.sort} onSort={tq.onSort} width={140} />
+            <window.SortHeader col="due" label="Due" sort={tq.sort} onSort={tq.onSort} hint="date" width={110} />
+            <window.SortHeader col="method" label="Method" sort={tq.sort} onSort={tq.onSort} width={90} />
+            <window.SortHeader col="account" label="From account" sort={tq.sort} onSort={tq.onSort} width={140} />
+            <window.SortHeader col="state" label="State" sort={tq.sort} onSort={tq.onSort} width={140} />
+            <window.SortHeader col="net" label="Amount" sort={tq.sort} onSort={tq.onSort} hint="numeric" align="right" width={140} />
           </tr></thead>
           <tbody>
-            {queue.map(q => (
+            {rows.length === 0 ? (
+              <window.TableEmpty colSpan={8} query={tq.query} hasFilters={tq.query || tq.dateRangeId !== "all"} onClear={tq.clearAll} />
+            ) : rows.map(q => (
               <tr key={q.id}>
                 <td><input type="checkbox" defaultChecked /></td>
                 <td style={{ fontWeight: 600 }}>{q.vendor}{q.badge ? <span style={{ marginLeft: 6, font: "600 9px var(--font-mono)", padding: "1px 5px", background: "var(--amber-soft-bg)", color: "#b8770b", borderRadius: 999 }}>{q.badge}</span> : null}</td>

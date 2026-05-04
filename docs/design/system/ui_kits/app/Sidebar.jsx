@@ -17,8 +17,8 @@ function Sidebar({ active, onChange, counts, collapsed, onToggle, tenant }) {
         {!collapsed ? <button className="iconbtn" onClick={onToggle} title="Collapse sidebar" style={{ marginLeft: "auto", height: 24, width: 24, border: 0 }}><span className="material-symbols-outlined" style={{ fontSize: 16 }}>chevron_left</span></button> : null}
       </div>
       {!collapsed && tenant ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 10px 12px", marginTop: -4 }} title={tenant}>
-          <span className="material-symbols-outlined" style={{ fontSize: 12, color: "var(--ink-muted)" }}>business</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 10px 12px", marginTop: -4 }} title={tenant}>
+          <span className="material-symbols-outlined" style={{ fontSize: 13, color: "var(--ink-muted)", flexShrink: 0 }}>business</span>
           <span style={{ font: "600 11px var(--font-sans)", color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tenant}</span>
         </div>
       ) : null}
@@ -35,9 +35,9 @@ function Sidebar({ active, onChange, counts, collapsed, onToggle, tenant }) {
       <Item id="tds" icon="receipt" label="TDS Dashboard" />
       <Item id="exports" icon="cloud_upload" label="Tally Export" />
       <Item id="tallysync" icon="cable" label="Tally Sync" />
-      <Item id="triage" icon="alt_route" label="Triage" badge={counts.triage} />
       <Section>Setup</Section>
       <Item id="mailboxes" icon="mail" label="Mailboxes" />
+      <Item id="triage" icon="alt_route" label="Inbox Routing" badge={counts.triage} />
       <Item id="clients" icon="account_tree" label="Client Orgs" />
       <Item id="config" icon="tune" label="Config" />
     </aside>

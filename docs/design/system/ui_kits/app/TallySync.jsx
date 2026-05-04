@@ -14,13 +14,13 @@ function TallySync() {
   };
 
   // Push log
-  const pushes = [
+  const pushes = React.useMemo(() => ([
     { id: "p1", ts: "27-Apr-2026 09:48", batch: "B-2604-014", what: "Voucher #V-2704-0094", vendor: "Tata Consultancy Services", amt: 42480000, state: "success", retries: 0 },
     { id: "p2", ts: "27-Apr-2026 09:48", batch: "B-2604-014", what: "Voucher #V-2704-0095", vendor: "Mahalakshmi Power Loom", amt: 11404800, state: "success", retries: 0 },
     { id: "p3", ts: "27-Apr-2026 09:31", batch: "B-2604-013", what: "Vendor master sync", vendor: "Asian Paints Ltd", amt: null, state: "queued", retries: 0 },
     { id: "p4", ts: "27-Apr-2026 09:11", batch: "B-2604-013", what: "Voucher #V-2704-0091", vendor: "Reliance Jio Infocomm", amt: 83556000, state: "drift", retries: 1 },
     { id: "p5", ts: "26-Apr-2026 18:02", batch: "B-2604-012", what: "Voucher #V-2604-0088", vendor: "Sundaram Stationers", amt: 3998400, state: "failed", retries: 3, error: "LEDGERNOTFOUND: Legal & Professional Fees" },
-  ];
+  ]), []);
 
   const drift = [
     { kind: "Ledger", lb: "Legal & Professional Fees", tally: "Legal Fees", count: 1, action: "alias-or-create" },
@@ -28,6 +28,19 @@ function TallySync() {
     { kind: "Group",  lb: "Indirect Expenses",                tally: "Indirect Expenses", count: 0, action: "ok" },
     { kind: "TDS Nature", lb: "Section 194J · Professional",  tally: "194J Professional/Technical", count: 7, action: "alias" },
   ];
+
+  const tstq = window.useTableQuery({
+    id: "tally-sync",
+    all: pushes,
+    defaultSort: { col: "ts", dir: "desc" },
+    searchKeys: ["batch", "what", "vendor", "state"],
+    dateKey: "ts",
+    comparators: {
+      ts: (a, b) => window.parseFlexibleDate(a.ts) - window.parseFlexibleDate(b.ts),
+      amt: (a, b) => (a.amt || 0) - (b.amt || 0),
+      state: (a, b) => String(a.state).localeCompare(String(b.state)),
+    },
+  });
 
   const StateBadge = ({ s, retries }) => {
     if (s === "success") return <span className="spill s-approved"><span className="dot"></span>SUCCESS</span>;
@@ -83,18 +96,32 @@ function TallySync() {
 
       {/* push log + drift */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 12 }}>
-        <div className="table-wrap">
-          <table className="lbtable">
-            <thead><tr>
-              <th style={{ width: 130 }}>Timestamp</th>
-              <th style={{ width: 110 }}>Batch</th>
-              <th>Action</th>
-              <th>Counterparty</th>
-              <th style={{ textAlign: "right", width: 110 }}>Amount</th>
-              <th style={{ width: 130 }}>State</th>
-            </tr></thead>
-            <tbody>
-              {pushes.map(p => (
+        <div>
+          <window.TableToolbar
+            compact
+            queryInput={tstq.queryInput} setQueryInput={tstq.setQueryInput}
+            isLoading={tstq.isLoading} query={tstq.query} sort={tstq.sort}
+            dateKey="ts" dateRangeId={tstq.dateRangeId} customRange={tstq.customRange}
+            setDateRangeId={tstq.setDateRangeId}
+            placeholder="Search batch, voucher, vendor…"
+            totalCount={tstq.totalCount} resultCount={tstq.rows.length}
+            onClear={tstq.clearAll}
+          />
+          <div className="table-wrap" style={{ position: "relative" }}>
+            <window.FetchOverlay isLoading={tstq.isLoading} query={tstq.query} sort={tstq.sort} kind="events" />
+            <table className={"lbtable" + (tstq.isLoading ? " tq-loading" : "")}>
+              <thead><tr>
+                <window.SortHeader col="ts" label="Timestamp" sort={tstq.sort} onSort={tstq.onSort} hint="date" width={130} />
+                <window.SortHeader col="batch" label="Batch" sort={tstq.sort} onSort={tstq.onSort} width={110} />
+                <window.SortHeader col="what" label="Action" sort={tstq.sort} onSort={tstq.onSort} />
+                <window.SortHeader col="vendor" label="Counterparty" sort={tstq.sort} onSort={tstq.onSort} />
+                <window.SortHeader col="amt" label="Amount" sort={tstq.sort} onSort={tstq.onSort} hint="numeric" align="right" width={110} />
+                <window.SortHeader col="state" label="State" sort={tstq.sort} onSort={tstq.onSort} width={130} />
+              </tr></thead>
+              <tbody>
+                {tstq.rows.length === 0 ? (
+                  <window.TableEmpty colSpan={6} query={tstq.query} hasFilters={tstq.query || tstq.dateRangeId !== "all"} onClear={tstq.clearAll} />
+                ) : tstq.rows.map(p => (
                 <tr key={p.id}>
                   <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{p.ts}</td>
                   <td className="mono-cell" style={{ color: "var(--accent)" }}>{p.batch}</td>
@@ -107,8 +134,9 @@ function TallySync() {
                   <td><StateBadge s={p.state} retries={p.retries} /></td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="section" style={{ marginTop: 0 }}>

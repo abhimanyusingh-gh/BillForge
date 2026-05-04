@@ -8,13 +8,25 @@ function Mailboxes() {
     { id: "m5", addr: "ar@patel.in",            prov: "Gmail",   client: "Patel & Patel Logistics",      today: 2,  fy: 134, last: "09:48",     state: "ok" },
     { id: "m6", addr: "—",                      prov: "Forward", client: "Triage (firm-wide)",           today: 6,  fy: 88,  last: "10:02",     state: "ok",    note: "bills@khan.ledgerbuddy.in" },
   ];
-  const log = [
+  const log = React.useMemo(() => ([
     { ts: "10:21", from: "billing@tcs.com",        subj: "Invoice INV-241208-9145.pdf",          to: "ap@sundaram.in",   state: "routed",   client: "Sundaram Textiles" },
     { ts: "10:18", from: "noreply@reliance.in",    subj: "RJIL Tax Invoice — Apr 2026",          to: "ap@sundaram.in",   state: "routed",   client: "Sundaram Textiles" },
     { ts: "10:14", from: "accounts@asianpaints.in",subj: "AP-INV-22041",                          to: "ap@hvind.com",     state: "routed",   client: "Hari Vishnu" },
     { ts: "10:02", from: "support@anontrader.com", subj: "Bill #AT-0006",                         to: "bills@khan.ledgerbuddy.in", state: "triage", client: "—" },
     { ts: "09:48", from: "newsletter@vendor.io",   subj: "Quarterly newsletter",                  to: "ap@sundaram.in",   state: "skipped",  client: "—",  reason: "non-invoice" },
-  ];
+  ]), []);
+
+  const mtq = window.useTableQuery({
+    id: "mailbox-log",
+    all: log,
+    defaultSort: { col: "ts", dir: "desc" },
+    searchKeys: ["from", "subj", "to", "client", "state"],
+    dateKey: "ts",
+    comparators: {
+      ts: (a, b) => window.parseFlexibleDate(a.ts) - window.parseFlexibleDate(b.ts),
+      state: (a, b) => String(a.state).localeCompare(String(b.state)),
+    },
+  });
 
   return (
     <div>
@@ -51,32 +63,47 @@ function Mailboxes() {
 
       <div className="section" style={{ marginTop: 0 }}>
         <div className="stitle"><h3>Ingestion log · today</h3><span className="lb-caption">26 messages · 18 invoices routed</span></div>
-        <table className="lbtable" style={{ marginTop: 4 }}>
-          <thead><tr>
-            <th style={{ width: 60 }}>Time</th>
-            <th>From</th>
-            <th>Subject</th>
-            <th>To mailbox</th>
-            <th>Routed</th>
-            <th>Result</th>
-          </tr></thead>
-          <tbody>
-            {log.map((l, i) => (
-              <tr key={i}>
-                <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{l.ts}</td>
-                <td className="mono-cell">{l.from}</td>
-                <td>{l.subj}</td>
-                <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{l.to}</td>
-                <td>{l.client === "—" ? <span style={{ color: "var(--ink-muted)" }}>—</span> : l.client}</td>
-                <td>
-                  {l.state === "routed"  ? <span className="spill s-approved"><span className="dot"></span>ROUTED</span> :
-                   l.state === "triage"  ? <span className="spill s-needs_review"><span className="dot"></span>TRIAGE</span> :
-                   <span className="spill s-pending"><span className="dot"></span>SKIPPED · {l.reason}</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <window.TableToolbar
+          compact
+          queryInput={mtq.queryInput} setQueryInput={mtq.setQueryInput}
+          isLoading={mtq.isLoading} query={mtq.query} sort={mtq.sort}
+          dateKey="ts" dateRangeId={mtq.dateRangeId} customRange={mtq.customRange}
+          setDateRangeId={mtq.setDateRangeId}
+          placeholder="Search sender, subject…"
+          totalCount={mtq.totalCount} resultCount={mtq.rows.length}
+          onClear={mtq.clearAll}
+        />
+        <div style={{ position: "relative" }}>
+          <window.FetchOverlay isLoading={mtq.isLoading} query={mtq.query} sort={mtq.sort} kind="messages" />
+          <table className={"lbtable" + (mtq.isLoading ? " tq-loading" : "")} style={{ marginTop: 4 }}>
+            <thead><tr>
+              <window.SortHeader col="ts" label="Time" sort={mtq.sort} onSort={mtq.onSort} hint="date" width={60} />
+              <window.SortHeader col="from" label="From" sort={mtq.sort} onSort={mtq.onSort} />
+              <window.SortHeader col="subj" label="Subject" sort={mtq.sort} onSort={mtq.onSort} />
+              <window.SortHeader col="to" label="To mailbox" sort={mtq.sort} onSort={mtq.onSort} />
+              <window.SortHeader col="client" label="Routed" sort={mtq.sort} onSort={mtq.onSort} />
+              <window.SortHeader col="state" label="Result" sort={mtq.sort} onSort={mtq.onSort} width={150} />
+            </tr></thead>
+            <tbody>
+              {mtq.rows.length === 0 ? (
+                <window.TableEmpty colSpan={6} query={mtq.query} hasFilters={mtq.query || mtq.dateRangeId !== "all"} onClear={mtq.clearAll} />
+              ) : mtq.rows.map((l, i) => (
+                <tr key={i}>
+                  <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{l.ts}</td>
+                  <td className="mono-cell">{l.from}</td>
+                  <td>{l.subj}</td>
+                  <td className="mono-cell" style={{ color: "var(--ink-soft)" }}>{l.to}</td>
+                  <td>{l.client === "—" ? <span style={{ color: "var(--ink-muted)" }}>—</span> : l.client}</td>
+                  <td>
+                    {l.state === "routed"  ? <span className="spill s-approved"><span className="dot"></span>ROUTED</span> :
+                     l.state === "triage"  ? <span className="spill s-needs_review"><span className="dot"></span>TRIAGE</span> :
+                     <span className="spill s-pending"><span className="dot"></span>SKIPPED · {l.reason}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

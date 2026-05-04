@@ -1,5 +1,32 @@
 // PlatformTenantsTable.jsx — denser cross-tenant table
-function PlatformTenantsTable({ tenants, selectedId, onSelect, onToggleEnabled, query, setQuery, filter, setFilter }) {
+//
+// Sort is server-driven: the table is "dumb" — it renders rows in the order
+// it gets them and forwards header clicks to the parent via onSort(col).
+// The parent dispatches a fetch (here, a mocked latency) and feeds back
+// `sort = { col, dir, loading }`. While loading, headers freeze (no clicks)
+// and the active header shows a spinner; rows fade.
+function PaSortHeader({ col, label, align, sort, onSort, sortable = true }) {
+  const active = sort && sort.col === col;
+  const dir = active ? sort.dir : null;
+  const loading = active && sort.loading;
+  const icon = !sortable ? null : loading ? "progress_activity" : !active ? "unfold_more" : dir === "asc" ? "arrow_upward" : "arrow_downward";
+  return (
+    <th
+      className={"pa-th" + (sortable ? " sortable" : "") + (active ? " active" : "") + (loading ? " loading" : "")}
+      style={{ textAlign: align || "left" }}
+      onClick={() => sortable && !sort?.loading && onSort?.(col)}
+      aria-sort={!active ? "none" : dir === "asc" ? "ascending" : "descending"}
+    >
+      <span className="pa-th-inner" style={{ justifyContent: align === "right" ? "flex-end" : "flex-start" }}>
+        <span className="pa-th-label">{label}</span>
+        {icon ? <span className={"material-symbols-outlined pa-th-icon" + (loading ? " spin" : "")}>{icon}</span> : null}
+      </span>
+    </th>
+  );
+}
+window.PaSortHeader = PaSortHeader;
+
+function PlatformTenantsTable({ tenants, selectedId, onSelect, onToggleEnabled, query, setQuery, filter, setFilter, sort, onSort }) {
   const filtered = tenants.filter(t => {
     if (filter === "active" && t.state !== "active") return false;
     if (filter === "trial" && t.state !== "trial") return false;
@@ -18,12 +45,13 @@ function PlatformTenantsTable({ tenants, selectedId, onSelect, onToggleEnabled, 
       <button className="pa-btn pa-btn-ghost pa-btn-sm" title="More"><span className="material-symbols-outlined" style={{ fontSize: 14 }}>more_horiz</span></button>
     </span>
   );
+  const sortLabel = sort ? `sorted by ${sort.col} · ${sort.dir}${sort.loading ? " · loading…" : ""}` : "default order";
   return (
     <div className="pa-card">
       <div className="pa-card-head">
         <span className="material-symbols-outlined" style={{ color: "var(--accent)" }}>groups</span>
         <h2>Tenants</h2>
-        <span className="pa-card-sub">{filtered.length} of {tenants.length} · sorted by docs/today</span>
+        <span className="pa-card-sub">{filtered.length} of {tenants.length} · {sortLabel}</span>
         <div className="pa-card-tools">
           <div className="chips" style={{ margin: 0 }}>
             {[
@@ -44,18 +72,25 @@ function PlatformTenantsTable({ tenants, selectedId, onSelect, onToggleEnabled, 
           </div>
         </div>
       </div>
-      <div className="pa-card-body flush" style={{ overflow: "auto" }}>
+      <div className={"pa-card-body flush" + (sort?.loading ? " pa-loading" : "")} style={{ overflow: "auto" }}>
         <table className="pa-tenants-table">
           <thead>
             <tr>
-              <th>Tenant</th><th>Plan</th><th>Seats</th><th>Client orgs</th>
-              <th style={{ textAlign: "right" }}>Docs · today</th>
-              <th style={{ textAlign: "right" }}>Failures</th>
-              <th>Tally bridge</th><th>MRR</th><th>Last seen</th><th>State</th><th></th>
+              <PaSortHeader col="name"        label="Tenant"      sort={sort} onSort={onSort} />
+              <PaSortHeader col="plan"        label="Plan"        sort={sort} onSort={onSort} />
+              <PaSortHeader col="seats"       label="Seats"       sort={sort} onSort={onSort} />
+              <PaSortHeader col="clientOrgs"  label="Client orgs" sort={sort} onSort={onSort} />
+              <PaSortHeader col="docsToday"   label="Docs · today" align="right" sort={sort} onSort={onSort} />
+              <PaSortHeader col="failedDocs"  label="Failures"     align="right" sort={sort} onSort={onSort} />
+              <PaSortHeader col="bridge"      label="Tally bridge" sort={sort} onSort={onSort} />
+              <PaSortHeader col="mrr"         label="MRR"         sort={sort} onSort={onSort} />
+              <PaSortHeader col="lastSeen"    label="Last seen"   sort={sort} onSort={onSort} />
+              <PaSortHeader col="state"       label="State"       sort={sort} onSort={onSort} />
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {[...filtered].sort((a,b) => b.docsToday - a.docsToday).map(t => {
+            {filtered.map(t => {
               const initials = t.name.split(" ").slice(0,2).map(s=>s[0]).join("");
               const seatPct = (t.seatsUsed / t.seats) * 100;
               const seatBarCls = seatPct >= 100 ? "full" : seatPct >= 80 ? "warn" : "";
@@ -97,6 +132,12 @@ function PlatformTenantsTable({ tenants, selectedId, onSelect, onToggleEnabled, 
           </tbody>
         </table>
         {filtered.length === 0 ? <div className="pa-empty">No tenants match the current filter.</div> : null}
+        {sort?.loading ? (
+          <div className="pa-fetch-overlay">
+            <span className="material-symbols-outlined spin">progress_activity</span>
+            Sorting on server by <b>{sort.col}</b> · {sort.dir === "asc" ? "ascending" : "descending"}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -156,36 +197,63 @@ function PlatformActivityMonitor({ activity, scope }) {
 window.PlatformActivityMonitor = PlatformActivityMonitor;
 
 // PlatformFailedDocs.jsx — failed-documents queue
-function PlatformFailedDocs({ docs }) {
+function PlatformFailedDocs({ docs, sort, onSort }) {
+  const sortLabel = sort ? `sorted by ${sort.col} · ${sort.dir}${sort.loading ? " · loading…" : ""}` : "";
   return (
     <div className="pa-card">
       <div className="pa-card-head">
         <span className="material-symbols-outlined" style={{ color: "var(--warn)" }}>error</span>
         <h2>Failed documents</h2>
-        <span className="pa-card-sub">{docs.length} stuck across all tenants · resolve or retry</span>
+        <span className="pa-card-sub">{docs.length} stuck across all tenants{sortLabel ? " · " + sortLabel : ""}</span>
         <div className="pa-card-tools">
           <button className="pa-btn pa-btn-sm"><span className="material-symbols-outlined" style={{ fontSize: 14 }}>refresh</span> Retry all</button>
         </div>
       </div>
-      <div className="pa-card-body flush">
-        {docs.map(d => (
-          <div key={d.id} className="pa-failed-row">
-            <span className="material-symbols-outlined" style={{ color: "var(--warn)", fontSize: 18 }}>description</span>
-            <div>
-              <div style={{ font: "600 12.5px var(--font-sans)", color: "var(--ink)" }}>{d.file} <span className="mono-cell" style={{ color: "var(--ink-muted)", marginLeft: 6 }}>{d.id}</span></div>
-              <div style={{ font: "500 11.5px var(--font-sans)", color: "var(--ink-soft)", marginTop: 2 }}>
-                {d.tenant} · {d.realm} — <b style={{ color: "var(--ink)", fontWeight: 600 }}>{d.reason}</b>
-              </div>
-            </div>
-            <span className={"stage-pill " + d.stage}>{d.stage}</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <span className="mono-cell" style={{ color: "var(--ink-muted)", minWidth: 36, textAlign: "right" }}>{d.age}</span>
-              <span className="mono-cell" style={{ color: d.retries >= 2 ? "var(--warn)" : "var(--ink-soft)" }}>{d.retries}× retried</span>
-              <button className="pa-btn pa-btn-sm">Retry</button>
-              <button className="pa-btn pa-btn-ghost pa-btn-sm"><span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span></button>
-            </span>
+      <div className={"pa-card-body flush" + (sort?.loading ? " pa-loading" : "")} style={{ overflow: "auto", position: "relative" }}>
+        <table className="pa-tenants-table pa-failed-table">
+          <thead>
+            <tr>
+              <th style={{ width: 24 }}></th>
+              <PaSortHeader col="file"    label="File"     sort={sort} onSort={onSort} />
+              <PaSortHeader col="tenant"  label="Tenant"   sort={sort} onSort={onSort} />
+              <PaSortHeader col="realm"   label="Client org" sort={sort} onSort={onSort} />
+              <PaSortHeader col="reason"  label="Reason"   sort={sort} onSort={onSort} />
+              <PaSortHeader col="stage"   label="Stage"    sort={sort} onSort={onSort} />
+              <PaSortHeader col="age"     label="Age"      align="right" sort={sort} onSort={onSort} />
+              <PaSortHeader col="retries" label="Retries"  align="right" sort={sort} onSort={onSort} />
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {docs.map(d => (
+              <tr key={d.id}>
+                <td><span className="material-symbols-outlined" style={{ color: "var(--warn)", fontSize: 18 }}>description</span></td>
+                <td>
+                  <div style={{ font: "600 12.5px var(--font-sans)", color: "var(--ink)" }}>{d.file}</div>
+                  <div className="mono-cell" style={{ color: "var(--ink-muted)" }}>{d.id}</div>
+                </td>
+                <td><span style={{ font: "600 12px var(--font-sans)", color: "var(--ink)" }}>{d.tenant}</span></td>
+                <td><span className="mono-cell" style={{ color: "var(--ink-soft)" }}>{d.realm}</span></td>
+                <td><span style={{ font: "500 12px var(--font-sans)", color: "var(--ink-soft)" }}>{d.reason}</span></td>
+                <td><span className={"stage-pill " + d.stage}>{d.stage}</span></td>
+                <td className="mono-cell" style={{ color: "var(--ink-muted)", textAlign: "right" }}>{d.age}</td>
+                <td className="mono-cell" style={{ color: d.retries >= 2 ? "var(--warn)" : "var(--ink-soft)", textAlign: "right" }}>{d.retries}×</td>
+                <td>
+                  <span style={{ display: "inline-flex", gap: 4 }}>
+                    <button className="pa-btn pa-btn-sm">Retry</button>
+                    <button className="pa-btn pa-btn-ghost pa-btn-sm" title="Open"><span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span></button>
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {sort?.loading ? (
+          <div className="pa-fetch-overlay">
+            <span className="material-symbols-outlined spin">progress_activity</span>
+            Sorting on server by <b>{sort.col}</b> · {sort.dir === "asc" ? "ascending" : "descending"}
           </div>
-        ))}
+        ) : null}
       </div>
     </div>
   );

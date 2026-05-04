@@ -15,7 +15,6 @@ function Reconciliation() {
         <h1>Reconciliation</h1>
         <span className="count">HDFC Current · 0xxxx2034 · 4 unmatched</span>
         <div className="page-tools">
-          <button className="iconbtn"><span className="material-symbols-outlined">filter_list</span></button>
           <button style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--bg-panel)", font: "600 12px var(--font-sans)" }}>Auto-match</button>
         </div>
       </div>
