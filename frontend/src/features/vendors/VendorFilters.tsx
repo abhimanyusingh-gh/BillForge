@@ -51,11 +51,11 @@ export function VendorFilters({
   onResetFilters
 }: VendorFiltersProps) {
   return (
-    <div className="vendors-filters" data-testid="vendors-filters">
-      <label className="vendors-filter">
-        <span className="vendors-filter-label">Status</span>
+    <div className="field-row" data-testid="vendors-filters">
+      <label className="field">
+        <span>Status</span>
         <select
-          className="vendors-filter-select"
+          className="input"
           value={status ?? ""}
           data-testid="vendors-filter-status"
           onChange={(e) => onStatusChange(e.target.value === "" ? null : (e.target.value as VendorStatus))}
@@ -68,10 +68,10 @@ export function VendorFilters({
           ))}
         </select>
       </label>
-      <label className="vendors-filter">
-        <span className="vendors-filter-label">MSME</span>
+      <label className="field">
+        <span>MSME</span>
         <select
-          className="vendors-filter-select"
+          className="input"
           value={triBoolToOption(hasMsme)}
           data-testid="vendors-filter-msme"
           onChange={(e) => onHasMsmeChange(optionToTriBool(e.target.value as TriBoolOption))}
@@ -81,10 +81,10 @@ export function VendorFilters({
           <option value={TRI_BOOL_OPTION.NO}>Not MSME</option>
         </select>
       </label>
-      <label className="vendors-filter">
-        <span className="vendors-filter-label">Sec. 197 cert</span>
+      <label className="field">
+        <span>Sec. 197 cert</span>
         <select
-          className="vendors-filter-select"
+          className="input"
           value={triBoolToOption(hasSection197Cert)}
           data-testid="vendors-filter-cert197"
           onChange={(e) => onHasSection197CertChange(optionToTriBool(e.target.value as TriBoolOption))}
@@ -96,7 +96,7 @@ export function VendorFilters({
       </label>
       <button
         type="button"
-        className="app-button app-button-secondary app-button-sm"
+        className="btn ghost"
         onClick={onResetFilters}
         data-testid="vendors-filter-reset"
       >

@@ -22,11 +22,14 @@ export function VendorSearchBox({ value, onChange, debounceMs = DEFAULT_DEBOUNCE
   }, [draft, debounceMs, onChange, value]);
 
   return (
-    <label className="vendors-search">
-      <span className="vendors-search-label">Search</span>
+    <label className="input-with-icon">
+      <span className="sr-only">Search</span>
+      <span className="lead-icon material-symbols-outlined" aria-hidden="true">
+        search
+      </span>
       <input
         type="search"
-        className="vendors-search-input"
+        className="input"
         placeholder="Search by name, GSTIN, PAN..."
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
