@@ -1,62 +1,41 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
-import {
-  approveInvoices,
-  approveWorkflowStep,
-  deleteInvoices,
-  downloadTallyXmlFile,
-  generateTallyXmlFile,
-  retryInvoices,
-  rejectWorkflowStep,
-  fetchIngestionStatus,
-  fetchInvoices,
-  pauseIngestion,
-  runIngestion,
-  subscribeIngestionSSE,
-  updateInvoiceParsedFields,
-  renameInvoiceAttachment,
-  uploadInvoiceFiles,
-  requestPresignedUrls,
-  registerUploadedKeys
-} from "@/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchInvoices, runIngestion } from "@/api";
 import { invoiceUrls } from "@/api/urls/invoiceUrls";
-import type { IngestionJobStatus, Invoice, TenantUser, UserCapabilities } from "@/types";
+import type { Invoice, TenantUser, UserCapabilities } from "@/types";
 import { IngestionProgressCard } from "@/components/invoice/IngestionProgressCard";
 import { getExtractedFieldRows } from "@/lib/invoice/extractedFields";
 import { getInvoiceSourceHighlights } from "@/lib/invoice/sourceHighlights";
 import {
   isInvoiceApprovable,
   isInvoiceExportable,
-  isInvoiceRetryable,
-  isInvoiceSelectable
+  isInvoiceRetryable
 } from "@/lib/common/selection";
 import { getInvoiceTallyMappings } from "@/lib/invoice/tallyMapping";
-import { fetchGlCodes, fetchTdsRates, updateInvoiceComplianceOverride } from "@/api";
+import { fetchGlCodes, fetchTdsRates } from "@/api";
 import type { GlCode, TdsRate } from "@/types";
-import {
-  buildFieldCropSourceMap,
-  STATUSES
-} from "@/lib/invoice/invoiceView";
+import { buildFieldCropSourceMap } from "@/lib/invoice/invoiceView";
 import { useInvoiceDetail } from "@/hooks/useInvoiceDetail";
 import { useInvoiceTableState } from "@/hooks/useInvoiceTableState";
 import { useUserPrefsStore, type TableDensity } from "@/stores/userPrefsStore";
 import { useInvoiceFilters, DATE_VALIDATION_ERROR } from "@/hooks/useInvoiceFilters";
 import { getUserFacingErrorMessage, isAuthenticationError } from "@/lib/common/apiError";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { EmptyState } from "@/components/common/EmptyState";
 import { KeyboardShortcutsOverlay } from "@/components/common/KeyboardShortcutsOverlay";
-import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { InvoiceToolbar } from "@/components/invoice/InvoiceToolbar";
-import { InvoiceDetailPanel } from "@/components/invoice/InvoiceDetailPanel";
-import { InvoicePopup } from "@/components/invoice/InvoicePopup";
-import {
-  DataTable,
-  DATATABLE_DENSITY,
-  DATATABLE_SORT_DIRECTION,
-  type ComboboxOption,
-  type DataTableSort
-} from "@/components/ds";
+import { type ComboboxOption } from "@/components/ds";
 import { PreExportValidationPanel } from "@/features/invoices/PreExportValidationPanel";
-import { buildInvoiceColumns } from "@/features/invoices/invoiceColumns";
+import { useInvoiceListPanelDivider } from "@/features/invoices/useInvoiceListPanelDivider";
+import { useInvoiceListUploads } from "@/features/invoices/useInvoiceListUploads";
+import { useInvoiceListIngestion } from "@/features/invoices/useInvoiceListIngestion";
+import { useInvoiceListActions } from "@/features/invoices/useInvoiceListActions";
+import { InvoiceDetailHost } from "@/features/invoices/InvoiceDetailHost";
+import { InvoiceListPanel } from "@/features/invoices/InvoiceListPanel";
+import { useInvoiceFieldEditing } from "@/features/invoices/useInvoiceFieldEditing";
+import { useInvoiceSectionExpansion } from "@/features/invoices/useInvoiceSectionExpansion";
+import { useInvoiceListShortcuts } from "@/features/invoices/useInvoiceListShortcuts";
+import { useInvoiceListTableBindings } from "@/features/invoices/useInvoiceListTableBindings";
+import { InvoicePopupHost } from "@/features/invoices/InvoicePopupHost";
+import { useInvoiceListLoader } from "@/features/invoices/useInvoiceListLoader";
 
 function selectNewerInvoice(detail: Invoice | null, summary: Invoice | null): Invoice | null {
   if (!summary) return detail;
@@ -142,11 +121,6 @@ export function InvoiceView({
   const setInvoiceViewPref = useUserPrefsStore((state) => state.setInvoiceView);
   const [listPanelPercent, setListPanelPercent] = useState(() => persistedPanelSplit);
   const contentRef = useRef<HTMLElement>(null);
-  const [ingestionStatus, setIngestionStatus] = useState<IngestionJobStatus | null>(null);
-  const [ingestionFading, setIngestionFading] = useState(false);
-  const [editingListCell, setEditingListCell] = useState<{ invoiceId: string; field: string } | null>(null);
-  const [editListValue, setEditListValue] = useState("");
-  const [glCodeEditingInvoiceId, setGlCodeEditingInvoiceId] = useState<string | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const tableDensity: TableDensity = persistedTableDensity;
   const setTableDensity = useCallback(
@@ -162,27 +136,11 @@ export function InvoiceView({
         .map((g) => ({ value: g.code, label: g.name, description: g.code })),
     [tenantGlCodes]
   );
-  const [sectionExpanded, setSectionExpanded] = useState<Record<string, boolean>>({
-    popupExtractedFields: true,
-    activeExtractedFields: true
+  const { sectionExpanded, setSection, popupRef } = useInvoiceSectionExpansion({
+    popupInvoiceId,
+    activeId,
+    setPopupInvoiceId
   });
-  const setSection = useCallback((key: string, value: boolean | ((prev: boolean) => boolean)) => {
-    setSectionExpanded((prev) => {
-      const resolved = typeof value === "function" ? value(!!prev[key]) : value;
-      return { ...prev, [key]: resolved };
-    });
-  }, []);
-  const [uploadDragActive, setUploadDragActive] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(new Map());
-  const uploadInputRef = useRef<HTMLInputElement>(null);
-  const popupRef = useRef<HTMLElement>(null);
-  const ingestionWasRunningRef = useRef(false);
-  const sseLoadPendingRef = useRef(false);
-  const sseLoadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; confirmLabel: string; destructive: boolean; onConfirm: () => void } | null>(null);
-  const [preExportModalOpen, setPreExportModalOpen] = useState(false);
-  const [pendingExport, setPendingExport] = useState<{ ids: string[]; mode: "single" | "bulk" } | null>(null);
   const [allStatusCounts, setAllStatusCounts] = useState<Record<string, number>>({});
   const canApproveInvoices = capabilities.canApproveInvoices === true;
   const canEditInvoiceFields = capabilities.canEditInvoiceFields === true;
@@ -191,6 +149,44 @@ export function InvoiceView({
   const canUploadFiles = capabilities.canUploadFiles === true;
   const canStartIngestion = capabilities.canStartIngestion === true;
   const canExportToTally = capabilities.canExportToTally === true;
+
+  const {
+    ingestionStatus,
+    setIngestionStatus,
+    ingestionFading,
+    refreshIngestionStatus,
+    ingestionProgressPercent,
+    ingestionSuccessfulFiles
+  } = useInvoiceListIngestion({
+    loadInvoices: () => loadInvoices(),
+    onGmailStatusRefresh,
+    setError,
+    addToast
+  });
+
+  const {
+    uploadInputRef,
+    uploadDragActive,
+    uploadProgress,
+    handleUpload,
+    handleUploadDrop,
+    handleUploadDragEnter,
+    handleUploadDragOver,
+    handleUploadDragLeave
+  } = useInvoiceListUploads({
+    canUploadFiles,
+    loadInvoices: () => loadInvoices(),
+    setIngestionStatus,
+    setError,
+    addToast
+  });
+
+  const handleDividerMouseDown = useInvoiceListPanelDivider({
+    contentRef,
+    listPanelPercent,
+    setListPanelPercent,
+    persistPercent: (value) => setInvoiceViewPref({ panelSplitPercent: value })
+  });
 
   const {
     detail: activeInvoiceDetail,
@@ -229,111 +225,6 @@ export function InvoiceView({
     fetchGlCodes().then(r => setTenantGlCodes(r.items)).catch(() => {});
     fetchTdsRates().then(r => setTenantTdsRates(r)).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!popupInvoiceId) {
-      return;
-    }
-    setSectionExpanded((prev) => ({ ...prev, popupSourcePreview: false, popupExtractedFields: true, popupLineItems: false }));
-  }, [popupInvoiceId]);
-
-  useEffect(() => {
-    setSectionExpanded((prev) => ({ ...prev, activeSourcePreview: false, activeExtractedFields: true, activeLineItems: false }));
-  }, [activeId]);
-
-  useEffect(() => {
-    if (!popupInvoiceId) {
-      return undefined;
-    }
-
-    popupRef.current?.focus();
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function handleEsc(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setPopupInvoiceId(null);
-      }
-    }
-
-    window.addEventListener("keydown", handleEsc);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", handleEsc);
-    };
-  }, [popupInvoiceId]);
-
-  useEffect(() => {
-    if (!ingestionStatus?.running) {
-      return undefined;
-    }
-
-    const unsub = subscribeIngestionSSE(
-      (status) => {
-        if (status.systemAlert) {
-          addToast("error", status.systemAlert);
-        }
-        setIngestionStatus(status);
-        if (!sseLoadTimerRef.current) {
-          void loadInvoices();
-          sseLoadTimerRef.current = setTimeout(() => {
-            sseLoadTimerRef.current = null;
-            if (sseLoadPendingRef.current) {
-              sseLoadPendingRef.current = false;
-              void loadInvoices();
-            }
-          }, 2000);
-        } else {
-          sseLoadPendingRef.current = true;
-        }
-      },
-      () => {
-        void refreshIngestionStatus();
-        void loadInvoices();
-      }
-    );
-
-    return () => {
-      unsub();
-      if (sseLoadTimerRef.current) {
-        clearTimeout(sseLoadTimerRef.current);
-        sseLoadTimerRef.current = null;
-      }
-    };
-  }, [ingestionStatus?.running]);
-
-  useEffect(() => {
-    if (!ingestionStatus?.running) {
-      return undefined;
-    }
-    const poller = window.setInterval(() => {
-      void refreshIngestionStatus();
-      void loadInvoices();
-    }, 3000);
-    return () => window.clearInterval(poller);
-  }, [ingestionStatus?.running]);
-
-  useEffect(() => {
-    const isRunning = ingestionStatus?.running === true;
-    if (ingestionWasRunningRef.current && !isRunning) {
-      if (ingestionStatus?.state === "failed") {
-        setError(ingestionStatus.error ? `Ingestion failed: ${ingestionStatus.error}` : "Ingestion failed.");
-      }
-      void loadInvoices();
-      onGmailStatusRefresh();
-    }
-    ingestionWasRunningRef.current = isRunning;
-  }, [ingestionStatus?.running, ingestionStatus?.state, ingestionStatus?.error]);
-
-  useEffect(() => {
-    if (ingestionStatus?.state !== "completed") {
-      setIngestionFading(false);
-      return;
-    }
-    const fadeTimer = setTimeout(() => setIngestionFading(true), 5000);
-    const hideTimer = setTimeout(() => setIngestionStatus(null), 7000);
-    return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
-  }, [ingestionStatus?.state]);
 
   useEffect(() => {
     if (ingestingIds.size === 0) return;
@@ -387,14 +278,6 @@ export function InvoiceView({
     if (!popupInvoice) return {};
     return buildFieldCropSourceMap(popupInvoice._id, getInvoiceSourceHighlights(popupInvoice), invoiceUrls.preview);
   }, [popupInvoice]);
-
-  const ingestionProgressPercent = !ingestionStatus || ingestionStatus.totalFiles <= 0
-    ? 0
-    : Math.min(100, Math.round((ingestionStatus.processedFiles / ingestionStatus.totalFiles) * 100));
-
-  const ingestionSuccessfulFiles = !ingestionStatus
-    ? 0
-    : Math.max(0, ingestionStatus.processedFiles - ingestionStatus.failures);
 
   const selectedInvoices = useMemo(() => {
     if (selectedIds.length === 0 || invoices.length === 0) {
@@ -455,89 +338,93 @@ export function InvoiceView({
     requestAnimationFrame(() => setShortcutAnnouncement(message));
   }, []);
 
-  useKeyboardShortcuts({
-    enabled: !popupInvoiceId && !confirmDialog && !showShortcutsHelp,
-    onMoveDown: () => {
-      const idx = filteredInvoices.findIndex((inv) => inv._id === activeId);
-      const next = filteredInvoices[idx + 1];
-      if (next) {
-        setActiveId(next._id);
-        setDetailsPanelVisible(true);
-        requestAnimationFrame(() => {
-          document.querySelector(`[data-invoice-id="${next._id}"]`)?.scrollIntoView({ block: "nearest" });
-        });
-        announceShortcut(`Focused invoice ${next.attachmentName}`);
-      }
-    },
-    onMoveUp: () => {
-      const idx = filteredInvoices.findIndex((inv) => inv._id === activeId);
-      const prev = filteredInvoices[idx - 1];
-      if (prev) {
-        setActiveId(prev._id);
-        setDetailsPanelVisible(true);
-        requestAnimationFrame(() => {
-          document.querySelector(`[data-invoice-id="${prev._id}"]`)?.scrollIntoView({ block: "nearest" });
-        });
-        announceShortcut(`Focused invoice ${prev.attachmentName}`);
-      }
-    },
-    onToggleExpand: () => {
-      if (!activeId) return;
-      const willExpand = !isRiskSignalsExpanded(activeId);
-      toggleRiskSignalsExpanded(activeId);
-      announceShortcut(willExpand ? "Expanded risk signals" : "Collapsed risk signals");
-    },
-    onOpenDetail: () => { if (activeId) setPopupInvoiceId(activeId); },
-    onApprove: () => {
-      if (!activeId) return;
-      const inv = filteredInvoices.find((i) => i._id === activeId);
-      if (!inv || !isInvoiceApprovable(inv) || !canApproveInvoices) return;
-      announceShortcut(`Approving invoice ${inv.attachmentName}`);
-      void handleApproveSingle(activeId).then((ok) => {
-        announceShortcut(ok ? `Approved invoice ${inv.attachmentName}` : `Failed to approve invoice ${inv.attachmentName}`);
-      });
-    },
-    onExport: () => {
-      if (!activeId) return;
-      const inv = filteredInvoices.find((i) => i._id === activeId);
-      if (!inv || !isInvoiceExportable(inv) || !canExportToTally) return;
-      announceShortcut(`Exporting invoice ${inv.attachmentName}`);
-      void handleExportSingle(activeId).then((ok) => {
-        announceShortcut(ok ? `Exported invoice ${inv.attachmentName}` : `Failed to export invoice ${inv.attachmentName}`);
-      });
-    },
-    onEscape: () => {
-      if (selectedIds.length > 0) { clearSelection(); return; }
-      if (detailsPanelVisible) { setDetailsPanelVisible(false); }
-    },
-    onShowHelp: () => setShowShortcutsHelp(true)
+  const {
+    editingListCell,
+    setEditingListCell,
+    editListValue,
+    setEditListValue,
+    glCodeEditingInvoiceId,
+    setGlCodeEditingInvoiceId,
+    handleSaveField,
+    handleSaveListCell
+  } = useInvoiceFieldEditing({
+    canEditInvoiceFields,
+    loadInvoices: () => loadInvoices(),
+    refreshActiveInvoiceDetail,
+    activeId,
+    addToast
   });
 
-  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const container = contentRef.current;
-    if (!container) return;
-    const startX = e.clientX;
-    const startPercent = listPanelPercent;
-    const containerWidth = container.getBoundingClientRect().width;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+  const {
+    confirmDialog,
+    setConfirmDialog,
+    actionLoading,
+    pendingExport,
+    setPendingExport,
+    preExportModalOpen,
+    setPreExportModalOpen,
+    handleApprove,
+    handleDelete,
+    handleApproveSingle,
+    handleExportSingle,
+    handleWorkflowApproveSingle,
+    handleWorkflowRejectSingle,
+    handleRetrySingle,
+    handleDeleteSingle,
+    handleRetry,
+    handleExport,
+    executeExport,
+    handleIngest,
+    handlePauseIngestion,
+    handleTableGlCodeSelect,
+    handleTableGlCodeClear
+  } = useInvoiceListActions({
+    userEmail,
+    canApproveInvoices,
+    canDeleteInvoices,
+    canRetryInvoices,
+    canExportToTally,
+    canStartIngestion,
+    selectedIds,
+    selectedApprovableIds,
+    selectedExportableIds,
+    selectedRetryableIds,
+    selectedNonExportableCount,
+    loadInvoices: () => loadInvoices(),
+    clearSelection,
+    removeFromSelection,
+    ingestionStatus,
+    setIngestionStatus,
+    setIngestingIds,
+    activeInvoice,
+    refreshActiveInvoiceDetail,
+    activeId,
+    setError,
+    setGlCodeEditingInvoiceId,
+    addToast
+  });
 
-    const onMove = (ev: MouseEvent) => {
-      const delta = ev.clientX - startX;
-      const pctDelta = (delta / containerWidth) * 100;
-      setListPanelPercent(Math.min(75, Math.max(25, startPercent + pctDelta)));
-    };
-    const onUp = () => {
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      setInvoiceViewPref({ panelSplitPercent: listPanelPercent });
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [listPanelPercent, setInvoiceViewPref]);
+  useInvoiceListShortcuts({
+    popupInvoiceId,
+    confirmDialogOpen: confirmDialog !== null,
+    showShortcutsHelp,
+    filteredInvoices,
+    activeId,
+    selectedIds,
+    detailsPanelVisible,
+    canApproveInvoices,
+    canExportToTally,
+    setActiveId,
+    setDetailsPanelVisible,
+    setPopupInvoiceId,
+    setShowShortcutsHelp,
+    clearSelection,
+    isRiskSignalsExpanded,
+    toggleRiskSignalsExpanded,
+    handleApproveSingle,
+    handleExportSingle,
+    announceShortcut
+  });
 
   async function loadInvoices() {
     setLoading(true);
@@ -600,574 +487,23 @@ export function InvoiceView({
     }
   }
 
-  async function refreshIngestionStatus() {
-    try {
-      const status = await fetchIngestionStatus();
-      setIngestionStatus(status);
-    } catch {
-    }
-  }
 
-  function handleApprove() {
-    if (!canApproveInvoices) {
-      addToast("error", "You do not have permission to approve invoices.");
-      return;
-    }
-    if (selectedApprovableIds.length === 0) {
-      addToast("error", "Select at least one invoice to approve.");
-      return;
-    }
-    const count = selectedApprovableIds.length;
-    setConfirmDialog({
-      title: "Approve Invoices",
-      message: `Approve ${count} invoice${count === 1 ? "" : "s"}? This action is recorded in the audit trail.`,
-      confirmLabel: `Approve ${count}`,
-      destructive: false,
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        try {
-          setActionLoading("approve");
-          const response = await approveInvoices(selectedApprovableIds, userEmail);
-          if (response.modifiedCount === 0) {
-            addToast("info", "No eligible invoices found for approval.");
-          } else {
-            addToast("success", `${response.modifiedCount} invoice(s) approved.`);
-          }
-          await loadInvoices();
-        } catch (approveError) {
-          addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
-        } finally {
-          setActionLoading(null);
-        }
-      }
-    });
-  }
 
-  function handleDelete() {
-    if (!canDeleteInvoices) {
-      addToast("error", "You do not have permission to delete invoices.");
-      return;
-    }
-    if (selectedIds.length === 0) return;
-    setConfirmDialog({
-      title: "Delete Invoices",
-      message: `Delete ${selectedIds.length} invoice${selectedIds.length === 1 ? "" : "s"}? This cannot be undone.`,
-      confirmLabel: `Delete ${selectedIds.length} invoice${selectedIds.length === 1 ? "" : "s"}`,
-      destructive: true,
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        try {
-          setActionLoading("delete");
-          const response = await deleteInvoices(selectedIds);
-          if (response.deletedCount === 0) {
-            addToast("info", "No invoices were eligible for deletion.");
-          } else {
-            addToast("success", `${response.deletedCount} invoice(s) deleted.`);
-          }
-          clearSelection();
-          await loadInvoices();
-        } catch (deleteError) {
-          addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
-        } finally {
-          setActionLoading(null);
-        }
-      }
-    });
-  }
-
-  async function handleApproveSingle(invoiceId: string): Promise<boolean> {
-    if (!canApproveInvoices) {
-      addToast("error", "You do not have permission to approve invoices.");
-      return false;
-    }
-    try {
-      const response = await approveInvoices([invoiceId], userEmail);
-      if (response.modifiedCount === 0) {
-        addToast("info", "Invoice was not eligible for approval.");
-        await loadInvoices();
-        return false;
-      }
-      await loadInvoices();
-      return true;
-    } catch (approveError) {
-      addToast("error", getUserFacingErrorMessage(approveError, "Approval failed."));
-      return false;
-    }
-  }
-
-  async function exportInvoices(ids: string[], mode: "single" | "bulk"): Promise<boolean> {
-    try {
-      setActionLoading("export");
-      const fileResult = await generateTallyXmlFile(ids);
-      if (!fileResult.batchId) {
-        const msg = mode === "single"
-          ? "Export failed — invoice may have invalid amounts or is already exported."
-          : "Export failed — invoices may have invalid amounts or are already exported.";
-        addToast("error", msg);
-        if (mode === "bulk") clearSelection();
-        await loadInvoices();
-        return false;
-      }
-      const blob = await downloadTallyXmlFile(fileResult.batchId);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileResult.filename ?? "tally-import.xml";
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-      if (mode === "bulk") {
-        const exportedIds = ids.filter(
-          (id) => !fileResult.skippedItems.some((item) => item.invoiceId === id)
-        );
-        removeFromSelection(exportedIds);
-      }
-      addToast("success", `${fileResult.includedCount} invoice(s) exported. XML file downloaded.`);
-      await loadInvoices();
-      if (mode === "bulk" && fileResult.skippedCount > 0) {
-        addToast("info", `${fileResult.skippedCount} invoice(s) skipped (already exported or missing fields).`);
-      }
-      return true;
-    } catch (downloadError) {
-      addToast("error", getUserFacingErrorMessage(downloadError, "Export failed."));
-      await loadInvoices();
-      return false;
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleExportSingle(invoiceId: string): Promise<boolean> {
-    if (!canExportToTally) {
-      addToast("error", "You do not have permission to export invoices.");
-      return false;
-    }
-    setPendingExport({ ids: [invoiceId], mode: "single" });
-    setPreExportModalOpen(true);
-    return true;
-  }
-
-  async function handleWorkflowApproveSingle(invoiceId: string) {
-    if (!canApproveInvoices) {
-      addToast("error", "You do not have permission to approve invoices.");
-      return;
-    }
-    try {
-      await approveWorkflowStep(invoiceId);
-      addToast("success", "Workflow step approved.");
-      await loadInvoices();
-      if (activeInvoice?._id === invoiceId) {
-        await refreshActiveInvoiceDetail();
-      }
-    } catch (approveError) {
-      addToast("error", getUserFacingErrorMessage(approveError, "Workflow approval failed."));
-    }
-  }
-
-  function handleWorkflowRejectSingle(invoiceId: string) {
-    if (!canApproveInvoices) {
-      addToast("error", "You do not have permission to reject workflow steps.");
-      return;
-    }
-    setConfirmDialog({
-      title: "Reject Approval Step",
-      message: "Reject the current workflow step and return the invoice to Needs Review?",
-      confirmLabel: "Reject Step",
-      destructive: true,
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        try {
-          await rejectWorkflowStep(invoiceId, "Rejected from UI workflow action");
-          addToast("info", "Workflow step rejected.");
-          await loadInvoices();
-          if (activeInvoice?._id === invoiceId) {
-            await refreshActiveInvoiceDetail();
-          }
-        } catch (rejectError) {
-          addToast("error", getUserFacingErrorMessage(rejectError, "Workflow rejection failed."));
-        }
-      }
-    });
-  }
-
-  async function handleRetrySingle(invoiceId: string) {
-    if (!canRetryInvoices) {
-      addToast("error", "You do not have permission to retry invoices.");
-      return;
-    }
-    setIngestingIds((prev) => new Set(prev).add(invoiceId));
-    try {
-      const response = await retryInvoices([invoiceId]);
-      if (response.modifiedCount === 0) {
-        addToast("info", "Invoice was not eligible for retry.");
-        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
-        return;
-      }
-      if (ingestionStatus?.running) return;
-      const status = await runIngestion();
-      setIngestionStatus(status);
-      if (!status.running) {
-        setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
-        await loadInvoices();
-      }
-    } catch (retryError) {
-      addToast("error", getUserFacingErrorMessage(retryError, "Retry failed."));
-      setIngestingIds((prev) => { const next = new Set(prev); next.delete(invoiceId); return next; });
-    }
-  }
-
-  function handleDeleteSingle(invoiceId: string, fileName: string) {
-    if (!canDeleteInvoices) {
-      addToast("error", "You do not have permission to delete invoices.");
-      return;
-    }
-    setConfirmDialog({
-      title: "Delete Invoice",
-      message: `Delete "${fileName}"? This cannot be undone.`,
-      confirmLabel: "Delete invoice",
-      destructive: true,
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        try {
-          const response = await deleteInvoices([invoiceId]);
-          if (response.deletedCount === 0) {
-            addToast("info", "Invoice could not be deleted.");
-          } else {
-            addToast("success", `"${fileName}" deleted.`);
-          }
-          removeFromSelection([invoiceId]);
-          await loadInvoices();
-        } catch (deleteError) {
-          addToast("error", getUserFacingErrorMessage(deleteError, "Deletion failed."));
-        }
-      }
-    });
-  }
-
-  async function handleRetry() {
-    if (!canRetryInvoices) {
-      addToast("error", "You do not have permission to retry invoices.");
-      return;
-    }
-    if (selectedRetryableIds.length === 0) {
-      addToast("error", "Select at least one invoice to retry.");
-      return;
-    }
-    try {
-      setError(null);
-      const response = await retryInvoices(selectedRetryableIds);
-      if (response.modifiedCount === 0) {
-        addToast("info", "No invoices were eligible for retry.");
-      }
-      clearSelection();
-      await loadInvoices();
-    } catch (retryError) {
-      addToast("error", getUserFacingErrorMessage(retryError, "Retry failed."));
-    }
-  }
-
-  function handleExport() {
-    if (!canExportToTally) {
-      addToast("error", "You do not have permission to export invoices.");
-      return;
-    }
-    if (selectedExportableIds.length === 0) {
-      addToast("error", "Select at least one approved invoice to export.");
-      return;
-    }
-    if (selectedNonExportableCount > 0) {
-      addToast("error", "Deselect non-approved invoices before exporting.");
-      return;
-    }
-    setPendingExport({ ids: selectedExportableIds, mode: "bulk" });
-    setPreExportModalOpen(true);
-  }
-
-  async function executeExport() {
-    const pending = pendingExport;
-    if (!pending || pending.ids.length === 0) return;
-    await exportInvoices(pending.ids, pending.mode);
-  }
-
-  async function uploadFiles(files: File[]) {
-    if (!canUploadFiles) {
-      addToast("error", "You do not have permission to upload files.");
-      return;
-    }
-    if (files.length === 0) return;
-
-    const MAX_FILES = 50;
-    const MAX_FILE_SIZE = 20 * 1024 * 1024;
-    const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
-
-    if (files.length > MAX_FILES) {
-      addToast("error", "Maximum 50 files per upload");
-      return;
-    }
-
-    for (const file of files) {
-      if (file.size > MAX_FILE_SIZE) {
-        addToast("error", `File ${file.name} exceeds the 20 MB limit`);
-        return;
-      }
-      const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-      if (!ALLOWED_EXTENSIONS.includes(ext)) {
-        addToast("error", `File ${file.name} has an unsupported format. Supported: PDF, JPG, PNG, WEBP`);
-        return;
-      }
-    }
-
-    try {
-      setError(null);
-
-      const fileMeta = files.map((f) => ({
-        name: f.name,
-        contentType: f.type || "application/octet-stream",
-        sizeBytes: f.size
-      }));
-
-      let presignResponse: Awaited<ReturnType<typeof requestPresignedUrls>> | null = null;
-      try {
-        presignResponse = await requestPresignedUrls(fileMeta);
-      } catch {
-        presignResponse = null;
-      }
-
-      if (presignResponse && presignResponse.uploads.length === files.length) {
-        const progressMap = new Map<string, number>();
-        for (const file of files) progressMap.set(file.name, 0);
-        setUploadProgress(new Map(progressMap));
-
-        const uploadPromises = presignResponse.uploads.map((entry, idx) => {
-          const file = files[idx];
-          return new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", entry.uploadUrl);
-            xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-            xhr.upload.onprogress = (event) => {
-              if (event.lengthComputable) {
-                progressMap.set(file.name, Math.round((event.loaded / event.total) * 100));
-                setUploadProgress(new Map(progressMap));
-              }
-            };
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                progressMap.set(file.name, 100);
-                setUploadProgress(new Map(progressMap));
-                resolve();
-              } else {
-                reject(new Error(`Upload failed for ${file.name}: ${xhr.status}`));
-              }
-            };
-            xhr.onerror = () => reject(new Error(`Upload failed for ${file.name}`));
-            xhr.send(file);
-          });
-        });
-
-        await Promise.all(uploadPromises);
-
-        const keys = presignResponse.uploads.map((entry) => entry.key);
-        await registerUploadedKeys(keys);
-        setUploadProgress(new Map());
-      } else {
-        await uploadInvoiceFiles(files);
-      }
-
-      await loadInvoices();
-      const status = await runIngestion();
-      setIngestionStatus(status);
-    } catch (uploadError) {
-      setUploadProgress(new Map());
-      addToast("error", getUserFacingErrorMessage(uploadError, "File upload failed."));
-    }
-  }
-
-  async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
-    const files = event.target.files;
-    try {
-      await uploadFiles(files ? Array.from(files) : []);
-    } finally {
-      if (uploadInputRef.current) uploadInputRef.current.value = "";
-    }
-  }
-
-  async function handleUploadDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    setUploadDragActive(false);
-    await uploadFiles(Array.from(event.dataTransfer.files ?? []));
-  }
-
-  async function handleIngest() {
-    if (!canStartIngestion) {
-      addToast("error", "You do not have permission to run ingestion.");
-      return;
-    }
-    try {
-      setError(null);
-      const status = await runIngestion();
-      setIngestionStatus(status);
-    } catch (ingestError) {
-      addToast("error", getUserFacingErrorMessage(ingestError, "Ingestion run failed."));
-    }
-  }
-
-  async function handlePauseIngestion() {
-    if (!canStartIngestion) {
-      addToast("error", "You do not have permission to manage ingestion.");
-      return;
-    }
-    try {
-      setError(null);
-      const status = await pauseIngestion();
-      setIngestionStatus(status);
-    } catch (pauseError) {
-      addToast("error", getUserFacingErrorMessage(pauseError, "Failed to pause ingestion."));
-    }
-  }
-
-  async function handleSaveField(
-    invoice: Invoice | null,
-    fieldKey: string,
-    value: string,
-    refreshDetail: () => Promise<void>
-  ) {
-    if (!canEditInvoiceFields) {
-      addToast("error", "You do not have permission to edit invoice fields.");
-      return;
-    }
-    if (!invoice) return;
-    const trimmed = value.trim();
-    const parsed: Record<string, unknown> = {};
-    if (fieldKey === "totalAmountMinor") {
-      parsed.totalAmountMajor = trimmed || null;
-    } else if (fieldKey === "currency") {
-      parsed.currency = trimmed ? trimmed.toUpperCase() : null;
-    } else if (fieldKey.startsWith("gst.")) {
-      const gstKey = fieldKey.slice(4);
-      const gstAmountFields = ["subtotalMinor", "cgstMinor", "sgstMinor", "igstMinor", "cessMinor", "totalTaxMinor"];
-      const existingGst = invoice.parsed?.gst ?? {};
-      if (gstAmountFields.includes(gstKey)) {
-        const major = parseFloat((trimmed || "0").replace(/,/g, ""));
-        const minor = Number.isFinite(major) && major > 0 ? Math.round(major * 100) : null;
-        parsed.gst = { ...existingGst, [gstKey]: minor };
-      } else {
-        parsed.gst = { ...existingGst, [gstKey]: trimmed || null };
-      }
-    } else {
-      parsed[fieldKey] = trimmed || null;
-    }
-    try {
-      await updateInvoiceParsedFields(invoice._id, { parsed: parsed as Parameters<typeof updateInvoiceParsedFields>[1]["parsed"], updatedBy: "ui-user" });
-      await loadInvoices();
-      await refreshDetail();
-    } catch (saveError) {
-      addToast("error", getUserFacingErrorMessage(saveError, "Failed to save field."));
-    }
-  }
-
-  async function handleSaveListCell() {
-    if (!canEditInvoiceFields) {
-      addToast("error", "You do not have permission to edit invoice fields.");
-      return;
-    }
-    if (!editingListCell) return;
-    const { invoiceId, field } = editingListCell;
-    const trimmed = editListValue.trim();
-    try {
-      if (field === "attachmentName") {
-        if (trimmed) await renameInvoiceAttachment(invoiceId, trimmed);
-      } else {
-        const parsed: Record<string, string | null> = {};
-        if (field === "totalAmountMinor") {
-          parsed.totalAmountMajor = trimmed || null;
-        } else {
-          parsed[field] = trimmed || null;
-        }
-        await updateInvoiceParsedFields(invoiceId, { parsed, updatedBy: "ui-user" });
-      }
-      setEditingListCell(null);
-      await loadInvoices();
-      if (activeId === invoiceId) {
-        await refreshActiveInvoiceDetail();
-      }
-    } catch (saveError) {
-      addToast("error", getUserFacingErrorMessage(saveError, "Failed to save field."));
-    }
-  }
-
-  async function handleTableGlCodeSelect(invoiceId: string, glCode: string, glName: string) {
-    setGlCodeEditingInvoiceId(null);
-    try {
-      await updateInvoiceComplianceOverride(invoiceId, { glCode, glName } as Record<string, unknown>);
-      await loadInvoices();
-      if (activeId === invoiceId) {
-        await refreshActiveInvoiceDetail();
-      }
-      addToast("success", "GL code updated and compliance recalculated.");
-    } catch {
-      addToast("error", "Failed to update GL code.");
-    }
-  }
-
-  async function handleTableGlCodeClear(invoiceId: string) {
-    setGlCodeEditingInvoiceId(null);
-    try {
-      await updateInvoiceComplianceOverride(invoiceId, { glCode: "" } as Record<string, unknown>);
-      await loadInvoices();
-      if (activeId === invoiceId) {
-        await refreshActiveInvoiceDetail();
-      }
-      addToast("success", "GL code cleared.");
-    } catch {
-      addToast("error", "Failed to clear GL code.");
-    }
-  }
-
-  const selectedRowKeys = useMemo<ReadonlySet<string>>(() => new Set(selectedIds), [selectedIds]);
-
-  const dataTableSort = useMemo<DataTableSort | null>(() => {
-    if (!sortColumn) return null;
-    return {
-      id: sortColumn,
-      direction:
-        sortDirection === "asc" ? DATATABLE_SORT_DIRECTION.ASC : DATATABLE_SORT_DIRECTION.DESC
-    };
-  }, [sortColumn, sortDirection]);
-
-  const handleDataTableSortChange = useCallback(
-    (next: DataTableSort | undefined) => {
-      if (!next) return;
-      if (sortColumn === next.id) {
-        setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-        return;
-      }
-      setSortColumn(next.id);
-      setSortDirection(next.direction === DATATABLE_SORT_DIRECTION.ASC ? "asc" : "desc");
-    },
-    [sortColumn, setSortColumn, setSortDirection]
-  );
-
-  const handleSelectionChange = useCallback(
-    (next: ReadonlySet<string>) => {
-      const additions: Invoice[] = [];
-      const removals: string[] = [];
-      for (const invoice of filteredInvoices) {
-        const wasSelected = selectedRowKeys.has(invoice._id);
-        const isSelected = next.has(invoice._id);
-        if (isSelected && !wasSelected && isInvoiceSelectable(invoice)) {
-          additions.push(invoice);
-        } else if (!isSelected && wasSelected) {
-          removals.push(invoice._id);
-        }
-      }
-      for (const invoice of additions) toggleSelection(invoice);
-      if (removals.length > 0) removeFromSelection(removals);
-    },
-    [filteredInvoices, selectedRowKeys, toggleSelection, removeFromSelection]
-  );
-
-  const invoiceColumns = useMemo(() => buildInvoiceColumns({
+  const {
+    selectedRowKeys,
+    dataTableSort,
+    handleDataTableSortChange,
+    handleSelectionChange,
+    invoiceColumns
+  } = useInvoiceListTableBindings({
+    selectedIds,
+    sortColumn,
+    sortDirection,
+    setSortColumn,
+    setSortDirection,
+    filteredInvoices,
+    toggleSelection,
+    removeFromSelection,
     editingListCell,
     editListValue,
     setEditListValue,
@@ -1186,16 +522,7 @@ export function InvoiceView({
     handleApproveSingle,
     handleRetrySingle,
     handleDeleteSingle
-  }), [
-    editingListCell,
-    editListValue,
-    glCodeEditingInvoiceId,
-    tenantGlComboOptions,
-    ingestingIds,
-    canApproveInvoices,
-    canRetryInvoices,
-    canDeleteInvoices
-  ]);
+  });
 
   return (
     <>
@@ -1236,18 +563,9 @@ export function InvoiceView({
         onUploadButtonClick={() => uploadInputRef.current?.click()}
         onUploadFileChange={(e) => void handleUpload(e)}
         uploadDragActive={uploadDragActive}
-        onUploadDragEnter={(event) => {
-          event.preventDefault();
-          setUploadDragActive(true);
-        }}
-        onUploadDragOver={(event) => {
-          event.preventDefault();
-          setUploadDragActive(true);
-        }}
-        onUploadDragLeave={(event) => {
-          event.preventDefault();
-          if (event.currentTarget === event.target) setUploadDragActive(false);
-        }}
+        onUploadDragEnter={handleUploadDragEnter}
+        onUploadDragOver={handleUploadDragOver}
+        onUploadDragLeave={handleUploadDragLeave}
         onUploadDrop={(event) => void handleUploadDrop(event)}
         onApprove={() => void handleApprove()}
         onDelete={handleDelete}
@@ -1266,185 +584,60 @@ export function InvoiceView({
       {error ? <p className="error">{error}</p> : null}
       <main ref={contentRef} className={contentClassName} style={contentStyle}>
         <>
-          <section className="panel list-panel invoice-list-panel" data-density={tableDensity}>
-            <div className="panel-title">
-              <h2>Invoices</h2>
-              {loading ? <span className="invoice-list-meta">Loading...</span> : <span className="invoice-list-meta">{invoices.length} records</span>}
-            </div>
+          <InvoiceListPanel
+            tableDensity={tableDensity}
+            loading={loading}
+            invoices={invoices}
+            filteredInvoices={filteredInvoices}
+            hasActiveFilters={hasActiveFilters}
+            canUploadFiles={canUploadFiles}
+            onClearAllFilters={clearAllFilters}
+            onUploadClick={() => uploadInputRef.current?.click()}
+            invoiceColumns={invoiceColumns}
+            selectedRowKeys={selectedRowKeys}
+            dataTableSort={dataTableSort}
+            onSortChange={handleDataTableSortChange}
+            onRowClick={(invoice) => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}
+            activeId={activeId}
+            onSelectionChange={handleSelectionChange}
+            selectedIds={selectedIds}
+            selectedApprovableIds={selectedApprovableIds}
+            selectedExportableIds={selectedExportableIds}
+            canApproveInvoices={canApproveInvoices}
+            canExportToTally={canExportToTally}
+            canDeleteInvoices={canDeleteInvoices}
+            onApprove={() => void handleApprove()}
+            onExport={() => void handleExport()}
+            onDelete={handleDelete}
+            onClearSelection={clearSelection}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalInvoices={totalInvoices}
+            onPageChange={setCurrentPage}
+            onPageDelta={(delta) => setCurrentPage((p) => p + delta)}
+            onPageSizeChange={setPageSize}
+          />
 
-            {loading && invoices.length === 0 ? (
-              <div className="invoice-list-skeleton">
-                {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton skeleton-row" />)}
-              </div>
-            ) : null}
-
-            {!loading && invoices.length === 0 ? (
-              <EmptyState
-                icon={hasActiveFilters ? "filter_list_off" : "receipt_long"}
-                heading={hasActiveFilters ? "No matching invoices" : "No invoices yet"}
-                description={hasActiveFilters ? "Try adjusting your filters or date range." : "Upload invoice PDFs or connect a Gmail inbox to start processing."}
-                action={hasActiveFilters
-                  ? <button type="button" className="app-button app-button-secondary" onClick={clearAllFilters}>Clear Filters</button>
-                  : (canUploadFiles ? <button type="button" className="app-button app-button-primary" onClick={() => uploadInputRef.current?.click()}>Upload Files</button> : undefined)}
-              />
-            ) : null}
-
-            {invoices.length > 0 || loading ? (
-              <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
-                <DataTable<Invoice>
-                  columns={invoiceColumns}
-                  rows={filteredInvoices}
-                  getRowKey={(invoice) => invoice._id}
-                  density={tableDensity === "compact" ? DATATABLE_DENSITY.COMPACT : DATATABLE_DENSITY.COMFORTABLE}
-                  stickyHeader
-                  sortBy={dataTableSort}
-                  onSortChange={handleDataTableSortChange}
-                  onRowClick={(invoice) => { setActiveId(invoice._id); setDetailsPanelVisible(true); }}
-                  activeRowId={activeId ?? undefined}
-                  getRowClassName={(invoice) => (invoice.status === "EXPORTED" ? "row-exported" : undefined)}
-                  getRowAttributes={(invoice) => ({ "data-invoice-id": invoice._id })}
-                  selectable
-                  selectedRowIds={selectedRowKeys}
-                  onSelectionChange={handleSelectionChange}
-                  isRowSelectable={(invoice) => isInvoiceSelectable(invoice)}
-                  caption="Invoices"
-                  testId="invoice-list-table"
-                />
-              </div>
-            ) : null}
-            {selectedIds.length > 0 && (canApproveInvoices || canExportToTally || canDeleteInvoices) ? (
-              <div className="bulk-action-bar">
-                <span className="bulk-count">{selectedIds.length} selected</span>
-                {canApproveInvoices ? (
-                  <button type="button" className="app-button app-button-primary app-button-sm" disabled={selectedApprovableIds.length === 0} onClick={() => void handleApprove()}>
-                    Approve ({selectedApprovableIds.length})
-                  </button>
-                ) : null}
-                {canExportToTally ? (
-                  <button type="button" className="app-button app-button-sm app-button-violet" disabled={selectedExportableIds.length === 0} onClick={() => void handleExport()}>
-                    Export ({selectedExportableIds.length})
-                  </button>
-                ) : null}
-                {canDeleteInvoices ? (
-                  <button type="button" className="app-button app-button-sm app-button-danger" onClick={handleDelete}>
-                    Delete ({selectedIds.length})
-                  </button>
-                ) : null}
-                <button type="button" className="bulk-deselect" onClick={clearSelection}>Deselect All</button>
-              </div>
-            ) : null}
-            {totalInvoices > 0 ? (
-              <div className="pagination-bar">
-                <div className="pagination-info">
-                  {Math.min((currentPage - 1) * pageSize + 1, totalInvoices)}–{Math.min(currentPage * pageSize, totalInvoices)} of {totalInvoices}
-                </div>
-                <div className="pagination-controls">
-                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>First</button>
-                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>Prev</button>
-                  <span className="pagination-page">Page {currentPage} of {Math.max(1, Math.ceil(totalInvoices / pageSize))}</span>
-                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage >= Math.ceil(totalInvoices / pageSize)} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
-                  <button type="button" className="app-button app-button-secondary app-button-sm" disabled={currentPage >= Math.ceil(totalInvoices / pageSize)} onClick={() => setCurrentPage(Math.ceil(totalInvoices / pageSize))}>Last</button>
-                </div>
-                <div className="pagination-size">
-                  <span>Rows:</span>
-                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-            ) : null}
-          </section>
-
-          {detailsPanelVisible ? (
-            <>
-              <div className="panel-divider" onMouseDown={handleDividerMouseDown} />
-              {activeInvoice ? (
-                <InvoiceDetailPanel
-                  invoice={activeInvoice}
-                  loading={activeInvoiceDetailLoading}
-                  tenantGlCodes={tenantGlCodes}
-                  tenantTdsRates={tenantTdsRates}
-                  activeCropUrlByField={activeCropUrlByField}
-                  resolvePreviewUrl={(page) => invoiceUrls.preview(activeInvoice._id, page)}
-                  activeSourcePreviewExpanded={!!sectionExpanded.activeSourcePreview}
-                  setActiveSourcePreviewExpanded={(v) => setSection("activeSourcePreview", v)}
-                  activeExtractedFieldsExpanded={sectionExpanded.activeExtractedFields !== false}
-                  setActiveExtractedFieldsExpanded={(v) => setSection("activeExtractedFields", v)}
-                  activeLineItemsExpanded={!!sectionExpanded.activeLineItems}
-                  setActiveLineItemsExpanded={(v) => setSection("activeLineItems", v)}
-                  vendorDetailsExpanded={!!sectionExpanded.activeVendorDetails}
-                  setVendorDetailsExpanded={(v) => setSection("activeVendorDetails", v)}
-                  customerDetailsExpanded={!!sectionExpanded.activeCustomerDetails}
-                  setCustomerDetailsExpanded={(v) => setSection("activeCustomerDetails", v)}
-                  onWorkflowApproveSingle={(invoiceId) => void handleWorkflowApproveSingle(invoiceId)}
-                  onWorkflowRejectSingle={(invoiceId) => void handleWorkflowRejectSingle(invoiceId)}
-                  onSaveField={(fieldKey, value, refreshDetail) => handleSaveField(activeInvoice, fieldKey, value, refreshDetail)}
-                  refreshActiveInvoiceDetail={refreshActiveInvoiceDetail}
-                  onClose={() => setDetailsPanelVisible(false)}
-                  extractedRows={getExtractedFieldRows(activeInvoice)}
-                  onOverrideGlCode={async (glCode, glName) => {
-                    if (!glCode) {
-                      try {
-                        await updateInvoiceComplianceOverride(activeInvoice._id, { glCode: "" } as Record<string, unknown>);
-                        await refreshActiveInvoiceDetail();
-                        await loadInvoices();
-                        addToast("success", "GL code cleared.");
-                      } catch {
-                        addToast("error", "Failed to clear GL code.");
-                      }
-                      return;
-                    }
-                    try {
-                      await updateInvoiceComplianceOverride(activeInvoice._id, { glCode, glName } as Record<string, unknown>);
-                      await refreshActiveInvoiceDetail();
-                      await loadInvoices();
-                      addToast("success", "GL code updated and compliance recalculated.");
-                    } catch {
-                      addToast("error", "Failed to update GL code.");
-                    }
-                  }}
-                  onOverrideTdsSection={async (section) => {
-                    try {
-                      await updateInvoiceComplianceOverride(activeInvoice._id, { tdsSection: section } as Record<string, unknown>);
-                      await refreshActiveInvoiceDetail();
-                      addToast("success", "TDS section updated.");
-                    } catch {
-                      addToast("error", "Failed to update TDS section.");
-                    }
-                  }}
-                  onDismissRiskSignal={async (signalCode) => {
-                    try {
-                      await updateInvoiceComplianceOverride(activeInvoice._id, { dismissRiskSignal: signalCode } as Record<string, unknown>);
-                      await refreshActiveInvoiceDetail();
-                      addToast("info", "Signal dismissed.");
-                    } catch {
-                      addToast("error", "Failed to dismiss signal.");
-                    }
-                  }}
-                  riskSignalsExpanded={isRiskSignalsExpanded(activeInvoice._id)}
-                  onToggleRiskSignalsExpanded={() => toggleRiskSignalsExpanded(activeInvoice._id)}
-                />
-              ) : (
-                <section className="panel detail-panel invoice-detail-panel">
-                  <div className="panel-title">
-                    <h2>Invoice Details</h2>
-                    <button
-                      type="button"
-                      className="collapse-button"
-                      onClick={() => setDetailsPanelVisible(false)}
-                      aria-label="Close details panel"
-                    >
-                      <span className="material-symbols-outlined">close</span>
-                    </button>
-                  </div>
-                  <p className="muted invoice-detail-empty">Select an invoice to inspect details.</p>
-                </section>
-              )}
-            </>
-          ) : null}
+          <InvoiceDetailHost
+            detailsPanelVisible={detailsPanelVisible}
+            onCloseDetailsPanel={() => setDetailsPanelVisible(false)}
+            onDividerMouseDown={handleDividerMouseDown}
+            activeInvoice={activeInvoice}
+            activeInvoiceDetailLoading={activeInvoiceDetailLoading}
+            tenantGlCodes={tenantGlCodes}
+            tenantTdsRates={tenantTdsRates}
+            activeCropUrlByField={activeCropUrlByField}
+            sectionExpanded={sectionExpanded}
+            setSection={setSection}
+            isRiskSignalsExpanded={isRiskSignalsExpanded}
+            toggleRiskSignalsExpanded={toggleRiskSignalsExpanded}
+            onWorkflowApproveSingle={(invoiceId) => void handleWorkflowApproveSingle(invoiceId)}
+            onWorkflowRejectSingle={(invoiceId) => void handleWorkflowRejectSingle(invoiceId)}
+            onSaveField={handleSaveField}
+            refreshActiveInvoiceDetail={refreshActiveInvoiceDetail}
+            loadInvoices={() => loadInvoices()}
+            addToast={addToast}
+          />
         </>
       </main>
 
@@ -1462,31 +655,20 @@ export function InvoiceView({
         {shortcutAnnouncement}
       </div>
 
-      {popupInvoice ? (
-        <InvoicePopup
-          invoice={popupInvoice}
-          loading={popupInvoiceDetailLoading}
-          tenantMode={tenantMode}
-          popupRef={popupRef}
-          popupSourcePreviewExpanded={!!sectionExpanded.popupSourcePreview}
-          setPopupSourcePreviewExpanded={(v) => setSection("popupSourcePreview", v)}
-          popupExtractedFieldsExpanded={sectionExpanded.popupExtractedFields !== false}
-          setPopupExtractedFieldsExpanded={(v) => setSection("popupExtractedFields", v)}
-          popupLineItemsExpanded={!!sectionExpanded.popupLineItems}
-          setPopupLineItemsExpanded={(v) => setSection("popupLineItems", v)}
-          popupRawOcrExpanded={!!sectionExpanded.popupRawOcr}
-          setPopupRawOcrExpanded={(v) => setSection("popupRawOcr", v)}
-          popupMappingExpanded={!!sectionExpanded.popupMapping}
-          setPopupMappingExpanded={(v) => setSection("popupMapping", v)}
-          popupCropUrlByField={popupCropUrlByField}
-          popupExtractedRows={popupExtractedRows}
-          popupTallyMappings={popupTallyMappings}
-          onClose={() => setPopupInvoiceId(null)}
-          onSaveField={(fieldKey, value, refreshDetail) => handleSaveField(popupInvoice, fieldKey, value, refreshDetail)}
-          refreshPopupInvoiceDetail={refreshPopupInvoiceDetail}
-          resolvePreviewUrl={(page) => invoiceUrls.preview(popupInvoice._id, page)}
-        />
-      ) : null}
+      <InvoicePopupHost
+        popupInvoice={popupInvoice}
+        popupInvoiceDetailLoading={popupInvoiceDetailLoading}
+        tenantMode={tenantMode}
+        popupRef={popupRef}
+        sectionExpanded={sectionExpanded}
+        setSection={setSection}
+        popupCropUrlByField={popupCropUrlByField}
+        popupExtractedRows={popupExtractedRows}
+        popupTallyMappings={popupTallyMappings}
+        setPopupInvoiceId={setPopupInvoiceId}
+        onSaveField={handleSaveField}
+        refreshPopupInvoiceDetail={refreshPopupInvoiceDetail}
+      />
       <PreExportValidationPanel
         open={preExportModalOpen}
         invoices={
