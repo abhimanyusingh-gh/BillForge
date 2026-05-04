@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchInvoices, runIngestion } from "@/api";
+import { runIngestion } from "@/api";
 import { invoiceUrls } from "@/api/urls/invoiceUrls";
 import type { Invoice, TenantUser, UserCapabilities } from "@/types";
 import { IngestionProgressCard } from "@/components/invoice/IngestionProgressCard";
@@ -18,7 +18,6 @@ import { useInvoiceDetail } from "@/hooks/useInvoiceDetail";
 import { useInvoiceTableState } from "@/hooks/useInvoiceTableState";
 import { useUserPrefsStore, type TableDensity } from "@/stores/userPrefsStore";
 import { useInvoiceFilters, DATE_VALIDATION_ERROR } from "@/hooks/useInvoiceFilters";
-import { getUserFacingErrorMessage, isAuthenticationError } from "@/lib/common/apiError";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { KeyboardShortcutsOverlay } from "@/components/common/KeyboardShortcutsOverlay";
 import { InvoiceToolbar } from "@/components/invoice/InvoiceToolbar";
@@ -109,10 +108,7 @@ export function InvoiceView({
     toggleRiskSignalsExpanded
   } = useInvoiceTableState();
 
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(false);
   const [ingestingIds, setIngestingIds] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [popupInvoiceId, setPopupInvoiceId] = useState<string | null>(null);
   const [detailsPanelVisible, setDetailsPanelVisible] = useState(false);
@@ -141,7 +137,6 @@ export function InvoiceView({
     activeId,
     setPopupInvoiceId
   });
-  const [allStatusCounts, setAllStatusCounts] = useState<Record<string, number>>({});
   const canApproveInvoices = capabilities.canApproveInvoices === true;
   const canEditInvoiceFields = capabilities.canEditInvoiceFields === true;
   const canDeleteInvoices = capabilities.canDeleteInvoices === true;
@@ -149,37 +144,6 @@ export function InvoiceView({
   const canUploadFiles = capabilities.canUploadFiles === true;
   const canStartIngestion = capabilities.canStartIngestion === true;
   const canExportToTally = capabilities.canExportToTally === true;
-
-  const {
-    ingestionStatus,
-    setIngestionStatus,
-    ingestionFading,
-    refreshIngestionStatus,
-    ingestionProgressPercent,
-    ingestionSuccessfulFiles
-  } = useInvoiceListIngestion({
-    loadInvoices: () => loadInvoices(),
-    onGmailStatusRefresh,
-    setError,
-    addToast
-  });
-
-  const {
-    uploadInputRef,
-    uploadDragActive,
-    uploadProgress,
-    handleUpload,
-    handleUploadDrop,
-    handleUploadDragEnter,
-    handleUploadDragOver,
-    handleUploadDragLeave
-  } = useInvoiceListUploads({
-    canUploadFiles,
-    loadInvoices: () => loadInvoices(),
-    setIngestionStatus,
-    setError,
-    addToast
-  });
 
   const handleDividerMouseDown = useInvoiceListPanelDivider({
     contentRef,
@@ -198,6 +162,65 @@ export function InvoiceView({
     loading: popupInvoiceDetailLoading,
     refresh: refreshPopupInvoiceDetail
   } = useInvoiceDetail(popupInvoiceId);
+
+  const {
+    invoices,
+    loading,
+    error,
+    setError,
+    allStatusCounts,
+    loadInvoices
+  } = useInvoiceListLoader({
+    statusFilter,
+    invoiceDateFrom,
+    invoiceDateTo,
+    approvedByFilter,
+    currentPage,
+    pageSize,
+    sortColumn,
+    sortDirection,
+    setTotalInvoices,
+    reconcileWithLoaded,
+    activeId,
+    popupInvoiceId,
+    setActiveId,
+    setPopupInvoiceId,
+    refreshActiveInvoiceDetail,
+    refreshPopupInvoiceDetail,
+    onNavCountsChange,
+    onSessionExpired
+  });
+
+  const {
+    ingestionStatus,
+    setIngestionStatus,
+    ingestionFading,
+    refreshIngestionStatus,
+    ingestionProgressPercent,
+    ingestionSuccessfulFiles
+  } = useInvoiceListIngestion({
+    loadInvoices,
+    onGmailStatusRefresh,
+    setError,
+    addToast
+  });
+
+  const {
+    uploadInputRef,
+    uploadDragActive,
+    uploadProgress,
+    handleUpload,
+    handleUploadDrop,
+    handleUploadDragEnter,
+    handleUploadDragOver,
+    handleUploadDragLeave
+  } = useInvoiceListUploads({
+    canUploadFiles,
+    loadInvoices,
+    setIngestionStatus,
+    setError,
+    addToast
+  });
 
   const prevFiltersRef = useRef({ statusFilter, invoiceDateFrom, invoiceDateTo, pageSize, approvedByFilter, sortColumn, sortDirection });
   useEffect(() => {
@@ -349,7 +372,7 @@ export function InvoiceView({
     handleSaveListCell
   } = useInvoiceFieldEditing({
     canEditInvoiceFields,
-    loadInvoices: () => loadInvoices(),
+    loadInvoices,
     refreshActiveInvoiceDetail,
     activeId,
     addToast
@@ -390,7 +413,7 @@ export function InvoiceView({
     selectedExportableIds,
     selectedRetryableIds,
     selectedNonExportableCount,
-    loadInvoices: () => loadInvoices(),
+    loadInvoices,
     clearSelection,
     removeFromSelection,
     ingestionStatus,
@@ -425,69 +448,6 @@ export function InvoiceView({
     handleExportSingle,
     announceShortcut
   });
-
-  async function loadInvoices() {
-    setLoading(true);
-    setError(null);
-    try {
-      const statusParam = statusFilter === "ALL" ? undefined
-        : statusFilter === "FAILED" ? "FAILED_OCR,FAILED_PARSE"
-        : statusFilter;
-      const data = await fetchInvoices({
-        status: statusParam,
-        from: invoiceDateFrom || undefined,
-        to: invoiceDateTo || undefined,
-        page: currentPage,
-        limit: pageSize,
-        approvedBy: approvedByFilter || undefined,
-        sortBy: sortColumn || undefined,
-        sortDir: sortColumn ? sortDirection : undefined
-      });
-      setInvoices(data.items);
-      setTotalInvoices(data.total);
-      onNavCountsChange({
-        total: data.totalAll ?? data.total,
-        approved: data.approvedAll ?? 0,
-        pending: data.pendingAll ?? 0,
-        failed: data.failedAll ?? 0
-      });
-      if (statusFilter === "ALL") {
-        setAllStatusCounts({
-          ALL: data.totalAll ?? data.total,
-          PARSED: data.parsedAll ?? 0,
-          NEEDS_REVIEW: data.needsReviewAll ?? 0,
-          AWAITING_APPROVAL: data.awaitingApprovalAll ?? 0,
-          FAILED: (data.failedOcrAll ?? 0) + (data.failedParseAll ?? 0),
-          APPROVED: data.approvedAll ?? 0,
-          EXPORTED: data.exportedAll ?? 0
-        });
-      }
-      const ids = new Set(data.items.map((item) => item._id));
-      reconcileWithLoaded(data.items);
-      if (activeId && !ids.has(activeId)) {
-        setActiveId(data.items[0]?._id ?? null);
-      }
-      if (popupInvoiceId && !ids.has(popupInvoiceId)) {
-        setPopupInvoiceId(null);
-      }
-      if (activeId && ids.has(activeId)) {
-        void refreshActiveInvoiceDetail();
-      }
-      if (popupInvoiceId && ids.has(popupInvoiceId)) {
-        void refreshPopupInvoiceDetail();
-      }
-    } catch (loadError) {
-      if (isAuthenticationError(loadError)) {
-        onSessionExpired();
-      } else {
-        setError(getUserFacingErrorMessage(loadError, "Failed to fetch invoices."));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-
 
   const {
     selectedRowKeys,
@@ -635,7 +595,7 @@ export function InvoiceView({
             onWorkflowRejectSingle={(invoiceId) => void handleWorkflowRejectSingle(invoiceId)}
             onSaveField={handleSaveField}
             refreshActiveInvoiceDetail={refreshActiveInvoiceDetail}
-            loadInvoices={() => loadInvoices()}
+            loadInvoices={loadInvoices}
             addToast={addToast}
           />
         </>
