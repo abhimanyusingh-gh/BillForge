@@ -56,7 +56,6 @@ interface UrlMigrationDismissal {
 interface InvoiceViewPrefs {
   panelSplitPercent: number;
   tableDensity: TableDensity;
-  columnWidths: Record<string, number>;
   sortColumn: string | null;
   sortDirection: SortDirection;
 }
@@ -116,7 +115,6 @@ const DEFAULTS = {
   invoiceView: {
     panelSplitPercent: 58,
     tableDensity: TABLE_DENSITY.COMFORTABLE,
-    columnWidths: {},
     sortColumn: null,
     sortDirection: SORT_DIRECTION.ASC
   },
