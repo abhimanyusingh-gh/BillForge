@@ -37,28 +37,30 @@ export function AppShell({
   children
 }: AppShellProps) {
   return (
-    <div className="bundle-chrome app-shell">
-      <aside className="app-shell-sidebar app-sidebar" aria-label="Primary navigation">
-        <TenantSidebar
-          tenantName={tenantName}
-          activeTab={activeTab}
-          activeStandaloneRoute={activeStandaloneRoute}
-          onTabChange={onTabChange}
-          onStandaloneRouteChange={onStandaloneRouteChange}
-          onOpenActionRequired={onOpenActionRequired}
-          canViewTenantConfig={canViewTenantConfig}
-          canViewConnections={canViewConnections}
-          invoiceActionRequiredCount={invoiceActionRequiredCount}
-        />
-      </aside>
-      {topNav}
-      <main className="app-shell-main app-main" id="main-content" tabIndex={-1}>
-        {migration ? (
-          <UrlMigrationBanner oldPath={migration.oldPath} newPath={migration.newPath} />
-        ) : null}
-        {subNav}
-        {children}
-      </main>
+    <div className="bundle-chrome">
+      <div className="app-shell">
+        <aside className="app-shell-sidebar app-sidebar" aria-label="Primary navigation">
+          <TenantSidebar
+            tenantName={tenantName}
+            activeTab={activeTab}
+            activeStandaloneRoute={activeStandaloneRoute}
+            onTabChange={onTabChange}
+            onStandaloneRouteChange={onStandaloneRouteChange}
+            onOpenActionRequired={onOpenActionRequired}
+            canViewTenantConfig={canViewTenantConfig}
+            canViewConnections={canViewConnections}
+            invoiceActionRequiredCount={invoiceActionRequiredCount}
+          />
+        </aside>
+        {topNav}
+        <main className="app-shell-main app-main" id="main-content" tabIndex={-1}>
+          {migration ? (
+            <UrlMigrationBanner oldPath={migration.oldPath} newPath={migration.newPath} />
+          ) : null}
+          {subNav}
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
