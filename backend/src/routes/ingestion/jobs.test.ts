@@ -303,6 +303,7 @@ describe("jobs routes", () => {
       expect(InvoiceModel.create).toHaveBeenCalledTimes(1);
       const payload = (InvoiceModel.create as jest.Mock).mock.calls[0][0];
       expect(payload.sourceMailboxAssignmentId).toBeUndefined();
+      expect(payload.tenantId).toBe(defaultAuth.tenantId);
     });
 
     it("does not stamp sourceMailboxAssignmentId on multipart uploads", async () => {
@@ -322,6 +323,7 @@ describe("jobs routes", () => {
       expect(InvoiceModel.create).toHaveBeenCalledTimes(1);
       const payload = (InvoiceModel.create as jest.Mock).mock.calls[0][0];
       expect(payload.sourceMailboxAssignmentId).toBeUndefined();
+      expect(payload.tenantId).toBe(defaultAuth.tenantId);
     });
 
     it("returns 400 when file store is not configured", async () => {

@@ -152,6 +152,7 @@ export function createJobsRouter(
 
         try {
           await InvoiceModel.create({
+            tenantId: context.tenantId,
             clientOrgId: ownedClientOrgId,
             workloadTier: "standard",
             sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
@@ -234,6 +235,7 @@ export function createJobsRouter(
 
         try {
           await InvoiceModel.create({
+            tenantId: context.tenantId,
             clientOrgId: ownedClientOrgId,
             workloadTier: "standard",
             sourceType: INGESTION_SOURCE_TYPE.S3_UPLOAD,
