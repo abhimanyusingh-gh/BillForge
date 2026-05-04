@@ -28,9 +28,9 @@ export function VendorTdsTab({ vendorFingerprint }: VendorTdsTabProps) {
   });
 
   return (
-    <section className="vendor-detail-panel" data-testid="vendor-tds-tab">
-      <div className="vendor-tds-toolbar">
-        <label className="vendor-tds-fy-label">
+    <section className="section" data-testid="vendor-tds-tab">
+      <div className="page-tools">
+        <label className="sub">
           Financial year
           <select
             className="vendors-filter-select"
@@ -47,7 +47,7 @@ export function VendorTdsTab({ vendorFingerprint }: VendorTdsTabProps) {
 
       {query.isPending ? (
         <div
-          className="vendor-detail-panel-state"
+          className="panel-state"
           role="status"
           aria-busy="true"
           data-testid="vendor-tds-loading"
@@ -55,7 +55,7 @@ export function VendorTdsTab({ vendorFingerprint }: VendorTdsTabProps) {
           Loading TDS ledger…
         </div>
       ) : query.isError ? (
-        <div className="vendor-detail-panel-state" data-testid="vendor-tds-error">
+        <div className="panel-state" data-testid="vendor-tds-error">
           <EmptyState
             icon="error"
             heading="Couldn't load TDS ledger"
@@ -78,7 +78,7 @@ export function VendorTdsTab({ vendorFingerprint }: VendorTdsTabProps) {
           buckets={query.data.byVendor}
         />
       ) : (
-        <div className="vendor-detail-panel-state" data-testid="vendor-tds-empty">
+        <div className="panel-state" data-testid="vendor-tds-empty">
           <EmptyState
             icon="receipt_long"
             heading="No TDS deductions in this FY"
@@ -97,47 +97,44 @@ interface VendorTdsLedgerTableProps {
 
 function VendorTdsLedgerTable({ fy, buckets }: VendorTdsLedgerTableProps) {
   return (
-    <div className="vendor-tds-table" data-testid="vendor-tds-table">
-      <div className="vendor-tds-thead">
-        <span>Section</span>
-        <span className="vendor-tds-th-numeric">Cumulative base</span>
-        <span className="vendor-tds-th-numeric">Cumulative TDS</span>
-        <span className="vendor-tds-th-numeric">Invoices</span>
-        <span>Threshold</span>
-        <span className="vendor-tds-th-actions">Drill-down</span>
-      </div>
-      <ul className="vendor-tds-tbody">
-        {buckets.map((bucket) => (
-          <li key={bucket.section} className="vendor-tds-row" data-testid="vendor-tds-row">
-            <span className="vendor-tds-section lb-mono">{bucket.section}</span>
-            <span className="vendor-tds-numeric">
-              {formatMinorAmountWithCurrency(bucket.cumulativeBaseMinor, "INR")}
-            </span>
-            <span className="vendor-tds-numeric">
-              {formatMinorAmountWithCurrency(bucket.cumulativeTdsMinor, "INR")}
-            </span>
-            <span className="vendor-tds-numeric">{bucket.invoiceCount}</span>
-            <span
-              className={
-                bucket.thresholdCrossedAt
-                  ? "vendor-tds-threshold vendor-tds-threshold-crossed"
-                  : "vendor-tds-threshold vendor-tds-threshold-below"
-              }
-            >
-              {bucket.thresholdCrossedAt ? "Crossed" : "Below"}
-            </span>
-            <span className="vendor-tds-drilldown">
-              <a
-                className="app-button app-button-secondary vendor-tds-drilldown-link"
-                href={`#/reports/tds?fy=${encodeURIComponent(fy)}&section=${encodeURIComponent(bucket.section)}`}
-                data-testid="vendor-tds-drilldown-link"
-              >
-                View
-              </a>
-            </span>
-          </li>
-        ))}
-      </ul>
+    <div className="table-wrap" data-testid="vendor-tds-table">
+      <table className="lbtable">
+        <thead>
+          <tr>
+            <th>Section</th>
+            <th className="num-cell">Cumulative base</th>
+            <th className="num-cell">Cumulative TDS</th>
+            <th className="num-cell">Invoices</th>
+            <th>Threshold</th>
+            <th>Drill-down</th>
+          </tr>
+        </thead>
+        <tbody>
+          {buckets.map((bucket) => (
+            <tr key={bucket.section} data-testid="vendor-tds-row">
+              <td className="lb-mono">{bucket.section}</td>
+              <td className="num-cell">
+                {formatMinorAmountWithCurrency(bucket.cumulativeBaseMinor, "INR")}
+              </td>
+              <td className="num-cell">
+                {formatMinorAmountWithCurrency(bucket.cumulativeTdsMinor, "INR")}
+              </td>
+              <td className="num-cell">{bucket.invoiceCount}</td>
+              <td>
+                {bucket.thresholdCrossedAt ? "Crossed" : "Below"}
+              </td>
+              <td>
+                <a
+                  href={`#/reports/tds?fy=${encodeURIComponent(fy)}&section=${encodeURIComponent(bucket.section)}`}
+                  data-testid="vendor-tds-drilldown-link"
+                >
+                  View
+                </a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

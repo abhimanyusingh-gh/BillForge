@@ -7,11 +7,11 @@ interface VendorInvoicesTabProps {
 export function VendorInvoicesTab({ vendorFingerprint }: VendorInvoicesTabProps) {
   return (
     <section
-      className="vendor-detail-panel"
+      className="panel"
       data-testid="vendor-invoices-tab"
       data-vendor-fingerprint={vendorFingerprint}
     >
-      <div className="vendor-detail-panel-empty">
+      <div className="panel-empty">
         <EmptyState
           icon="hourglass_empty"
           heading="Per-vendor invoice list pending"
