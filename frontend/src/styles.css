@@ -375,6 +375,32 @@ table.lbtable tbody tr.row-active { background: var(--accent-soft-bg); }
 .split .col { padding: 14px; overflow: auto; }
 .split .div { background: var(--line); cursor: col-resize; }
 
+/* invoice-detail split-pane (bundle InvoiceDetail.jsx structure) */
+.invoice-detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.invoice-detail-split > .invoice-detail-source-col {
+  padding: 14px;
+  overflow: auto;
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+.invoice-detail-split > .invoice-detail-fields-col {
+  padding: 14px;
+  overflow: auto;
+  min-width: 0;
+}
+.invoice-detail-source-pane { height: 100%; }
+
+/* invoice list page header (bundle Invoices.jsx page-header) */
+.invoice-list-page-header { padding: 0 0 4px; }
+.invoice-list-page-header h1 { color: var(--ink, inherit); }
+
 /* detail panel */
 .detail h2 { font: 700 16px var(--font-sans); margin: 0 0 4px; }
 .detail .sub { font: 500 12px var(--font-sans); color: var(--ink-soft); }
