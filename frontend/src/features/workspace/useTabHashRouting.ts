@@ -44,10 +44,12 @@ interface UseTabHashRoutingResult {
 export function useTabHashRouting({ activeTab, onTabChange }: UseTabHashRoutingOptions): UseTabHashRoutingResult {
   const [migration, setMigration] = useState<HashRouteMigration | null>(null);
   const initialized = useRef(false);
+  const lastSyncedTab = useRef<TenantViewTab | null>(null);
 
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
+      lastSyncedTab.current = activeTab;
 
       const legacy = readLegacyQueryTab();
       if (legacy) {
@@ -78,13 +80,20 @@ export function useTabHashRouting({ activeTab, onTabChange }: UseTabHashRoutingO
       }
     }
 
-    if (readStandaloneHashRoute(window.location.hash)) {
+    const tabChangedSinceLastSync = lastSyncedTab.current !== activeTab;
+    lastSyncedTab.current = activeTab;
+    const onStandalone = readStandaloneHashRoute(window.location.hash) !== null;
+    if (onStandalone && !tabChangedSinceLastSync) {
       return;
     }
 
     const expected = TAB_HASH_PATH[activeTab];
     if (window.location.hash !== expected) {
-      window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}${expected}`);
+      if (onStandalone) {
+        window.location.hash = expected;
+      } else {
+        window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}${expected}`);
+      }
     }
   }, [activeTab, onTabChange]);
 

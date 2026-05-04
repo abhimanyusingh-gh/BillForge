@@ -91,14 +91,39 @@ describe("useTabHashRouting", () => {
     expect(onTabChange).not.toHaveBeenCalled();
   });
 
-  it("preserves the standalone hash when activeTab changes (no overwrite)", () => {
+  it("preserves the standalone hash on mount when activeTab matches the prior session", () => {
+    setLocation("", "#/triage");
+    renderHook(() => useTabHashRouting({ activeTab: "overview", onTabChange: jest.fn() }));
+    expect(window.location.hash).toBe("#/triage");
+  });
+
+  it("rewrites a standalone hash to the tab path when activeTab changes after mount (sidebar tab click)", () => {
     setLocation("", "#/triage");
     const { rerender } = renderHook(
       (props: { activeTab: "overview" | "dashboard" }) =>
         useTabHashRouting({ activeTab: props.activeTab, onTabChange: jest.fn() }),
       { initialProps: { activeTab: "overview" } }
     );
-    rerender({ activeTab: "dashboard" });
     expect(window.location.hash).toBe("#/triage");
+
+    rerender({ activeTab: "dashboard" });
+    expect(window.location.hash).toBe("#/invoices");
+  });
+
+  it("rapid sequential tab changes from a standalone route all land on the final tab", () => {
+    setLocation("", "#/vendors");
+    const { rerender } = renderHook(
+      (props: { activeTab: "overview" | "dashboard" | "exports" | "statements" }) =>
+        useTabHashRouting({ activeTab: props.activeTab, onTabChange: jest.fn() }),
+      { initialProps: { activeTab: "overview" } }
+    );
+    expect(window.location.hash).toBe("#/vendors");
+
+    rerender({ activeTab: "dashboard" });
+    expect(window.location.hash).toBe("#/invoices");
+    rerender({ activeTab: "exports" });
+    expect(window.location.hash).toBe("#/exports");
+    rerender({ activeTab: "statements" });
+    expect(window.location.hash).toBe("#/reconciliation");
   });
 });
