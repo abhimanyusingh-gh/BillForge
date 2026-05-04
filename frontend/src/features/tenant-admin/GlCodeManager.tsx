@@ -120,24 +120,24 @@ export function GlCodeManager() {
 
   return (
     <div>
-      <div className="gl-code-toolbar">
+      <div className="page-tools">
         <input
           type="text"
           placeholder="Search GL codes..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="gl-code-search-input"
+          className="input"
         />
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="gl-code-toolbar-btn"
+          className="btn ghost"
         >
           {showAdd ? "Cancel" : "Add"}
         </button>
         <button
           onClick={handleImportClick}
           disabled={importing}
-          className="gl-code-toolbar-btn"
+          className="btn ghost"
         >
           {importing ? "Importing..." : "Import CSV"}
         </button>
@@ -150,17 +150,17 @@ export function GlCodeManager() {
         />
         <button
           onClick={handleDownloadTemplate}
-          className="gl-code-template-btn"
+          className="btn ghost"
         >
           Download Template
         </button>
       </div>
 
-      {error && <div className="gl-code-error-text">{error}</div>}
+      {error && <div className="field-error">{error}</div>}
 
       {importResult && (
         <div className={importBannerClass}>
-          <div className="gl-code-import-summary">
+          <div className="panel">
             Import complete: {importResult.imported} imported, {importResult.skipped} skipped
             {importResult.errors.length > 0 && `, ${importResult.errors.length} error${importResult.errors.length === 1 ? "" : "s"}`}.
           </div>
@@ -168,12 +168,12 @@ export function GlCodeManager() {
             <div>
               <button
                 onClick={() => setShowImportErrors(!showImportErrors)}
-                className="gl-code-import-toggle-errors"
+                className="btn ghost"
               >
                 {showImportErrors ? "Hide errors" : "Show errors"}
               </button>
               {showImportErrors && (
-                <ul className="gl-code-import-error-list">
+                <ul className="lbtable">
                   {importResult.errors.map((e: { row: number; message: string }, i: number) => (
                     <li key={i}>
                       Row {e.row}: {e.message}
@@ -187,44 +187,44 @@ export function GlCodeManager() {
       )}
 
       {showAdd && (
-        <div className="gl-code-add-row">
-          <input placeholder="Code" value={newCode} onChange={(e) => setNewCode(e.target.value)} className="gl-code-add-input gl-code-add-input-code" />
-          <input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} className="gl-code-add-input gl-code-add-input-name" />
-          <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="gl-code-add-input">
+        <div>
+          <input placeholder="Code" value={newCode} onChange={(e) => setNewCode(e.target.value)} className="input" />
+          <input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} className="input" />
+          <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="input">
             {GL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input placeholder="TDS Section (optional)" value={newLinkedTds} onChange={(e) => setNewLinkedTds(e.target.value)} className="gl-code-add-input gl-code-add-input-tds" />
-          <button onClick={handleAdd} className="gl-code-add-save">Save</button>
+          <input placeholder="TDS Section (optional)" value={newLinkedTds} onChange={(e) => setNewLinkedTds(e.target.value)} className="input" />
+          <button onClick={handleAdd} className="btn primary">Save</button>
         </div>
       )}
 
       {loading ? (
-        <div className="gl-code-empty">Loading...</div>
+        <div className="panel">Loading...</div>
       ) : glCodes.length === 0 ? (
-        <div className="gl-code-empty">No GL codes configured. Add one or import from CSV.</div>
+        <div className="panel">No GL codes configured. Add one or import from CSV.</div>
       ) : (
-        <table className="gl-code-table">
+        <table className="lbtable">
           <thead>
             <tr>
               <th>Code</th>
               <th>Name</th>
               <th>Category</th>
               <th>TDS</th>
-              <th className="gl-code-action-cell"></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {glCodes.map((gl) => (
               <tr key={gl.code} className={gl.isActive ? undefined : "gl-code-row-inactive"}>
-                <td className="gl-code-cell-mono">{gl.code}</td>
+                <td className="mono-cell">{gl.code}</td>
                 <td>{gl.name}</td>
                 <td>{gl.category}</td>
                 <td>{gl.linkedTdsSection ?? "—"}</td>
-                <td className="gl-code-action-cell">
+                <td>
                   {gl.isActive && (
                     <button
                       onClick={() => handleDelete(gl.code)}
-                      className="gl-code-remove-btn"
+                      className="btn ghost"
                     >
                       Remove
                     </button>
