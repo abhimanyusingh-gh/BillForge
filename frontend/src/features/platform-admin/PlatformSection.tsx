@@ -11,6 +11,7 @@ interface PlatformSectionProps {
   className?: string;
   testId?: string;
   helpText?: string;
+  subtitle?: string;
 }
 
 export function PlatformSection({
@@ -22,23 +23,23 @@ export function PlatformSection({
   actions,
   className,
   testId,
-  helpText
+  helpText,
+  subtitle
 }: PlatformSectionProps) {
-  const sectionClassName = ["platform-section", className].filter(Boolean).join(" ");
+  const sectionClassName = ["pa-card", className].filter(Boolean).join(" ");
 
   return (
     <section className={sectionClassName} data-testid={testId}>
-      <header className="platform-section-header">
-        <h3>
-          <span className="material-symbols-outlined">{icon}</span>
-          {title}
-          {helpText ? <HelpTooltip text={helpText} /> : null}
-        </h3>
-        <div className="platform-section-actions">
+      <header className="pa-card-head">
+        <span className="material-symbols-outlined pa-card-head-icon" aria-hidden="true">{icon}</span>
+        <h2>{title}</h2>
+        {helpText ? <HelpTooltip text={helpText} /> : null}
+        {subtitle ? <span className="pa-card-sub">{subtitle}</span> : null}
+        <div className="pa-card-tools">
           {!collapsed ? actions : null}
           <button
             type="button"
-            className="app-button app-button-secondary platform-collapse-button"
+            className="app-button app-button-secondary"
             aria-label={`Toggle ${title} section`}
             onClick={onToggle}
           >
@@ -47,7 +48,7 @@ export function PlatformSection({
           </button>
         </div>
       </header>
-      {collapsed ? <p className="muted section-collapsed-note">Section collapsed.</p> : children}
+      {collapsed ? <p className="muted section-collapsed-note pa-card-body">Section collapsed.</p> : children}
     </section>
   );
 }
