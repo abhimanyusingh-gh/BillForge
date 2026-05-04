@@ -576,6 +576,12 @@ export function InvoiceView({
             onPageChange={setCurrentPage}
             onPageDelta={(delta) => setCurrentPage((p) => p + delta)}
             onPageSizeChange={setPageSize}
+            pageHeaderMeta={{
+              totalCount: totalInvoices,
+              filteredCount: filteredInvoices.length,
+              isLoading: loading,
+              hasActiveFilters
+            }}
           />
 
           <InvoiceDetailHost

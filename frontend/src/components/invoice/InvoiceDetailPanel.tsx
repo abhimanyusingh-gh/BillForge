@@ -137,8 +137,19 @@ export function InvoiceDetailPanel({
         </button>
       </div>
 
-      <div className="detail-scroll">
-        <div className="detail-content">
+      <div className="detail-scroll invoice-detail-split">
+        <div className="invoice-detail-source-col">
+          <div className="source-preview-section invoice-detail-source-pane">
+            <CollapsibleSectionHeader label="Source Preview" expanded={activeSourcePreviewExpanded} onToggle={() => setActiveSourcePreviewExpanded((v) => !v)} />
+            {activeSourcePreviewExpanded ? (
+              <InvoiceSourceViewer
+                invoice={invoice}
+                resolvePreviewUrl={resolvePreviewUrl}
+              />
+            ) : null}
+          </div>
+        </div>
+        <div className="detail-content invoice-detail-fields-col">
           {loading ? <p className="muted">Loading full invoice details...</p> : null}
           <div className="detail-grid">
             <p><span>Status</span><strong>{invoice.status}</strong></p>
@@ -236,15 +247,6 @@ export function InvoiceDetailPanel({
             onToggle={() => setCustomerDetailsExpanded((v) => !v)}
             tenantGstin={tenantGstin}
           />
-          <div className="source-preview-section">
-            <CollapsibleSectionHeader label="Source Preview" expanded={activeSourcePreviewExpanded} onToggle={() => setActiveSourcePreviewExpanded((v) => !v)} />
-            {activeSourcePreviewExpanded ? (
-              <InvoiceSourceViewer
-                invoice={invoice}
-                resolvePreviewUrl={resolvePreviewUrl}
-              />
-            ) : null}
-          </div>
           <div>
             <CollapsibleSectionHeader label="Extracted Invoice Fields" expanded={activeExtractedFieldsExpanded} onToggle={() => setActiveExtractedFieldsExpanded((v) => !v)} />
             {activeExtractedFieldsExpanded ? (

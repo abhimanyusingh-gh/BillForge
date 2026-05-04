@@ -6,20 +6,19 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders compact den
   data-density="compact"
 >
   <div
-    class="panel-title"
+    class="page-header invoice-list-page-header"
   >
-    <h2>
+    <h1>
       Invoices
-    </h2>
+    </h1>
     <span
-      class="invoice-list-meta"
+      class="count"
     >
-      2
-       records
+      2 records
     </span>
   </div>
   <div
-    class="list-scroll"
+    class="list-scroll inv-table-wrap"
   >
     <div
       class="lb-datatable-wrap"
@@ -2411,20 +2410,19 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the data st
   data-density="comfortable"
 >
   <div
-    class="panel-title"
+    class="page-header invoice-list-page-header"
   >
-    <h2>
+    <h1>
       Invoices
-    </h2>
+    </h1>
     <span
-      class="invoice-list-meta"
+      class="count"
     >
-      5
-       records
+      5 records
     </span>
   </div>
   <div
-    class="list-scroll"
+    class="list-scroll inv-table-wrap"
   >
     <div
       class="lb-datatable-wrap"
@@ -4080,16 +4078,15 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the empty s
   data-density="comfortable"
 >
   <div
-    class="panel-title"
+    class="page-header invoice-list-page-header"
   >
-    <h2>
+    <h1>
       Invoices
-    </h2>
+    </h1>
     <span
-      class="invoice-list-meta"
+      class="count"
     >
-      0
-       records
+      0 records
     </span>
   </div>
   <div
@@ -4134,20 +4131,19 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the filtere
   data-density="comfortable"
 >
   <div
-    class="panel-title"
+    class="page-header invoice-list-page-header"
   >
-    <h2>
+    <h1>
       Invoices
-    </h2>
+    </h1>
     <span
-      class="invoice-list-meta"
+      class="count"
     >
-      5
-       records
+      5 records
     </span>
   </div>
   <div
-    class="list-scroll"
+    class="list-scroll inv-table-wrap"
   >
     <div
       class="lb-datatable-wrap"
@@ -5803,15 +5799,15 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the loading
   data-density="comfortable"
 >
   <div
-    class="panel-title"
+    class="page-header invoice-list-page-header"
   >
-    <h2>
+    <h1>
       Invoices
-    </h2>
+    </h1>
     <span
-      class="invoice-list-meta"
+      class="count"
     >
-      Loading...
+      loading...
     </span>
   </div>
   <div
@@ -5843,7 +5839,7 @@ exports[`features/invoices/InvoiceView — snapshot baseline renders the loading
     />
   </div>
   <div
-    class="list-scroll"
+    class="list-scroll inv-table-wrap"
   >
     <div
       class="lb-datatable-wrap"

@@ -1,8 +1,11 @@
 import {
   DataTable,
   DATATABLE_DENSITY,
+  FetchOverlay,
+  TABLE_QUERY_SORT_DIRECTION,
   type DataTableColumn,
-  type DataTableSort
+  type DataTableSort,
+  type TableQuerySort
 } from "@/components/ds";
 import { isInvoiceSelectable } from "@/lib/common/selection";
 import type { Invoice } from "@/types";
@@ -10,6 +13,25 @@ import type { TableDensity } from "@/stores/userPrefsStore";
 import { InvoiceListBulkActions } from "@/features/invoices/InvoiceListBulkActions";
 import { InvoiceListEmptyState } from "@/features/invoices/InvoiceListEmptyState";
 import { InvoiceListPagination } from "@/features/invoices/InvoiceListPagination";
+
+interface PageHeaderMeta {
+  totalCount: number;
+  filteredCount: number;
+  isLoading: boolean;
+  hasActiveFilters: boolean;
+}
+
+function mapDataTableSortToTableQuerySort(sort: DataTableSort | null): TableQuerySort | undefined {
+  if (!sort) return undefined;
+  return {
+    col: sort.id,
+    dir:
+      sort.direction === "desc"
+        ? TABLE_QUERY_SORT_DIRECTION.desc
+        : TABLE_QUERY_SORT_DIRECTION.asc,
+    loading: false
+  };
+}
 
 interface InvoiceListPanelProps {
   tableDensity: TableDensity;
@@ -43,6 +65,7 @@ interface InvoiceListPanelProps {
   onPageChange: (page: number) => void;
   onPageDelta: (delta: number) => void;
   onPageSizeChange: (size: number) => void;
+  pageHeaderMeta?: PageHeaderMeta;
 }
 
 export function InvoiceListPanel({
@@ -76,13 +99,25 @@ export function InvoiceListPanel({
   totalInvoices,
   onPageChange,
   onPageDelta,
-  onPageSizeChange
+  onPageSizeChange,
+  pageHeaderMeta
 }: InvoiceListPanelProps) {
+  const meta = pageHeaderMeta;
   return (
     <section className="panel list-panel invoice-list-panel" data-density={tableDensity}>
-      <div className="panel-title">
-        <h2>Invoices</h2>
-        {loading ? <span className="invoice-list-meta">Loading...</span> : <span className="invoice-list-meta">{invoices.length} records</span>}
+      <div className="page-header invoice-list-page-header">
+        <h1>Invoices</h1>
+        <span className="count">
+          {meta?.isLoading
+            ? "loading..."
+            : meta
+              ? meta.hasActiveFilters
+                ? `${meta.filteredCount} of ${meta.totalCount} match`
+                : `${meta.totalCount} records`
+              : loading
+                ? "Loading..."
+                : `${invoices.length} records`}
+        </span>
       </div>
 
       {loading && invoices.length === 0 ? (
@@ -101,7 +136,14 @@ export function InvoiceListPanel({
       ) : null}
 
       {invoices.length > 0 || loading ? (
-        <div className={`list-scroll${loading && invoices.length > 0 ? " list-scroll-loading" : ""}`}>
+        <div className={`list-scroll inv-table-wrap${loading && invoices.length > 0 ? " list-scroll-loading is-loading" : ""}`}>
+          {loading && invoices.length > 0 ? (
+            <FetchOverlay
+              isLoading
+              sort={mapDataTableSortToTableQuerySort(dataTableSort)}
+              kind="invoices"
+            />
+          ) : null}
           <DataTable<Invoice>
             columns={invoiceColumns}
             rows={filteredInvoices}

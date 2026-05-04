@@ -15,3 +15,8 @@ export {
   type DateRangePreset,
   type DateRangeValue
 } from "./DateRange";
+export {
+  FetchOverlay,
+  TABLE_QUERY_SORT_DIRECTION,
+  type TableQuerySort
+} from "./TableQuery";
