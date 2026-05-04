@@ -53,7 +53,7 @@ import { InvoiceToolbar } from "@/components/invoice/InvoiceToolbar";
 import { InvoiceDetailPanel } from "@/components/invoice/InvoiceDetailPanel";
 import { RiskDot, RISK_SEVERITY, type RiskSeverity } from "@/components/compliance/RiskDot";
 import { InvoicePopup } from "@/components/invoice/InvoicePopup";
-import { GlCodeDropdown } from "@/components/compliance/GlCodeDropdown";
+import { Combobox, type ComboboxOption } from "@/components/ds";
 import { ActionHintBadge } from "@/components/invoice/ActionHintBadge";
 import { PreExportValidationPanel } from "@/features/invoices/PreExportValidationPanel";
 
@@ -72,6 +72,8 @@ function formatApproverName(value?: string): string {
   if (atIdx <= 0) return value;
   return value.slice(0, atIdx).replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+const GL_CODE_OPTION_KEY = (value: string): string => value;
 
 const STATUS_ICONS: Record<string, string> = {
   PENDING: "hourglass_empty",
@@ -183,6 +185,13 @@ export function InvoiceView({
   );
   const [tenantGlCodes, setTenantGlCodes] = useState<GlCode[]>([]);
   const [tenantTdsRates, setTenantTdsRates] = useState<TdsRate[]>([]);
+  const tenantGlComboOptions = useMemo<ReadonlyArray<ComboboxOption<string>>>(
+    () =>
+      tenantGlCodes
+        .filter((g) => g.isActive)
+        .map((g) => ({ value: g.code, label: g.name, description: g.code })),
+    [tenantGlCodes]
+  );
   const columnWidths: Record<string, number> = persistedColumnWidths;
   const setColumnWidths = useCallback(
     (updater: (prev: Record<string, number>) => Record<string, number>) => {
@@ -1422,15 +1431,24 @@ export function InvoiceView({
                         <td className="muted">{formatTaxSummary(invoice)}</td>
                         <td className="gl-code-cell invoice-list-cell-compact" onClick={(e) => e.stopPropagation()}>
                           {glCodeEditingInvoiceId === invoice._id ? (
-                            <div className="gl-code-inline-dropdown">
-                              <GlCodeDropdown
-                                glCodes={tenantGlCodes}
-                                currentCode={invoice.compliance?.glCode?.code ?? null}
-                                onSelect={(code, name) => void handleTableGlCodeSelect(invoice._id, code, name)}
-                                onClear={() => void handleTableGlCodeClear(invoice._id)}
-                                onClose={() => setGlCodeEditingInvoiceId(null)}
-                              />
-                            </div>
+                            <Combobox<string>
+                              options={tenantGlComboOptions}
+                              value={invoice.compliance?.glCode?.code ?? null}
+                              onChange={(code) => {
+                                const match = tenantGlComboOptions.find((opt) => opt.value === code);
+                                void handleTableGlCodeSelect(invoice._id, code, match?.label ?? "");
+                              }}
+                              onClear={() => void handleTableGlCodeClear(invoice._id)}
+                              optionKey={GL_CODE_OPTION_KEY}
+                              placeholder="Select GL code..."
+                              searchPlaceholder="Search GL codes..."
+                              emptyText="No matching GL codes"
+                              clearLabel="Clear GL code"
+                              autoOpen
+                              onOpenChange={(isOpen) => {
+                                if (!isOpen) setGlCodeEditingInvoiceId(null);
+                              }}
+                            />
                           ) : (
                             <>
                               <span title={invoice.compliance?.glCode?.code ?? ""}>
