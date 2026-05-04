@@ -1,10 +1,120 @@
 // Invoices.jsx — table-first; click row to open detail; approved rows open Bank-Map modal; multi-file drag-drop upload
+//
+// SERVER-DRIVEN SEARCH + SORT
+// ---------------------------
+// `query` (debounced 280ms) and `sort = { col, dir, loading }` are dispatched
+// to a mocked backend via `runInvoiceFetch` (setTimeout). The table is dumb:
+// it renders whatever rows the parent gives it, in order. Real backend would
+// replace `runInvoiceFetch` with:
+//   GET /invoices?q=&sort=&dir=&filter=&page=
+// While a fetch is in flight, headers freeze, the active header spins, and a
+// "Searching on server" pill surfaces above the rows.
+const INV_COMPARATORS = {
+  status:  (a, b) => a.status.localeCompare(b.status),
+  vendor:  (a, b) => a.vendor.localeCompare(b.vendor),
+  number:  (a, b) => String(a.number).localeCompare(String(b.number)),
+  date:    (a, b) => parseInvDate(a.date) - parseInvDate(b.date),
+  section: (a, b) => String(a.section).localeCompare(String(b.section)),
+  gross:   (a, b) => a.gross - b.gross,
+  tds:     (a, b) => a.tds - b.tds,
+  net:     (a, b) => a.net - b.net,
+};
+function parseInvDate(s) {
+  // expect "DD-MMM-YYYY"
+  if (!s) return 0;
+  const m = String(s).match(/(\d{1,2})[-\s]([A-Za-z]{3})[-\s](\d{4})/);
+  if (!m) return Date.parse(s) || 0;
+  const months = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+  return new Date(parseInt(m[3],10), months[m[2]] ?? 0, parseInt(m[1],10)).getTime();
+}
+function runInvoiceFetch(all, { query, filter, sort }) {
+  const q = (query || "").trim().toLowerCase();
+  let rows = all;
+  if (filter !== "all") rows = rows.filter(r => r.status === filter);
+  if (q) {
+    rows = rows.filter(r =>
+      r.vendor.toLowerCase().includes(q)
+      || String(r.number).toLowerCase().includes(q)
+      || String(r.date).toLowerCase().includes(q)
+      || String(r.section).toLowerCase().includes(q)
+      || String(r.status).toLowerCase().includes(q)
+    );
+  }
+  if (sort && sort.col) {
+    const cmp = INV_COMPARATORS[sort.col];
+    if (cmp) {
+      rows = [...rows].sort(cmp);
+      if (sort.dir === "desc") rows.reverse();
+    }
+  }
+  return rows;
+}
+// Local sortable header — self-contained so we don't depend on PlatformAdmin.css
+function InvSortHeader({ col, label, align, sort, onSort, style }) {
+  const active = sort && sort.col === col;
+  const dir = active ? sort.dir : null;
+  const loading = active && sort.loading;
+  const icon = loading ? "progress_activity" : !active ? "unfold_more" : dir === "asc" ? "arrow_upward" : "arrow_downward";
+  return (
+    <th
+      className={"inv-th sortable" + (active ? " active" : "") + (loading ? " loading" : "")}
+      style={{ ...(style || {}), textAlign: align || "left" }}
+      onClick={() => !sort?.loading && onSort?.(col)}
+      aria-sort={!active ? "none" : dir === "asc" ? "ascending" : "descending"}
+    >
+      <span className="inv-th-inner" style={{ justifyContent: align === "right" ? "flex-end" : "flex-start" }}>
+        <span>{label}</span>
+        <span className={"material-symbols-outlined inv-th-icon" + (loading ? " spin" : "")}>{icon}</span>
+      </span>
+    </th>
+  );
+}
+
 function Invoices({ activeId, onSelect }) {
   const [drag, setDrag] = React.useState(false);
   const [filter, setFilter] = React.useState("all");
   const [detail, setDetail] = React.useState(null);
   const [detailTab, setDetailTab] = React.useState("invoice"); // "invoice" | "map"
   const [uploads, setUploads] = React.useState([]);
+
+  // Search + sort state
+  const [queryInput, setQueryInput] = React.useState("");      // controlled input
+  const [query, setQuery] = React.useState("");                // debounced — what the "server" sees
+  const [sort, setSort] = React.useState({ col: "date", dir: "desc", loading: false });
+  const [rows, setRows] = React.useState(() => runInvoiceFetch(window.INVOICES, { query: "", filter: "all", sort: { col: "date", dir: "desc" } }));
+  const fetchToken = React.useRef(0);
+
+  // Debounce typing → query
+  React.useEffect(() => {
+    const t = setTimeout(() => setQuery(queryInput), 280);
+    return () => clearTimeout(t);
+  }, [queryInput]);
+
+  // Dispatch a "server" fetch whenever query / filter / sort.col / sort.dir changes
+  React.useEffect(() => {
+    const token = ++fetchToken.current;
+    setSort(s => ({ ...s, loading: true }));
+    const delay = query ? 540 : 380;
+    const t = setTimeout(() => {
+      if (fetchToken.current !== token) return;
+      const next = runInvoiceFetch(window.INVOICES, { query, filter, sort });
+      setRows(next);
+      setSort(s => ({ ...s, loading: false }));
+    }, delay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, filter, sort.col, sort.dir]);
+
+  const onSort = (col) => {
+    if (sort.loading) return;
+    setSort(s => {
+      if (s.col === col) return { ...s, dir: s.dir === "asc" ? "desc" : "asc" };
+      // sensible defaults: text → asc, numeric/date → desc
+      const numeric = col === "gross" || col === "tds" || col === "net" || col === "date";
+      return { col, dir: numeric ? "desc" : "asc", loading: false };
+    });
+  };
+
   // Per-invoice payment ledger: { [invoiceId]: [{...payment}] }
   const [ledger, setLedger] = React.useState(() => ({
     // i3 (Reliance Jio) seeded as PARTIAL
@@ -40,7 +150,6 @@ function Invoices({ activeId, onSelect }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [detail]);
 
-  const rows = window.INVOICES.filter(r => filter === "all" ? true : r.status === filter);
   const row = window.INVOICES.find(r => r.id === detail);
   const payState = (inv) => {
     const list = ledger[inv.id] || [];
@@ -145,10 +254,37 @@ function Invoices({ activeId, onSelect }) {
     <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} style={{ position: "relative", minHeight: "calc(100vh - 80px)" }}>
       <div className="page-header">
         <h1>Invoices</h1>
-        <span className="count">{window.INVOICES.length} this month</span>
+        <span className="count">
+          {sort.loading
+            ? "loading…"
+            : (rows.length === window.INVOICES.length
+                ? rows.length + " this month"
+                : rows.length + " of " + window.INVOICES.length + (query || filter !== "all" ? " match" : "")
+              )
+          }
+        </span>
         <div className="page-tools">
-          <span style={{ font: "500 11px var(--font-sans)", color: "var(--ink-soft)" }}>Drag anywhere or</span>
-          <button onClick={() => fileRef.current?.click()} style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--ink)", font: "600 12px var(--font-sans)", cursor: "pointer" }}>
+          <div className="inv-search">
+            <span className="material-symbols-outlined">search</span>
+            <input
+              type="text"
+              value={queryInput}
+              onChange={e => setQueryInput(e.target.value)}
+              placeholder="Search vendor, invoice #, section, status…"
+              spellCheck={false}
+            />
+            {queryInput ? (
+              <button type="button" className="inv-search-clear" onClick={() => setQueryInput("")} title="Clear search">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            ) : null}
+            {sort.loading && query ? (
+              <span className="inv-search-spinner" title="Searching on server">
+                <span className="material-symbols-outlined spin">progress_activity</span>
+              </span>
+            ) : null}
+          </div>
+          <button onClick={() => fileRef.current?.click()} title="Upload invoices (or drag anywhere on the page)" style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--bg-panel)", color: "var(--ink)", font: "600 12px var(--font-sans)", cursor: "pointer" }}>
             <span className="material-symbols-outlined" style={{ fontSize: 14, verticalAlign: "middle", marginRight: 4 }}>upload</span>
             Upload
           </button>
@@ -198,29 +334,44 @@ function Invoices({ activeId, onSelect }) {
         ))}
       </div>
 
-      {(filter === "approved" || filter === "exported" || filter === "all") ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", marginBottom: 8, borderRadius: 8, background: "var(--accent-soft-bg)", border: "1px solid color-mix(in oklab, var(--accent) 28%, transparent)" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--accent)" }}>account_balance</span>
-          <span style={{ font: "600 12px var(--font-sans)", color: "var(--ink)" }}>Click any approved or exported invoice to map it to bank transactions.</span>
-          <span style={{ font: "500 11.5px var(--font-sans)", color: "var(--ink-soft)" }}>The mapper shows balance due and lets you record partial / multi-payment settlements.</span>
-        </div>
-      ) : null}
-
-      <div className="table-wrap">
+      <div className={"table-wrap inv-table-wrap" + (sort.loading ? " is-loading" : "")}>
+        {sort.loading ? (
+          <span className="inv-fetch-overlay">
+            <span className="material-symbols-outlined spin">progress_activity</span>
+            {query
+              ? <>Searching <b>“{query}”</b> on server…</>
+              : <>Sorting on server by <b>{sort.col}</b> · {sort.dir === "asc" ? "ascending" : "descending"}…</>
+            }
+          </span>
+        ) : null}
         <table className="lbtable">
           <thead><tr>
             <th style={{ width: 18 }}></th>
-            <th style={{ width: 170 }}>Status</th>
-            <th>Vendor</th>
-            <th style={{ width: 140 }}>Invoice #</th>
-            <th style={{ width: 100 }}>Date</th>
-            <th style={{ width: 90 }}>Section</th>
-            <th style={{ width: 100, textAlign: "right" }}>Gross</th>
-            <th style={{ width: 100, textAlign: "right" }}>TDS</th>
-            <th style={{ width: 130, textAlign: "right" }}>Net Payable</th>
+            <InvSortHeader col="status"  label="Status"      sort={sort} onSort={onSort} style={{ width: 170 }} />
+            <InvSortHeader col="vendor"  label="Vendor"      sort={sort} onSort={onSort} />
+            <InvSortHeader col="number"  label="Invoice #"   sort={sort} onSort={onSort} style={{ width: 140 }} />
+            <InvSortHeader col="date"    label="Date"        sort={sort} onSort={onSort} style={{ width: 100 }} />
+            <InvSortHeader col="section" label="Section"     sort={sort} onSort={onSort} style={{ width: 90 }} />
+            <InvSortHeader col="gross"   label="Gross"       align="right" sort={sort} onSort={onSort} style={{ width: 100 }} />
+            <InvSortHeader col="tds"     label="TDS"         align="right" sort={sort} onSort={onSort} style={{ width: 100 }} />
+            <InvSortHeader col="net"     label="Net Payable" align="right" sort={sort} onSort={onSort} style={{ width: 130 }} />
             <th style={{ width: 170 }}>Payment</th>
           </tr></thead>
           <tbody>
+            {rows.length === 0 && !sort.loading ? (
+              <tr><td colSpan={10}>
+                <div className="inv-empty">
+                  <span className="material-symbols-outlined">search_off</span>
+                  <div>
+                    <div style={{ font: "600 13px var(--font-sans)", color: "var(--ink)" }}>No invoices match your search.</div>
+                    <div style={{ font: "500 12px var(--font-sans)", color: "var(--ink-soft)", marginTop: 2 }}>
+                      {query ? <>Nothing matches <b style={{ color: "var(--ink)" }}>"{query}"</b>{filter !== "all" ? <> within <b style={{ color: "var(--ink)" }}>{filter.replace(/_/g, " ")}</b></> : null}.</> : <>No invoices in this filter.</>}
+                      {" "}<button type="button" onClick={() => { setQueryInput(""); setFilter("all"); }} style={{ background: "transparent", border: 0, color: "var(--accent)", font: "600 12px var(--font-sans)", cursor: "pointer", padding: 0 }}>Reset</button>
+                    </div>
+                  </div>
+                </div>
+              </td></tr>
+            ) : null}
             {rows.map(r => {
               const ps = payState(r);
               const isMappable = r.status === "approved" || r.status === "exported";
@@ -254,7 +405,19 @@ function Invoices({ activeId, onSelect }) {
                         {ps.balance > 0 && ps.paid > 0 ? (
                           <span style={{ font: "600 11px var(--font-mono)", color: "#b8770b" }}>balance {window.inrFmt(ps.balance)}</span>
                         ) : ps.paid === 0 ? (
-                          <span style={{ font: "500 10.5px var(--font-sans)", color: "var(--accent)" }}>+ map bank txn</span>
+                          <button
+                            type="button"
+                            className="map-bank-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelect(r.id);
+                              setDetail(r.id);
+                              setDetailTab("map");
+                            }}
+                          >
+                            <span className="material-symbols-outlined">account_balance</span>
+                            Map bank txn
+                          </button>
                         ) : (
                           <span style={{ font: "500 10.5px var(--font-sans)", color: "var(--ink-muted)" }}>settled</span>
                         )}

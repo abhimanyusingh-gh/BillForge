@@ -25,6 +25,23 @@ User provided `LedgerBuddy Design System-2.zip`. Two kinds of delta vs v1:
 
 All other v2 files are byte-identical to v1; not re-imported.
 
+## v3 delta (imported 2026-05-04)
+
+User provided `LedgerBuddy Design System-3.zip`. Refresh of 20 existing files + 2 net-new:
+
+**New files (2)**:
+- ui_kits/app/TableQuery.css
+- ui_kits/app/TableQuery.jsx
+
+**Refreshed files (20)**:
+ActionRequiredQueue.jsx, app.css, BankStatements.jsx, Dashboard.jsx, index.html,
+Invoices.jsx, Login.css, Mailboxes.jsx, Payments.jsx, PlatformAdmin.css,
+PlatformAdmin.html, PlatformAdminApp.jsx, PlatformAdminParts2.jsx,
+Reconciliation.jsx, Sidebar.jsx, TallySync.jsx, Triage.jsx, UserSettings.jsx,
+Vendors.jsx, VendorsV2.jsx
+
+**Unchanged**: colors_and_type.css, README.md, SKILL.md, preview/*
+
 > **Do not import any of these files into production code paths.** They are reference only. Pass 2 authors translate the JSX/CSS structure into typed React + DS-token stylesheets in `frontend/src/`; they do not copy or `import` from `docs/design/system/`.
 
 ## Imported files
