@@ -72,7 +72,7 @@ export function TdsCumulativeChart({ byQuarter, isFiltered, onClearFilters }: Td
   }
 
   return (
-    <div className="tds-cumulative-chart" data-testid="tds-cumulative-chart">
+    <div className="tds-cumulative-chart tds-chart-card" data-testid="tds-cumulative-chart">
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={rows} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />

@@ -56,7 +56,7 @@ describe("TdsLiabilityTable", () => {
     render(<TdsLiabilityTable rows={rows} isFiltered={false} />);
     const initialOrder = screen.getAllByTestId("tds-row").map((r) => r.querySelector("td")?.textContent);
     expect(initialOrder).toEqual(["alpha", "bravo"]);
-    fireEvent.click(screen.getByTestId("tds-sort-cumulativeTdsMinor"));
+    fireEvent.click(screen.getByTestId("lb-datatable-th-cumulativeTdsMinor"));
     const afterToggle = screen.getAllByTestId("tds-row").map((r) => r.querySelector("td")?.textContent);
     expect(afterToggle).toEqual(["bravo", "alpha"]);
   });
