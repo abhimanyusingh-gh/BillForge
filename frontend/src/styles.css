@@ -3330,3 +3330,72 @@ body {
 .pa-tenant-cell-text { min-width: 0; }
 .pa-failure-warn { color: var(--warn); }
 .pa-failure-muted { color: var(--ink-muted); }
+
+/* ============================================================
+   Fidelity R-1 — DS primitives + foundational rules
+   Adds rules referenced by clusters 1-13.
+   No inline CSS. Bundle tokens only.
+   ============================================================ */
+
+/* Foundational card (panel) */
+.panel { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.panel-divider { border: none; border-top: 1px solid var(--line); margin: 12px 0; }
+.panel-title { font: 600 14px var(--font-sans); color: var(--ink); margin: 0 0 8px; }
+
+/* Skeletons */
+@keyframes skeleton-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.skeleton-row { display: flex; gap: 12px; padding: 8px 0; }
+.skeleton-block { background: var(--bg-main); border-radius: 4px; height: 12px; flex: 1; animation: skeleton-pulse 1.4s ease-in-out infinite; }
+
+/* Pager */
+.pager { display: inline-flex; gap: 4px; align-items: center; }
+.pager-page { background: transparent; border: 1px solid var(--line); color: var(--ink-soft); border-radius: 6px; padding: 4px 8px; font: 500 12px var(--font-sans); cursor: pointer; }
+.pager-page:hover { background: var(--bg-main); }
+.pager-page.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* Visually hidden (a11y) */
+.sr-only, .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Toggle switch */
+.toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle__track { position: absolute; cursor: pointer; inset: 0; background: var(--ink-muted); border-radius: 999px; transition: background .15s; }
+.toggle__thumb { position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform .15s; }
+.toggle input:checked + .toggle__track { background: var(--accent); }
+.toggle input:checked + .toggle__track .toggle__thumb { transform: translateX(16px); }
+
+/* Alerts (port from bundle Login.jsx) — .alert and .alert.warn already defined above; add .ok variant */
+.alert.ok { background: var(--emerald-soft-bg); border-color: var(--emerald); color: var(--ink); }
+
+/* Progress track */
+.progress-track { height: 6px; background: var(--bg-main); border-radius: 999px; overflow: hidden; }
+.progress-track__fill { height: 100%; background: var(--accent); transition: width .3s; }
+
+/* Spinner */
+@keyframes spinner-rotate { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spinner-rotate .8s linear infinite; }
+
+/* Donut legend */
+.donut-legend { display: flex; flex-direction: column; gap: 6px; }
+.donut-legend-item { display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--font-sans); color: var(--ink-soft); }
+.donut-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Charts grid */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.charts-grid--single { grid-template-columns: 1fr; }
+
+/* Field width modifiers */
+.field--narrow { max-width: 120px; }
+.field--money { max-width: 160px; }
+.field--num { max-width: 100px; text-align: right; }
+.field--medium { max-width: 240px; }
+
+/* Tenant Config sticky save bar */
+.tc-save-bar { position: sticky; bottom: 0; background: var(--bg-panel); border-top: 1px solid var(--line); padding: 12px 16px; display: flex; gap: 8px; justify-content: flex-end; z-index: 10; }
+
+/* Workflow connector (approval workflow chains) */
+.workflow-connector { width: 2px; height: 16px; background: var(--line); margin: 0 auto; }
+
+/* Popup card aliases (bundle uses scrim + modal-card) */
+.popup-card { background: var(--bg-panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; max-width: 480px; width: 100%; box-shadow: 0 12px 28px rgba(15, 23, 42, .18); }
+.popup-header { font: 600 16px var(--font-sans); color: var(--ink); margin-bottom: 12px; }
