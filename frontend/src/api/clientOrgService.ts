@@ -1,7 +1,7 @@
 import { apiClient } from "@/api/client";
-import { chromeUrls } from "@/api/chromeUrls";
-import type { ClientOrg } from "@/domain/chrome/clientOrg";
-import { asClientOrgId } from "@/types/ids";
+import { workspaceUrls } from "@/api/workspaceUrls";
+import type { ClientOrg } from "@/domain/workspace/clientOrg";
+import { asClientOrgId, type TenantId } from "@/types/ids";
 
 interface RawClientOrg {
   _id?: string;
@@ -26,8 +26,8 @@ function toClientOrg(raw: RawClientOrg): ClientOrg | null {
   };
 }
 
-async function listClientOrgs(signal?: AbortSignal): Promise<ClientOrg[]> {
-  const response = await apiClient.get<ListResponse>(chromeUrls.clientOrgs(), { signal });
+async function listClientOrgs(tenantId: TenantId, signal?: AbortSignal): Promise<ClientOrg[]> {
+  const response = await apiClient.get<ListResponse>(workspaceUrls.clientOrgs(tenantId), { signal });
   const raw = Array.isArray(response?.items) ? response.items : [];
   return raw.flatMap((item) => {
     const mapped = toClientOrg(item);

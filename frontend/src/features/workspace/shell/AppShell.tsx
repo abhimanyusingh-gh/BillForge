@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from "react";
-import { Sidebar } from "@/features/chrome/sidebar/Sidebar";
-import { TopNav } from "@/features/chrome/topnav/TopNav";
-import { useClientOrgs } from "@/features/chrome/realm-palette/useClientOrgs";
+import { Sidebar } from "@/features/workspace/sidebar/Sidebar";
+import { TopNav } from "@/features/workspace/topnav/TopNav";
+import { useClientOrgs } from "@/features/workspace/realm-palette/useClientOrgs";
 import { useSessionStore } from "@/state/sessionStore";
 
 interface AppShellProps {

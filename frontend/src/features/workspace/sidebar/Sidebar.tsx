@@ -1,6 +1,6 @@
 import { Fragment } from "react";
-import { NAV_ITEMS, type NavBadgeKey, type NavItem } from "@/domain/chrome/navItems";
-import { useChromeCounters } from "@/features/chrome/sidebar/useChromeCounters";
+import { NAV_ITEMS, type NavBadgeKey, type NavItem } from "@/domain/workspace/navItems";
+import { useNavCounters } from "@/features/workspace/sidebar/useNavCounters";
 import { useSessionStore } from "@/state/sessionStore";
 
 interface SidebarProps {
@@ -48,7 +48,7 @@ function NavLink({
 }
 
 export function Sidebar({ activeRoute }: SidebarProps) {
-  const counters = useChromeCounters();
+  const counters = useNavCounters();
   const collapsed = useSessionStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useSessionStore((state) => state.toggleSidebar);
   const tenant = useSessionStore((state) => state.tenant);

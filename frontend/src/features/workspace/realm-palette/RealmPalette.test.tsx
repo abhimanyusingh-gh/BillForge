@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { RealmPalette } from "@/features/chrome/realm-palette/RealmPalette";
+import { RealmPalette } from "@/features/workspace/realm-palette/RealmPalette";
 import { useSessionStore } from "@/state/sessionStore";
-import { asClientOrgId } from "@/types/ids";
+import { asClientOrgId, asTenantId } from "@/types/ids";
 
 const listClientOrgsMock = vi.fn();
 
@@ -23,6 +23,7 @@ beforeEach(() => {
   listClientOrgsMock.mockResolvedValue(sampleOrgs);
   act(() => {
     useSessionStore.getState().clearSession();
+    useSessionStore.setState({ tenant: { id: asTenantId("t1"), name: "Khan & Associates" } });
   });
 });
 

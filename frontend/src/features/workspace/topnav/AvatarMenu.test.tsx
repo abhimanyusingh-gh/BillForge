@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { AvatarMenu } from "@/features/chrome/topnav/AvatarMenu";
+import { AvatarMenu } from "@/features/workspace/topnav/AvatarMenu";
 import { useSessionStore } from "@/state/sessionStore";
 import { asTenantId, asUserId } from "@/types/ids";
 

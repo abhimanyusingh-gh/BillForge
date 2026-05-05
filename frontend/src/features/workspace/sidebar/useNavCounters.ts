@@ -1,32 +1,51 @@
 import { useEffect, useState } from "react";
-import { chromeService } from "@/api/chromeService";
+import { workspaceService } from "@/api/workspaceService";
+import { useSessionStore } from "@/state/sessionStore";
+import type { ClientOrgId, TenantId } from "@/types/ids";
 
 const POLL_INTERVAL_MS = 60_000;
 
-interface CountersState {
+interface NavCounters {
   action: number;
   triage: number;
   isLoading: boolean;
 }
 
-const INITIAL: CountersState = { action: 0, triage: 0, isLoading: true };
+const ZERO_COUNTERS: NavCounters = { action: 0, triage: 0, isLoading: false };
+const INITIAL: NavCounters = { action: 0, triage: 0, isLoading: true };
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function useChromeCounters(): CountersState {
-  const [state, setState] = useState<CountersState>(INITIAL);
+async function loadActionRequired(
+  tenantId: TenantId,
+  clientOrgId: ClientOrgId | null,
+  signal: AbortSignal
+): Promise<number> {
+  if (clientOrgId === null) return 0;
+  return workspaceService.fetchActionRequiredCount(tenantId, clientOrgId, signal);
+}
+
+export function useNavCounters(): NavCounters {
+  const tenantId = useSessionStore((state) => state.tenant?.id ?? null);
+  const clientOrgId = useSessionStore((state) => state.currentClientOrgId);
+  const [state, setState] = useState<NavCounters>(INITIAL);
 
   useEffect(() => {
+    if (tenantId === null) {
+      setState(ZERO_COUNTERS);
+      return;
+    }
     let cancelled = false;
     const controller = new AbortController();
 
     async function load() {
+      if (tenantId === null) return;
       try {
         const [action, triage] = await Promise.all([
-          chromeService.fetchActionRequiredCount(controller.signal),
-          chromeService.fetchTriageCount(controller.signal)
+          loadActionRequired(tenantId, clientOrgId, controller.signal),
+          workspaceService.fetchTriageCount(tenantId, controller.signal)
         ]);
         if (cancelled) return;
         setState({ action, triage, isLoading: false });
@@ -36,6 +55,7 @@ export function useChromeCounters(): CountersState {
       }
     }
 
+    setState((prev) => ({ ...prev, isLoading: true }));
     load();
     let intervalId: ReturnType<typeof setInterval> | null = null;
     const startPolling = () => {
@@ -71,7 +91,7 @@ export function useChromeCounters(): CountersState {
         document.removeEventListener("visibilitychange", onVisibility);
       }
     };
-  }, []);
+  }, [tenantId, clientOrgId]);
 
   return state;
 }

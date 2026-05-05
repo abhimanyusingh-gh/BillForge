@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { clientOrgService } from "@/api/clientOrgService";
-import type { ClientOrg } from "@/domain/chrome/clientOrg";
+import type { ClientOrg } from "@/domain/workspace/clientOrg";
 import { useSessionStore } from "@/state/sessionStore";
 
 interface ClientOrgsState {
@@ -15,6 +15,7 @@ function isAbortError(error: unknown): boolean {
 }
 
 export function useClientOrgs(enabled: boolean): ClientOrgsState {
+  const tenantId = useSessionStore((state) => state.tenant?.id ?? null);
   const recentIds = useSessionStore((state) => state.recentClientOrgIds);
   const [orgs, setOrgs] = useState<ClientOrg[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -22,12 +23,18 @@ export function useClientOrgs(enabled: boolean): ClientOrgsState {
 
   useEffect(() => {
     if (!enabled) return;
+    if (tenantId === null) {
+      setOrgs([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
     const controller = new AbortController();
     let cancelled = false;
     setIsLoading(true);
     setError(null);
     clientOrgService
-      .listClientOrgs(controller.signal)
+      .listClientOrgs(tenantId, controller.signal)
       .then((result) => {
         if (cancelled) return;
         setOrgs(result);
@@ -43,7 +50,7 @@ export function useClientOrgs(enabled: boolean): ClientOrgsState {
       cancelled = true;
       controller.abort();
     };
-  }, [enabled]);
+  }, [enabled, tenantId]);
 
   const recent = useMemo<ClientOrg[]>(() => {
     if (recentIds.length === 0 || orgs.length === 0) return [];

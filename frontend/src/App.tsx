@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ChangePasswordPanel } from "@/features/auth/change-password/ChangePasswordPanel";
 import { LoginPage } from "@/features/auth/login/LoginPage";
-import { AppShell } from "@/features/chrome/shell/AppShell";
+import { AppShell } from "@/features/workspace/shell/AppShell";
 import { PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
-import { findNavItemByRoute, NAV_ITEMS } from "@/domain/chrome/navItems";
+import { findNavItemByRoute, NAV_ITEMS } from "@/domain/workspace/navItems";
 import { selectIsAuthenticated, useSessionStore } from "@/state/sessionStore";
 import { useTheme } from "@/state/useTheme";
 

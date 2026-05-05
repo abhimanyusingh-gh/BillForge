@@ -1,17 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Sidebar } from "@/features/chrome/sidebar/Sidebar";
+import { Sidebar } from "@/features/workspace/sidebar/Sidebar";
 import { useSessionStore } from "@/state/sessionStore";
+import { asClientOrgId, asTenantId } from "@/types/ids";
 
 const fetchActionRequiredCountMock = vi.fn();
 const fetchTriageCountMock = vi.fn();
 
-vi.mock("@/api/chromeService", () => ({
-  chromeService: {
+vi.mock("@/api/workspaceService", () => ({
+  workspaceService: {
     fetchActionRequiredCount: (...args: unknown[]) => fetchActionRequiredCountMock(...args),
     fetchTriageCount: (...args: unknown[]) => fetchTriageCountMock(...args)
   }
 }));
+
+function seedTenant() {
+  act(() => {
+    useSessionStore.setState({
+      tenant: { id: asTenantId("t1"), name: "Khan & Associates" },
+      currentClientOrgId: asClientOrgId("co1")
+    });
+  });
+}
 
 beforeEach(() => {
   fetchActionRequiredCountMock.mockReset();
@@ -22,6 +32,7 @@ beforeEach(() => {
     useSessionStore.getState().clearSession();
     useSessionStore.setState({ sidebarCollapsed: false });
   });
+  seedTenant();
   window.location.hash = "";
 });
 

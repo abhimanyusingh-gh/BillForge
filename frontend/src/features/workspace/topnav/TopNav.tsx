@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { AvatarMenu } from "@/features/chrome/topnav/AvatarMenu";
-import { RealmPill } from "@/features/chrome/topnav/RealmPill";
-import { RealmPalette } from "@/features/chrome/realm-palette/RealmPalette";
+import { AvatarMenu } from "@/features/workspace/topnav/AvatarMenu";
+import { RealmPill } from "@/features/workspace/topnav/RealmPill";
+import { RealmPalette } from "@/features/workspace/realm-palette/RealmPalette";
 import { useTheme } from "@/state/useTheme";
 
 interface TopNavProps {
