@@ -8,6 +8,7 @@ interface InvoiceState {
   isLoading: boolean;
   error: string | null;
   reload: () => void;
+  previewUrl: string | null;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -47,5 +48,10 @@ export function useInvoice(invoiceId: InvoiceId | null): InvoiceState {
 
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
-  return { invoice, isLoading, error, reload };
+  const previewUrl =
+    tenantId !== null && clientOrgId !== null && invoiceId !== null
+      ? invoiceService.previewUrl(tenantId, clientOrgId, invoiceId)
+      : null;
+
+  return { invoice, isLoading, error, reload, previewUrl };
 }

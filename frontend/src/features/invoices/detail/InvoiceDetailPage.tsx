@@ -4,13 +4,11 @@ import {
   type Invoice,
   type InvoiceId
 } from "@/domain/invoice/invoice";
-import { invoiceService } from "@/api/invoiceService";
 import { useInvoice } from "@/features/invoices/detail/useInvoice";
 import { InvoiceFieldsPanel } from "@/features/invoices/detail/InvoiceFieldsPanel";
 import { useApproveInvoices } from "@/features/invoices/actions/useApproveInvoices";
 import { useRejectInvoice } from "@/features/invoices/actions/useRejectInvoice";
 import { formatDate, INVOICE_STATUS_LABEL } from "@/features/invoices/format";
-import { useSessionStore } from "@/state/sessionStore";
 
 interface InvoiceDetailPageProps {
   invoiceIdRaw: string;
@@ -23,7 +21,7 @@ function navigateBack(): void {
 
 export function InvoiceDetailPage({ invoiceIdRaw }: InvoiceDetailPageProps) {
   const invoiceId: InvoiceId = useMemo(() => asInvoiceId(invoiceIdRaw), [invoiceIdRaw]);
-  const { invoice, isLoading, error, reload } = useInvoice(invoiceId);
+  const { invoice, isLoading, error, reload, previewUrl } = useInvoice(invoiceId);
 
   if (isLoading && invoice === null) {
     return (
@@ -55,26 +53,20 @@ export function InvoiceDetailPage({ invoiceIdRaw }: InvoiceDetailPageProps) {
     );
   }
 
-  return <InvoiceDetailContent invoice={invoice} reload={reload} />;
+  return <InvoiceDetailContent invoice={invoice} reload={reload} previewUrl={previewUrl} />;
 }
 
 interface InvoiceDetailContentProps {
   invoice: Invoice;
   reload: () => void;
+  previewUrl: string | null;
 }
 
-function InvoiceDetailContent({ invoice, reload }: InvoiceDetailContentProps) {
-  const tenantId = useSessionStore((state) => state.tenant?.id ?? null);
-  const clientOrgId = useSessionStore((state) => state.currentClientOrgId);
+function InvoiceDetailContent({ invoice, reload, previewUrl }: InvoiceDetailContentProps) {
   const approve = useApproveInvoices(reload);
   const reject = useRejectInvoice(reload);
   const [rejectReason, setRejectReason] = useState<string>("");
   const [showReject, setShowReject] = useState<boolean>(false);
-
-  const previewSrc = useMemo(() => {
-    if (tenantId === null || clientOrgId === null) return null;
-    return invoiceService.previewUrl(tenantId, clientOrgId, invoice.id);
-  }, [tenantId, clientOrgId, invoice.id]);
 
   const onApprove = async () => {
     await approve.workflowApprove(invoice.id);
@@ -151,10 +143,10 @@ function InvoiceDetailContent({ invoice, reload }: InvoiceDetailContentProps) {
           <header className="invoice-section-header">
             <h3>Source document</h3>
           </header>
-          {previewSrc ? (
+          {previewUrl ? (
             <iframe
               title={`Source for invoice ${invoice.invoiceNumber}`}
-              src={previewSrc}
+              src={previewUrl}
               className="invoice-detail-source-frame"
             />
           ) : (
