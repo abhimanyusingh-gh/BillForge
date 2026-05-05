@@ -1,5 +1,5 @@
 import { ApiError, apiClient } from "@/api/client";
-import { workspaceUrls } from "@/api/workspaceUrls";
+import { urls } from "@/api/urlBuilder";
 import type { ClientOrgId, TenantId } from "@/types/ids";
 
 interface CountResponse {
@@ -17,7 +17,7 @@ async function fetchActionRequiredCount(
   signal?: AbortSignal
 ): Promise<number> {
   const response = await apiClient.get<CountResponse>(
-    workspaceUrls.actionRequiredCount(tenantId, clientOrgId),
+    urls.tenant(tenantId).clientOrg(clientOrgId).invoices.actionRequired({ pageSize: 1 }),
     { signal }
   );
   return readTotal(response);
@@ -25,7 +25,10 @@ async function fetchActionRequiredCount(
 
 async function fetchTriageCount(tenantId: TenantId, signal?: AbortSignal): Promise<number> {
   try {
-    const response = await apiClient.get<CountResponse>(workspaceUrls.triageCount(tenantId), { signal });
+    const response = await apiClient.get<CountResponse>(
+      urls.tenant(tenantId).invoices.triage({ pageSize: 1 }),
+      { signal }
+    );
     return readTotal(response);
   } catch (caught) {
     if (caught instanceof ApiError && caught.status === 403) {

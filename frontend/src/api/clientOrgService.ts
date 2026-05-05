@@ -1,5 +1,5 @@
 import { apiClient } from "@/api/client";
-import { workspaceUrls } from "@/api/workspaceUrls";
+import { urls } from "@/api/urlBuilder";
 import type { ClientOrg } from "@/domain/workspace/clientOrg";
 import { asClientOrgId, type TenantId } from "@/types/ids";
 
@@ -27,7 +27,10 @@ function toClientOrg(raw: RawClientOrg): ClientOrg | null {
 }
 
 async function listClientOrgs(tenantId: TenantId, signal?: AbortSignal): Promise<ClientOrg[]> {
-  const response = await apiClient.get<ListResponse>(workspaceUrls.clientOrgs(tenantId), { signal });
+  const response = await apiClient.get<ListResponse>(
+    urls.tenant(tenantId).admin.clientOrgs.list({ includeArchived: false }),
+    { signal }
+  );
   const raw = Array.isArray(response?.items) ? response.items : [];
   return raw.flatMap((item) => {
     const mapped = toClientOrg(item);
