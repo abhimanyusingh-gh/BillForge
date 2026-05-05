@@ -1,5 +1,5 @@
 import { apiClient } from "@/api/client";
-import { authUrls } from "@/api/authUrls";
+import { urls } from "@/api/urlBuilder";
 import type { AuthTenant, AuthUser, SessionFlags } from "@/state/sessionStore";
 import { asTenantId, asUserId } from "@/types/ids";
 
@@ -65,7 +65,7 @@ function toSessionFlags(raw: SessionContextResponse["flags"]): SessionFlags {
 
 async function login(input: LoginInput): Promise<string> {
   const response = await apiClient.post<LoginTokenResponse>(
-    authUrls.login(),
+    urls.auth.login(),
     { email: input.email, password: input.password },
     { skipAuth: true }
   );
@@ -77,7 +77,7 @@ async function login(input: LoginInput): Promise<string> {
 }
 
 async function fetchSession(): Promise<SessionContext> {
-  const response = await apiClient.get<SessionContextResponse>(authUrls.session());
+  const response = await apiClient.get<SessionContextResponse>(urls.session.current());
   return {
     user: toAuthUser(response.user),
     tenant: toAuthTenant(response.tenant),
@@ -86,7 +86,7 @@ async function fetchSession(): Promise<SessionContext> {
 }
 
 async function changePassword(input: ChangePasswordInput): Promise<void> {
-  await apiClient.post(authUrls.changePassword(), {
+  await apiClient.post(urls.auth.changePassword(), {
     currentPassword: input.currentPassword,
     newPassword: input.newPassword
   });
