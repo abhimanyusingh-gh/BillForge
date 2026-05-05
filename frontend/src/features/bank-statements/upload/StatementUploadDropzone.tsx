@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent, type MutableRefObject } from "react";
 import { bankService } from "@/api/bankService";
 import type { BankStatementUploadResult } from "@/domain/bank/statement";
 import { useBankContext } from "@/features/bank-statements/internal";
@@ -67,12 +67,18 @@ function useUploadStatement(onSuccess?: () => void): UploadHookState {
 
 interface StatementUploadDropzoneProps {
   onUploaded: () => void;
+  browseRef?: MutableRefObject<HTMLButtonElement | null>;
 }
 
-export function StatementUploadDropzone({ onUploaded }: StatementUploadDropzoneProps) {
+export function StatementUploadDropzone({ onUploaded, browseRef }: StatementUploadDropzoneProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const browseBtnRef = useRef<HTMLButtonElement | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const { status, error, upload, reset } = useUploadStatement(onUploaded);
+
+  useEffect(() => {
+    if (browseRef) browseRef.current = browseBtnRef.current;
+  }, [browseRef]);
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
@@ -109,9 +115,10 @@ export function StatementUploadDropzone({ onUploaded }: StatementUploadDropzoneP
       </span>
       <div className="bs-dropzone__copy">
         <div className="bs-dropzone__title">Drop statement files here</div>
-        <div className="bs-dropzone__hint">PDF, CSV, OFX — auto-detected</div>
+        <div className="bs-dropzone__hint">PDF, CSV, OFX, MT940 — auto-detected · multiple files OK</div>
       </div>
       <button
+        ref={browseBtnRef}
         type="button"
         className="bs-dropzone__browse"
         onClick={() => fileRef.current?.click()}

@@ -7,6 +7,13 @@ interface TransactionMatchPanelProps {
   onChanged: () => void;
 }
 
+function txnAmount(transaction: BankTransaction): { isDebit: boolean; value: number } {
+  const debit = transaction.debitMinor ?? 0;
+  const credit = transaction.creditMinor ?? 0;
+  if (debit > 0) return { isDebit: true, value: debit };
+  return { isDebit: false, value: credit };
+}
+
 export function TransactionMatchPanel({ transaction, onChanged }: TransactionMatchPanelProps) {
   const { status: unmatchStatus, error: unmatchError, unmatch } = useUnmatchTransaction(onChanged);
 
@@ -21,47 +28,76 @@ export function TransactionMatchPanel({ transaction, onChanged }: TransactionMat
   const isMatched =
     transaction.matchStatus === BANK_TRANSACTION_MATCH_STATUS.MATCHED ||
     transaction.matchStatus === BANK_TRANSACTION_MATCH_STATUS.MANUAL;
+  const { isDebit, value } = txnAmount(transaction);
+  const invoice = transaction.invoice;
+  const expected = invoice?.totalAmountMinor ?? null;
+  const variance = expected !== null ? value - expected : null;
 
   return (
     <aside className="bs-detail__panel" aria-label="Match panel">
-      <header className="bs-detail__panel-header">
-        <h3>Transaction</h3>
-        <div className="bs-detail__panel-meta mono-cell muted">{formatDate(transaction.date)}</div>
-      </header>
-
-      <dl className="bs-detail__panel-body">
-        <div>
-          <dt>Description</dt>
-          <dd>{transaction.description}</dd>
-        </div>
-        {transaction.reference !== null ? (
-          <div>
-            <dt>Reference</dt>
-            <dd className="mono-cell">{transaction.reference}</dd>
+      <section className="bs-detail__sel">
+        <div className="bs-detail__caplabel">Selected transaction</div>
+        <div className="bs-detail__sel-card">
+          <div className="bs-detail__sel-row">
+            <span className="lb-mono bs-detail__sel-meta">
+              {formatDate(transaction.date)}
+              {transaction.reference !== null ? ` · ${transaction.reference}` : ""}
+            </span>
+            <span
+              className={`lb-mono bs-detail__sel-amount ${
+                isDebit ? "bs-detail__amt-debit" : "bs-detail__amt-credit"
+              }`}
+            >
+              {isDebit ? "− " : "+ "}
+              {formatInr(value)}
+            </span>
           </div>
-        ) : null}
-        <div>
-          <dt>Debit</dt>
-          <dd className="mono-cell">{transaction.debitMinor ? formatInr(transaction.debitMinor) : "—"}</dd>
+          <div className="bs-detail__sel-desc">{transaction.description}</div>
         </div>
-        <div>
-          <dt>Credit</dt>
-          <dd className="mono-cell">{transaction.creditMinor ? formatInr(transaction.creditMinor) : "—"}</dd>
-        </div>
-      </dl>
+      </section>
 
-      {transaction.invoice !== null ? (
+      {invoice !== null ? (
         <section className="bs-detail__matched" aria-label="Matched invoice">
-          <h4>Matched invoice</h4>
-          <div className="bs-detail__invoice-row">
-            <div className="bs-detail__invoice-num mono-cell">
-              {transaction.invoice.invoiceNumber ?? "—"}
+          <div className="bs-detail__caplabel">Match to invoice</div>
+          <div className="bs-detail__candidate is-active">
+            <div className="bs-detail__candidate-radio" aria-hidden />
+            <div className="bs-detail__candidate-body">
+              <div className="bs-detail__candidate-num lb-mono">
+                {invoice.invoiceNumber ?? "—"}
+              </div>
+              <div className="bs-detail__candidate-vendor">
+                {invoice.vendorName ?? "—"}
+                {invoice.invoiceDate ? ` · ${formatDate(invoice.invoiceDate)}` : ""}
+              </div>
             </div>
-            <div className="bs-detail__invoice-vendor">{transaction.invoice.vendorName ?? "—"}</div>
-            <div className="bs-detail__invoice-amount mono-cell">
-              {formatInr(transaction.invoice.totalAmountMinor)}
+            <div className="bs-detail__candidate-amount lb-mono">
+              {formatInr(invoice.totalAmountMinor)}
             </div>
           </div>
+
+          <div className="bs-detail__diff">
+            <div className="bs-detail__diff-row">
+              <span>Expected</span>
+              <span className="lb-mono">{formatInr(expected)}</span>
+            </div>
+            <div className="bs-detail__diff-row">
+              <span>Bank {isDebit ? "debit" : "credit"}</span>
+              <span className={`lb-mono ${isDebit ? "bs-detail__amt-debit" : "bs-detail__amt-credit"}`}>
+                {isDebit ? "− " : "+ "}
+                {formatInr(value)}
+              </span>
+            </div>
+            <div
+              className={`bs-detail__diff-final ${
+                variance === 0 ? "is-pos" : "is-neg"
+              }`}
+            >
+              {variance === 0
+                ? "✓ matches expected"
+                : `± ${formatInr(Math.abs(variance ?? 0))} variance`}
+            </div>
+          </div>
+
           {isMatched ? (
             <button
               type="button"
@@ -69,7 +105,7 @@ export function TransactionMatchPanel({ transaction, onChanged }: TransactionMat
               onClick={() => void unmatch(transaction.id)}
               disabled={unmatchStatus === "pending"}
             >
-              {unmatchStatus === "pending" ? "Unmatching…" : "Unmatch"}
+              {unmatchStatus === "pending" ? "Unmatching…" : "Clear match"}
             </button>
           ) : null}
           {unmatchError !== null ? (
@@ -80,8 +116,9 @@ export function TransactionMatchPanel({ transaction, onChanged }: TransactionMat
         </section>
       ) : (
         <section className="bs-detail__matched" aria-label="No match">
+          <div className="bs-detail__caplabel">Match to invoice</div>
           <p className="bs-detail__panel-hint">
-            No invoice matched yet. Run reconciliation, or match manually from the invoice list.
+            No invoice matched yet. Run auto-match, or match manually from the invoice list.
           </p>
         </section>
       )}

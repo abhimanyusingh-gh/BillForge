@@ -74,57 +74,49 @@ export function BankConnectionsPage() {
         </div>
       ) : null}
 
-      <div className="table-wrap">
-        <table className="lbtable">
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th>Bank</th>
-              <th>IFSC</th>
-              <th className="num-cell">Balance</th>
-              <th>Last fetched</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && accounts.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="bs-empty">
-                  Loading bank accounts…
-                </td>
-              </tr>
-            ) : accounts.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="bs-empty">
-                  No bank accounts connected yet.
-                </td>
-              </tr>
-            ) : (
-              accounts.map((account) => {
-                const chip = statusChip(account.status);
-                return (
-                  <tr key={account.id}>
-                    <td className="mono-cell">
-                      {account.displayName}
-                      {account.maskedAccNumber ? ` · ${account.maskedAccNumber}` : ""}
-                    </td>
-                    <td>{account.bankName}</td>
-                    <td className="mono-cell muted">{account.ifsc}</td>
-                    <td className="num-cell">{formatInr(account.balanceMinor)}</td>
-                    <td className="mono-cell muted">{formatDate(account.balanceFetchedAt)}</td>
-                    <td>
-                      <span className={`spill ${chip.cls}`}>
-                        <span className="dot" />
-                        {chip.label}
+      {isLoading && accounts.length === 0 ? (
+        <div className="bs-empty">Loading bank accounts…</div>
+      ) : accounts.length === 0 ? (
+        <div className="bs-empty">No bank accounts connected yet.</div>
+      ) : (
+        <div className="bs-account-grid">
+          {accounts.map((account) => {
+            const chip = statusChip(account.status);
+            return (
+              <article key={account.id} className="bs-account-card panel">
+                <span className="bs-account-card__icon material-symbols-outlined" aria-hidden>
+                  account_balance
+                </span>
+                <div className="bs-account-card__body">
+                  <div className="bs-account-card__name">
+                    {account.displayName}
+                    {account.maskedAccNumber ? (
+                      <span className="bs-account-card__tail mono-cell">
+                        {` ${account.maskedAccNumber}`}
                       </span>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                    ) : null}
+                  </div>
+                  <div className="bs-account-card__meta">
+                    {account.bankName} · IFSC {account.ifsc || "—"}
+                    {account.balanceFetchedAt
+                      ? ` · as of ${formatDate(account.balanceFetchedAt)}`
+                      : ""}
+                  </div>
+                  <div className="bs-account-card__chip">
+                    <span className={`spill ${chip.cls}`}>
+                      <span className="dot" />
+                      {chip.label}
+                    </span>
+                  </div>
+                </div>
+                <div className="bs-account-card__amount lb-mono">
+                  {formatInr(account.balanceMinor)}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
