@@ -1,26 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { DEFAULT_PERSONA, gotoLoginPage, loginViaUI } from "./helpers/login";
 
-const loginEmail = process.env.E2E_LOGIN_EMAIL ?? "tenant-admin-1@local.test";
-const loginPassword = process.env.E2E_LOGIN_PASSWORD ?? "DemoPass!1";
-
-async function gotoLogin(page: Page): Promise<void> {
-  for (let attempt = 0; attempt < 15; attempt++) {
-    try {
-      await page.goto("/#/login", { waitUntil: "domcontentloaded" });
-      await page.getByRole("heading", { name: "Sign in to LedgerBuddy" }).waitFor({
-        state: "visible",
-        timeout: 2000
-      });
-      return;
-    } catch {
-      await page.waitForTimeout(2000);
-    }
-  }
-  throw new Error("Login page never rendered; backend or frontend is not ready.");
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await gotoLogin(page);
+async function loginViaUiInline(page: Page, email: string, password: string): Promise<void> {
+  await gotoLoginPage(page);
   await page.getByLabel("Work email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /sign in/i }).click();
@@ -28,7 +10,7 @@ async function loginViaUi(page: Page, email: string, password: string): Promise<
 
 test.describe("auth flow", () => {
   test("renders the brand panel and form on /#/login", async ({ page }) => {
-    await gotoLogin(page);
+    await gotoLoginPage(page);
     await expect(page.getByRole("heading", { name: "Sign in to LedgerBuddy" })).toBeVisible();
     await expect(page.getByLabel("Work email")).toBeVisible();
     await expect(page.getByLabel("Password")).toBeVisible();
@@ -37,18 +19,16 @@ test.describe("auth flow", () => {
   });
 
   test("invalid credentials surface backend error", async ({ page }) => {
-    await loginViaUi(page, loginEmail, "definitely-wrong-password");
+    await loginViaUiInline(page, DEFAULT_PERSONA.email, "definitely-wrong-password");
     await expect(page.getByRole("alert")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByLabel("Work email")).toBeVisible();
     await expect(page).toHaveURL(/#\/login$/);
   });
 
   test("successful login lands on workspace shell + sidebar/topnav render", async ({ page }) => {
-    await loginViaUi(page, loginEmail, loginPassword);
+    await loginViaUI(page);
 
-    await page.locator("aside.app-sidebar").waitFor({ state: "visible", timeout: 20_000 });
     await expect(page).not.toHaveURL(/#\/login$/);
-
     await expect(page.locator("aside.app-sidebar")).toBeVisible();
     await expect(page.locator("header.app-topnav")).toBeVisible();
     await expect(page.getByText("LedgerBuddy")).toBeVisible();
@@ -63,8 +43,7 @@ test.describe("auth flow", () => {
   });
 
   test("theme toggle in avatar menu sets data-theme + persists across reload", async ({ page }) => {
-    await loginViaUi(page, loginEmail, loginPassword);
-    await page.locator("aside.app-sidebar").waitFor({ state: "visible", timeout: 20_000 });
+    await loginViaUI(page);
 
     await page.getByRole("button", { name: /Account menu/ }).click();
     await page.getByRole("button", { name: /^Dark$/ }).click();
@@ -75,9 +54,8 @@ test.describe("auth flow", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
-  test("⌘K opens client-org switcher palette + Esc closes", async ({ page }) => {
-    await loginViaUi(page, loginEmail, loginPassword);
-    await page.locator("aside.app-sidebar").waitFor({ state: "visible", timeout: 20_000 });
+  test("Cmd+K opens client-org switcher palette + Esc closes", async ({ page }) => {
+    await loginViaUI(page);
 
     await page.keyboard.press("Meta+k");
     await expect(page.getByRole("dialog", { name: "Client org switcher" })).toBeVisible();
@@ -87,8 +65,7 @@ test.describe("auth flow", () => {
   });
 
   test("sign out from avatar menu returns to login", async ({ page }) => {
-    await loginViaUi(page, loginEmail, loginPassword);
-    await page.locator("aside.app-sidebar").waitFor({ state: "visible", timeout: 20_000 });
+    await loginViaUI(page);
 
     await page.getByRole("button", { name: /Account menu/ }).click();
     await page.getByRole("button", { name: /Sign out/ }).click();

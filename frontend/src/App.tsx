@@ -3,6 +3,8 @@ import { ChangePasswordPanel } from "@/features/auth/change-password/ChangePassw
 import { LoginPage } from "@/features/auth/login/LoginPage";
 import { AppShell } from "@/features/workspace/shell/AppShell";
 import { PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
+import { VendorListPage } from "@/features/vendors/list/VendorListPage";
+import { parseVendorIdFromRoute, VendorDetailPage } from "@/features/vendors/detail/VendorDetailPage";
 import { findNavItemByRoute, NAV_ITEMS } from "@/domain/workspace/navItems";
 import { selectIsAuthenticated, useSessionStore } from "@/state/sessionStore";
 import { useTheme } from "@/state/useTheme";
@@ -44,10 +46,12 @@ export function App() {
       window.location.hash = "#/change-password";
       return;
     }
+    const vendorIdFromRoute = parseVendorIdFromRoute(route);
     if (
       isAuthenticated &&
       !mustChangePassword &&
       route !== "/change-password" &&
+      vendorIdFromRoute === null &&
       findNavItemByRoute(route) === undefined
     ) {
       window.location.hash = `#${NAV_ITEMS[0].route}`;
@@ -62,7 +66,24 @@ export function App() {
     return <ChangePasswordPanel />;
   }
 
+  const vendorId = parseVendorIdFromRoute(route);
+  if (vendorId !== null) {
+    return (
+      <AppShell activeRoute="/vendors">
+        <VendorDetailPage vendorId={vendorId} />
+      </AppShell>
+    );
+  }
+
   const item = findNavItemByRoute(route) ?? NAV_ITEMS[0];
+
+  if (item.route === "/vendors") {
+    return (
+      <AppShell activeRoute="/vendors">
+        <VendorListPage />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell activeRoute={item.route}>
