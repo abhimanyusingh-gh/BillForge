@@ -66,10 +66,8 @@ export function App() {
     return <ChangePasswordPanel />;
   }
 
-  const vendorId = parseVendorIdFromRoute(route);
-  const item = findNavItemByRoute(route) ?? NAV_ITEMS[0];
-
-  if (vendorId !== null || item.route === "/vendors") {
+  if (route === "/vendors" || route.startsWith("/vendors/")) {
+    const vendorId = parseVendorIdFromRoute(route);
     return (
       <AppShell activeRoute="/vendors">
         {vendorId !== null ? <VendorDetailPage vendorId={vendorId} /> : <VendorListPage />}
@@ -77,6 +75,7 @@ export function App() {
     );
   }
 
+  const item = findNavItemByRoute(route) ?? NAV_ITEMS[0];
   return (
     <AppShell activeRoute={item.route}>
       <PlaceholderPage label={item.label} />

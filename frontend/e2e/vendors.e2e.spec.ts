@@ -17,6 +17,29 @@ test.describe("vendors flow", () => {
     await expect(page.locator("table.lbtable")).toBeVisible();
   });
 
+  test("search box filters list against real BE seeded data", async ({ page }) => {
+    await loginViaUI(page);
+    await page.getByRole("button", { name: /Vendors/ }).click();
+    await expect(page).toHaveURL(/#\/vendors$/);
+
+    const rows = page.locator("table.lbtable tbody tr.vendor-row");
+    await expect(rows.first()).toBeVisible();
+    const initialCount = await rows.count();
+    expect(initialCount).toBeGreaterThan(1);
+
+    const searchInput = page.getByLabel("Search vendors");
+    await searchInput.fill("Sprinto");
+    await searchInput.press("Enter");
+
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText(/Sprinto/);
+
+    await searchInput.fill("");
+    await searchInput.press("Enter");
+
+    await expect(rows).toHaveCount(initialCount);
+  });
+
   test("filter status select narrows the list without errors", async ({ page }) => {
     await loginViaUI(page);
     await page.getByRole("button", { name: /Vendors/ }).click();
