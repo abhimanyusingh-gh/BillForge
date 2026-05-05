@@ -1,4 +1,4 @@
-import { apiClient } from "@/api/client";
+import { ApiError, apiClient } from "@/api/client";
 import { urls } from "@/api/urlBuilder";
 import {
   asVendorId,
@@ -55,6 +55,34 @@ interface RawVendorDetail extends RawVendorSummary {
   stateCode?: string | null;
   stateName?: string | null;
   section197Cert?: RawSection197Cert | null;
+}
+
+export interface CreateVendorInput {
+  companyName: string;
+  gstin: string;
+  legalName?: string;
+  stateName?: string;
+  msmeCategory?: string;
+  panNumber?: string;
+}
+
+interface RawCreateResponse {
+  vendor?: RawVendorDetail;
+}
+
+interface RawDuplicateBody {
+  message?: string;
+  vendor?: RawVendorDetail;
+}
+
+export class DuplicateVendorError extends Error {
+  readonly existingVendor: VendorDetail | null;
+
+  constructor(message: string, existingVendor: VendorDetail | null) {
+    super(message);
+    this.name = "DuplicateVendorError";
+    this.existingVendor = existingVendor;
+  }
 }
 
 interface MergeRequest {
@@ -192,6 +220,32 @@ async function setVendorSection197Cert(
   return toDetail(response);
 }
 
+async function createVendor(
+  tenantId: TenantId,
+  clientOrgId: ClientOrgId,
+  input: CreateVendorInput
+): Promise<VendorDetail> {
+  const url = urls.tenant(tenantId).clientOrg(clientOrgId).vendors.create();
+  try {
+    const response = await apiClient.post<RawCreateResponse>(url, input);
+    const detail = response?.vendor ? toDetail(response.vendor) : null;
+    if (detail === null) throw new Error("Vendor service returned no vendor payload.");
+    return detail;
+  } catch (caught) {
+    if (caught instanceof ApiError && caught.status === 409) {
+      const body = (caught.body ?? {}) as RawDuplicateBody;
+      const existing = body.vendor ? toDetail(body.vendor) : null;
+      throw new DuplicateVendorError(
+        typeof body.message === "string" && body.message.length > 0
+          ? body.message
+          : "Vendor with this GSTIN already exists for this client.",
+        existing
+      );
+    }
+    throw caught;
+  }
+}
+
 async function mergeVendors(
   tenantId: TenantId,
   clientOrgId: ClientOrgId,
@@ -207,7 +261,8 @@ export const vendorService = {
   getVendor,
   editVendor,
   setVendorSection197Cert,
-  mergeVendors
+  mergeVendors,
+  createVendor
 };
 
 export type { MergeResponse };

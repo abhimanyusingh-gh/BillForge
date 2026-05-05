@@ -57,6 +57,7 @@ interface ClientOrgVendorUrls {
   edit: (vendorId: VendorId) => string;
   cert: (vendorId: VendorId) => string;
   merge: (vendorId: VendorId) => string;
+  create: () => string;
 }
 
 interface ClientOrgUrls {
@@ -109,7 +110,8 @@ function build(): UrlBuilder {
               byId: (vendorId) => `${clientOrgBase}/vendors/${vendorId}`,
               edit: (vendorId) => `${clientOrgBase}/vendors/${vendorId}`,
               cert: (vendorId) => `${clientOrgBase}/vendors/${vendorId}/cert`,
-              merge: (vendorId) => `${clientOrgBase}/vendors/${vendorId}/merge`
+              merge: (vendorId) => `${clientOrgBase}/vendors/${vendorId}/merge`,
+              create: () => `${clientOrgBase}/vendors`
             }
           };
         }

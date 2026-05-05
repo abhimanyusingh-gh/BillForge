@@ -1233,3 +1233,30 @@ body {
   gap: 8px;
   margin-top: 12px;
 }
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modal-head h2 {
+  margin: 0;
+  font: 700 16px var(--font-sans);
+  color: var(--ink);
+}
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.new-vendor-modal { width: 540px; max-width: 92vw; }
+.new-vendor-modal .field { margin-bottom: 0; }
+.new-vendor-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; }
+.new-vendor-existing { color: var(--ink); }

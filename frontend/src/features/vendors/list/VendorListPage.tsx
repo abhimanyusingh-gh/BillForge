@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useVendorList } from "@/features/vendors/list/useVendorList";
-import { VENDOR_STATUS_VALUES, type VendorStatus, type VendorSummary } from "@/domain/vendor/vendor";
+import { NewVendorModal } from "@/features/vendors/create/NewVendorModal";
+import { VENDOR_STATUS_VALUES, type VendorDetail, type VendorStatus, type VendorSummary } from "@/domain/vendor/vendor";
 
 const ALL_STATUS_OPTION = "all";
 
@@ -21,8 +22,15 @@ function navigateToVendor(id: string): void {
 }
 
 export function VendorListPage() {
-  const { page, filters, isLoading, error, setFilters } = useVendorList();
+  const { page, filters, isLoading, error, setFilters, refetch } = useVendorList();
   const [search, setSearch] = useState<string>("");
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+
+  const handleVendorCreated = (vendor: VendorDetail) => {
+    setShowCreateModal(false);
+    refetch();
+    navigateToVendor(vendor.id);
+  };
 
   const items: VendorSummary[] = useMemo(() => page?.items ?? [], [page]);
   const total = page?.total ?? 0;
@@ -64,6 +72,15 @@ export function VendorListPage() {
       <header className="page-header">
         <h1 id="vendor-page-heading">Vendors</h1>
         <span className="count">{total} total</span>
+        <div className="page-tools">
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => setShowCreateModal(true)}
+          >
+            + New vendor
+          </button>
+        </div>
       </header>
 
       <form className="vendor-filters" onSubmit={handleSearchSubmit} role="search">
@@ -163,6 +180,13 @@ export function VendorListPage() {
           </tbody>
         </table>
       </div>
+
+      {showCreateModal ? (
+        <NewVendorModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={handleVendorCreated}
+        />
+      ) : null}
     </section>
   );
 }

@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { loginViaUI } from "./helpers/login";
 
+function freshGstin(): string {
+  const stamp = (Date.now() % 100000).toString().padStart(5, "0");
+  return `27ZZZZZ${stamp}A1Z5`;
+}
+
 test.describe("vendors flow", () => {
   test("nav into vendors list renders the page header + table", async ({ page }) => {
     await loginViaUI(page);
@@ -48,5 +53,30 @@ test.describe("vendors flow", () => {
     await expect(page.getByRole("dialog", { name: /Merge vendor into/ })).toBeVisible();
     await page.getByRole("button", { name: /Cancel/ }).click();
     await expect(page.getByRole("dialog", { name: /Merge vendor into/ })).not.toBeVisible();
+  });
+
+  test("create vendor via NewVendorModal — vendor lands in list", async ({ page }) => {
+    await loginViaUI(page);
+    await page.getByRole("button", { name: /Vendors/ }).click();
+    await expect(page).toHaveURL(/#\/vendors$/);
+
+    const stamp = Date.now().toString().slice(-5);
+    const vendorName = `E2E Vendor ${stamp}`;
+    const gstin = freshGstin();
+
+    await page.getByRole("button", { name: /New vendor/ }).click();
+    const dialog = page.getByRole("dialog", { name: /New vendor/ });
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByLabel("Vendor name").fill(vendorName);
+    await dialog.getByLabel("GSTIN").fill(gstin);
+
+    await dialog.getByRole("button", { name: /Create vendor/ }).click();
+
+    await expect(page).toHaveURL(/#\/vendors\/[^/]+$/, { timeout: 15_000 });
+
+    await page.getByRole("button", { name: /Vendors/ }).click();
+    await expect(page).toHaveURL(/#\/vendors$/);
+    await expect(page.locator("table.lbtable tbody")).toContainText(vendorName);
   });
 });
