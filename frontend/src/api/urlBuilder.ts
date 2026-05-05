@@ -1,3 +1,4 @@
+import type { InvoiceId } from "@/domain/invoice/invoice";
 import type { ClientOrgId, TenantId } from "@/types/ids";
 
 interface QueryBag {
@@ -37,8 +38,29 @@ interface TenantInvoiceUrls {
   triage: (query?: { pageSize?: number; cursor?: string }) => string;
 }
 
+interface ClientOrgInvoiceListQuery extends QueryBag {
+  page?: number;
+  limit?: number;
+  status?: string;
+  from?: string;
+  to?: string;
+  approvedBy?: string;
+  sortBy?: string;
+  sortDir?: string;
+}
+
 interface ClientOrgInvoiceUrls {
   actionRequired: (query?: { pageSize?: number; cursor?: string }) => string;
+  list: (query?: ClientOrgInvoiceListQuery) => string;
+  byId: (invoiceId: InvoiceId) => string;
+  edit: (invoiceId: InvoiceId) => string;
+  approveBulk: () => string;
+  retry: () => string;
+  bulkDelete: () => string;
+  workflowApprove: (invoiceId: InvoiceId) => string;
+  workflowReject: (invoiceId: InvoiceId) => string;
+  retriggerCompliance: (invoiceId: InvoiceId) => string;
+  preview: (invoiceId: InvoiceId, query?: { page?: number }) => string;
 }
 
 interface ClientOrgUrls {
@@ -80,10 +102,25 @@ function build(): UrlBuilder {
         },
         clientOrg: (clientOrgId: ClientOrgId): ClientOrgUrls => {
           const clientOrgBase = `${tenantBase}/clientOrgs/${clientOrgId}`;
+          const invoicesBase = `${clientOrgBase}/invoices`;
           return {
             invoices: {
               actionRequired: (query) =>
-                `${clientOrgBase}/invoices/action-required${serializeQuery(query)}`
+                `${invoicesBase}/action-required${serializeQuery(query)}`,
+              list: (query) => `${invoicesBase}${serializeQuery(query)}`,
+              byId: (invoiceId) => `${invoicesBase}/${invoiceId}`,
+              edit: (invoiceId) => `${invoicesBase}/${invoiceId}`,
+              approveBulk: () => `${invoicesBase}/approve`,
+              retry: () => `${invoicesBase}/retry`,
+              bulkDelete: () => `${invoicesBase}/delete`,
+              workflowApprove: (invoiceId) =>
+                `${invoicesBase}/${invoiceId}/workflow-approve`,
+              workflowReject: (invoiceId) =>
+                `${invoicesBase}/${invoiceId}/workflow-reject`,
+              retriggerCompliance: (invoiceId) =>
+                `${invoicesBase}/${invoiceId}/retrigger-compliance`,
+              preview: (invoiceId, query) =>
+                `${invoicesBase}/${invoiceId}/preview${serializeQuery(query)}`
             }
           };
         }

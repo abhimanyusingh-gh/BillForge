@@ -3,9 +3,19 @@ import { ChangePasswordPanel } from "@/features/auth/change-password/ChangePassw
 import { LoginPage } from "@/features/auth/login/LoginPage";
 import { AppShell } from "@/features/workspace/shell/AppShell";
 import { PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
+import { InvoiceListPage } from "@/features/invoices/list/InvoiceListPage";
+import { InvoiceDetailPage } from "@/features/invoices/detail/InvoiceDetailPage";
 import { findNavItemByRoute, NAV_ITEMS } from "@/domain/workspace/navItems";
 import { selectIsAuthenticated, useSessionStore } from "@/state/sessionStore";
 import { useTheme } from "@/state/useTheme";
+
+const INVOICE_DETAIL_PREFIX = "/invoices/";
+
+function parseInvoiceDetailId(route: string): string | null {
+  if (!route.startsWith(INVOICE_DETAIL_PREFIX)) return null;
+  const id = route.slice(INVOICE_DETAIL_PREFIX.length);
+  return id.length > 0 ? id : null;
+}
 
 function readRoute(): string {
   if (typeof window === "undefined") return "/";
@@ -48,7 +58,8 @@ export function App() {
       isAuthenticated &&
       !mustChangePassword &&
       route !== "/change-password" &&
-      findNavItemByRoute(route) === undefined
+      findNavItemByRoute(route) === undefined &&
+      parseInvoiceDetailId(route) === null
     ) {
       window.location.hash = `#${NAV_ITEMS[0].route}`;
     }
@@ -60,6 +71,23 @@ export function App() {
 
   if (mustChangePassword || route === "/change-password") {
     return <ChangePasswordPanel />;
+  }
+
+  const invoiceDetailId = parseInvoiceDetailId(route);
+  if (invoiceDetailId !== null) {
+    return (
+      <AppShell activeRoute="/invoices">
+        <InvoiceDetailPage invoiceIdRaw={invoiceDetailId} />
+      </AppShell>
+    );
+  }
+
+  if (route === "/invoices") {
+    return (
+      <AppShell activeRoute="/invoices">
+        <InvoiceListPage />
+      </AppShell>
+    );
   }
 
   const item = findNavItemByRoute(route) ?? NAV_ITEMS[0];

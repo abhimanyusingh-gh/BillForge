@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { urls } from "@/api/urlBuilder";
+import { asInvoiceId } from "@/domain/invoice/invoice";
 import { asClientOrgId, asTenantId } from "@/types/ids";
 
 const tenantId = asTenantId("65f0000000000000000000a1");
 const clientOrgId = asClientOrgId("69f99e5bddd231bb20bd66c4");
+const invoiceId = asInvoiceId("70a0000000000000000001ff");
 
 describe("urlBuilder", () => {
   it("composes global auth + session URLs", () => {
@@ -53,5 +55,39 @@ describe("urlBuilder", () => {
     urls.tenant("raw-tenant-string");
     // @ts-expect-error clientOrg() requires a branded ClientOrgId, not a raw string
     urls.tenant(tenantId).clientOrg("raw-client-org-string");
+  });
+
+  it("composes invoice list/detail URLs with branded IDs", () => {
+    const invoices = urls.tenant(tenantId).clientOrg(clientOrgId).invoices;
+    expect(invoices.list({ status: "approved", page: 2, limit: 25 })).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices?status=approved&page=2&limit=25`
+    );
+    expect(invoices.byId(invoiceId)).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}`
+    );
+    expect(invoices.edit(invoiceId)).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}`
+    );
+    expect(invoices.approveBulk()).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/approve`
+    );
+    expect(invoices.retry()).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/retry`
+    );
+    expect(invoices.bulkDelete()).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/delete`
+    );
+    expect(invoices.workflowApprove(invoiceId)).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}/workflow-approve`
+    );
+    expect(invoices.workflowReject(invoiceId)).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}/workflow-reject`
+    );
+    expect(invoices.retriggerCompliance(invoiceId)).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}/retrigger-compliance`
+    );
+    expect(invoices.preview(invoiceId, { page: 2 })).toBe(
+      `/api/tenants/${tenantId}/clientOrgs/${clientOrgId}/invoices/${invoiceId}/preview?page=2`
+    );
   });
 });
