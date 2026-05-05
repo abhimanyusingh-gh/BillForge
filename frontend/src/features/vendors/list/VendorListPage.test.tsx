@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("VendorListPage", () => {
-  it("renders one row per BE vendor (real shape) and navigates on row click", async () => {
+  it("renders bundle columns + side-pane, navigates on Enter", async () => {
     seedSession();
     listVendorsMock.mockResolvedValue({
       items: [
@@ -49,8 +49,10 @@ describe("VendorListPage", () => {
           defaultGlCode: "EXP-101",
           defaultTdsSection: "194C",
           invoiceCount: 7,
-          lastInvoiceDate: "2026-04-01",
+          lastInvoiceDate: "2026-04-12T00:00:00.000Z",
           vendorStatus: "active",
+          tallyLedgerName: "Acme Pvt Ltd",
+          tallyLedgerGuid: "guid-1",
           msme: { classification: "small", agreedPaymentDays: 45 }
         },
         {
@@ -63,6 +65,8 @@ describe("VendorListPage", () => {
           invoiceCount: 2,
           lastInvoiceDate: null,
           vendorStatus: "blocked",
+          tallyLedgerName: null,
+          tallyLedgerGuid: null,
           msme: null
         }
       ],
@@ -74,14 +78,18 @@ describe("VendorListPage", () => {
     render(<VendorListPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("Acme Pvt Ltd")).toBeTruthy();
+      expect(screen.getAllByText("Acme Pvt Ltd").length).toBeGreaterThan(0);
     });
     expect(screen.getByText("Beta Suppliers")).toBeTruthy();
-    expect(screen.getByText("2 total")).toBeTruthy();
+    expect(screen.getByText("2 active")).toBeTruthy();
     expect(screen.getAllByText("MSME").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("SYNCED").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("NOT IN TALLY")).toBeTruthy();
+    expect(screen.getAllByText("194C").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("12-Apr-2026")).toBeTruthy();
 
-    const acmeRow = screen.getByLabelText("Open vendor Acme Pvt Ltd");
-    fireEvent.click(acmeRow);
+    const acmeRow = screen.getByLabelText("Select vendor Acme Pvt Ltd");
+    fireEvent.keyDown(acmeRow, { key: "Enter" });
     expect(window.location.hash).toBe("#/vendors/v1");
   });
 

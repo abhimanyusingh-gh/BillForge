@@ -28,6 +28,23 @@ export interface VendorMsmeSummary {
   agreedPaymentDays: number | null;
 }
 
+export const TALLY_STATE = {
+  SYNCED: "synced",
+  DRIFT: "drift",
+  PENDING: "pending",
+  NOT_IN_TALLY: "not_in_tally"
+} as const;
+
+export type TallyState = (typeof TALLY_STATE)[keyof typeof TALLY_STATE];
+
+export const TDS_SECTION_OPTIONS: ReadonlyArray<{ readonly value: string; readonly label: string }> = [
+  { value: "194C", label: "194C — Contractor (1% / 2%)" },
+  { value: "194J", label: "194J — Professional (10%)" },
+  { value: "194Q", label: "194Q — Goods purchase (0.1%)" },
+  { value: "194I", label: "194I — Rent (10%)" },
+  { value: "206AA", label: "206AA — No PAN (20%)" }
+];
+
 export interface VendorSummary {
   id: VendorId;
   name: string;
@@ -38,7 +55,15 @@ export interface VendorSummary {
   invoiceCount: number;
   lastInvoiceDate: string | null;
   vendorStatus: VendorStatus;
+  tallyLedgerName: string | null;
+  tallyLedgerGuid: string | null;
   msme: VendorMsmeSummary | null;
+}
+
+export function deriveTallyState(summary: Pick<VendorSummary, "tallyLedgerGuid" | "tallyLedgerName">): TallyState {
+  if (summary.tallyLedgerGuid !== null && summary.tallyLedgerGuid.length > 0) return TALLY_STATE.SYNCED;
+  if (summary.tallyLedgerName !== null && summary.tallyLedgerName.length > 0) return TALLY_STATE.PENDING;
+  return TALLY_STATE.NOT_IN_TALLY;
 }
 
 export interface Section197Cert {
@@ -51,7 +76,6 @@ export interface Section197Cert {
 
 export interface VendorDetail extends VendorSummary {
   defaultCostCenter: string | null;
-  tallyLedgerName: string | null;
   tallyLedgerGroup: string | null;
   deducteeType: string | null;
   stateCode: string | null;

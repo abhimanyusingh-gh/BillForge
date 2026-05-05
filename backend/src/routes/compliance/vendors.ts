@@ -64,6 +64,8 @@ export function createVendorsRouter(
         invoiceCount: v.invoiceCount,
         lastInvoiceDate: v.lastInvoiceDate,
         vendorStatus: v.vendorStatus,
+        tallyLedgerName: v.tallyLedgerName ?? null,
+        tallyLedgerGuid: v.tallyLedgerGuid ?? null,
         msme: v.msme?.classification ? { classification: v.msme.classification, agreedPaymentDays: v.msme.agreedPaymentDays ?? null } : null,
         bankHistoryCount: 0
       }));

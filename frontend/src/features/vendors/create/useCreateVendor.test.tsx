@@ -50,14 +50,19 @@ describe("useCreateVendor", () => {
 
     let returned: unknown;
     await act(async () => {
-      returned = await result.current.submit({ companyName: "Acme", gstin: "27AAAAA0000A1Z5" });
+      returned = await result.current.submit({
+        companyName: "Acme",
+        gstin: "27AAAAA0000A1Z5",
+        panNumber: "AAAAA0000A",
+        defaultTdsSection: "194C"
+      });
     });
 
     expect(returned).toBe(created);
     expect(createVendorMock).toHaveBeenCalledWith(
       asTenantId("t1"),
       asClientOrgId("co1"),
-      { companyName: "Acme", gstin: "27AAAAA0000A1Z5" }
+      { companyName: "Acme", gstin: "27AAAAA0000A1Z5", panNumber: "AAAAA0000A", defaultTdsSection: "194C" }
     );
     expect(result.current.error).toBeNull();
     expect(result.current.existingVendor).toBeNull();

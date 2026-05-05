@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useCreateVendor } from "@/features/vendors/create/useCreateVendor";
-import type { VendorDetail } from "@/domain/vendor/vendor";
+import { TDS_SECTION_OPTIONS, type VendorDetail } from "@/domain/vendor/vendor";
 
 interface NewVendorModalProps {
   onClose: () => void;
@@ -10,28 +10,24 @@ interface NewVendorModalProps {
 const GSTIN_FORMAT = /^\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z]\d[A-Z\d]$/;
 const PAN_FORMAT = /^[A-Z]{5}\d{4}[A-Z]$/;
 const MIN_NAME_LENGTH = 3;
-
-const MSME_OPTIONS = [
-  { value: "", label: "Not registered" },
-  { value: "micro", label: "Micro" },
-  { value: "small", label: "Small" },
-  { value: "medium", label: "Medium" }
-] as const;
+const DEFAULT_SECTION = "194C";
+const MSME_DEFAULT_CLASSIFICATION = "small";
 
 export function NewVendorModal({ onClose, onCreated }: NewVendorModalProps) {
   const { isSubmitting, error, existingVendor, submit, reset } = useCreateVendor();
-  const [companyName, setCompanyName] = useState<string>("");
-  const [gstin, setGstin] = useState<string>("");
   const [pan, setPan] = useState<string>("");
-  const [legalName, setLegalName] = useState<string>("");
-  const [stateName, setStateName] = useState<string>("");
-  const [msmeCategory, setMsmeCategory] = useState<string>("");
+  const [gstin, setGstin] = useState<string>("");
+  const [companyName, setCompanyName] = useState<string>("");
+  const [defaultTdsSection, setDefaultTdsSection] = useState<string>(DEFAULT_SECTION);
+  const [isMsme, setIsMsme] = useState<boolean>(false);
 
   const trimmedName = companyName.trim();
   const nameOk = trimmedName.length >= MIN_NAME_LENGTH;
-  const gstinOk = GSTIN_FORMAT.test(gstin);
-  const panOk = pan === "" || PAN_FORMAT.test(pan);
-  const ready = nameOk && gstinOk && panOk;
+  const panOk = PAN_FORMAT.test(pan);
+  const gstinOk = gstin === "" || GSTIN_FORMAT.test(gstin);
+  const ready = panOk && nameOk && gstinOk;
+
+  const subtitle = trimmedName.length > 0 ? `${trimmedName} · vendor master` : "Vendor master";
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,10 +36,9 @@ export function NewVendorModal({ onClose, onCreated }: NewVendorModalProps) {
       const created = await submit({
         companyName: trimmedName,
         gstin,
-        legalName: legalName.trim() || undefined,
-        stateName: stateName.trim() || undefined,
-        msmeCategory: msmeCategory || undefined,
-        panNumber: pan || undefined
+        panNumber: pan,
+        defaultTdsSection,
+        msmeCategory: isMsme ? MSME_DEFAULT_CLASSIFICATION : undefined
       });
       if (created !== null) {
         onCreated(created);
@@ -63,6 +58,14 @@ export function NewVendorModal({ onClose, onCreated }: NewVendorModalProps) {
     onClose();
   };
 
+  const panHint = pan.length > 0 && !panOk
+    ? "Format: AAAAA9999A — 5 letters, 4 digits, 1 letter"
+    : "Required · drives TDS section defaults";
+
+  const gstinHint = gstin.length > 0 && !gstinOk
+    ? "Format: 2-digit state + PAN + entity code + Z + checksum"
+    : "Optional · we'll cross-check the embedded PAN";
+
   return (
     <div className="scrim" role="presentation" onClick={handleScrimClick}>
       <form
@@ -73,93 +76,95 @@ export function NewVendorModal({ onClose, onCreated }: NewVendorModalProps) {
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
-        <header className="modal-head">
-          <h2 id="new-vendor-modal-title">New vendor</h2>
-          <button type="button" className="btn ghost" aria-label="Close" onClick={handleCancel}>
+        <header className="modal-head new-vendor-head">
+          <div>
+            <h2 id="new-vendor-modal-title">New vendor</h2>
+            <div className="new-vendor-subtitle">{subtitle}</div>
+          </div>
+          <button type="button" className="iconbtn" aria-label="Close" onClick={handleCancel}>
             <span className="material-symbols-outlined">close</span>
           </button>
         </header>
-        <div className="modal-body">
-          <label className="field">
-            <span>Vendor name</span>
+
+        <div className="modal-body new-vendor-body">
+          <div className="field new-vendor-field">
+            <span className="field-cap">PAN</span>
+            <input
+              className={pan.length > 0 && !panOk ? "input mono error" : "input mono"}
+              type="text"
+              value={pan}
+              onChange={(event) => setPan(event.target.value.toUpperCase())}
+              placeholder="AECPS1234C"
+              maxLength={10}
+              autoFocus
+              required
+              aria-label="PAN"
+            />
+            <span className="field-cap-hint">{panHint}</span>
+          </div>
+
+          <div className="field new-vendor-field">
+            <span className="field-cap">GSTIN</span>
+            <input
+              className={gstin.length > 0 && !gstinOk ? "input mono error" : "input mono"}
+              type="text"
+              value={gstin}
+              onChange={(event) => setGstin(event.target.value.toUpperCase())}
+              placeholder="33AECPS1234C1Z5"
+              maxLength={15}
+              aria-label="GSTIN"
+            />
+            <span className="field-cap-hint">{gstinHint}</span>
+          </div>
+
+          <div className="field new-vendor-field">
+            <span className="field-cap">Vendor name</span>
             <input
               className="input"
               type="text"
               value={companyName}
               onChange={(event) => setCompanyName(event.target.value)}
               placeholder="Vendor legal name"
-              autoFocus
               required
+              aria-label="Vendor name"
             />
-            {!nameOk && companyName.length > 0 ? (
-              <span className="field-error">Vendor name must be at least 3 characters.</span>
-            ) : null}
-          </label>
-          <label className="field">
-            <span>GSTIN</span>
-            <input
-              className="input mono"
-              type="text"
-              value={gstin}
-              onChange={(event) => setGstin(event.target.value.toUpperCase())}
-              placeholder="33AECPS1234C1Z5"
-              maxLength={15}
-              required
-            />
-            {gstin.length > 0 && !gstinOk ? (
-              <span className="field-error">Format: 2-digit state + PAN + entity + Z + checksum.</span>
-            ) : null}
-          </label>
-          <label className="field">
-            <span>PAN (optional)</span>
-            <input
-              className="input mono"
-              type="text"
-              value={pan}
-              onChange={(event) => setPan(event.target.value.toUpperCase())}
-              placeholder="AECPS1234C"
-              maxLength={10}
-            />
-            {pan.length > 0 && !panOk ? (
-              <span className="field-error">Format: AAAAA9999A — 5 letters, 4 digits, 1 letter.</span>
-            ) : null}
-          </label>
-          <div className="field-row new-vendor-row">
-            <label className="field">
-              <span>Legal name</span>
-              <input
-                className="input"
-                type="text"
-                value={legalName}
-                onChange={(event) => setLegalName(event.target.value)}
-                placeholder="As in Tally Party Ledger"
-              />
-            </label>
-            <label className="field">
-              <span>State</span>
-              <input
-                className="input"
-                type="text"
-                value={stateName}
-                onChange={(event) => setStateName(event.target.value)}
-                placeholder="Karnataka"
-              />
-            </label>
+            <span className="field-cap-hint">As it should appear in Tally Party Ledger</span>
           </div>
-          <label className="field">
-            <span>MSME category</span>
-            <select
-              className="input"
-              value={msmeCategory}
-              onChange={(event) => setMsmeCategory(event.target.value)}
-            >
-              {MSME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+
+          <div className="new-vendor-row">
+            <div className="field new-vendor-field">
+              <span className="field-cap">Default TDS section</span>
+              <select
+                className="input"
+                value={defaultTdsSection}
+                onChange={(event) => setDefaultTdsSection(event.target.value)}
+                aria-label="Default TDS section"
+              >
+                {TDS_SECTION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field new-vendor-field new-vendor-msme-field">
+              <span className="field-cap">MSME</span>
+              <label className="new-vendor-msme-check">
+                <input
+                  type="checkbox"
+                  checked={isMsme}
+                  onChange={(event) => setIsMsme(event.target.checked)}
+                />
+                <span>Registered MSME · 45-day clock</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="new-vendor-info">
+            <span className="material-symbols-outlined new-vendor-info-icon">info</span>
+            Bank details, address and TDS lower-deduction certificates can be added later from the vendor&apos;s detail panel.
+          </div>
+
           {error !== null ? (
             <div className="alert" role="alert">
               {error}
@@ -174,6 +179,7 @@ export function NewVendorModal({ onClose, onCreated }: NewVendorModalProps) {
             </div>
           ) : null}
         </div>
+
         <footer className="modal-foot">
           <button type="button" className="btn ghost" onClick={handleCancel} disabled={isSubmitting}>
             Cancel

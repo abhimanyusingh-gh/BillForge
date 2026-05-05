@@ -29,6 +29,8 @@ interface RawVendorSummary {
   invoiceCount?: number | null;
   lastInvoiceDate?: string | null;
   vendorStatus?: string | null;
+  tallyLedgerName?: string | null;
+  tallyLedgerGuid?: string | null;
   msme?: RawMsme | null;
 }
 
@@ -49,7 +51,6 @@ interface RawSection197Cert {
 
 interface RawVendorDetail extends RawVendorSummary {
   defaultCostCenter?: string | null;
-  tallyLedgerName?: string | null;
   tallyLedgerGroup?: string | null;
   deducteeType?: string | null;
   stateCode?: string | null;
@@ -64,6 +65,7 @@ export interface CreateVendorInput {
   stateName?: string;
   msmeCategory?: string;
   panNumber?: string;
+  defaultTdsSection?: string;
 }
 
 interface RawCreateResponse {
@@ -122,6 +124,8 @@ function toSummary(raw: RawVendorSummary): VendorSummary | null {
     invoiceCount: typeof raw.invoiceCount === "number" ? raw.invoiceCount : 0,
     lastInvoiceDate: typeof raw.lastInvoiceDate === "string" ? raw.lastInvoiceDate : null,
     vendorStatus: toStatus(raw.vendorStatus),
+    tallyLedgerName: typeof raw.tallyLedgerName === "string" && raw.tallyLedgerName.length > 0 ? raw.tallyLedgerName : null,
+    tallyLedgerGuid: typeof raw.tallyLedgerGuid === "string" && raw.tallyLedgerGuid.length > 0 ? raw.tallyLedgerGuid : null,
     msme: toMsme(raw.msme)
   };
 }
@@ -145,7 +149,6 @@ function toDetail(raw: RawVendorDetail): VendorDetail | null {
   return {
     ...summary,
     defaultCostCenter: typeof raw.defaultCostCenter === "string" ? raw.defaultCostCenter : null,
-    tallyLedgerName: typeof raw.tallyLedgerName === "string" ? raw.tallyLedgerName : null,
     tallyLedgerGroup: typeof raw.tallyLedgerGroup === "string" ? raw.tallyLedgerGroup : null,
     deducteeType: typeof raw.deducteeType === "string" ? raw.deducteeType : null,
     stateCode: typeof raw.stateCode === "string" ? raw.stateCode : null,
