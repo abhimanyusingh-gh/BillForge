@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ClientOrg } from "@/domain/workspace/clientOrg";
 import type { ClientOrgId, TenantId, UserId } from "@/types/ids";
 
 export type ThemeMode = "light" | "dark" | "system";
@@ -32,11 +33,13 @@ interface SessionState {
   accessToken: string | null;
   currentClientOrgId: ClientOrgId | null;
   recentClientOrgIds: ClientOrgId[];
+  clientOrgs: ClientOrg[] | null;
   setTheme: (theme: ThemeMode) => void;
   toggleSidebar: () => void;
   setAccessToken: (token: string | null) => void;
   setSession: (input: { user: AuthUser; tenant: AuthTenant; flags: SessionFlags }) => void;
   setCurrentClientOrg: (id: ClientOrgId) => void;
+  setClientOrgs: (orgs: ClientOrg[]) => void;
   clearSession: () => void;
 }
 
@@ -61,6 +64,7 @@ export const useSessionStore = create<SessionState>()(
       accessToken: null,
       currentClientOrgId: null,
       recentClientOrgIds: [],
+      clientOrgs: null,
       setTheme: (theme) => set({ theme }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setAccessToken: (token) => set({ accessToken: token }),
@@ -70,6 +74,7 @@ export const useSessionStore = create<SessionState>()(
           currentClientOrgId: id,
           recentClientOrgIds: pushRecent(state.recentClientOrgIds, id)
         })),
+      setClientOrgs: (orgs) => set({ clientOrgs: orgs }),
       clearSession: () =>
         set({
           user: null,
@@ -77,7 +82,8 @@ export const useSessionStore = create<SessionState>()(
           flags: DEFAULT_FLAGS,
           accessToken: null,
           currentClientOrgId: null,
-          recentClientOrgIds: []
+          recentClientOrgIds: [],
+          clientOrgs: null
         })
     }),
     { name: "ledgerbuddy:session" }

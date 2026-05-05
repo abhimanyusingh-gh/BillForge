@@ -15,43 +15,43 @@ function serializeQuery(query?: QueryBag): string {
   return parts.length === 0 ? "" : `?${parts.join("&")}`;
 }
 
-export interface AuthUrls {
+interface AuthUrls {
   login: () => string;
   refresh: () => string;
   changePassword: () => string;
 }
 
-export interface SessionUrls {
+interface SessionUrls {
   current: () => string;
 }
 
-export interface TenantAdminClientOrgUrls {
+interface TenantAdminClientOrgUrls {
   list: (query?: { includeArchived?: boolean }) => string;
 }
 
-export interface TenantAdminUrls {
+interface TenantAdminUrls {
   clientOrgs: TenantAdminClientOrgUrls;
 }
 
-export interface TenantInvoiceUrls {
+interface TenantInvoiceUrls {
   triage: (query?: { pageSize?: number; cursor?: string }) => string;
 }
 
-export interface ClientOrgInvoiceUrls {
+interface ClientOrgInvoiceUrls {
   actionRequired: (query?: { pageSize?: number; cursor?: string }) => string;
 }
 
-export interface ClientOrgUrls {
+interface ClientOrgUrls {
   invoices: ClientOrgInvoiceUrls;
 }
 
-export interface TenantUrls {
+interface TenantUrls {
   admin: TenantAdminUrls;
   invoices: TenantInvoiceUrls;
   clientOrg: (clientOrgId: ClientOrgId) => ClientOrgUrls;
 }
 
-export interface UrlBuilder {
+interface UrlBuilder {
   auth: AuthUrls;
   session: SessionUrls;
   tenant: (tenantId: TenantId) => TenantUrls;
