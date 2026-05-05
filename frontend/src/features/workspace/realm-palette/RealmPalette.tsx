@@ -38,7 +38,7 @@ export function RealmPalette({ open, onClose }: RealmPaletteProps) {
   const { orgs, isLoading, error } = useClientOrgs(open);
   const recentIds = useSessionStore((state) => state.recentClientOrgIds);
   const currentId = useSessionStore((state) => state.currentClientOrgId);
-  const setCurrent = useSessionStore((state) => state.setCurrentClientOrg);
+  const setCurrent = useSessionStore((state) => state.selectClientOrg);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);

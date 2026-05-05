@@ -57,7 +57,7 @@ interface UrlBuilder {
   tenant: (tenantId: TenantId) => TenantUrls;
 }
 
-function makeUrlBuilder(): UrlBuilder {
+function build(): UrlBuilder {
   return {
     auth: {
       login: () => "/api/auth/token",
@@ -92,4 +92,4 @@ function makeUrlBuilder(): UrlBuilder {
   };
 }
 
-export const urls: UrlBuilder = makeUrlBuilder();
+export const urls: UrlBuilder = build();

@@ -38,7 +38,7 @@ interface SessionState {
   toggleSidebar: () => void;
   setAccessToken: (token: string | null) => void;
   setSession: (input: { user: AuthUser; tenant: AuthTenant; flags: SessionFlags }) => void;
-  setCurrentClientOrg: (id: ClientOrgId) => void;
+  selectClientOrg: (id: ClientOrgId) => void;
   setClientOrgs: (orgs: ClientOrg[]) => void;
   clearSession: () => void;
 }
@@ -69,7 +69,7 @@ export const useSessionStore = create<SessionState>()(
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setAccessToken: (token) => set({ accessToken: token }),
       setSession: ({ user, tenant, flags }) => set({ user, tenant, flags }),
-      setCurrentClientOrg: (id) =>
+      selectClientOrg: (id) =>
         set((state) => ({
           currentClientOrgId: id,
           recentClientOrgIds: pushRecent(state.recentClientOrgIds, id)
