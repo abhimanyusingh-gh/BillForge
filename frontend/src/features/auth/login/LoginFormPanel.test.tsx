@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { LoginFormPanel } from "@/features/auth/LoginFormPanel";
+import { LoginFormPanel } from "@/features/auth/login/LoginFormPanel";
 
 describe("LoginFormPanel", () => {
   function renderPanel(overrides: Partial<Parameters<typeof LoginFormPanel>[0]> = {}) {

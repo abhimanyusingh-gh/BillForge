@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChangePasswordPanel } from "@/features/auth/ChangePasswordPanel";
-import { LoginPage } from "@/features/auth/LoginPage";
+import { ChangePasswordPanel } from "@/features/auth/change-password/ChangePasswordPanel";
+import { LoginPage } from "@/features/auth/login/LoginPage";
 import { selectIsAuthenticated, useSessionStore } from "@/state/sessionStore";
 
 function readRoute(): string {

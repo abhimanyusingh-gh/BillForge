@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useChangePassword } from "@/features/auth/useChangePassword";
+import { useChangePassword } from "@/features/auth/change-password/useChangePassword";
 import { useSessionStore } from "@/state/sessionStore";
 import { asTenantId, asUserId } from "@/types/ids";
 

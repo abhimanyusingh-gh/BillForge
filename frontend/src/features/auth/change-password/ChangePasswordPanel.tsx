@@ -1,5 +1,5 @@
-import { AuthShell } from "@/features/auth/AuthShell";
-import { useChangePassword } from "@/features/auth/useChangePassword";
+import { AuthShell } from "@/features/auth/shell/AuthShell";
+import { useChangePassword } from "@/features/auth/change-password/useChangePassword";
 import type { ChangePasswordInput } from "@/domain/auth/passwordPolicy";
 import { useSessionStore } from "@/state/sessionStore";
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LoginBrandPanel } from "@/features/auth/LoginBrandPanel";
+import { LoginBrandPanel } from "@/features/auth/shell/LoginBrandPanel";
 
 interface AuthShellProps {
   hideTopHelp?: boolean;
