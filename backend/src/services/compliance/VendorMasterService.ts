@@ -12,7 +12,8 @@ import {
   DeducteeTypes,
   VendorStatuses,
   type VendorStatus,
-  type DeducteeType
+  type DeducteeType,
+  type MsmeClassification
 } from "@/types/vendor.js";
 import type { UUID } from "@/types/uuid.js";
 import { logger } from "@/utils/logger.js";
@@ -258,7 +259,11 @@ export class VendorMasterService {
 
   async createVendor(
     scope: VendorScope,
-    input: VendorEditableFields & { vendorFingerprint: string; name: string },
+    input: VendorEditableFields & {
+      vendorFingerprint: string;
+      name: string;
+      msme?: { classification?: MsmeClassification | null };
+    },
     actor: AuditActor,
     auditLogService: AuditLogService
   ): Promise<VendorMasterDocument> {

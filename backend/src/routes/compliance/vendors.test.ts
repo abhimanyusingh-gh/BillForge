@@ -355,4 +355,78 @@ describe("vendors routes", () => {
       expect((res.jsonBody as Record<string, string>).message).toContain("sourceVendorId");
     });
   });
+
+  describe("POST /vendors", () => {
+    const VALID_GSTIN = "29AAACR1234A1Z5";
+    const VALID_BODY = { companyName: "Acme Industries", gstin: VALID_GSTIN };
+
+    it("creates a vendor and returns 201 with the created document", async () => {
+      (VendorMasterModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+      const created = {
+        _id: "v-new",
+        toObject: () => ({ _id: "v-new", name: "Acme Industries", gstin: VALID_GSTIN })
+      };
+      (VendorMasterModel.create as jest.Mock).mockResolvedValue(created);
+
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors");
+      const req = mockRequest({ authContext: defaultAuth, body: VALID_BODY });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(201);
+      const payload = (res.jsonBody as { vendor: { _id: string; gstin: string } }).vendor;
+      expect(payload._id).toBe("v-new");
+      expect(payload.gstin).toBe(VALID_GSTIN);
+      const createCall = (VendorMasterModel.create as jest.Mock).mock.calls[0][0];
+      expect(createCall.name).toBe("Acme Industries");
+      expect(createCall.gstin).toBe(VALID_GSTIN);
+      expect(createCall.vendorFingerprint).toBe("acme-industries");
+    });
+
+    it("returns 400 when companyName is missing", async () => {
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors");
+      const req = mockRequest({ authContext: defaultAuth, body: { gstin: VALID_GSTIN } });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as Record<string, string>).message).toContain("companyName");
+    });
+
+    it("returns 400 when gstin format is invalid", async () => {
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors");
+      const req = mockRequest({
+        authContext: defaultAuth,
+        body: { companyName: "Acme", gstin: "NOT-A-GSTIN" }
+      });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(400);
+      expect((res.jsonBody as Record<string, string>).message).toContain("gstin");
+    });
+
+    it("returns 409 with the existing vendor when (gstin, clientOrgId) already exists", async () => {
+      const existing = { _id: "v-existing", gstin: VALID_GSTIN, name: "Acme Old" };
+      (VendorMasterModel.findOne as jest.Mock).mockReturnValue({ lean: jest.fn().mockResolvedValue(existing) });
+
+      const router = buildRouter();
+      const handler = findHandler(router, "post", "/vendors");
+      const req = mockRequest({ authContext: defaultAuth, body: VALID_BODY });
+      const res = mockResponse();
+
+      await handler(req, res, jest.fn());
+
+      expect(res.statusCode).toBe(409);
+      const body = res.jsonBody as { message: string; vendor: { _id: string } };
+      expect(body.vendor._id).toBe("v-existing");
+      expect(VendorMasterModel.create).not.toHaveBeenCalled();
+    });
+  });
 });
