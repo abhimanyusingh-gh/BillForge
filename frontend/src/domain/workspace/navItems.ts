@@ -19,6 +19,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: "payments", icon: "payments", label: "Payments", route: "/payments" },
   { id: "recon", icon: "account_balance", label: "Reconciliation", route: "/reconciliation", section: "Banking" },
   { id: "statements", icon: "description", label: "Bank Statements", route: "/bank-statements", section: "Banking" },
+  { id: "connections", icon: "account_balance", label: "Bank Connections", route: "/bank-connections", section: "Banking" },
   { id: "tds", icon: "receipt", label: "TDS Dashboard", route: "/tds", section: "Compliance" },
   { id: "exports", icon: "cloud_upload", label: "Tally Export", route: "/exports", section: "Compliance" },
   { id: "tallysync", icon: "cable", label: "Tally Sync", route: "/tally-sync", section: "Compliance" },
