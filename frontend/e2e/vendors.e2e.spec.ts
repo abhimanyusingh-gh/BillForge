@@ -26,14 +26,13 @@ test.describe("vendors flow", () => {
     await expect(page.locator("table.lbtable")).toBeVisible();
   });
 
-  test("opens vendor detail when a row is present (skips when seed is empty)", async ({ page }) => {
+  test("opens vendor detail when a row is clicked", async ({ page }) => {
     await loginViaUI(page);
     await page.getByRole("button", { name: /Vendors/ }).click();
     await expect(page).toHaveURL(/#\/vendors$/);
 
     const rows = page.locator("table.lbtable tbody tr.vendor-row");
-    const count = await rows.count();
-    test.skip(count === 0, "No vendor rows seeded; row-click flow not exercisable.");
+    await expect(rows.first()).toBeVisible();
 
     await rows.first().click();
     await expect(page).toHaveURL(/#\/vendors\/[^/]+$/);
@@ -41,12 +40,11 @@ test.describe("vendors flow", () => {
     await expect(page.getByRole("heading", { level: 3, name: /Section 197 certificate/ })).toBeVisible();
   });
 
-  test("merge dialog opens from detail and can be cancelled (skips when seed is empty)", async ({ page }) => {
+  test("merge dialog opens from detail and can be cancelled", async ({ page }) => {
     await loginViaUI(page);
     await page.getByRole("button", { name: /Vendors/ }).click();
     const rows = page.locator("table.lbtable tbody tr.vendor-row");
-    const count = await rows.count();
-    test.skip(count === 0, "No vendor rows seeded; merge flow not exercisable.");
+    await expect(rows.first()).toBeVisible();
 
     await rows.first().click();
     await page.getByRole("button", { name: /Merge…/ }).click();

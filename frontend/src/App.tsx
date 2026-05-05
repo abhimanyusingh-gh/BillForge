@@ -67,20 +67,12 @@ export function App() {
   }
 
   const vendorId = parseVendorIdFromRoute(route);
-  if (vendorId !== null) {
-    return (
-      <AppShell activeRoute="/vendors">
-        <VendorDetailPage vendorId={vendorId} />
-      </AppShell>
-    );
-  }
-
   const item = findNavItemByRoute(route) ?? NAV_ITEMS[0];
 
-  if (item.route === "/vendors") {
+  if (vendorId !== null || item.route === "/vendors") {
     return (
       <AppShell activeRoute="/vendors">
-        <VendorListPage />
+        {vendorId !== null ? <VendorDetailPage vendorId={vendorId} /> : <VendorListPage />}
       </AppShell>
     );
   }

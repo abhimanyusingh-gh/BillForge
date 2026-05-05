@@ -173,7 +173,7 @@ describe("seedDemoTenantConfig", () => {
     expect(tcsStore).toHaveLength(1);
     expect(notificationStore).toHaveLength(1);
     expect(exportStore).toHaveLength(1);
-    expect(vendorStore).toHaveLength(3);
+    expect(vendorStore).toHaveLength(5);
     expect(workflowStore).toHaveLength(1);
   });
 
@@ -256,6 +256,16 @@ describe("seedDemoTenantConfig", () => {
     expect(msme.agreedPaymentDays).toBe(45);
     expect(msme.classification).toBe("small");
     expect(msme.udyamNumber).toBe("UDYAM-KA-02-0001234");
+  });
+
+  it("persists clientOrgId on every vendor row so list queries scoped to (tenant, clientOrg) return them", async () => {
+    await seedDemoTenantConfig(TENANT_ID, CLIENT_ORG_ID, MAHIR_USER_ID);
+
+    expect(vendorStore.length).toBeGreaterThan(0);
+    for (const vendor of vendorStore) {
+      expect(String(vendor.clientOrgId)).toBe(String(CLIENT_ORG_ID));
+      expect(vendor.tenantId).toBe(TENANT_ID);
+    }
   });
 
   it("seeds compliance config with complianceEnabled: true and the demo field set", async () => {
