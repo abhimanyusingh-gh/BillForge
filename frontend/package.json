@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint src",
+    "check:bundle-size": "node scripts/checkBundleSize.mjs",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
