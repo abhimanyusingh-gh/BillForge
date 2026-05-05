@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { Sidebar } from "@/features/workspace/sidebar/Sidebar";
 import { TopNav } from "@/features/workspace/topnav/TopNav";
 import { useClientOrgs } from "@/features/workspace/realm-palette/useClientOrgs";
+import { useEnsureClientOrgSelected } from "@/features/workspace/realm-palette/useEnsureClientOrgSelected";
 import { useSessionStore } from "@/state/sessionStore";
 
 interface AppShellProps {
@@ -16,6 +17,7 @@ export function AppShell({ activeRoute, children }: AppShellProps) {
   const currentClientOrgId = useSessionStore((state) => state.currentClientOrgId);
   const tenant = useSessionStore((state) => state.tenant);
   const { orgs } = useClientOrgs(true);
+  useEnsureClientOrgSelected();
 
   const realmLabel = useMemo(() => {
     if (currentClientOrgId !== null) {

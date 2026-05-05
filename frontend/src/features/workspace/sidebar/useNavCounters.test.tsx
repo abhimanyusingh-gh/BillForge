@@ -87,7 +87,22 @@ describe("useNavCounters", () => {
     expect(fetchTriageCountMock).not.toHaveBeenCalled();
   });
 
-  it("keeps action at zero when no client org is selected, but fetches triage", async () => {
+  it("calls action-required with the selected client org id once login auto-selects one", async () => {
+    seedTenantWithClientOrg();
+    fetchActionRequiredCountMock.mockResolvedValue(2);
+    fetchTriageCountMock.mockResolvedValue(0);
+
+    const { result } = renderHook(() => useNavCounters());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(fetchActionRequiredCountMock).toHaveBeenCalledWith(
+      asTenantId("t1"),
+      asClientOrgId("co1"),
+      expect.any(AbortSignal)
+    );
+  });
+
+  it("keeps action at zero for the empty-orgs tenant edge but still fetches triage", async () => {
     act(() => {
       useSessionStore.setState({
         tenant: { id: asTenantId("t1"), name: "Khan & Associates" },
