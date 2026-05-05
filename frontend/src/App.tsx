@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { ChangePasswordPanel } from "@/features/auth/change-password/ChangePasswordPanel";
 import { LoginPage } from "@/features/auth/login/LoginPage";
+import { AppShell } from "@/features/chrome/shell/AppShell";
+import { PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
+import { findNavItemByRoute, NAV_ITEMS } from "@/domain/chrome/navItems";
 import { selectIsAuthenticated, useSessionStore } from "@/state/sessionStore";
+import { useTheme } from "@/state/useTheme";
 
 function readRoute(): string {
   if (typeof window === "undefined") return "/";
@@ -24,13 +28,7 @@ export function App() {
   const route = useHashRoute();
   const isAuthenticated = useSessionStore(selectIsAuthenticated);
   const mustChangePassword = useSessionStore((state) => state.flags.mustChangePassword);
-  const theme = useSessionStore((state) => state.theme);
-
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.dataset.theme = theme;
-    }
-  }, [theme]);
+  useTheme();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -44,6 +42,15 @@ export function App() {
     }
     if (isAuthenticated && mustChangePassword && route !== "/change-password") {
       window.location.hash = "#/change-password";
+      return;
+    }
+    if (
+      isAuthenticated &&
+      !mustChangePassword &&
+      route !== "/change-password" &&
+      findNavItemByRoute(route) === undefined
+    ) {
+      window.location.hash = `#${NAV_ITEMS[0].route}`;
     }
   }, [isAuthenticated, mustChangePassword, route]);
 
@@ -55,10 +62,11 @@ export function App() {
     return <ChangePasswordPanel />;
   }
 
+  const item = findNavItemByRoute(route) ?? NAV_ITEMS[0];
+
   return (
-    <main className="app-placeholder">
-      <h1>LedgerBuddy</h1>
-      <p>Signed in. Pages will land here as they&apos;re built.</p>
-    </main>
+    <AppShell activeRoute={item.route}>
+      <PlaceholderPage label={item.label} />
+    </AppShell>
   );
 }
