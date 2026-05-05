@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ChangePasswordPanel } from "@/features/auth/change-password/ChangePasswordPanel";
 import { LoginPage } from "@/features/auth/login/LoginPage";
 import { AppShell } from "@/features/workspace/shell/AppShell";
 import { PlaceholderPage } from "@/features/placeholder/PlaceholderPage";
-import { findNavItemByRoute, NAV_ITEMS } from "@/domain/workspace/navItems";
+import { StatementListPage } from "@/features/bank-statements/list/StatementListPage";
+import { BankConnectionsPage } from "@/features/bank-statements/connections/BankConnectionsPage";
+import { findNavItemByRoute, NAV_ITEMS, type NavItem } from "@/domain/workspace/navItems";
 import { selectIsAuthenticated, useSessionStore } from "@/state/sessionStore";
 import { useTheme } from "@/state/useTheme";
 
@@ -66,7 +68,13 @@ export function App() {
 
   return (
     <AppShell activeRoute={item.route}>
-      <PlaceholderPage label={item.label} />
+      {renderRoute(item)}
     </AppShell>
   );
+}
+
+function renderRoute(item: NavItem): ReactNode {
+  if (item.route === "/bank-statements") return <StatementListPage />;
+  if (item.route === "/bank-connections") return <BankConnectionsPage />;
+  return <PlaceholderPage label={item.label} />;
 }
