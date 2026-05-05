@@ -8,7 +8,13 @@ import { requireNotViewer } from "@/auth/middleware.js";
 import { COMPLIANCE_URL_PATHS } from "@/routes/urls/complianceUrls.js";
 import type { VendorMasterService } from "@/services/compliance/VendorMasterService.js";
 import type { AuditLogService } from "@/services/core/AuditLogService.js";
-import { VendorStatuses, type VendorStatus } from "@/types/vendor.js";
+import { GSTIN_FORMAT, PAN_FORMAT } from "@/constants/indianCompliance.js";
+import {
+  MsmeClassifications,
+  VendorStatuses,
+  type MsmeClassification,
+  type VendorStatus
+} from "@/types/vendor.js";
 
 const MSME_STATUTORY_MAX_DAYS = 45;
 
@@ -63,6 +69,38 @@ export function createVendorsRouter(
       }));
 
       res.json({ items: summaries, page, limit, total });
+    } catch (error) { next(error); }
+  });
+
+  router.post(COMPLIANCE_URL_PATHS.vendors, requireNotViewer, requireCap("canConfigureCompliance"), async (req, res, next) => {
+    try {
+      const auth = getAuth(req);
+      const tenantId = auth.tenantId;
+      const clientOrgId = req.activeClientOrgId!;
+
+      const parsed = parseCreateVendorInput(req.body as Record<string, unknown>);
+      if (!parsed.ok) {
+        res.status(400).json({ message: parsed.error });
+        return;
+      }
+
+      const existing = await VendorMasterModel.findOne({ tenantId, clientOrgId, gstin: parsed.value.gstin }).lean();
+      if (existing) {
+        res.status(409).json({ message: "Vendor with this GSTIN already exists for this client.", vendor: existing });
+        return;
+      }
+
+      try {
+        const created = await vendorMasterService.createVendor(
+          { tenantId, clientOrgId },
+          buildCreateVendorPayload(parsed.value),
+          { userId: auth.userId, userEmail: auth.email },
+          auditLogService
+        );
+        res.status(201).json({ vendor: created.toObject() });
+      } catch (validationError) {
+        res.status(400).json({ message: (validationError as Error).message });
+      }
     } catch (error) { next(error); }
   });
 
@@ -282,4 +320,61 @@ function parseCertInput(body: Record<string, unknown>): ParseCertOk | ParseCertE
   }
 
   return { ok: true, value: { certificateNumber, validFrom, validTo, maxAmountMinor, applicableRateBps } };
+}
+
+interface ParsedCreateVendorInput {
+  companyName: string;
+  gstin: string;
+  legalName: string | null;
+  stateName: string | null;
+  msmeClassification: MsmeClassification | null;
+  pan: string | null;
+}
+
+function parseCreateVendorInput(body: Record<string, unknown>):
+  | { ok: true; value: ParsedCreateVendorInput }
+  | { ok: false; error: string } {
+  const companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
+  if (!companyName) return { ok: false, error: "companyName is required." };
+
+  const gstinRaw = typeof body.gstin === "string" ? body.gstin.trim().toUpperCase() : "";
+  if (!gstinRaw) return { ok: false, error: "gstin is required." };
+  if (!GSTIN_FORMAT.test(gstinRaw)) return { ok: false, error: "gstin format is invalid." };
+
+  const legalName = typeof body.legalName === "string" && body.legalName.trim() ? body.legalName.trim() : null;
+  const stateName = typeof body.stateName === "string" && body.stateName.trim() ? body.stateName.trim() : null;
+
+  const msmeRaw = typeof body.msmeCategory === "string" ? body.msmeCategory.trim().toLowerCase() : "";
+  let msmeClassification: MsmeClassification | null = null;
+  if (msmeRaw) {
+    if (!(MsmeClassifications as readonly string[]).includes(msmeRaw)) {
+      return { ok: false, error: `msmeCategory must be one of ${MsmeClassifications.join(", ")}.` };
+    }
+    msmeClassification = msmeRaw as MsmeClassification;
+  }
+
+  const panRaw = typeof body.panNumber === "string" ? body.panNumber.trim().toUpperCase() : "";
+  let pan: string | null = null;
+  if (panRaw) {
+    if (!PAN_FORMAT.test(panRaw)) return { ok: false, error: "panNumber format is invalid." };
+    pan = panRaw;
+  }
+
+  return { ok: true, value: { companyName, gstin: gstinRaw, legalName, stateName, msmeClassification, pan } };
+}
+
+function buildCreateVendorPayload(input: ParsedCreateVendorInput): Parameters<VendorMasterService["createVendor"]>[1] {
+  return {
+    vendorFingerprint: slugifyVendorName(input.companyName),
+    name: input.companyName,
+    gstin: input.gstin,
+    pan: input.pan,
+    stateName: input.stateName,
+    ...(input.legalName ? { tallyLedgerName: input.legalName } : {}),
+    ...(input.msmeClassification ? { msme: { classification: input.msmeClassification } } : {})
+  };
+}
+
+function slugifyVendorName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
