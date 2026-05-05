@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { TenantId, UserId } from "@/types/ids";
 
-export type ThemeMode = "light" | "dark";
+type ThemeMode = "light" | "dark";
 
 export interface AuthUser {
   id: UserId;
