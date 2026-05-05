@@ -1,4 +1,5 @@
 import type { ClientOrgId, TenantId } from "@/types/ids";
+import type { VendorId } from "@/domain/vendor/vendor";
 
 interface QueryBag {
   readonly [key: string]: string | number | boolean | undefined;
@@ -41,8 +42,27 @@ interface ClientOrgInvoiceUrls {
   actionRequired: (query?: { pageSize?: number; cursor?: string }) => string;
 }
 
+interface VendorListQuery extends QueryBag {
+  search?: string;
+  hasPan?: boolean;
+  hasMsme?: boolean;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+interface ClientOrgVendorUrls {
+  list: (query?: VendorListQuery) => string;
+  byId: (vendorId: VendorId) => string;
+  edit: (vendorId: VendorId) => string;
+  cert: (vendorId: VendorId) => string;
+  merge: (vendorId: VendorId) => string;
+  create: () => string;
+}
+
 interface ClientOrgUrls {
   invoices: ClientOrgInvoiceUrls;
+  vendors: ClientOrgVendorUrls;
 }
 
 interface TenantUrls {
@@ -84,6 +104,14 @@ function build(): UrlBuilder {
             invoices: {
               actionRequired: (query) =>
                 `${clientOrgBase}/invoices/action-required${serializeQuery(query)}`
+            },
+            vendors: {
+              list: (query) => `${clientOrgBase}/vendors${serializeQuery(query)}`,
+              byId: (vendorId) => `${clientOrgBase}/vendors/${vendorId}`,
+              edit: (vendorId) => `${clientOrgBase}/vendors/${vendorId}`,
+              cert: (vendorId) => `${clientOrgBase}/vendors/${vendorId}/cert`,
+              merge: (vendorId) => `${clientOrgBase}/vendors/${vendorId}/merge`,
+              create: () => `${clientOrgBase}/vendors`
             }
           };
         }

@@ -222,7 +222,7 @@ interface DemoVendorSpec {
   } | null;
 }
 
-async function seedVendorMasters(tenantId: string): Promise<void> {
+async function seedVendorMasters(tenantId: string, clientOrgId: Types.ObjectId): Promise<void> {
   const now = new Date();
   const vendors: DemoVendorSpec[] = [
     {
@@ -256,6 +256,22 @@ async function seedVendorMasters(tenantId: string): Promise<void> {
         classification: "micro",
         agreedPaymentDays: 30
       }
+    },
+    {
+      name: "Bharti Airtel Limited",
+      pan: "AAACB2894G",
+      gstin: "36AAACB2894G2ZX",
+      defaultGlCode: "5210",
+      defaultTdsSection: "194J",
+      msme: null
+    },
+    {
+      name: "Focus Tours and Travels",
+      pan: "AAGFF1234A",
+      gstin: "36AAGFF1234A1Z9",
+      defaultGlCode: "5305",
+      defaultTdsSection: "194C",
+      msme: null
     }
   ];
 
@@ -263,6 +279,7 @@ async function seedVendorMasters(tenantId: string): Promise<void> {
     const vendorFingerprint = slugify(vendor.name);
     const update: Record<string, unknown> = {
       tenantId,
+      clientOrgId,
       vendorFingerprint,
       name: vendor.name,
       pan: vendor.pan,
@@ -285,7 +302,7 @@ async function seedVendorMasters(tenantId: string): Promise<void> {
     };
 
     await VendorMasterModel.findOneAndUpdate(
-      { tenantId, vendorFingerprint },
+      { tenantId, clientOrgId, vendorFingerprint },
       {
         $set: update,
         $setOnInsert: { lastInvoiceDate: now, invoiceCount: 0 }
@@ -390,7 +407,7 @@ export async function seedDemoTenantConfig(
   await seedTcsConfig(tenantId, clientOrgId, mahirUserId);
   await seedNotificationConfig(tenantId, clientOrgId, mahirUserId);
   await seedExportConfig(tenantId, clientOrgId);
-  await seedVendorMasters(tenantId);
+  await seedVendorMasters(tenantId, clientOrgId);
   await seedApprovalLimits(tenantId);
   await seedApprovalWorkflow(tenantId, clientOrgId, mahirUserId, cfoUserId);
 
