@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useClientOrgs } from "@/features/chrome/realm-palette/useClientOrgs";
 import { useSessionStore } from "@/state/sessionStore";
-import type { ClientOrg } from "@/api/clientOrgService";
+import type { ClientOrg } from "@/domain/chrome/clientOrg";
 
 interface RealmPaletteProps {
   open: boolean;

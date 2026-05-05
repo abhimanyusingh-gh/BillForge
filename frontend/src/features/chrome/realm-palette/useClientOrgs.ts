@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { clientOrgService, type ClientOrg } from "@/api/clientOrgService";
+import { clientOrgService } from "@/api/clientOrgService";
+import type { ClientOrg } from "@/domain/chrome/clientOrg";
 import { useSessionStore } from "@/state/sessionStore";
 
 interface ClientOrgsState {

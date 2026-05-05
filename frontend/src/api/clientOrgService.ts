@@ -1,13 +1,7 @@
 import { apiClient } from "@/api/client";
 import { chromeUrls } from "@/api/chromeUrls";
-import { asClientOrgId, type ClientOrgId } from "@/types/ids";
-
-export interface ClientOrg {
-  id: ClientOrgId;
-  companyName: string;
-  gstin: string;
-  stateName: string | null;
-}
+import type { ClientOrg } from "@/domain/chrome/clientOrg";
+import { asClientOrgId } from "@/types/ids";
 
 interface RawClientOrg {
   _id?: string;
