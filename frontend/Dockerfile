@@ -1,7 +1,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json yarn.lock ./
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
 COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
 RUN corepack enable && yarn install --immutable
 COPY frontend ./frontend
 WORKDIR /app/frontend
