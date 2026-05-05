@@ -1,7 +1,5 @@
+import { appConfig } from "@/config/env";
 import { useSessionStore } from "@/state/sessionStore";
-
-const RAW_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").trim();
-const API_BASE_URL = RAW_BASE === "" ? "" : RAW_BASE.replace(/\/+$/, "");
 
 export class ApiError extends Error {
   readonly status: number;
@@ -24,8 +22,9 @@ interface RequestOptions {
 
 function resolveUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;
-  if (path.startsWith("/")) return `${API_BASE_URL}${path}`;
-  return `${API_BASE_URL}/${path}`;
+  const base = appConfig.apiBaseUrl;
+  if (path.startsWith("/")) return `${base}${path}`;
+  return `${base}/${path}`;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
