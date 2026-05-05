@@ -35,7 +35,9 @@ export function InvoiceDetailPage({ invoiceIdRaw }: InvoiceDetailPageProps) {
     return (
       <section className="invoice-detail-page" aria-label="Invoice detail">
         <header className="invoice-detail-breadcrumb">
-          <button type="button" onClick={navigateBack}>← Back to invoices</button>
+          <button type="button" className="invoice-detail-back" onClick={navigateBack}>
+            <span className="material-symbols-outlined">arrow_back</span> Back
+          </button>
         </header>
         <div role="alert" className="invoice-list-error">{error}</div>
       </section>
@@ -46,7 +48,9 @@ export function InvoiceDetailPage({ invoiceIdRaw }: InvoiceDetailPageProps) {
     return (
       <section className="invoice-detail-page" aria-label="Invoice detail">
         <header className="invoice-detail-breadcrumb">
-          <button type="button" onClick={navigateBack}>← Back to invoices</button>
+          <button type="button" className="invoice-detail-back" onClick={navigateBack}>
+            <span className="material-symbols-outlined">arrow_back</span> Back
+          </button>
         </header>
         <p>Invoice not found.</p>
       </section>
@@ -87,7 +91,7 @@ function InvoiceDetailContent({ invoice, reload, previewUrl }: InvoiceDetailCont
   return (
     <section className="invoice-detail-page" aria-label="Invoice detail">
       <header className="invoice-detail-breadcrumb">
-        <button type="button" onClick={navigateBack} className="invoice-detail-back">
+        <button type="button" className="invoice-detail-back" onClick={navigateBack}>
           <span className="material-symbols-outlined">arrow_back</span> Back
         </button>
         <span className="invoice-detail-trail">
@@ -100,29 +104,6 @@ function InvoiceDetailContent({ invoice, reload, previewUrl }: InvoiceDetailCont
           <span>{invoice.vendor}</span>
         </span>
       </header>
-
-      <div className="invoice-detail-actions">
-        <span className={`spill s-${invoice.status}`}>
-          <span className="dot" />
-          {INVOICE_STATUS_LABEL[invoice.status].toUpperCase()}
-        </span>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={onReject}
-          disabled={reject.isRejecting}
-        >
-          {reject.isRejecting ? "Rejecting…" : showReject ? "Confirm reject" : "Reject"}
-        </button>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={onApprove}
-          disabled={approve.isApproving}
-        >
-          {approve.isApproving ? "Approving…" : "Approve"}
-        </button>
-      </div>
 
       {showReject ? (
         <div className="invoice-detail-reject">
@@ -138,57 +119,92 @@ function InvoiceDetailContent({ invoice, reload, previewUrl }: InvoiceDetailCont
         </div>
       ) : null}
 
-      <div className="invoice-detail-split">
-        <div className="invoice-detail-source">
-          <header className="invoice-section-header">
-            <h3>Source document</h3>
-          </header>
-          {previewUrl ? (
-            <iframe
-              title={`Source for invoice ${invoice.invoiceNumber}`}
-              src={previewUrl}
-              className="invoice-detail-source-frame"
-            />
-          ) : (
-            <p>Preview unavailable.</p>
-          )}
+      <div className="split">
+        <div className="col">
+          <SourcePane invoice={invoice} previewUrl={previewUrl} />
         </div>
+        <div className="col-divider" />
+        <div className="col detail">
+          <div className="detail-head">
+            <div>
+              <h2>{invoice.vendor}</h2>
+              <span className="sub">
+                <span className="lb-mono">{invoice.invoiceNumber}</span>
+                <span>·</span>
+                <span>{formatDate(invoice.invoiceDate)}</span>
+                <span>·</span>
+                <span className={`spill s-${invoice.status}`}>
+                  <span className="dot" />
+                  {INVOICE_STATUS_LABEL[invoice.status].toUpperCase()}
+                </span>
+              </span>
+            </div>
+            <div className="detail-head-actions">
+              <button
+                type="button"
+                className="iconbtn"
+                title="Reject"
+                onClick={onReject}
+                disabled={reject.isRejecting}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={onApprove}
+                disabled={approve.isApproving}
+              >
+                {approve.isApproving ? "Approving…" : "Approve"}
+              </button>
+            </div>
+          </div>
 
-        <div className="invoice-detail-meta">
           <InvoiceFieldsPanel invoice={invoice} onSaved={reload} />
 
-          <section className="invoice-risk-panel" aria-label="Risk signals">
-            <header className="invoice-section-header">
+          <section className="section invoice-risk-panel" aria-label="Risk signals">
+            <div className="stitle">
               <h3>Risk signals</h3>
               <span className="lb-caption">{invoice.riskSignals.length} signal(s)</span>
-            </header>
+            </div>
             {invoice.riskSignals.length === 0 ? (
               <p className="invoice-empty-line">No active risk signals.</p>
             ) : (
               <ul className="invoice-risk-list">
                 {invoice.riskSignals.map((signal) => (
                   <li key={`${signal.code}-${signal.status}`} className={`risk-row ${signal.severity}`}>
-                    <span className="risk-code">{signal.code}</span>
-                    <span className="risk-msg">{signal.message}</span>
+                    <span className="icon">
+                      <span className="material-symbols-outlined">
+                        {signal.severity === "critical"
+                          ? "priority_high"
+                          : signal.severity === "warning"
+                            ? "warning"
+                            : "info"}
+                      </span>
+                    </span>
+                    <div className="body">
+                      <div className="risk-code">{signal.code}</div>
+                      <div className="risk-msg">{signal.message}</div>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
           </section>
 
-          <section className="invoice-timeline-panel" aria-label="Approval timeline">
-            <header className="invoice-section-header">
+          <section className="section invoice-timeline-panel" aria-label="Approval timeline">
+            <div className="stitle">
               <h3>Workflow</h3>
               {invoice.workflowStep !== null && invoice.workflowTotalSteps !== null ? (
                 <span className="lb-caption">
                   Step {invoice.workflowStep} of {invoice.workflowTotalSteps}
                 </span>
               ) : null}
-            </header>
+            </div>
             {invoice.timeline.length === 0 ? (
               <p className="invoice-empty-line">No timeline entries yet.</p>
             ) : (
-              <ol className="invoice-timeline-list">
+              <ol className="timeline">
                 {invoice.timeline.map((entry, index) => (
                   <li key={`${entry.step}-${index}`} className={`tl-step ${entry.state}`}>
                     <strong>{entry.step}</strong>
@@ -200,10 +216,10 @@ function InvoiceDetailContent({ invoice, reload, previewUrl }: InvoiceDetailCont
             )}
           </section>
 
-          <section className="invoice-compliance-panel" aria-label="Compliance">
-            <header className="invoice-section-header">
+          <section className="section invoice-compliance-panel" aria-label="Compliance">
+            <div className="stitle">
               <h3>Compliance</h3>
-            </header>
+            </div>
             <dl className="invoice-compliance-grid">
               <dt>GL code</dt>
               <dd className="mono-cell">{invoice.parsed.glCode ?? "—"}</dd>
@@ -218,5 +234,59 @@ function InvoiceDetailContent({ invoice, reload, previewUrl }: InvoiceDetailCont
         </div>
       </div>
     </section>
+  );
+}
+
+interface SourcePaneProps {
+  invoice: Invoice;
+  previewUrl: string | null;
+}
+
+function SourcePane({ invoice, previewUrl }: SourcePaneProps) {
+  const fileLabel = invoice.fileName ?? `${invoice.invoiceNumber}.pdf`;
+  return (
+    <div className="source-pane">
+      <div className="source-pane-head">
+        <span className="file-name">
+          <span className="material-symbols-outlined">description</span>
+          {fileLabel}
+        </span>
+        {invoice.confidence !== null ? (
+          <span className="lb-mono">conf {(invoice.confidence * 100).toFixed(0)}%</span>
+        ) : null}
+      </div>
+      {previewUrl ? (
+        <iframe
+          title={`Source for invoice ${invoice.invoiceNumber}`}
+          src={previewUrl}
+          className="source-pane-frame"
+        />
+      ) : (
+        <div className="source-pane-empty">Preview unavailable.</div>
+      )}
+      <div className="source-pane-tools">
+        <button type="button" className="iconbtn" title="Zoom in" disabled>
+          <span className="material-symbols-outlined">zoom_in</span>
+        </button>
+        <button type="button" className="iconbtn" title="Zoom out" disabled>
+          <span className="material-symbols-outlined">zoom_out</span>
+        </button>
+        <button type="button" className="iconbtn" title="Rotate" disabled>
+          <span className="material-symbols-outlined">rotate_right</span>
+        </button>
+        <span className="source-pane-tools-spacer" />
+        {previewUrl ? (
+          <a
+            href={previewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="iconbtn"
+            title="Open in new tab"
+          >
+            <span className="material-symbols-outlined">open_in_new</span>
+          </a>
+        ) : null}
+      </div>
+    </div>
   );
 }

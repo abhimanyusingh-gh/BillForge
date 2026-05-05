@@ -131,19 +131,20 @@ export function InvoiceListPage() {
                   onChange={toggleAll}
                 />
               </th>
+              <th className="invoice-cell-file" aria-label="File"></th>
               <th>Status</th>
               <th>Vendor</th>
               <th>Invoice #</th>
               <th>Date</th>
               <th className="invoice-cell-num">Gross</th>
               <th className="invoice-cell-num">TDS</th>
-              <th className="invoice-cell-num">Net</th>
+              <th className="invoice-cell-num">Net Payable</th>
             </tr>
           </thead>
           <tbody>
             {list.invoices.length === 0 && !list.isLoading ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <div className="inv-empty">No invoices match your filters.</div>
                 </td>
               </tr>
@@ -170,6 +171,7 @@ interface InvoiceRowProps {
 }
 
 function InvoiceRow({ invoice, isSelected, onToggle }: InvoiceRowProps) {
+  const fileIcon = invoice.fileName ? "description" : "draft";
   return (
     <tr
       className={isSelected ? "invoice-row-selected" : undefined}
@@ -188,6 +190,9 @@ function InvoiceRow({ invoice, isSelected, onToggle }: InvoiceRowProps) {
           aria-label={`Select invoice ${invoice.invoiceNumber}`}
         />
       </td>
+      <td className="invoice-cell-file" title={invoice.fileName ?? ""}>
+        <span className="material-symbols-outlined">{fileIcon}</span>
+      </td>
       <td>
         <span className={`spill s-${invoice.status}`}>
           <span className="dot" />
@@ -198,7 +203,7 @@ function InvoiceRow({ invoice, isSelected, onToggle }: InvoiceRowProps) {
       <td className="mono-cell">{invoice.invoiceNumber}</td>
       <td className="mono-cell">{formatDate(invoice.invoiceDate)}</td>
       <td className="invoice-cell-num">{formatInr(invoice.totalAmount)}</td>
-      <td className="invoice-cell-num invoice-cell-tds">{formatInr(invoice.tdsAmount)}</td>
+      <td className="invoice-cell-num invoice-cell-tds">− {formatInr(invoice.tdsAmount)}</td>
       <td className="invoice-cell-num invoice-cell-net">{formatInr(invoice.netAmount)}</td>
     </tr>
   );

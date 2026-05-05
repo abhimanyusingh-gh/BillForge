@@ -88,16 +88,17 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
   };
 
   return (
-    <section className="invoice-fields-panel" aria-label="Extracted fields">
-      <header className="invoice-section-header">
+    <section className="section invoice-fields-panel" aria-label="Extracted fields">
+      <div className="stitle">
         <h3>Extracted fields</h3>
         <span className="lb-caption">Edit and save · changes persisted via PATCH</span>
-      </header>
+      </div>
 
-      <div className="invoice-fields-grid">
+      <div className="kvgrid">
         <FieldRow label="Vendor">
           <input
             type="text"
+            className="kv-input"
             value={draft.vendor}
             onChange={(event) => onChange("vendor", event.target.value)}
             aria-invalid={errors.vendor !== null}
@@ -108,6 +109,7 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         <FieldRow label="Invoice #">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.invoiceNumber}
             onChange={(event) => onChange("invoiceNumber", event.target.value)}
             aria-invalid={errors.invoiceNumber !== null}
@@ -117,6 +119,7 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         <FieldRow label="Invoice date">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.invoiceDate}
             onChange={(event) => onChange("invoiceDate", event.target.value)}
             aria-label="Invoice date"
@@ -125,27 +128,28 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         <FieldRow label="Vendor GSTIN">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.gstin}
             onChange={(event) => onChange("gstin", event.target.value.toUpperCase())}
             aria-invalid={errors.gstin !== null}
             aria-label="Vendor GSTIN"
-            className="mono-cell"
           />
           {errors.gstin ? <span className="invoice-field-error">{errors.gstin}</span> : null}
         </FieldRow>
         <FieldRow label="Vendor PAN">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.pan}
             onChange={(event) => onChange("pan", event.target.value.toUpperCase())}
             aria-invalid={errors.pan !== null}
             aria-label="Vendor PAN"
-            className="mono-cell"
           />
         </FieldRow>
         <FieldRow label="HSN/SAC">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.hsn}
             onChange={(event) => onChange("hsn", event.target.value)}
             aria-label="HSN or SAC"
@@ -154,6 +158,7 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         <FieldRow label="IRN">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.irn}
             onChange={(event) => onChange("irn", event.target.value)}
             aria-label="IRN"
@@ -162,6 +167,7 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         <FieldRow label="GL code">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.glCode}
             onChange={(event) => onChange("glCode", event.target.value)}
             aria-label="GL code"
@@ -170,6 +176,7 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         <FieldRow label="GL name">
           <input
             type="text"
+            className="kv-input"
             value={draft.glName}
             onChange={(event) => onChange("glName", event.target.value)}
             aria-label="GL name"
@@ -178,6 +185,7 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         <FieldRow label="TDS section">
           <input
             type="text"
+            className="kv-input mono"
             value={draft.tdsSection}
             onChange={(event) => onChange("tdsSection", event.target.value)}
             aria-label="TDS section"
@@ -200,7 +208,7 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         </div>
       </div>
 
-      <footer className="invoice-fields-footer">
+      <div className="invoice-fields-footer">
         {edit.error ? <span className="invoice-field-error">{edit.error}</span> : null}
         <button
           type="button"
@@ -210,16 +218,16 @@ export function InvoiceFieldsPanel({ invoice, onSaved }: InvoiceFieldsPanelProps
         >
           {edit.isSaving ? "Saving…" : "Save changes"}
         </button>
-      </footer>
+      </div>
     </section>
   );
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="invoice-field-row">
-      <span className="invoice-field-label">{label}</span>
-      <span className="invoice-field-input">{children}</span>
+    <label className="kv">
+      <span className="kv-label">{label}</span>
+      {children}
     </label>
   );
 }
